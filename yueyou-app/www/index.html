@@ -57,8 +57,7 @@
                 </div>
             </div>
 
-            <footer class="bottom-controls"
-                style="width:100%; display:flex; flex-direction:column; gap:15px; padding-bottom:15px;">
+                <footer class="bottom-controls">
                 <div class="item-bar hidden" id="item-bar">
                     <div class="item-slot" id="item-clear">
                         🧹 降维打击 <span class="help-icon"
@@ -68,32 +67,22 @@
                         🔄 时间回溯 <span class="help-icon" onclick="event.stopPropagation(); window._showToast('强制翻转当前维度，在熵减与重构阶段间切换')">?</span>
                         <span class="count">1</span></div>
                 </div>
-                <div class="msg-scroller" style="width: 100%;">
+                <div class="msg-scroller">
                     <p id="game-hint">滑动手势以操纵数字物质...</p>
                 </div>
 
-                <!-- 底部交互栏 (解决重叠与紧凑问题) -->
-                <div
-                    style="display:flex; justify-content:space-between; align-items:flex-end; width:100%; margin-top: 5px;">
-                    <div style="display:flex; flex-direction:column; justify-content:flex-end; gap: 10px;">
-                        <button id="restart-btn" class="text-link" style="margin:0; text-align: left;">返回初始
-                            (重构时间线)</button>
-                    </div>
+                <!-- 底部交互栏 -->
+                <div class="bottom-nav-bar">
+                    <button id="restart-btn" class="text-link">返回初始 (重构时间线)</button>
 
-                    <!-- 智能旁白控制 (非固定浮层，随容器自动流转) -->
-                    <div id="mini-player"
-                        style="background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 8px 15px; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-                        <div id="player-status-icon"
-                            style="width: 25px; height: 25px; border-radius: 50%; background: var(--accent-pink); display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                            ⏸</div>
-                        <div id="player-info" style="display: flex; flex-direction: column; cursor: pointer;">
-                            <span id="player-title"
-                                style="font-size: 12px; font-weight: 800; color: #fff;">待加载...</span>
-                            <span id="player-chapter"
-                                style="font-size: 10px; color: var(--accent-cyan); opacity: 0.8;">加载中</span>
+                    <!-- 智能旁白控制 -->
+                    <div id="mini-player" class="cyber-player">
+                        <div id="player-status-icon" class="player-icon">⏸</div>
+                        <div id="player-info" class="player-info-text">
+                            <span id="player-title">待加载...</span>
+                            <span id="player-chapter">加载中</span>
                         </div>
-                        <button id="player-mute-btn"
-                            style="background: none; border: none; color: #fff; opacity: 0.8; cursor: pointer; font-size: 14px; margin-left:2px;">🔊</button>
+                        <button id="player-mute-btn" class="player-mute">🔊</button>
                     </div>
                 </div>
 
