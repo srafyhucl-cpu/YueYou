@@ -4,34 +4,28 @@ import (
 	"log"
 	"time"
 
+	"2048-go/handlers"
+	"2048-go/models"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-// ======================================
-// 应用入口 (main.go)
-// 职责：初始化服务、注册路由、启动服务器
-// 业务逻辑请勿写在此文件
-// ======================================
-
 func main() {
 	// 1. 初始化数据库
-	initDB()
-	defer db.Close()
+	models.InitDB()
+	defer models.DB.Close()
 
 	// 2. 创建 Gin 引擎
 	r := gin.Default()
 
-	// 3. 配置 CORS（白名单制，详见 Task 1.2）
+	// 3. 配置 CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
-			"capacitor://localhost", // Android/iOS WebView（APK 内嵌模式）
-			"http://localhost",      // 本地开发
-			"http://localhost:3000", // 本地开发端口
-			"http://localhost:8080", // 本地开发端口
-			"http://localhost:5173", // Vite 开发服务器
-			// 部署上线后在此添加正式域名，例如：
-			// "https://yueyou.yourdomain.com",
+			"capacitor://localhost",
+			"http://localhost",
+			"http://localhost:3000",
+			"http://localhost:8080",
+			"http://localhost:5173",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
@@ -50,25 +44,23 @@ func main() {
 	}
 }
 
-// registerRoutes 集中注册所有路由
-// 新增接口时，请在此处添加路由，Handler 实现放到对应的 handlers_*.go 文件
 func registerRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	{
 		// --- 认证相关（无需 JWT）---
-		api.POST("/auth/register", HandleRegister)
-		api.POST("/auth/login", HandleLogin)
+		api.POST("/auth/register", handlers.HandleRegister)
+		api.POST("/auth/login", handlers.HandleLogin)
 
 		// --- 需要 JWT 鉴权的接口 ---
-		auth := api.Group("/", AuthMiddleware())
+		auth := api.Group("/", handlers.AuthMiddleware())
 		{
-			auth.GET("/state/load", LoadState)
-			auth.POST("/state/save", SaveState)
-			auth.POST("/novel/upload", UploadNovel)
+			auth.GET("/state/load", handlers.LoadState)
+			auth.POST("/state/save", handlers.SaveState)
+			auth.POST("/novel/upload", handlers.UploadNovel)
 		}
 
 		// --- 公共书架（无需 JWT）---
-		api.GET("/novels", GetNovels)
-		api.GET("/novel/:id", GetNovelContent)
+		api.GET("/novels", handlers.GetNovels)
+		api.GET("/novel/:id", handlers.GetNovelContent)
 	}
 }

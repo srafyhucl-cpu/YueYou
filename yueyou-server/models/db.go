@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"database/sql"
@@ -7,17 +7,19 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var db *sql.DB
+// DB 全局数据库对象
+var DB *sql.DB
 
-func initDB() {
+// InitDB 初始化数据库并创建表
+func InitDB() {
 	var err error
-	db, err = sql.Open("sqlite", "2048.db")
+	DB, err = sql.Open("sqlite", "2048.db")
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
 	}
 
 	// 开启 WAL 模式提升并发写入性能
-	_, err = db.Exec(`PRAGMA journal_mode = WAL;`)
+	_, err = DB.Exec(`PRAGMA journal_mode = WAL;`)
 	if err != nil {
 		log.Printf("Failed to set PRAGMA journal_mode: %v", err)
 	}
@@ -59,19 +61,19 @@ func initDB() {
 	);
 	`
 
-	_, err = db.Exec(createTables)
+	_, err = DB.Exec(createTables)
 	if err != nil {
 		log.Fatalf("Failed to create tables: %v", err)
 	}
 
 	// 兼容老的数据库，尝试加入新字段
-	_, _ = db.Exec("ALTER TABLE game_states ADD COLUMN current_novel_id INTEGER NOT NULL DEFAULT 1")
-	_, _ = db.Exec("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''")
-	_, _ = db.Exec("ALTER TABLE novels ADD COLUMN total_paragraphs INTEGER NOT NULL DEFAULT 0")
+	_, _ = DB.Exec("ALTER TABLE game_states ADD COLUMN current_novel_id INTEGER NOT NULL DEFAULT 1")
+	_, _ = DB.Exec("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''")
+	_, _ = DB.Exec("ALTER TABLE novels ADD COLUMN total_paragraphs INTEGER NOT NULL DEFAULT 0")
 
 	// 初始化一个默认小说（如果没有的话）
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM novels").Scan(&count)
+	DB.QueryRow("SELECT COUNT(*) FROM novels").Scan(&count)
 	if count == 0 {
 		defaultContent := `[
 			{"v": "zh-CN-YunyangNeural", "t": "东汉末年，天下大乱。黄巾贼寇四起，百姓流离失所。朝廷张榜招募义兵，有志之士纷纷响应。"},
@@ -91,12 +93,12 @@ func initDB() {
 			{"v": "zh-CN-YunxiNeural", "t": "皇天后土，实鉴此心。背义忘恩，天人共戮！"},
 			{"v": "zh-CN-YunyangNeural", "t": "誓毕，拜刘备为兄，关羽次之，张飞为弟。桃园春风浩荡，三人从此肝胆相照，共赴天下。"},
 			{"v": "zh-CN-YunxiaNeural", "t": "大哥二哥！我张飞散尽家财，招得乡勇三百余人。刀枪剑戟，样样齐全。随时可以出发！"},
-			{"v": "zh-CN-YunjianNeural", "t": "兄长放心。关某虽一介武夫，但既已结义，便当以性命相报。刀山火海，在所不辞。"},
+			{"v": "zh-CN-YunjianNeural", "t": "兄长放心。关某虽一介武夫，但既已结义，便当以性命相报。刀山火海，在所不辞任务。"},
 			{"v": "zh-CN-YunxiNeural", "t": "有二位贤弟相助，何愁大事不成？今日出发，破黄巾，安社稷，还天下一个太平！"},
 			{"v": "zh-CN-YunyangNeural", "t": "桃花纷飞之中，三骑绝尘而去。自此，刘关张三兄弟的传奇，正式拉开了波澜壮阔的序幕。后人有诗赞曰：英雄露颖在今朝，一试矛兮一试刀。初出便将威力展，三分好把姓名标。"}
 		]`
-		db.Exec("INSERT INTO users (id, phone) VALUES (1, 'system') ON CONFLICT DO NOTHING")
-		db.Exec("INSERT INTO novels (id, title, content_json, total_paragraphs, uploader_id) VALUES (1, '三国演义·桃园结义片段', ?, 20, 1)", defaultContent)
+		DB.Exec("INSERT INTO users (id, phone) VALUES (1, 'system') ON CONFLICT DO NOTHING")
+		DB.Exec("INSERT INTO novels (id, title, content_json, total_paragraphs, uploader_id) VALUES (1, '三国演义·桃园结义片段', ?, 20, 1)", defaultContent)
 	}
 
 	log.Println("Database initialized successfully.")

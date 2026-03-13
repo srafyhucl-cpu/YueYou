@@ -1,16 +1,12 @@
-package main
+package handlers
 
 import (
 	"database/sql"
 	"net/http"
 
+	"2048-go/models"
 	"github.com/gin-gonic/gin"
 )
-
-// ======================================
-// 游戏状态存取 Handler (state.go)
-// 职责：处理游戏进度的云端保存与读取
-// ======================================
 
 // SaveStateReq 游戏状态保存请求体
 type SaveStateReq struct {
@@ -20,7 +16,7 @@ type SaveStateReq struct {
 	CurrentNovelID int    `json:"current_novel_id"`
 }
 
-// SaveState 保存当前用户的游戏进度（UPSERT 覆盖更新）
+// SaveState 保存当前用户的游戏进度
 func SaveState(c *gin.Context) {
 	userID := int(c.GetInt64("user_id"))
 
@@ -30,8 +26,7 @@ func SaveState(c *gin.Context) {
 		return
 	}
 
-	// SQLite 原生 UPSERT：存在则覆盖，不存在则插入
-	stmt, err := db.Prepare(`
+	stmt, err := models.DB.Prepare(`
 		INSERT INTO game_states (user_id, board_data, score, novel_index, current_novel_id, updated_at) 
 		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(user_id) DO UPDATE SET 
@@ -63,7 +58,7 @@ func LoadState(c *gin.Context) {
 	var score, novelIndex, currentNovelID int
 	var novelTitle string
 
-	err := db.QueryRow(`
+	err := models.DB.QueryRow(`
 		SELECT g.board_data, g.score, g.novel_index, g.current_novel_id, COALESCE(n.title, '三国演义·桃园结义片段')
 		FROM game_states g
 		LEFT JOIN novels n ON g.current_novel_id = n.id
@@ -72,7 +67,6 @@ func LoadState(c *gin.Context) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			// 新用户，返回默认初始值
 			SuccessResponse(c, gin.H{
 				"found":            false,
 				"novel_index":      0,

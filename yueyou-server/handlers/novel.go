@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -9,13 +9,12 @@ import (
 	"regexp"
 	"strings"
 
+	"2048-go/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var validTextRegexp = regexp.MustCompile(`[\p{L}\p{N}\p{Han}]`) // 匹配必须包含字母、数字或汉字
-
-// ========= Public Library API =========
+var validTextRegexp = regexp.MustCompile(`[\p{L}\p{N}\p{Han}]`)
 
 // NovelInfo 小说列表简要信息
 type NovelInfo struct {
@@ -24,7 +23,7 @@ type NovelInfo struct {
 	UploaderID      int    `json:"uploader_id"`
 	TotalParagraphs int    `json:"total_paragraphs"`
 	HistoryIndex    int    `json:"history_index"`
-	Uploader        string `json:"uploader"` // 脱敏后的手机号
+	Uploader        string `json:"uploader"`
 	CreatedAt       string `json:"created_at"`
 }
 
@@ -35,7 +34,7 @@ func GetNovels(c *gin.Context) {
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		token, _ := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+			return JwtSecret, nil
 		})
 		if token != nil && token.Valid {
 			if claims, ok := token.Claims.(jwt.MapClaims); ok && claims["user_id"] != nil {
@@ -46,8 +45,7 @@ func GetNovels(c *gin.Context) {
 		}
 	}
 
-	// 联合查询
-	rows, err := db.Query(`
+	rows, err := models.DB.Query(`
 		SELECT n.id, n.title, n.uploader_id, n.total_paragraphs, n.created_at, u.phone, COALESCE(p.paragraph_index, 0)
 		FROM novels n
 		LEFT JOIN users u ON n.uploader_id = u.id
@@ -69,7 +67,6 @@ func GetNovels(c *gin.Context) {
 			continue
 		}
 
-		// 脱敏处理
 		if phone.Valid && len(phone.String) >= 11 {
 			n.Uploader = phone.String[:3] + "****" + phone.String[7:]
 		} else if phone.Valid {
@@ -77,20 +74,18 @@ func GetNovels(c *gin.Context) {
 		} else {
 			n.Uploader = "System"
 		}
-
 		novels = append(novels, n)
 	}
-
 	SuccessResponse(c, novels)
 }
 
-// Paragraph 格式，与前端要求相匹配
+// Paragraph 格式
 type Paragraph struct {
-	V string `json:"v"` // voice
-	T string `json:"t"` // text
+	V string `json:"v"`
+	T string `json:"t"`
 }
 
-// UploadNovel 上传 TXT 并防御查重
+// UploadNovel 上传 TXT
 func UploadNovel(c *gin.Context) {
 	userID := int(c.GetInt64("user_id"))
 
@@ -100,9 +95,8 @@ func UploadNovel(c *gin.Context) {
 		return
 	}
 
-	// 1. 查重防御 - 全局共享书库名不得重复
 	var existingID int
-	err := db.QueryRow("SELECT id FROM novels WHERE title = ?", title).Scan(&existingID)
+	err := models.DB.QueryRow("SELECT id FROM novels WHERE title = ?", title).Scan(&existingID)
 	if err != sql.ErrNoRows {
 		if err == nil {
 			ErrorResponse(c, http.StatusConflict, "书库中已有该小说，请直接在书架中选择")
@@ -112,7 +106,6 @@ func UploadNovel(c *gin.Context) {
 		return
 	}
 
-	// 2. 接收 TXT 文件
 	file, err := c.FormFile("file")
 	if err != nil {
 		ErrorResponse(c, http.StatusBadRequest, "文件上传失败或未选择文件")
@@ -132,7 +125,6 @@ func UploadNovel(c *gin.Context) {
 		return
 	}
 
-	// 3. 简单清洗和按段落分割为 JSON
 	text := string(contentBytes)
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	rawParagraphs := strings.Split(text, "\n")
@@ -141,7 +133,6 @@ func UploadNovel(c *gin.Context) {
 	for _, p := range rawParagraphs {
 		cleanP := strings.TrimSpace(p)
 		if len(cleanP) > 0 {
-			// 如果至少包含一个有效汉字或英数（过滤掉诸如 "---", "***" 或者全是标点的无意义段落）
 			if validTextRegexp.MatchString(cleanP) {
 				paragraphs = append(paragraphs, Paragraph{
 					V: "zh-CN-YunyangNeural",
@@ -158,8 +149,7 @@ func UploadNovel(c *gin.Context) {
 
 	jsonBytes, _ := json.Marshal(paragraphs)
 
-	// 4. 插入公共书库
-	_, err = db.Exec("INSERT INTO novels (title, content_json, total_paragraphs, uploader_id) VALUES (?, ?, ?, ?)", title, string(jsonBytes), len(paragraphs), userID)
+	_, err = models.DB.Exec("INSERT INTO novels (title, content_json, total_paragraphs, uploader_id) VALUES (?, ?, ?, ?)", title, string(jsonBytes), len(paragraphs), userID)
 	if err != nil {
 		ErrorResponse(c, http.StatusInternalServerError, "保存小说到书库失败")
 		return
@@ -173,7 +163,7 @@ func GetNovelContent(c *gin.Context) {
 	novelID := c.Param("id")
 
 	var contentJson string
-	err := db.QueryRow("SELECT content_json FROM novels WHERE id = ?", novelID).Scan(&contentJson)
+	err := models.DB.QueryRow("SELECT content_json FROM novels WHERE id = ?", novelID).Scan(&contentJson)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ErrorResponse(c, http.StatusNotFound, "未找到该小说")

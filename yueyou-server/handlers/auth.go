@@ -1,19 +1,15 @@
-package main
+package handlers
 
 import (
 	"net/http"
 	"strings"
 	"time"
 
+	"2048-go/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// ======================================
-// 认证 Handler (handlers_auth.go)
-// 职责：处理用户注册与登录，签发 JWT
-// ======================================
 
 // AuthRequest 注册/登录请求体
 type AuthRequest struct {
@@ -21,7 +17,7 @@ type AuthRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// HandleRegister 手机号 + 密码注册，注册成功后自动签发 JWT
+// HandleRegister 手机号 + 密码注册
 func HandleRegister(c *gin.Context) {
 	var req AuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,9 +35,8 @@ func HandleRegister(c *gin.Context) {
 		return
 	}
 
-	// 查重
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM users WHERE phone = ?", phone).Scan(&count); err != nil {
+	if err := models.DB.QueryRow("SELECT COUNT(*) FROM users WHERE phone = ?", phone).Scan(&count); err != nil {
 		ErrorResponse(c, http.StatusInternalServerError, "数据库错误")
 		return
 	}
@@ -50,14 +45,13 @@ func HandleRegister(c *gin.Context) {
 		return
 	}
 
-	// Bcrypt 哈希密码
 	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		ErrorResponse(c, http.StatusInternalServerError, "密码加密失败")
 		return
 	}
 
-	res, err := db.Exec("INSERT INTO users (phone, password_hash) VALUES (?, ?)", phone, string(hashedBytes))
+	res, err := models.DB.Exec("INSERT INTO users (phone, password_hash) VALUES (?, ?)", phone, string(hashedBytes))
 	if err != nil {
 		ErrorResponse(c, http.StatusInternalServerError, "创建用户失败")
 		return
@@ -65,7 +59,6 @@ func HandleRegister(c *gin.Context) {
 
 	userID, _ := res.LastInsertId()
 
-	// 注册成功后自动签发 JWT，免去二次登录
 	tokenString, err := signJWT(userID)
 	if err != nil {
 		ErrorResponse(c, http.StatusInternalServerError, "Token 签发失败")
@@ -90,7 +83,7 @@ func HandleLogin(c *gin.Context) {
 
 	var userID int64
 	var hash string
-	err := db.QueryRow("SELECT id, password_hash FROM users WHERE phone = ?", phone).Scan(&userID, &hash)
+	err := models.DB.QueryRow("SELECT id, password_hash FROM users WHERE phone = ?", phone).Scan(&userID, &hash)
 	if err != nil {
 		ErrorResponse(c, http.StatusUnauthorized, "用户不存在或手机号错误")
 		return
@@ -101,7 +94,6 @@ func HandleLogin(c *gin.Context) {
 		return
 	}
 
-	// Bcrypt 校验密码
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)); err != nil {
 		ErrorResponse(c, http.StatusUnauthorized, "密码错误")
 		return
@@ -119,11 +111,10 @@ func HandleLogin(c *gin.Context) {
 	})
 }
 
-// signJWT 内部工具：生成有效期 7 天的 JWT
 func signJWT(userID int64) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
 	})
-	return token.SignedString(jwtSecret)
+	return token.SignedString(JwtSecret)
 }

@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"net/http"
@@ -6,12 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ======================================
-// 统一 HTTP 响应工具 (utils_response.go)
-// ======================================
-
 // ErrorResponse 统一的错误响应格式
-// 前端依赖解析 json 中的 "error" 字段来获取错误提示，因此保持该结构
 func ErrorResponse(c *gin.Context, httpStatus int, message string) {
 	c.JSON(httpStatus, gin.H{"error": message})
 }

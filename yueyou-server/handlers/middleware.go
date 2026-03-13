@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"net/http"
@@ -8,15 +8,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// ======================================
-// JWT 鉴权中间件 (middleware_auth.go)
-// 职责：校验请求头中的 Bearer Token，
-//       将解析出的 user_id 注入到请求上下文
-// ======================================
-
-// jwtSecret JWT 签名密钥
-// ⚠️ 生产环境应从环境变量或配置文件读取，禁止硬编码
-var jwtSecret = []byte("2048-infinite-loop-secret-key")
+// JwtSecret JWT 签名密钥
+var JwtSecret = []byte("2048-infinite-loop-secret-key")
 
 // AuthMiddleware JWT 鉴权中间件
 func AuthMiddleware() gin.HandlerFunc {
@@ -33,7 +26,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return jwtSecret, nil
+			return JwtSecret, nil
 		})
 
 		if err != nil || !token.Valid {
