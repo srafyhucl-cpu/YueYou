@@ -1,0 +1,16 @@
+{
+  "name": "阅游",
+  "short_name": "阅游",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d0d12",
+  "theme_color": "#0d0d12",
+  "description": "Premium 2048 Game with Glow Effects",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+/* 进阶模式专用样式 - 强制渲染修正版 */
+:root {
+    --anchor-glow: 0 0 30px rgba(255, 255, 255, 0.5);
+    --phase-disassemble-bg: rgba(0, 150, 255, 0.15);
+}
+
+/* 锚点方块特效 - 5x5中心点专用 */
+.tile-anchor {
+    background: radial-gradient(circle, #fff, #333) !important;
+    box-shadow: var(--anchor-glow), inset 0 0 15px rgba(0, 0, 0, 0.9) !important;
+    z-index: 100 !important;
+    animation: anchorPulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: 2px solid #fff;
+}
+
+@keyframes anchorPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        filter: brightness(1.2) drop-shadow(0 0 10px #fff);
+    }
+
+    50% {
+        transform: scale(1.08);
+        filter: brightness(1.6) drop-shadow(0 0 25px #fff);
+    }
+}
+
+/* 5x5 网格自适应设定 */
+.mode-loop .game-container {
+    grid-template-columns: repeat(5, 1fr) !important;
+    grid-template-rows: repeat(5, 1fr) !important;
+}
+
+.mode-loop .grid-cell,
+.mode-loop .tile {
+    width: calc(20% - 10px) !important;
+    height: calc(20% - 10px) !important;
+}
+
+/* 进度条样式 */
+.status-panel {
+    padding: 15px 0;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    margin-bottom: 10px;
+}
+
+.progress-bar-container {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    margin-top: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ec4899, #8b5cf6, #22d3ee);
+    background-size: 200% 200%;
+    animation: progressMoving 3s linear infinite;
+    transition: width 0.6s ease-out;
+}
+
+@keyframes progressMoving {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+/* 道具栏增强 */
+.item-bar {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    padding: 12px;
+    background: rgba(13, 13, 18, 0.6);
+    backdrop-filter: blur(15px);
+    border-radius: 15px;
+    margin-bottom: 10px;
+}
+
+.item-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.item-slot .count {
+    font-size: 14px;
+    font-weight: 800;
+    color: #ec4899;
+}
+
+/* 排行榜专用样式 */
+.rank-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.val {
+    color: #ec4899;
+    font-weight: bold;
+}

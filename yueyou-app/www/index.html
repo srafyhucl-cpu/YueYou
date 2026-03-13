@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>2048 Neon: 无限闭环 (Final Cloud)</title>
+    <!-- 使用单一全量 CSS，杜绝 404 -->
+    <link rel="stylesheet" href="style.css">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0d0d12">
+    <!-- 应用 SDK -->
+</head>
+
+<body class="theme-wuxia">
+    <div id="ambient-visualizer"></div>
+    <div id="app" class="mode-standard">
+        <div id="game-viewport">
+            <header class="top-nav">
+                <div class="local-badge">
+                    <span class="pulse-dot"></span>
+                    <span class="badge-text" id="display-name">本地观测者</span>
+                </div>
+                <div class="nav-actions">
+                    <button class="icon-btn glow-btn hidden" id="btn-admin">📡 控制台</button>
+                    <button class="icon-btn highlight-btn" id="btn-library">📚 图书馆</button>
+                    <button class="icon-btn highlight-btn" id="btn-leaderboard">🌌 星图</button>
+                    <button class="icon-btn outline-btn" id="btn-settings">⚙️ 设置</button>
+                </div>
+            </header>
+
+            <div class="status-panel">
+                <div class="hud-corner-indicator"><span class="hud-dot"></span> SYNC: LOCAL</div>
+                <div class="phase-indicator">
+                    <div class="phase-badge"><span id="phase-tag">CLASSIC</span></div>
+                    <span id="phase-label">初始维度：冲击 2048</span>
+                    <div class="progress-bar-container">
+                        <div id="phase-progress" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">能量值: <span id="score">0</span><span class="stat-label-hud">[ENTROPY LEVEL]</span></div>
+                    <div class="stat-item" id="combo-display" style="color:#fbbf24; opacity:0; transition:0.2s;">COMBO
+                        x2</div>
+                    <div class="stat-item">峰值: <span id="best-score">0</span><span class="stat-label-hud">[MAX DIMENSION]</span></div>
+                </div>
+            </div>
+
+            <div class="game-view">
+                <div class="game-container" id="grid-container">
+                    <div id="grid-bg"></div>
+                    <div class="tile-container" id="tile-container"></div>
+                    <div class="effects-container" id="effects-container"></div>
+                </div>
+            </div>
+
+            <footer class="bottom-controls"
+                style="width:100%; display:flex; flex-direction:column; gap:15px; padding-bottom:15px;">
+                <div class="item-bar hidden" id="item-bar">
+                    <div class="item-slot" id="item-clear">
+                        🧹 降维打击 <span class="help-icon"
+                            onclick="event.stopPropagation(); window._showToast('点击此道具后，再点击棋盘上的任意方块即可将其彻底抹除')">?</span> <span
+                            class="count">3</span></div>
+                    <div class="item-slot" id="item-reverse">
+                        🔄 时间回溯 <span class="help-icon" onclick="event.stopPropagation(); window._showToast('强制翻转当前维度，在熵减与重构阶段间切换')">?</span>
+                        <span class="count">1</span></div>
+                </div>
+                <div class="msg-scroller" style="width: 100%;">
+                    <p id="game-hint">滑动手势以操纵数字物质...</p>
+                </div>
+
+                <!-- 底部交互栏 (解决重叠与紧凑问题) -->
+                <div
+                    style="display:flex; justify-content:space-between; align-items:flex-end; width:100%; margin-top: 5px;">
+                    <div style="display:flex; flex-direction:column; justify-content:flex-end; gap: 10px;">
+                        <button id="restart-btn" class="text-link" style="margin:0; text-align: left;">返回初始
+                            (重构时间线)</button>
+                    </div>
+
+                    <!-- 智能旁白控制 (非固定浮层，随容器自动流转) -->
+                    <div id="mini-player"
+                        style="background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 8px 15px; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                        <div id="player-status-icon"
+                            style="width: 25px; height: 25px; border-radius: 50%; background: var(--accent-pink); display: flex; align-items: center; justify-content: center; font-size: 12px;">
+                            ⏸</div>
+                        <div id="player-info" style="display: flex; flex-direction: column; cursor: pointer;">
+                            <span id="player-title"
+                                style="font-size: 12px; font-weight: 800; color: #fff;">待加载...</span>
+                            <span id="player-chapter"
+                                style="font-size: 10px; color: var(--accent-cyan); opacity: 0.8;">加载中</span>
+                        </div>
+                        <button id="player-mute-btn"
+                            style="background: none; border: none; color: #fff; opacity: 0.8; cursor: pointer; font-size: 14px; margin-left:2px;">🔊</button>
+                    </div>
+                </div>
+
+                <!-- 底部休眠态占位 -->
+                <div id="player-idle-state" class="cyber-idle">
+                    <div class="idle-text">AWAITING DATA IMPRINT</div>
+                    <div class="idle-sub">等待神经数据接入...</div>
+                    <button class="idle-import-btn" id="btn-idle-import">+ 导入本地档案</button>
+                </div>
+            </footer>
+        </div>
+
+        <!-- 阶段通关大弹窗 (新) -->
+        <div id="modal-phase-success" class="modal-overlay hidden">
+            <div class="modal success-modal">
+                <div class="success-icon">✨</div>
+                <h2 id="success-title">维度跨越成功！</h2>
+                <p id="success-msg">你已经证明了对数字的绝对支配。</p>
+                <div class="phase-description">
+                    <span class="label">下一阶段规则：</span>
+                    <p id="next-phase-info">点击下方按钮正式切入新的维度规则。</p>
+                </div>
+                <button class="btn primary-btn pulse-btn" id="btn-next-phase">正式切入</button>
+            </div>
+        </div>
+
+        <!-- 管理与榜单弹窗（保持原有 ID） -->
+        <div id="admin-panel" class="modal-overlay hidden">
+            <div class="modal admin-modal">
+                <h3>🛠️ 维度控制器 (DEVELOPER)</h3>
+                <div class="admin-grid">
+                    <button onclick="window.admin.jump('classic')" class="admin-btn">1️⃣ 经典阶段</button>
+                    <button onclick="window.admin.jump('loop_1')" class="admin-btn">2️⃣ 拆解阶段</button>
+                    <button onclick="window.admin.jump('loop_2')" class="admin-btn">3️⃣ 重构阶段</button>
+                    <button onclick="window.admin.jump('fast_win')" class="admin-btn">👑 快速登神</button>
+                </div>
+                <div class="admin-actions">
+                    <button onclick="window.admin.addItems()" class="btn">补满道具</button>
+                    <button onclick="window.admin.clearBoard()" class="btn">清空棋盘</button>
+                </div>
+                <button class="btn accent-btn"
+                    onclick="document.getElementById('admin-panel').classList.add('hidden')">关闭控制台</button>
+            </div>
+        </div>
+
+        <div id="modal-leaderboard" class="modal-overlay hidden">
+            <div class="modal">
+                <h3>🌌 全球天梯</h3>
+                <div id="leaderboard-content" class="leaderboard-list">
+                    <p style="text-align:center;">同步中...</p>
+                </div>
+                <button id="close-leaderboard" class="btn outline-btn" style="width:100%">返回</button>
+            </div>
+        </div>
+
+
+
+        <!-- 悬浮播放器 - 移动到了 bottom-controls 内部 -->
+
+        <!-- 设置弹窗 -->
+        <div id="modal-settings" class="modal-overlay hidden">
+            <div class="modal">
+                <h3>⚙️ 维度设置</h3>
+                <div style="display:flex; flex-direction:column; gap: 15px; margin: 20px 0;">
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <span style="font-weight: 800;">🎵 水滴音效 <span class="help-icon"
+                                onclick="event.stopPropagation(); window._showToast('开启/关闭游戏内的合成音效与按钮反馈音')">?</span></span>
+                        <label style="display:flex; align-items:center; cursor:pointer;">
+                            <input type="checkbox" id="toggle-sound" style="width:20px; height:20px;">
+                        </label>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <span style="font-weight: 800;">📳 维度震动 <span class="help-icon"
+                                onclick="event.stopPropagation(); window._showToast('合成高级方块时手机会产生物理震动（需设备支持）')">?</span></span>
+                        <label style="display:flex; align-items:center; cursor:pointer;">
+                            <input type="checkbox" id="toggle-vibration" style="width:20px; height:20px;">
+                        </label>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <span style="font-weight: 800;">📖 自动语音 (TTS) <span class="help-icon"
+                                onclick="event.stopPropagation(); window._showToast('开启后，导入的小说将自动进行语音播报')">?</span></span>
+                        <label style="display:flex; align-items:center; cursor:pointer;">
+                            <input type="checkbox" id="toggle-story" style="width:20px; height:20px;">
+                        </label>
+                    </div>
+                    <div
+                        style="display:flex; flex-direction:column; gap:8px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight: 800;">🌊 环境音景 <span class="help-icon"
+                                    onclick="event.stopPropagation(); window._showToast('选择不同的程序化沉浸式背景声场')">?</span></span>
+                            <span id="ambient-vol-label" style="font-size:12px; color:rgba(255,255,255,0.5);">50% <span
+                                    class="help-icon" onclick="event.stopPropagation(); window._showToast('调节底层白噪音与环境氛围音的音量')">?</span></span>
+                        </div>
+                        <select id="ambient-theme" class="cyber-select" style="margin-bottom: 5px;">
+                            <option value="rain">赛博暗雨</option>
+                            <option value="wuxia">竹林风与远笛(武侠)</option>
+                            <option value="relax">云端冥想(轻松)</option>
+                        </select>
+                        <input type="range" id="ambient-volume" min="0" max="1" step="0.01" value="0.5"
+                            style="width:100%; accent-color: var(--accent-pink);"
+                            oninput="document.getElementById('ambient-vol-label').innerText = Math.round(this.value*100)+'%'">
+                    </div>
+                    <div
+                        style="display:flex; flex-direction:column; gap:8px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight: 800;">⏳ 自动停止朗读 <span class="help-icon"
+                                    onclick="event.stopPropagation(); window._showToast('长时间未滑动屏幕后，自动暂停朗读以节省电量')">?</span></span>
+                            <span id="idle-timeout-label" style="font-size:12px; color:rgba(255,255,255,0.5);">1
+                                分钟</span>
+                        </div>
+                        <input type="range" id="idle-timeout" min="0" max="60" step="1" value="1"
+                            style="width:100%; accent-color: var(--accent-pink);"
+                            oninput="document.getElementById('idle-timeout-label').innerText = this.value == 0 ? '永不停止' : this.value + ' 分钟'">
+                    </div>
+                </div>
+                <button id="close-settings" class="btn outline-btn" style="width:100%">保存返回</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN" target="_blank" id="btn-view-privacy"
+                        class="setting-link-btn">查看《隐私政策》与《用户协议》</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图书馆弹窗 -->
+        <div id="modal-library" class="modal-overlay hidden">
+            <div class="modal"
+                style="width: 90%; max-height: 85vh; display: flex; flex-direction: column; background: var(--glass-bg); padding: 25px; border-radius: 20px;">
+                <h3 style="margin-bottom: 8px;">📚 本地书架</h3>
+                <p style="margin-bottom: 20px; color: rgba(255,255,255,0.6); font-size: 13px;">纯本地解析，数据仅保存在当前设备</p>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <label class="btn primary-btn"
+                        style="padding: 12px 15px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%;">
+                        <span style="font-size: 16px;">📂 导入本地 TXT 小说</span>
+                        <input type="file" id="upload-novel-file" accept=".txt" style="display:none;">
+                    </label>
+                </div>
+
+                <div id="library-content"
+                    style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; padding-right: 5px;">
+                    <p style="text-align:center; margin-top: 20px; color: rgba(255,255,255,0.5);">目前为单机模式<br>请导入 TXT
+                        文本进行阅读</p>
+                </div>
+                <button id="close-library" class="btn outline-btn"
+                    style="width:100%; margin-top: 20px; border-radius: 12px;">关闭书架</button>
+            </div>
+        </div>
+        <div id="autoplay-mask" class="hidden"
+            style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.85); display:flex; justify-content:center; align-items:center; flex-direction:column;">
+            <div style="font-size: 40px; margin-bottom: 20px;">🎧</div>
+            <button id="btn-unblock-audio" class="btn glow-btn"
+                style="padding: 15px 30px; border-radius: 50px; font-size: 16px; display:flex; align-items:center; gap: 10px;">
+                ▶ 点击开启沉浸环境音
+            </button>
+        </div>
+        <div id="privacy-modal" class="modal-overlay" style="z-index: 9999;">
+            <div class="modal" style="text-align: left;">
+                <h3 style="text-align: center;">服务协议与隐私政策</h3>
+                <div style="font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.8); margin: 20px 0;">
+                    欢迎来到阅游！本应用为纯本地单机工具，无任何后端服务器，您的游戏进度与导入的小说文本均加密存储于本地设备。为实现小说读取功能，我们需要申请【本地存储权限】。请仔细阅读完整版 <a
+                        href="https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN" target="_blank"
+                        style="color: var(--accent-cyan); text-decoration: underline;">《用户协议与隐私政策》</a>。
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button id="btn-privacy-agree" class="btn primary-btn">同意并继续</button>
+                    <button id="btn-privacy-disagree" class="btn outline-btn"
+                        style="opacity: 0.6; font-size: 12px; min-height: 36px;">不同意并退出</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>
