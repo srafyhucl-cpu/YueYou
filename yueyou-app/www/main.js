@@ -1,3 +1,4 @@
+import { AudioManager } from './modules/AudioManager.js';
 ﻿import { GameEngine } from './modules/GameEngine.js';
 import { Renderer } from './modules/Renderer.js';
 import { LocalDB } from './modules/LocalDB.js';
@@ -493,24 +494,8 @@ t = {
           clearTimeout(i._to),
           (i._to = setTimeout(() => (i.style.opacity = "0"), 3e3)));
       }));
-    let h = (f, i = "sine", c = 0.1) => {
-        if (t.sound) {
-          w();
-          try {
-            let a = u.createOscillator(),
-              n = u.createGain();
-            ((a.type = i),
-              (a.frequency.value = f),
-              n.gain.setValueAtTime(0.1, u.currentTime),
-              n.gain.exponentialRampToValueAtTime(1e-4, u.currentTime + c),
-              a.connect(n),
-              n.connect(u.destination),
-              a.start(),
-              a.stop(u.currentTime + c));
-          } catch {}
-        }
-      },
-      E = (f) => {
+    let h = (f, i = 'sine', c = 0.1) => { l.playSimpleSound(f, i, c); };
+      let E = (f) => {
         if (!t.sound) return;
         w();
         let i = [
@@ -537,20 +522,8 @@ t = {
             n.stop(u.currentTime + 0.25));
         } catch {}
       },
-      m = { oscs: [], gains: [], masterGain: null, intervals: [] },
-      M = null,
-      $ = () => {
-        if(m.intervals) m.intervals.forEach(clearInterval);
-        (m.oscs.forEach((f) => {
-          try {
-            f.stop();
-          } catch {}
-        }),
-          (m.oscs = []),
-          (m.gains = []),
-          (m.intervals = []),
-          (M = null));
-      },
+      
+      
       j = (f) => {
         let sig = f + '_' + (t.ambientTheme || 'wuxia');
         if (!t.sound || !u || M === sig) return;
@@ -750,7 +723,7 @@ t = {
         if (c) {
           if ((l.heartbeat(), A(), e.render(p, a), a.length > 0)) {
             let g = Math.max(...a.map((x) => x.value));
-            (E(g),
+            (l.playMergeSound(g),
               t.vibration &&
                 navigator.vibrate &&
                 (g >= 512
@@ -762,7 +735,7 @@ t = {
                       : navigator.vibrate(10)),
               [512, 1024, 2048].includes(g) &&
                 [g * 2, g * 4, g * 8, g * 16].forEach((x, T) =>
-                  setTimeout(() => E(x), T * 150),
+                  setTimeout(() => l.playMergeSound(x), T * 150),
                 ));
           }
           ((p.won || p.phaseJustCleared) &&
