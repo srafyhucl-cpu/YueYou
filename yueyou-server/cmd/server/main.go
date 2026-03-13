@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	"2048-go/handlers"
-	"2048-go/models"
+	"2048-go/internal/handlers"
+	"2048-go/internal/models"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )

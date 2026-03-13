@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"2048-go/models"
+	"2048-go/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
