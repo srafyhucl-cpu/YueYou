@@ -100,9 +100,18 @@ func main() {
 
 	r := gin.Default()
 
-	// 允许跨域请求 (CORS) 供前端浏览器测试访问
+	// 允许跨域请求 (CORS) - 白名单制，禁止使用通配符 *
+	// 注意：AllowCredentials:true 与 AllowOrigins:["*"] 不能共存（浏览器安全规范）
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // 测试环境允许所有
+		AllowOrigins: []string{
+			"capacitor://localhost", // Android/iOS WebView（APK 内嵌模式）
+			"http://localhost",      // 本地开发
+			"http://localhost:3000", // 本地开发端口
+			"http://localhost:8080", // 本地开发端口
+			"http://localhost:5173", // Vite 开发服务器
+			// 部署上线后在此添加正式域名，例如：
+			// "https://yueyou.yourdomain.com",
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
