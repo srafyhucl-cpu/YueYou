@@ -23,7 +23,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "缺少或无效的 Token"})
+			ErrorResponse(c, http.StatusUnauthorized, "缺少或无效的 Token")
 			c.Abort()
 			return
 		}
@@ -37,7 +37,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token 无效或已过期"})
+			ErrorResponse(c, http.StatusUnauthorized, "Token 无效或已过期")
 			c.Abort()
 			return
 		}
@@ -47,7 +47,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Set("user_id", userID)
 			c.Next()
 		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token 解析失败"})
+			ErrorResponse(c, http.StatusUnauthorized, "Token 解析失败")
 			c.Abort()
 		}
 	}

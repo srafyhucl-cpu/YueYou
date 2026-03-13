@@ -26,7 +26,7 @@ func SaveState(c *gin.Context) {
 
 	var req SaveStateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求数据格式不正确"})
+		ErrorResponse(c, http.StatusBadRequest, "请求数据格式不正确")
 		return
 	}
 
@@ -42,17 +42,17 @@ func SaveState(c *gin.Context) {
 			updated_at = CURRENT_TIMESTAMP;
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库预处理失败"})
+		ErrorResponse(c, http.StatusInternalServerError, "数据库预处理失败")
 		return
 	}
 	defer stmt.Close()
 
 	if _, err := stmt.Exec(userID, req.BoardData, req.Score, req.NovelIndex, req.CurrentNovelID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "游戏进度保存失败"})
+		ErrorResponse(c, http.StatusInternalServerError, "游戏进度保存失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	SuccessMessage(c, "ok")
 }
 
 // LoadState 读取当前用户的游戏进度
@@ -73,7 +73,7 @@ func LoadState(c *gin.Context) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// 新用户，返回默认初始值
-			c.JSON(http.StatusOK, gin.H{
+			SuccessResponse(c, gin.H{
 				"found":            false,
 				"novel_index":      0,
 				"current_novel_id": 1,
@@ -81,11 +81,11 @@ func LoadState(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库查询失败"})
+		ErrorResponse(c, http.StatusInternalServerError, "数据库查询失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	SuccessResponse(c, gin.H{
 		"found":            true,
 		"board_data":       boardData,
 		"score":            score,

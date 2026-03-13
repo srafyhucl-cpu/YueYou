@@ -56,7 +56,7 @@ func GetNovels(c *gin.Context) {
 	`, userID)
 	if err != nil {
 		log.Printf("[ERROR] Failed to query novels: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch novels: " + err.Error()})
+		ErrorResponse(c, http.StatusInternalServerError, "获取书库失败: "+err.Error())
 		return
 	}
 	defer rows.Close()
@@ -81,7 +81,7 @@ func GetNovels(c *gin.Context) {
 		novels = append(novels, n)
 	}
 
-	c.JSON(http.StatusOK, novels)
+	SuccessResponse(c, novels)
 }
 
 // Paragraph 格式，与前端要求相匹配
@@ -96,7 +96,7 @@ func UploadNovel(c *gin.Context) {
 
 	title := strings.TrimSpace(c.PostForm("title"))
 	if title == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "小说标题不能为空"})
+		ErrorResponse(c, http.StatusBadRequest, "小说标题不能为空")
 		return
 	}
 
@@ -105,30 +105,30 @@ func UploadNovel(c *gin.Context) {
 	err := db.QueryRow("SELECT id FROM novels WHERE title = ?", title).Scan(&existingID)
 	if err != sql.ErrNoRows {
 		if err == nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "书库中已有该小说，请直接在书架中选择"})
+			ErrorResponse(c, http.StatusConflict, "书库中已有该小说，请直接在书架中选择")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		ErrorResponse(c, http.StatusInternalServerError, "数据库访问错误")
 		return
 	}
 
 	// 2. 接收 TXT 文件
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "文件上传失败或未选择文件"})
+		ErrorResponse(c, http.StatusBadRequest, "文件上传失败或未选择文件")
 		return
 	}
 
 	f, err := file.Open()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法读取文件"})
+		ErrorResponse(c, http.StatusInternalServerError, "无法读取文件")
 		return
 	}
 	defer f.Close()
 
 	contentBytes, err := io.ReadAll(f)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法读取文件内容"})
+		ErrorResponse(c, http.StatusInternalServerError, "无法读取文件内容")
 		return
 	}
 
@@ -152,7 +152,7 @@ func UploadNovel(c *gin.Context) {
 	}
 
 	if len(paragraphs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "文本内容为空或无法识别有效段落"})
+		ErrorResponse(c, http.StatusBadRequest, "文本内容为空或无法识别有效段落")
 		return
 	}
 
@@ -161,11 +161,11 @@ func UploadNovel(c *gin.Context) {
 	// 4. 插入公共书库
 	_, err = db.Exec("INSERT INTO novels (title, content_json, total_paragraphs, uploader_id) VALUES (?, ?, ?, ?)", title, string(jsonBytes), len(paragraphs), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存小说到书库失败"})
+		ErrorResponse(c, http.StatusInternalServerError, "保存小说到书库失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "上传成功并进入公共图书馆"})
+	SuccessMessage(c, "上传成功并进入公共图书馆")
 }
 
 // GetNovelContent 获取指定小说的内容
@@ -176,10 +176,10 @@ func GetNovelContent(c *gin.Context) {
 	err := db.QueryRow("SELECT content_json FROM novels WHERE id = ?", novelID).Scan(&contentJson)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "novel not found"})
+			ErrorResponse(c, http.StatusNotFound, "未找到该小说")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		ErrorResponse(c, http.StatusInternalServerError, "数据库访问错误")
 		return
 	}
 
