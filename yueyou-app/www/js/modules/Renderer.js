@@ -117,7 +117,7 @@ export class Renderer {
     showCombo(e) {
       e < 2 ||
         !this.comboDisplay ||
-        ((this.comboDisplay.innerText = `COMBO x${e}`),
+        ((this.comboDisplay.innerText = `连击 x${e}`),
         (this.comboDisplay.style.opacity = "1"),
         (this.comboDisplay.style.transform = `scale(${1 + Math.min(e, 5) * 0.1})`));
     }
@@ -128,7 +128,7 @@ export class Renderer {
       let s = 0;
       if (e.mode === "loop")
         if (e.phase === "disassemble") {
-          ((this.phaseTag.innerText = "DISASSEMBLE"),
+          ((this.phaseTag.innerText = "拆解阶段"),
             (this.phaseLabel.innerText =
               "\u7B2C\u4E00\u9636\u6BB5\uFF1A\u71B5\u51CF\u62C6\u89E3"));
           let t = 0,
@@ -140,7 +140,7 @@ export class Renderer {
           ),
             (s = t ? (r / t) * 100 : 0));
         } else {
-          ((this.phaseTag.innerText = "REASSEMBLE"),
+          ((this.phaseTag.innerText = "重构阶段"),
             (this.phaseLabel.innerText =
               "\u7B2C\u4E8C\u9636\u6BB5\uFF1A\u7269\u8D28\u91CD\u6784"));
           let t = [
@@ -156,7 +156,7 @@ export class Renderer {
             (s = (r / 4) * 100));
         }
       else
-        ((this.phaseTag.innerText = "CLASSIC"),
+        ((this.phaseTag.innerText = "经典模式"),
           (this.phaseLabel.innerText =
             "\u521D\u59CB\u7EF4\u5EA6\uFF1A\u51B2\u51FB 2048"),
           (()=>{

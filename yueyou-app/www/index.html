@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>2048 Neon: 无限闭环 (Final Cloud)</title>
+    <title>2048 霓虹: 无限闭环 (云端版)</title>
     <!-- 使用单一全量 CSS，杜绝 404 -->
     <link rel="stylesheet" href="css/style.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -33,19 +33,19 @@
             </header>
 
             <div class="status-panel">
-                <div class="hud-corner-indicator"><span class="hud-dot"></span> SYNC: LOCAL</div>
+                <div class="hud-corner-indicator"><span class="hud-dot"></span> 同步状态: 本地</div>
                 <div class="phase-indicator">
-                    <div class="phase-badge"><span id="phase-tag">CLASSIC</span></div>
+                    <div class="phase-badge"><span id="phase-tag">经典模式</span></div>
                     <span id="phase-label">初始维度：冲击 2048</span>
                     <div class="progress-bar-container">
                         <div id="phase-progress" class="progress-fill" style="width: 0%"></div>
                     </div>
                 </div>
                 <div class="stats-grid">
-                    <div class="stat-item">能量值: <span id="score">0</span><span class="stat-label-hud">[ENTROPY LEVEL]</span></div>
-                    <div class="stat-item" id="combo-display" style="color:#fbbf24; opacity:0; transition:0.2s;">COMBO
+                    <div class="stat-item">能量值: <span id="score">0</span><span class="stat-label-hud">[熵级指数]</span></div>
+                    <div class="stat-item" id="combo-display" style="color:#fbbf24; opacity:0; transition:0.2s;">连击
                         x2</div>
-                    <div class="stat-item">峰值: <span id="best-score">0</span><span class="stat-label-hud">[MAX DIMENSION]</span></div>
+                    <div class="stat-item">峰值: <span id="best-score">0</span><span class="stat-label-hud">[最大维度]</span></div>
                 </div>
             </div>
 
@@ -88,7 +88,7 @@
 
                 <!-- 底部休眠态占位 -->
                 <div id="player-idle-state" class="cyber-idle">
-                    <div class="idle-text">AWAITING DATA IMPRINT</div>
+                    <div class="idle-text">等待数据注入</div>
                     <div class="idle-sub">等待神经数据接入...</div>
                     <button class="idle-import-btn" id="btn-idle-import">+ 导入本地档案</button>
                 </div>
@@ -112,7 +112,7 @@
         <!-- 管理与榜单弹窗（保持原有 ID） -->
         <div id="admin-panel" class="modal-overlay hidden">
             <div class="modal admin-modal">
-                <h3>🛠️ 维度控制器 (DEVELOPER)</h3>
+                <h3>🛠️ 维度控制器 (开发者模式)</h3>
                 <div class="admin-grid">
                     <button onclick="window.admin.jump('classic')" class="admin-btn">1️⃣ 经典阶段</button>
                     <button onclick="window.admin.jump('loop_1')" class="admin-btn">2️⃣ 拆解阶段</button>
