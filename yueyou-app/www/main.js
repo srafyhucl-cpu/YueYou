@@ -757,7 +757,7 @@ t = {
           (this.lastActive = Date.now()));
         let i = parseInt(localStorage.getItem("setting_idle_timeout") || "1");
         ((this.idleTimeout = i * 6e4),
-          (this.ttsURL = "http://8.218.177.149:3000/api/v1/tts/createStream"),
+          (this.ttsURL = (typeof AppConfig !== "undefined" ? AppConfig.ttsURL : "http://8.218.177.149:3000/api/v1/tts/createStream")),
           (this.enabled = t.storyTTS),
           (this.loopSession = 1),
           this.initLibrary().then(() => {
