@@ -5,6 +5,7 @@
 
 export class Renderer {
     constructor() {
+      // 绑定 DOM 元素引用
       ((this.viewport = document.getElementById("game-viewport")),
         (this.app = document.getElementById("app")),
         (this.gridBg = document.getElementById("grid-bg")),
@@ -24,6 +25,7 @@ export class Renderer {
         (this.currentMode = null));
     }
     render(e, s = []) {
+      // 核心渲染循环：同步棋盘状态到 DOM 视图
       if (!this.tileContainer) return;
       ((this.app.className = e.mode === "loop" ? "mode-loop" : "mode-standard"),
         this.currentMode !== e.mode &&
@@ -85,6 +87,7 @@ export class Renderer {
         (y.style.height = `calc(${v}% - 10px)`));
     }
     createSplash({ r: e, c: s, value: t }, r) {
+      // 合成粒子特效：根据方块数值计算粒子密度、颜色与扩散速度
       let l = 100 / r,
         y = Math.log2(t || 2),
         v = Math.min(24, Math.max(6, Math.floor(y * 2))),

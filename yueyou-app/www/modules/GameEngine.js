@@ -5,16 +5,18 @@
 
 export class GameEngine {
     constructor() {
+      // 定义游戏模式：经典模式与维度循环模式
       ((this.MODES = { CLASSIC: "classic", LOOP: "loop" }),
         (this.PHASES = {
           NORMAL: "normal",
-          DISASSEMBLE: "disassemble",
-          REASSEMBLE: "reassemble",
+          DISASSEMBLE: "disassemble", // 拆解阶段：熵减（降值）
+          REASSEMBLE: "reassemble",   // 重构阶段：物质合成（升值）
         }));
       let e = localStorage.getItem("bestScore_premium");
       ((this.bestScore = e && !isNaN(e) ? parseInt(e) : 0), this.reset());
     }
     reset() {
+      // 状态初始化，返回初始维度
       ((this.mode = this.MODES.CLASSIC),
         (this.phase = this.PHASES.NORMAL),
         (this.size = 4),
@@ -29,11 +31,12 @@ export class GameEngine {
         this.addRandomTile());
     }
     initBoard() {
+      // 物理棋盘矩阵初始化
       ((this.board = Array(this.size)
         .fill()
         .map(() => Array(this.size).fill(null))),
         this.mode === this.MODES.LOOP &&
-          (this.board[2][2] = { id: 0, value: 2048, isAnchor: !0 }));
+          (this.board[2][2] = { id: 0, value: 2048, isAnchor: !0 })); // 锚点坐标 (2,2) 始终固定
     }
     jumpToStage(e) {
       ((this.won = !1),
@@ -88,6 +91,7 @@ export class GameEngine {
       }
     }
     move(e) {
+      // 执行移动逻辑，处理合成、降阶与物理位移
       if (this.over || this.won || this.phaseJustCleared)
         return { moved: !1, mergedTiles: [] };
       let s = !1,

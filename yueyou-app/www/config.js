@@ -22,8 +22,9 @@ const AppConfig = (() => {
   // ─────────────────────────────────────────
   // 后端服务器地址（切换环境时只修改这里）
   // ─────────────────────────────────────────
-  const PROD_SERVER = "http://8.218.177.149:3000"; // 生产服务器
-  const DEV_SERVER  = "http://localhost:3000";      // 本地开发服务器
+  const PROD_SERVER = "http://8.218.177.149:8080"; // API 服务器
+  const TTS_SERVER  = "http://8.218.177.149:3000"; // TTS 语音服务器
+  const DEV_SERVER  = "http://localhost:8080";      // 本地开发服务器
 
   const BASE_URL = isNative || !isLocalDev ? PROD_SERVER : DEV_SERVER;
 
@@ -31,8 +32,8 @@ const AppConfig = (() => {
     // 基础地址
     baseURL: BASE_URL,
 
-    // TTS 语音合成接口
-    ttsURL: `${BASE_URL}/api/v1/tts/createStream`,
+    // TTS 语音合成接口 (始终在 3000 端口)
+    ttsURL: `${TTS_SERVER}/api/v1/tts/createStream`,
 
     // 游戏后端 API 前缀
     apiURL: `${BASE_URL}/api`,
