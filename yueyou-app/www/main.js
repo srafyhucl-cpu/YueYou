@@ -1,3 +1,5 @@
+import { LocalDB } from './modules/LocalDB.js';
+
 (() => {
   var U = class {
     constructor() {
@@ -548,63 +550,8 @@
     }
   };
   
-const DB_NAME = "LocalBookDB";
-const STORE_NAME = "books";
-const LocalDB = {
-    async open() {
-        return new Promise((resolve) => {
-            let req = window.indexedDB.open(DB_NAME, 2);
-            req.onupgradeneeded = e => {
-                if (!e.target.result.objectStoreNames.contains(STORE_NAME)) {
-                    e.target.result.createObjectStore(STORE_NAME);
-                }
-            };
-            req.onsuccess = e => resolve(e.target.result);
-            req.onerror = () => resolve(null);
-        });
-    },
-    async saveBook(id, lines) {
-        let db = await this.open();
-        if(!db) return;
-        return new Promise(resolve => {
-            let tx = db.transaction(STORE_NAME, "readwrite");
-            tx.objectStore(STORE_NAME).put(lines, id.toString());
-            tx.oncomplete = () => resolve(true);
-            tx.onerror = () => resolve(false);
-        });
-    },
-    async loadBook(id) {
-        let db = await this.open();
-        if(!db) return null;
-        return new Promise(resolve => {
-            try {
-                let tx = db.transaction(STORE_NAME, "readonly");
-                let req = tx.objectStore(STORE_NAME).get(id.toString());
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => resolve(null);
-            } catch(e) { resolve(null); }
-        });
-    }
-};
-async function loadBookFromDB() {
-    return new Promise((resolve) => {
-        let request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = e => {
-            if (!e.target.result.objectStoreNames.contains(STORE_NAME)) {
-                e.target.result.createObjectStore(STORE_NAME);
-            }
-        };
-        request.onsuccess = e => {
-            try {
-                let tx = e.target.result.transaction(STORE_NAME, "readonly");
-                let req = tx.objectStore(STORE_NAME).get("current_book");
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => resolve(null);
-            } catch(er) { resolve(null); }
-        };
-        request.onerror = () => resolve(null);
-    });
-}
+// LocalDB 此前定义在此，现已抽离至 modules/LocalDB.js
+// 旧版 loadBookFromDB 已被移除，统一使用 LocalDB.loadBook 解决版本冲突
 
   document.addEventListener("DOMContentLoaded", () => {
     let p = new U(),
