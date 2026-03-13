@@ -20,13 +20,7 @@ func main() {
 
 	// 3. 配置 CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"capacitor://localhost",
-			"http://localhost",
-			"http://localhost:3000",
-			"http://localhost:8080",
-			"http://localhost:5173",
-		},
+		AllowOrigins: []string{"*"}, // 开发阶段允许所有来源
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
