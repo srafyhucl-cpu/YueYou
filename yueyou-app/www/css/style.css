@@ -1094,3 +1094,46 @@ body::after {
     color: var(--accent-cyan);
     font-weight: bold;
 }
+/* 灵动岛胶囊悬浮容器 */
+.dynamic-capsule {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    background: rgba(20, 20, 25, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 40px;
+    padding: 10px 24px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    z-index: 1000;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    max-width: 85vw;
+}
+
+.dynamic-capsule:active {
+    transform: translateX(-50%) scale(0.96);
+    background: rgba(30, 30, 40, 0.95);
+}
+
+.capsule-visualizer {
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+}
+
+.capsule-text {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

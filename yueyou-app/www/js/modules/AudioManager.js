@@ -70,6 +70,12 @@ export class AudioManager {
 
             this.ttsInput = this.u.createGain();
             this.ttsInput.gain.value = 1.0;
+            
+            // 灵动岛律动：挂载 Web Audio 解析器
+            window.analyser = this.u.createAnalyser();
+            window.analyser.fftSize = 64; 
+            this.ttsInput.connect(window.analyser);
+            
             this.updateTTSFilter();
         }
         if (this.u.state === "suspended") this.u.resume();
@@ -489,6 +495,13 @@ export class AudioManager {
             }
             chapEl.innerText = currentChapterTitle;
         }
+        
+        // 灵动岛胶囊文本同步
+        let capsuleEl = document.getElementById("player-progress-text");
+        if (capsuleEl) {
+            capsuleEl.innerText = this.enabled ? `${this.novelTitle} - ${currentChapterTitle}` : "▶ 点击任意处唤醒神经接入";
+        }
+
         let statusEl = document.getElementById("player-status-icon");
         if (statusEl) statusEl.innerText = this.isSpeaking ? "\u23F8" : "\u25B6";
 

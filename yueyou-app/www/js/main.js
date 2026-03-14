@@ -3,6 +3,9 @@ import { GameEngine } from './modules/GameEngine.js';
 import { Renderer } from './modules/Renderer.js';
 import { LocalDB } from './modules/LocalDB.js';
 
+let analyser = null;
+let visualizerCtx = null;
+
 (() => {
   document.addEventListener("DOMContentLoaded", () => {
     let p = new GameEngine(),
@@ -441,7 +444,7 @@ import { LocalDB } from './modules/LocalDB.js';
         });
       }
       B("btn-library", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
-      B("player-info", () => {
+      B("player-capsule", () => {
           let modal = document.getElementById("modal-chapters");
           if (modal) {
               renderChapterList();
@@ -519,3 +522,43 @@ import { LocalDB } from './modules/LocalDB.js';
     }
   });
 })();
+
+// ==========================================
+// 实时声波律动可视化 (Audio Visualizer)
+// ==========================================
+const drawVisualizer = () => {
+    requestAnimationFrame(drawVisualizer);
+    
+    // 从 window 活取由 AudioManager 挂载的解析器
+    if (!analyser && window.analyser) analyser = window.analyser;
+    if (!analyser) return;
+    
+    let canvas = document.getElementById('audio-visualizer');
+    if (!canvas) return;
+    if (!visualizerCtx) visualizerCtx = canvas.getContext('2d');
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray); // 获取当前音频频率数据
+    
+    visualizerCtx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 绘制 4 根能量柱
+    const barCount = 4;
+    const barWidth = 4;
+    const gap = 3;
+    const startX = (canvas.width - (barCount * barWidth + (barCount - 1) * gap)) / 2;
+    
+    for (let i = 0; i < barCount; i++) {
+        let value = dataArray[i * 4 + 2]; // 采样特定频段
+        let percent = value / 255;
+        let barHeight = Math.max(3, percent * canvas.height); // 基础高度最小为3
+        
+        // 霓虹蓝色柱体
+        visualizerCtx.fillStyle = 'rgba(0, 242, 254, 0.9)'; 
+        visualizerCtx.fillRect(startX + i * (barWidth + gap), (canvas.height - barHeight) / 2, barWidth, barHeight);
+    }
+};
+
+// DOM 加载后立刻启动循环监听
+document.addEventListener('DOMContentLoaded', () => { drawVisualizer(); });
