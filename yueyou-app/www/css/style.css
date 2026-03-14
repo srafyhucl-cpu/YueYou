@@ -638,7 +638,7 @@ body::after {
     background: transparent;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    pointer-events: none; /* 重要：允许点击穿透到底层棋盘 */
+    pointer-events: auto; /* 恢复：允许点击透明背景关闭弹窗 */
     display: flex;
     justify-content: center;
     align-items: center;
