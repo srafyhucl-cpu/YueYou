@@ -356,12 +356,22 @@ export class AudioManager {
             let data = await LocalDB.loadBook(id);
             if (data) {
                 if (this.loopSession !== currentSession) return;
-                this.lines = data;
-                this.cursor = (newCursor !== null && newCursor < data.length) ? newCursor : 0;
+                
+                // 处理旧数据兼容和新结构
+                if (Array.isArray(data)) {
+                    this.lines = data;
+                    this.chapters = [];
+                } else {
+                    this.lines = data.lines || [];
+                    this.chapters = data.chapters || [];
+                }
+
+                this.cursor = (newCursor !== null && newCursor < this.lines.length) ? newCursor : 0;
                 this.fetchCursor = this.cursor;
                 localStorage.setItem("current_novel_id", id);
                 localStorage.setItem("current_novel_title", title);
                 localStorage.setItem("novel_index", this.cursor.toString());
+
                 
                 if (typeof window._syncIdleState === 'function') window._syncIdleState();
                 this.updateUI();
@@ -410,6 +420,44 @@ export class AudioManager {
             if (this.currentAudio) this.currentAudio.pause();
             this.isSpeaking = false;
             this.updateUI();
+        }
+    }
+
+    jumpToChapter(lineIndex) {
+        if (!this.lines || lineIndex < 0 || lineIndex >= this.lines.length) return;
+        
+        // 增量更新会话，阻断原有播放
+        this.loopSession++;
+
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            if (this.currentAudio.isSpeech) {
+                window.speechSynthesis.cancel();
+            } else {
+                this.currentAudio.removeAttribute("src");
+            }
+            this.currentAudio = null;
+        }
+
+        // 清空预加载缓冲
+        this.audioBufferArray.forEach(x => { 
+            if(x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); 
+        });
+        this.audioBufferArray = [];
+        this.prefetching = false;
+        this.isPlaying = false;
+        this.isSpeaking = false;
+
+        // 更新位置
+        this.cursor = lineIndex;
+        this.fetchCursor = lineIndex;
+        localStorage.setItem("novel_index", this.cursor.toString());
+        this.updateUI();
+
+        // 重新启动引擎
+        if (this.enabled) {
+            this.startPrefetchLoop();
+            this.startPlayLoop();
         }
     }
 

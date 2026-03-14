@@ -27,6 +27,7 @@
                 <div class="nav-actions">
                     <button class="icon-btn glow-btn hidden" id="btn-admin">📡 控制台</button>
                     <button class="icon-btn highlight-btn" id="btn-library">📚 图书馆</button>
+                    <button class="icon-btn outline-btn" id="btn-chapter-list">📑 目录</button>
                     <button class="icon-btn highlight-btn" id="btn-leaderboard">🌌 星图</button>
                     <button class="icon-btn outline-btn" id="btn-settings">⚙️ 设置</button>
                 </div>
@@ -58,15 +59,6 @@
             </div>
 
                 <footer class="bottom-controls">
-                <div class="item-bar hidden" id="item-bar">
-                    <div class="item-slot" id="item-clear">
-                        🧹 降维打击 <span class="help-icon"
-                            onclick="event.stopPropagation(); window._showToast('点击此道具后，再点击棋盘上的任意方块即可将其彻底抹除')">?</span> <span
-                            class="count">3</span></div>
-                    <div class="item-slot" id="item-reverse">
-                        🔄 时间回溯 <span class="help-icon" onclick="event.stopPropagation(); window._showToast('强制翻转当前维度，在熵减与重构阶段间切换')">?</span>
-                        <span class="count">1</span></div>
-                </div>
                 <div class="msg-scroller">
                     <p id="game-hint">滑动手势以操纵数字物质...</p>
                 </div>
@@ -95,36 +87,19 @@
             </footer>
         </div>
 
-        <!-- 阶段通关大弹窗 (新) -->
-        <div id="modal-phase-success" class="modal-overlay hidden">
-            <div class="modal success-modal">
-                <div class="success-icon">✨</div>
-                <h2 id="success-title">维度跨越成功！</h2>
-                <p id="success-msg">你已经证明了对数字的绝对支配。</p>
-                <div class="phase-description">
-                    <span class="label">下一阶段规则：</span>
-                    <p id="next-phase-info">点击下方按钮正式切入新的维度规则。</p>
+        <!-- 小说目录弹窗 -->
+        <div id="modal-chapters" class="modal-overlay hidden">
+            <div class="modal chapter-modal">
+                <div class="modal-header">
+                    <h3>📑 章节目录</h3>
+                    <button id="close-chapters" class="close-btn">&times;</button>
                 </div>
-                <button class="btn primary-btn pulse-btn" id="btn-next-phase">正式切入</button>
-            </div>
-        </div>
-
-        <!-- 管理与榜单弹窗（保持原有 ID） -->
-        <div id="admin-panel" class="modal-overlay hidden">
-            <div class="modal admin-modal">
-                <h3>🛠️ 维度控制器 (开发者模式)</h3>
-                <div class="admin-grid">
-                    <button onclick="window.admin.jump('classic')" class="admin-btn">1️⃣ 经典阶段</button>
-                    <button onclick="window.admin.jump('loop_1')" class="admin-btn">2️⃣ 拆解阶段</button>
-                    <button onclick="window.admin.jump('loop_2')" class="admin-btn">3️⃣ 重构阶段</button>
-                    <button onclick="window.admin.jump('fast_win')" class="admin-btn">👑 快速登神</button>
+                <div class="chapter-list-container">
+                    <ul id="chapter-list">
+                        <!-- 章节项动态生成 -->
+                        <p style="text-align:center; color: #a0a0b0; margin-top: 20px;">当前书记未解析出目录或尚未加载...</p>
+                    </ul>
                 </div>
-                <div class="admin-actions">
-                    <button onclick="window.admin.addItems()" class="btn">补满道具</button>
-                    <button onclick="window.admin.clearBoard()" class="btn">清空棋盘</button>
-                </div>
-                <button class="btn accent-btn"
-                    onclick="document.getElementById('admin-panel').classList.add('hidden')">关闭控制台</button>
             </div>
         </div>
 

@@ -211,47 +211,40 @@ import { LocalDB } from './modules/LocalDB.js';
       });
       B("close-leaderboard", () => document.getElementById("modal-leaderboard").classList.add("hidden"));
       B("restart-btn", () => {
-          if (confirm("重置时间线？")) { p.reset(); e.render(p); }
+          if (confirm("重置进度？")) { p.reset(); e.render(p); }
       });
-      B("btn-next-phase", () => {
-          if (window._nextStageCallback) {
-              window._nextStageCallback();
-              document.getElementById("modal-phase-success").classList.add("hidden");
-              e.render(p);
+      
+      // 目录按钮事件
+      B("btn-chapter-list", () => {
+          let modal = document.getElementById("modal-chapters");
+          let list = document.getElementById("chapter-list");
+          if (!modal || !list) return;
+          
+          list.innerHTML = "";
+          if (!l.chapters || l.chapters.length === 0) {
+              list.innerHTML = '<p style="text-align:center; color:#a0a0b0; margin-top:20px;">当前书籍未解析出目录或尚未加载...</p>';
+          } else {
+              l.chapters.forEach((ch, idx) => {
+                  let nextCh = l.chapters[idx + 1];
+                  let isActive = (l.cursor >= ch.lineIndex) && (!nextCh || l.cursor < nextCh.lineIndex);
+                  let li = document.createElement("li");
+                  li.className = "chapter-item" + (isActive ? " active" : "");
+                  li.innerHTML = `<span>${ch.title}</span>`;
+                  li.onclick = () => {
+                      l.jumpToChapter(ch.lineIndex);
+                      modal.classList.add("hidden");
+                  };
+                  list.appendChild(li);
+              });
+              // 自动滚动到当前活动章节
+              setTimeout(() => {
+                  let activeItem = list.querySelector(".chapter-item.active");
+                  if (activeItem) activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 50);
           }
+          modal.classList.remove("hidden");
       });
-
-      B("item-clear", () => {
-          let o = document.getElementById("tile-container");
-          if (o.classList.contains("targeting")) { o.classList.remove("targeting"); return; }
-          let d = document.querySelector("#item-clear .count"), S = parseInt(d.innerText);
-          if (S > 0) {
-            o.classList.add("targeting");
-            let b = (I) => {
-              I.stopPropagation();
-              let k = I.target.closest(".tile");
-              if (k && !k.classList.contains("tile-anchor")) {
-                let ID = parseInt(k.id.replace("tile-", ""));
-                for (let L = 0; L < p.size; L++)
-                  for (let O = 0; O < p.size; O++)
-                    p.board[L][O]?.id === ID && p.clearTile(L, O) && ((d.innerText = S - 1), l.playSimpleSound(100, "sawtooth", 0.1), e.render(p));
-              }
-              o.classList.remove("targeting");
-              o.removeEventListener("click", b, !0);
-            };
-            o.addEventListener("click", b, !0);
-          }
-      });
-
-      B("item-reverse", () => {
-          let o = document.querySelector("#item-reverse .count"), d = parseInt(o.innerText);
-          if (d > 0) {
-            p.phase = p.phase === "disassemble" ? "reassemble" : "disassemble";
-            o.innerText = d - 1;
-            e.render(p);
-            l.playSimpleSound(600, "sine", 0.2);
-          }
-      });
+      B("close-chapters", () => document.getElementById("modal-chapters").classList.add("hidden"));
 
       let V = document.getElementById("modal-library");
       let H = document.getElementById("library-content");
@@ -335,8 +328,16 @@ import { LocalDB } from './modules/LocalDB.js';
                 return { v: speakers[idx % 4], t: line };
              });
              let title = file.name.replace(".txt", "");
+             
+             let chapters = [];
+             const chapterRegex = /^\s*(第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇][ \t]*.*?)(?:\r?\n|$)/;
+             rawLines.forEach((line, index) => {
+                 let match = line.match(chapterRegex);
+                 if (match) chapters.push({ title: match[1].trim(), lineIndex: index });
+             });
+
              let bookId = Date.now();
-             await LocalDB.saveBook(bookId, newLines);
+             await LocalDB.saveBook(bookId, { lines: newLines, chapters: chapters });
              let shelfText = localStorage.getItem("local_bookshelf");
              let shelf = shelfText ? JSON.parse(shelfText) : [];
              shelf.unshift({ id: bookId, title: title, total: newLines.length, cursor: 0 });
@@ -371,15 +372,7 @@ import { LocalDB } from './modules/LocalDB.js';
 
       document.body.className = 'theme-' + (t.ambientTheme || 'wuxia');
 
-      window.admin = {
-          jump: (o) => {
-            p.jumpToStage(o);
-            e.render(p);
-            document.getElementById("admin-panel").classList.add("hidden");
-          },
-          addItems: () => document.querySelectorAll(".item-slot .count").forEach((o) => (o.innerText = "99")),
-          clearBoard: () => { p.initBoard(); e.render(p); },
-      };
+      document.body.className = 'theme-' + (t.ambientTheme || 'wuxia');
 
       window.onkeydown = (o) => {
           let d = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[o.key];
