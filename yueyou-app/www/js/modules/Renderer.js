@@ -131,10 +131,15 @@ export class Renderer {
         if(e < 2 || !this.comboDisplay) return;
         this.comboDisplay.innerText = `连击 x${e}`;
         this.comboDisplay.style.opacity = "1";
-        this.comboDisplay.style.transform = `translateX(-50%) scale(${1 + Math.min(e, 5) * 0.08})`;
+        // 自动消散：1秒后淡出
+        clearTimeout(this._comboTimer);
+        this._comboTimer = setTimeout(() => {
+            if(this.comboDisplay) this.comboDisplay.style.opacity = "0";
+        }, 1000);
     }
     
     hideCombo() {
+        clearTimeout(this._comboTimer);
         if(this.comboDisplay) this.comboDisplay.style.opacity = "0";
     }
     

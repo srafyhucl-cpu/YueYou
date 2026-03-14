@@ -7,6 +7,7 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>2048 霓虹: 无限闭环 (云端版)</title>
     <!-- 使用单一全量 CSS，杜绝 404 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
     <link rel="stylesheet" href="css/style.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -47,6 +48,8 @@
                     </div>
                 </div>
             </div>
+
+            <div id="combo-display">连击 x2</div>
 
             <div class="game-view">
                 <div class="game-container" id="grid-container">
@@ -240,7 +243,6 @@
                 </div>
             </div>
         </div>
-        <div id="combo-display">连击 x2</div>
     </div>
     <!-- ⚙️ 全局配置（必须在 main.js 之前加载） -->
     <script src="js/config.js"></script>
