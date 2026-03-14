@@ -293,28 +293,30 @@ import { LocalDB } from './modules/LocalDB.js';
               H.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,0.5);margin-top:20px;">当前书架为空，请导入 TXT 本地小说</p>';
               return;
           }
-          H.innerHTML = '<div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">' + shelf.map((b, I) => {
-              let isCur = (b.id === l.novelID);
+          H.innerHTML = '<div style="display:flex; flex-direction:column; gap:12px;">' + shelf.map((b, I) => {
+              let isCur = (String(b.id) === String(l.novelID));
               let pct = b.total > 0 ? Math.floor((b.cursor / b.total) * 100) : 0;
-              let hue = (I * 45) % 360;
               return `
-                <div style="display:flex; flex-direction:column; padding:0; align-items: stretch; border-radius:12px; overflow:hidden; cursor:pointer; transition: all 0.2s; ${isCur ? 'background:rgba(236,72,153,0.15); border: 2px solid var(--accent-pink);' : 'background:rgba(255,255,255,0.05); border: 2px solid transparent;'}" 
-                     onclick="window._readBook(${b.id}, '${b.title}', ${b.cursor})">
-                    <div style="height: 120px; background: linear-gradient(135deg, hsl(${hue}, 60%, 40%), hsl(${hue + 40}, 60%, 20%)); display: flex; align-items: center; justify-content: center; position: relative;">
-                         ${!isCur ? `<div style="position:absolute; top:8px; left:8px; width:24px; height:24px; background:rgba(255,50,50,0.8); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; z-index:5;" onclick="window._deleteBook(${b.id}, event)">❌</div>` : ''}
-                         ${isCur ? '<div style="position:absolute; top:8px; right:8px; background:var(--accent-pink); color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800;">阅读中</div>' : ''}
-                         <span style="font-size: 32px;">📚</span>
-                    </div>
-                    <div style="padding: 10px; display: flex; flex-direction: column;">
-                        <div style="color:#fff; font-weight: 800; font-size: 14px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${b.title}</div>
-                        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-bottom: 4px;">
-                            <div style="width: ${pct}%; height: 100%; background: var(--accent-pink);"></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-radius:12px; cursor:pointer; transition:all 0.2s; background:rgba(255,255,255,0.1); border:1px solid ${isCur ? 'var(--accent-pink)' : 'rgba(255,255,255,0.15)'}; box-shadow:0 4px 6px rgba(0,0,0,0.2);" 
+                     onclick="window._readBook(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.cursor})">
+                    <div style="flex:1; min-width:0; margin-right:12px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="font-size:20px;">📖</span>
+                            <div style="color:#fff; font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${b.title}</div>
+                            ${isCur ? '<span style="background:var(--accent-pink); color:#fff; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; flex-shrink:0;">阅读中</span>' : ''}
                         </div>
-                        <div style="display:flex; justify-content: space-between; font-size: 10px; color: ${isCur ? 'var(--accent-pink)' : 'rgba(255,255,255,0.5)'}; font-weight: bold;">
-                            <span>进度</span>
-                            <span>${pct}%</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
+                                <div style="width:${pct}%; height:100%; background:${isCur ? 'var(--accent-pink)' : 'rgba(255,255,255,0.4)'}; border-radius:2px;"></div>
+                            </div>
+                            <span style="font-size:11px; color:rgba(255,255,255,0.5); font-weight:bold; flex-shrink:0;">${pct}%</span>
                         </div>
                     </div>
+                    <div style="width:32px; height:32px; background:rgba(255,80,80,0.15); border:1px solid rgba(255,80,80,0.3); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; cursor:pointer; transition:all 0.2s;" 
+                         onclick="window._deleteBook(${b.id}, event)" 
+                         onmouseover="this.style.background='rgba(255,80,80,0.4)'" 
+                         onmouseout="this.style.background='rgba(255,80,80,0.15)'"
+                    >🗑️</div>
                 </div>
               `;
           }).join("") + '</div>';
@@ -329,7 +331,7 @@ import { LocalDB } from './modules/LocalDB.js';
           localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
           await LocalDB.deleteBook(id);
           
-          if (localStorage.getItem("current_novel_id") == id) {
+          if (String(localStorage.getItem("current_novel_id")) === String(id)) {
               localStorage.removeItem("current_novel_id");
               localStorage.removeItem("novel_progress");
               l.stop();
@@ -352,6 +354,12 @@ import { LocalDB } from './modules/LocalDB.js';
       window._readBook = async (id, title, cursor) => {
            await l.loadNovel(id, title, cursor);
            if (V) V.classList.add("hidden");
+           // 自动播放：用户点击本身就是 User Gesture，不会被浏览器拦截
+           let autoTts = document.getElementById("toggle-story");
+           if (autoTts && autoTts.checked) {
+               if (l.u && l.u.state === 'suspended') l.u.resume().catch(() => {});
+               l.setEnabled(true);
+           }
            renderLibrary();
       };
 
@@ -389,6 +397,12 @@ import { LocalDB } from './modules/LocalDB.js';
              shelf.unshift({ id: bookId, title: title, total: newLines.length, cursor: 0 });
              localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
              await l.loadNovel(bookId, title, 0);
+             // 导入后自动播放（用户参与了文件选择，算有效交互）
+             let autoTts = document.getElementById("toggle-story");
+             if (autoTts && autoTts.checked) {
+                 if (l.u && l.u.state === 'suspended') l.u.resume().catch(() => {});
+                 l.setEnabled(true);
+             }
              window._showToast("加载本地小说成功");
              mask.remove();
              e.target.value = "";

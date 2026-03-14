@@ -391,17 +391,18 @@ body::after {
 
 #combo-display {
     position: fixed;
-    top: 22%;
+    top: 18%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
     z-index: 99999;
     color: #fff;
-    font-size: 42px;
+    font-size: 32px;
     font-weight: 900;
     opacity: 0;
     pointer-events: none;
-    text-shadow: 0 0 25px rgba(255, 200, 55, 0.9), 0 0 50px rgba(236, 72, 153, 0.6), 0 2px 4px rgba(0, 0, 0, 0.5);
-    letter-spacing: 2px;
+    text-shadow: 0 0 15px rgba(255, 200, 55, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5);
+    letter-spacing: 1px;
+    transition: opacity 0.2s ease, transform 0.3s ease;
 }
 
 .tile-container {

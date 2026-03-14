@@ -490,6 +490,12 @@ export class AudioManager {
             }
             
             let blob = await res.blob();
+            if (!blob || blob.size === 0 || !blob.type.includes("audio")) {
+                console.error("[TTS Error] Invalid audio blob received, size:", blob ? blob.size : 0, "type:", blob ? blob.type : "null");
+                if (window._showToast) window._showToast(`TTS数据异常: 未接收到有效音频`);
+                if ("speechSynthesis" in window) return "speech_synthesis";
+                return null;
+            }
             return URL.createObjectURL(blob);
         } catch (e) {
             clearTimeout(timeoutId);
