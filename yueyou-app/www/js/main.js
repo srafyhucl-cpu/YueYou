@@ -188,8 +188,7 @@ import { LocalDB } from './modules/LocalDB.js';
           if (savedVoice) ttsVoiceSelect.value = savedVoice;
           ttsVoiceSelect.addEventListener("change", (e) => {
               localStorage.setItem("tts_voice", e.target.value);
-              l.audioBufferArray = [];
-              if(window.AudioManager) window.AudioManager.queue = [];
+              l.jumpToChapter(l.cursor);
           });
       }
 
