@@ -31,12 +31,7 @@ export class AudioManager {
         this.enabled = this.settings.storyTTS;
         this.loopSession = 1;
 
-        this.initLibrary().then(() => {
-            if (this.enabled) {
-                this.startPrefetchLoop();
-                this.startPlayLoop();
-            }
-        });
+        this.initLibrary();
 
         setInterval(() => {
             if (this.enabled && this.isPlaying && this.idleTimeout > 0 && Date.now() - this.lastActive > this.idleTimeout && this.currentAudio && !this.currentAudio.paused) {
@@ -288,6 +283,12 @@ export class AudioManager {
             this.chapters = [{ title: "桃园三结义", lineIndex: 0 }];
             this.updateUI();
         }
+        
+        // 核心：在初始化工作流结束后，统一尝试启动循环
+        if (this.enabled) {
+            this.startPrefetchLoop();
+            this.startPlayLoop();
+        }
     }
 
     async loadNovel(id, title, newCursor = null) {
@@ -296,7 +297,12 @@ export class AudioManager {
             let currentSession = this.loopSession;
             if (this.currentAudio) {
                 this.currentAudio.pause();
-                this.currentAudio.removeAttribute("src");
+                if (this.currentAudio instanceof HTMLMediaElement) {
+                    this.currentAudio.removeAttribute("src");
+                    this.currentAudio.load();
+                } else if (this.currentAudio.isSpeech) {
+                    window.speechSynthesis.cancel();
+                }
                 this.currentAudio = null;
             }
             this.audioBufferArray.forEach(x => { if(x.url) URL.revokeObjectURL(x.url); });
@@ -332,10 +338,7 @@ export class AudioManager {
                 
                 if (typeof window._syncIdleState === 'function') window._syncIdleState();
                 this.updateUI();
-                if (this.enabled) {
-                    this.startPrefetchLoop();
-                    this.startPlayLoop();
-                }
+                // 不在这里直接启动，交给调用者(initLibrary/jumpToChapter)控制
             }
         } catch (e) {
             console.error("Failed to load novel:", e);
@@ -629,10 +632,11 @@ export class AudioManager {
                                 if (mask) mask.classList.remove("hidden");
                                 let btn = document.getElementById("btn-unblock-audio");
                                 if (btn) {
-                                    btn.onclick = () => {
-                                        mask.classList.add("hidden");
-                                        audio.play().then(() => resolve()).catch(() => resolve());
-                                    };
+                                btn.onclick = () => {
+                                    mask.classList.add("hidden");
+                                    if (this.loopSession !== session) return resolve(); // 如果 Session 变了，直接退出不播放
+                                    audio.play().then(() => resolve()).catch(() => resolve());
+                                };
                                 }
                             } else if (err.name !== "AbortError") {
                                 resolve();
@@ -641,7 +645,11 @@ export class AudioManager {
                     }
                 }
             });
-            if (this.loopSession !== session) break;
+            // 核心修复：执行完 await 后立即检查 Session 是否一致
+            if (this.loopSession !== session) {
+                if (this.currentAudio) this.currentAudio.pause();
+                break;
+            }
             
             this.currentAudio = null;
             if (item.url) URL.revokeObjectURL(item.url);
