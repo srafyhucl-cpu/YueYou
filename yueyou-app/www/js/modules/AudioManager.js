@@ -417,6 +417,11 @@ export class AudioManager {
     async fetchTTS(text, voice) {
         if (this._ttsFailed && "speechSynthesis" in window) return "speech_synthesis";
 
+        // 如果文本太短，直接走本地（服务器有时候要求最短 5 个字符）
+        if (text.length < 5 && "speechSynthesis" in window) {
+            return "speech_synthesis";
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时直接回退
 
@@ -428,19 +433,22 @@ export class AudioManager {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
+            
+            // 服务端如果返回 400（文本太短、达到了最大任务限制等情况），直接降级
             if (!res.ok) {
                 console.warn(`[TTS] Server returned HTTP ${res.status}. Falling back to native.`);
                 throw new Error("HTTP " + res.status);
             }
+            
             let blob = await res.blob();
             this._ttsFailed = false; // 成功则重置状态
             return URL.createObjectURL(blob);
         } catch (e) {
             clearTimeout(timeoutId);
-            this._ttsFailed = true; // 标记远程接口失效
-            // 网络或 CORS 错误时，降级使用浏览器内置的 SpeechSynthesis API
+            // 这里修改：只要遇到任何服务端拒绝或网络错误，立刻标记失败并返回离线语音
+            this._ttsFailed = true; 
+            console.error("[TTS Error] Falling back to native SpeechSynthesis due to:", e.message || e);
             if ("speechSynthesis" in window) return "speech_synthesis";
-            console.error("[TTS Error] Network/Fetch failed and no native TTS available:", e);
             return null;
         }
     }
