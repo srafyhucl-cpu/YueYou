@@ -177,19 +177,7 @@ import { LocalDB } from './modules/LocalDB.js';
       });
 
       document.querySelectorAll('.modal-overlay').forEach(overlay => {
-          overlay.addEventListener('click', (e) => {
-              if (e.target === overlay) {
-                  let closeBtnId = overlay.id === 'modal-settings' ? 'close-settings' :
-                                 overlay.id === 'modal-library' ? 'close-library' :
-                                 overlay.id === 'modal-leaderboard' ? 'close-leaderboard' : null;
-                  if (closeBtnId) {
-                      let btn = document.getElementById(closeBtnId);
-                      if (btn) btn.click();
-                  } else {
-                      overlay.classList.add('hidden');
-                  }
-              }
-          });
+          // 移除原有的点击蒙层关闭逻辑，改为允许点击穿透到底层游戏
       });
 
       let C = document.getElementById("toggle-sound"),
