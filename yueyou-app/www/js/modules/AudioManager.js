@@ -25,7 +25,7 @@ export class AudioManager {
         this.playingSession = 0; // 核心：记录当前正在运行播放循环的会话 ID
         this.prefetching = false;
         this.lastActive = Date.now();
-        
+
         let idleMin = parseInt(localStorage.getItem("setting_idle_timeout") || "1");
         this.idleTimeout = idleMin * 60000;
         this.ttsURL = (typeof AppConfig !== "undefined" ? AppConfig.ttsURL : "http://8.218.177.149:3000/api/v1/tts/createStream");
@@ -58,7 +58,7 @@ export class AudioManager {
     initContext() {
         if (!this.u) {
             this.u = new (window.AudioContext || window.webkitAudioContext)();
-            
+
             // 终极质感：总线动态压缩器 (让音效更饱满、不爆音)
             this.masterCompressor = this.u.createDynamicsCompressor();
             this.masterCompressor.threshold.setValueAtTime(-24, this.u.currentTime);
@@ -70,12 +70,12 @@ export class AudioManager {
 
             this.ttsInput = this.u.createGain();
             this.ttsInput.gain.value = 1.0;
-            
+
             // 灵动岛律动：挂载 Web Audio 解析器
             window.analyser = this.u.createAnalyser();
-            window.analyser.fftSize = 64; 
+            window.analyser.fftSize = 64;
             this.ttsInput.connect(window.analyser);
-            
+
             this.updateTTSFilter();
         }
         if (this.u.state === "suspended") this.u.resume();
@@ -139,11 +139,11 @@ export class AudioManager {
             let osc1 = this.u.createOscillator();
             let osc2 = this.u.createOscillator();
             let g = this.u.createGain();
-            
+
             osc1.type = "sine";
             osc1.frequency.setValueAtTime(freq, this.u.currentTime);
             osc1.frequency.exponentialRampToValueAtTime(freq * 1.5, this.u.currentTime + 0.1);
-            
+
             osc2.type = "triangle";
             osc2.frequency.setValueAtTime(freq * 2, this.u.currentTime);
             osc2.frequency.exponentialRampToValueAtTime(freq, this.u.currentTime + 0.1);
@@ -151,16 +151,16 @@ export class AudioManager {
             g.gain.setValueAtTime(0, this.u.currentTime);
             g.gain.linearRampToValueAtTime(0.2, this.u.currentTime + 0.01);
             g.gain.exponentialRampToValueAtTime(0.001, this.u.currentTime + 0.25);
-            
+
             osc1.connect(g);
             osc2.connect(g);
             g.connect(this.masterCompressor);
-            
+
             osc1.start();
             osc2.start();
             osc1.stop(this.u.currentTime + 0.3);
             osc2.stop(this.u.currentTime + 0.3);
-        } catch {}
+        } catch { }
     }
 
     playSimpleSound(freq, type = "sine", duration = 0.1) {
@@ -177,13 +177,13 @@ export class AudioManager {
             g.connect(this.masterCompressor);
             osc.start();
             osc.stop(this.u.currentTime + duration);
-        } catch {}
+        } catch { }
     }
 
     // --- Ambient Soundscapes ---
     stopAmbient() {
-        if(this.m.intervals) this.m.intervals.forEach(clearInterval);
-        this.m.oscs.forEach(osc => { try { osc.stop(); } catch{} });
+        if (this.m.intervals) this.m.intervals.forEach(clearInterval);
+        this.m.oscs.forEach(osc => { try { osc.stop(); } catch { } });
         this.m.oscs = [];
         this.m.gains = [];
         this.m.intervals = [];
@@ -195,7 +195,7 @@ export class AudioManager {
         if (!this.settings.sound || !this.u || this.M === sig) return;
         this.stopAmbient();
         this.M = sig;
-        
+
         let masterGain = this.u.createGain();
         masterGain.gain.value = this.settings.ambientVol;
         masterGain.connect(this.u.destination);
@@ -235,7 +235,7 @@ export class AudioManager {
                 osc.start(); osc.stop(this.u.currentTime + 4.1);
             };
             this.m.intervals.push(setInterval(playFlute, 4000));
-            setTimeout(playFlute, 500); 
+            setTimeout(playFlute, 500);
         }
     }
 
@@ -250,7 +250,7 @@ export class AudioManager {
         if (this.m.masterGain) this.m.masterGain.gain.value = this.settings.ambientVol;
         this.updateTTSFilter();
         document.body.className = 'theme-' + (this.settings.ambientTheme || 'wuxia');
-        
+
         // 启动单例循环（如果尚未运行）
         this.startPrefetchLoop();
         this.startPlayLoop();
@@ -279,7 +279,7 @@ export class AudioManager {
             this.chapters = [{ title: "桃园三结义", lineIndex: 0 }];
             this.updateUI();
         }
-        
+
         // 核心：在初始化工作流结束后，统一尝试启动循环
         if (this.enabled) {
             this.startPrefetchLoop();
@@ -301,7 +301,7 @@ export class AudioManager {
                 }
                 this.currentAudio = null;
             }
-            this.audioBufferArray.forEach(x => { if(x.url) URL.revokeObjectURL(x.url); });
+            this.audioBufferArray.forEach(x => { if (x.url) URL.revokeObjectURL(x.url); });
             this.audioBufferArray = [];
             this.isSpeaking = false;
             this.prefetching = false;
@@ -315,7 +315,7 @@ export class AudioManager {
             let data = await LocalDB.loadBook(id);
             if (data) {
                 if (this.loopSession !== currentSession) return;
-                
+
                 // 处理旧数据兼容和新结构
                 if (Array.isArray(data)) {
                     this.lines = data;
@@ -331,7 +331,7 @@ export class AudioManager {
                 localStorage.setItem("current_novel_title", title);
                 localStorage.setItem("novel_index", this.cursor.toString());
 
-                
+
                 if (typeof window._syncIdleState === 'function') window._syncIdleState();
                 this.updateUI();
                 // 不在这里直接启动，交给调用者(initLibrary/jumpToChapter)控制
@@ -354,7 +354,7 @@ export class AudioManager {
                 this.currentAudio.play().then(() => {
                     this.isSpeaking = true;
                     this.updateUI();
-                    if(window._showToast) window._showToast("\u5DF2\u6062\u590D\u64AD\u62A5");
+                    if (window._showToast) window._showToast("\u5DF2\u6062\u590D\u64AD\u62A5");
                 }).catch(err => console.warn(err));
             }
         }
@@ -390,7 +390,7 @@ export class AudioManager {
             this.currentAudio.src = "";
             this.currentAudio = null;
         }
-        this.audioBufferArray.forEach(x => { if(x.url) URL.revokeObjectURL(x.url); });
+        this.audioBufferArray.forEach(x => { if (x.url) URL.revokeObjectURL(x.url); });
         this.audioBufferArray = [];
         this.isPlaying = false;
         this.isSpeaking = false;
@@ -399,7 +399,7 @@ export class AudioManager {
 
     jumpToChapter(lineIndex) {
         if (!this.lines || lineIndex < 0 || lineIndex >= this.lines.length) return;
-        
+
         // 增量更新会话，阻断原有播放
         this.loopSession++;
 
@@ -414,8 +414,8 @@ export class AudioManager {
         }
 
         // 清空预加载缓冲
-        this.audioBufferArray.forEach(x => { 
-            if(x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); 
+        this.audioBufferArray.forEach(x => {
+            if (x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url);
         });
         this.audioBufferArray = [];
         this.isSpeaking = false;
@@ -448,7 +448,7 @@ export class AudioManager {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            
+
             if (!res.ok) {
                 let errMsg = `[TTS] 服务端返回 HTTP ${res.status}`;
                 if (res.status === 404) {
@@ -458,7 +458,7 @@ export class AudioManager {
                 if (window._showToast) window._showToast(errMsg);
                 throw new Error("HTTP " + res.status);
             }
-            
+
             let blob = await res.blob();
             // 允许 application/octet-stream，因为部分服务器可能以该类型返回音频流
             let isValidType = blob.type.includes("audio") || blob.type === "application/octet-stream";
@@ -482,24 +482,25 @@ export class AudioManager {
     updateUI() {
         let titleEl = document.getElementById("player-title");
         if (titleEl) titleEl.innerText = `${this.novelTitle}`;
-        let chapEl = document.getElementById("player-chapter");
-        if (chapEl) {
-            let currentChapterTitle = "未分类 / 序章";
-            if (this.chapters && this.chapters.length > 0) {
-                for (let i = this.chapters.length - 1; i >= 0; i--) {
-                    if (this.cursor >= this.chapters[i].lineIndex) {
-                        currentChapterTitle = this.chapters[i].title;
-                        break;
-                    }
+        
+        // 核心：提前计算当前章节标题，解耦 UI 渲染
+        let currentChapterTitle = "未分类 / 序章";
+        if (this.chapters && this.chapters.length > 0) {
+            for (let i = this.chapters.length - 1; i >= 0; i--) {
+                if (this.cursor >= this.chapters[i].lineIndex) {
+                    currentChapterTitle = this.chapters[i].title;
+                    break;
                 }
             }
-            chapEl.innerText = currentChapterTitle;
         }
+
+        let chapEl = document.getElementById("player-chapter");
+        if (chapEl) chapEl.innerText = currentChapterTitle;
         
         // 灵动岛胶囊文本同步
         let capsuleEl = document.getElementById("player-progress-text");
         if (capsuleEl) {
-            capsuleEl.innerText = this.enabled ? `${this.novelTitle} - ${currentChapterTitle}` : "▶ 点击任意处唤醒神经接入";
+            capsuleEl.innerText = (this.enabled && this.lines.length > 0) ? `${this.novelTitle} - ${currentChapterTitle}` : "▶ 点击任意处唤醒神经接入";
         }
 
         let statusEl = document.getElementById("player-status-icon");
@@ -516,10 +517,10 @@ export class AudioManager {
     async startPrefetchLoop() {
         if (this.prefetching) return;
         this.prefetching = true;
-        
+
         while (this.enabled) {
             let session = this.loopSession; // 记录进入时的 Session
-            
+
             if (this.idleTimeout > 0 && Date.now() - this.lastActive > this.idleTimeout) {
                 await new Promise(r => setTimeout(r, 1000));
                 continue;
@@ -540,7 +541,7 @@ export class AudioManager {
             }
 
             let url = await this.fetchTTS(line.t, line.v);
-            
+
             // 核心：请求回来后立即检查 Session，如果变了，直接丢弃结果并重试
             if (this.loopSession !== session) {
                 if (url && url !== "speech_synthesis") URL.revokeObjectURL(url);
@@ -552,18 +553,18 @@ export class AudioManager {
                 if (url === "speech_synthesis") {
                     let mockAudio = {
                         isSpeech: true, text: line.t, paused: true, ended: false,
-                        play: async function() {
+                        play: async function () {
                             this.paused = false; this.ended = false;
-                            window.speechSynthesis.cancel(); 
+                            window.speechSynthesis.cancel();
                             return new Promise((resolve) => {
                                 let u = new SpeechSynthesisUtterance(this.text);
                                 u.lang = "zh-CN";
-                                u.onend = () => { this.ended = true; this.paused = true; if(this.onended) this.onended(); resolve(); };
-                                u.onerror = () => { this.ended = true; this.paused = true; if(this.onerror) this.onerror(); resolve(); };
+                                u.onend = () => { this.ended = true; this.paused = true; if (this.onended) this.onended(); resolve(); };
+                                u.onerror = () => { this.ended = true; this.paused = true; if (this.onerror) this.onerror(); resolve(); };
                                 window.speechSynthesis.speak(u);
                             });
                         },
-                        pause: function() { this.paused = true; window.speechSynthesis.cancel(); }
+                        pause: function () { this.paused = true; window.speechSynthesis.cancel(); }
                     };
                     this.audioBufferArray.push({ url: url, id: id, obj: mockAudio });
                 } else {
@@ -582,10 +583,10 @@ export class AudioManager {
     async startPlayLoop() {
         if (this.isPlaying) return;
         this.isPlaying = true;
-        
+
         while (this.enabled) {
             let session = this.loopSession; // 记录当前播放周期所属的 Session ID
-            
+
             if (this.audioBufferArray.length === 0) {
                 let ch = document.getElementById("player-chapter");
                 if (this.enabled && ch) ch.innerHTML = '<span style="color:#fbbf24">⏳ 神经数据加载中...</span>';
@@ -605,11 +606,11 @@ export class AudioManager {
 
             this.isSpeaking = true;
             this.updateUI();
-            
+
             await new Promise(resolve => {
                 let audio = item.obj;
                 this.currentAudio = audio;
-                
+
                 // 临门一脚检查
                 if (this.loopSession !== session) return resolve();
 
@@ -624,7 +625,7 @@ export class AudioManager {
                         try {
                             let src = this.u.createMediaElementSource(audio);
                             src.connect(this.ttsInput); audio._routed = true;
-                        } catch(e) {}
+                        } catch (e) { }
                     }
                     audio.play().catch(err => {
                         if (err.name === "NotAllowedError") {
@@ -645,16 +646,16 @@ export class AudioManager {
             if (this.loopSession !== session) {
                 if (this.currentAudio) this.currentAudio.pause();
                 this.currentAudio = null;
-                continue; 
+                continue;
             }
-            
+
             this.currentAudio = null;
             if (item.url && item.url !== "speech_synthesis") URL.revokeObjectURL(item.url);
-            
+
             if (this.lines && this.lines.length > 0) {
                 this.cursor = (this.cursor + 1) % this.lines.length;
                 localStorage.setItem("novel_index", this.cursor.toString());
-                if(typeof window._syncIdleState === 'function') window._syncIdleState();
+                if (typeof window._syncIdleState === 'function') window._syncIdleState();
             }
         }
         this.isPlaying = false;
