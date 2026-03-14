@@ -393,7 +393,7 @@ body::after {
     justify-content: center;
     align-items: center;
     font-weight: 800;
-    font-size: 28px;
+    font-size: 36px; /* 增加基础大小 */
     color: #ffffff;
     transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
     box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1);
@@ -414,6 +414,10 @@ body::after {
     100% { transform: scale(1); filter: brightness(1); }
 }
 
+/* 针对不同位数进行精细化字号控制，确保不溢出 */
+.tile-128, .tile-256, .tile-512 { font-size: 28px; }
+.tile-1024, .tile-2048 { font-size: 22px; letter-spacing: -1px; }
+
 /* 数值色彩 - 微霓虹流体渐变 */
 .tile-2 { background: linear-gradient(135deg, #43e97b, #38f9d7); }
 .tile-4 { background: linear-gradient(135deg, #00f2fe, #4facfe); }
@@ -426,8 +430,8 @@ body::after {
 .tile-256 { background: linear-gradient(135deg, #f857a6, #ff5858); }
 
 .tile-512 { background: linear-gradient(135deg, #f7971e, #ffd200); box-shadow: 0 4px 20px rgba(255,210,0,0.4); }
-.tile-1024 { background: linear-gradient(135deg, #ff6a00, #ee0979); box-shadow: 0 4px 25px rgba(238,9,121,0.4); font-size: 22px; letter-spacing: -1.5px; font-weight: 900; }
-.tile-2048 { background: linear-gradient(135deg, #f12711, #f5af19); background-size: 200% 200%; animation: gradientShift 3s infinite; box-shadow: 0 4px 30px rgba(245,175,25,0.6); font-size: 22px; letter-spacing: -1.5px; font-weight: 900; }
+.tile-1024 { background: linear-gradient(135deg, #ff6a00, #ee0979); box-shadow: 0 4px 25px rgba(238,9,121,0.4); font-weight: 900; }
+.tile-2048 { background: linear-gradient(135deg, #f12711, #f5af19); background-size: 200% 200%; animation: gradientShift 3s infinite; box-shadow: 0 4px 30px rgba(245,175,25,0.6); font-weight: 900; }
 
 @keyframes gradientShift {
     0% { background-position: 0% 50%; }
@@ -736,9 +740,12 @@ body::after {
     #game-viewport { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     .game-view { width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 0; margin: 0 auto; }
     .game-container { width: 100%; height: auto; aspect-ratio: 1/1; padding: 10px; max-height: 100%; }
-    .tile { font-size: 20px; }
-    .tile-1024, .tile-2048 { font-size: 14px !important; letter-spacing: -0.5px !important; }
-    .mode-loop .tile-1024, .mode-loop .tile-2048 { font-size: 12px !important; }
+    .tile { font-size: 28px; }
+    .tile-128, .tile-256, .tile-512 { font-size: 22px !important; }
+    .tile-1024, .tile-2048 { font-size: 18px !important; letter-spacing: -0.5px !important; }
+    .mode-loop .tile { font-size: 24px; }
+    .mode-loop .tile-128, .mode-loop .tile-256, .mode-loop .tile-512 { font-size: 18px !important; }
+    .mode-loop .tile-1024, .mode-loop .tile-2048 { font-size: 14px !important; }
     .bottom-controls { padding-top: 15px; padding-bottom: 0px; flex-shrink: 0; }
     #player-title { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
