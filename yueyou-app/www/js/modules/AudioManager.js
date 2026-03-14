@@ -50,14 +50,8 @@ export class AudioManager {
         if (this.u && this.u.state === "suspended") {
             this.u.resume();
         }
-        // 尝试恢复当前由于自动播放限制而暂停的小说音频
-        if (this.currentAudio && this.currentAudio.paused) {
-            this.currentAudio.play().catch(() => {});
-        }
-        // 播放一段极短的静音音频，强制浏览器激活该页面的音频输出
-        const silentAudio = new Audio();
-        silentAudio.src = "data:audio/mp3;base64,//NkxAA";
-        silentAudio.play().catch(e => console.log("静音解锁失败 (如果不是由手势触发则属正常):", e));
+        // 注意：这里只解锁 AudioContext，绝不直接 play 任何小说音频！
+        // 小说音频的播放完全由 startPlayLoop 单例循环控制，避免重音。
     }
 
     // --- Audio Context & Graph Setup ---
@@ -250,24 +244,19 @@ export class AudioManager {
         if (this.m.masterGain) this.m.masterGain.gain.value = this.settings.ambientVol;
         this.updateTTSFilter();
         document.body.className = 'theme-' + (this.settings.ambientTheme || 'wuxia');
+        
+        // 启动单例循环（如果尚未运行）
+        this.startPrefetchLoop();
+        this.startPlayLoop();
     }
 
     checkHeadphonesAndStart() {
-        navigator.mediaDevices.enumerateDevices().then(devices => {
-            let hasHeadphones = devices.filter(d => d.kind === "audiooutput").some(d => {
-                let label = d.label.toLowerCase();
-                return label.includes("headphone") || label.includes("earbud") || label.includes("bluetooth") || label.includes("\u8033\u673A");
-            });
-            if(hasHeadphones) {
-                console.log("Headphones detected, silent TTS trigger.");
-                this.toggle(true);
-            } else {
-                 this.toggle(true);
-            }
-        }).catch(err => {
-            console.warn("enumerateDevices rejected:", err);
-            this.toggle(true);
-        });
+        // 只设置 enabled 状态，不再直接启动循环（循环由 initLibrary 或 syncGameState 控制）
+        if (!this.enabled) {
+            this.enabled = true;
+            this.settings.storyTTS = true;
+            localStorage.setItem("setting_story_tts", true);
+        }
     }
 
     // --- TTS Novel Logic ---
@@ -375,20 +364,15 @@ export class AudioManager {
         localStorage.setItem("setting_story_tts", enable);
         if (enable) {
             this.heartbeat();
-            if (this.currentAudio && this.currentAudio.paused && !this.currentAudio.ended) {
-                this.isSpeaking = true;
-                this.currentAudio.play().catch(c => console.warn("Failed to resume audio:", c));
-                this.updateUI();
-            }
-            // 核心修复：即使 isPlaying 为 true，如果 session 不一致也要尝试启动
-            if (!this.isPlaying || this.playingSession !== this.loopSession) {
-                this.startPrefetchLoop();
-                this.startPlayLoop();
-            }
+            // 不再直接 play currentAudio！交给单例循环自然处理。
+            // 只确保循环在运行。
+            this.startPrefetchLoop();
+            this.startPlayLoop();
         } else {
             if (this.currentAudio) this.currentAudio.pause();
             this.isSpeaking = false;
             this.isPlaying = false;
+            this.prefetching = false;
             this.updateUI();
         }
     }
@@ -428,20 +412,17 @@ export class AudioManager {
             if(x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); 
         });
         this.audioBufferArray = [];
-        this.prefetching = false;
         this.isSpeaking = false;
-        // 核心修复：同 loadNovel，不再手动重置 isPlaying，依靠 session 切换逻辑
+
         // 更新位置
         this.cursor = lineIndex;
         this.fetchCursor = lineIndex;
         localStorage.setItem("novel_index", this.cursor.toString());
         this.updateUI();
 
-        // 重新启动引擎
-        if (this.enabled) {
-            this.startPrefetchLoop();
-            this.startPlayLoop();
-        }
+        // 确保循环在运行
+        this.startPrefetchLoop();
+        this.startPlayLoop();
     }
 
     async fetchTTS(text, voice) {
@@ -522,47 +503,54 @@ export class AudioManager {
     async startPrefetchLoop() {
         if (this.prefetching) return;
         this.prefetching = true;
-        let session = this.loopSession;
-        while (this.enabled && this.loopSession === session) {
+        
+        while (this.enabled) {
+            let session = this.loopSession; // 记录进入时的 Session
+            
             if (this.idleTimeout > 0 && Date.now() - this.lastActive > this.idleTimeout) {
                 await new Promise(r => setTimeout(r, 1000));
                 continue;
             }
-            if (this.audioBufferArray.length >= 2) {
-                await new Promise(r => setTimeout(r, 200));
+            if (this.audioBufferArray.length >= 3) { // 增加缓冲深度
+                await new Promise(r => setTimeout(r, 300));
                 continue;
             }
+            if (!this.lines || this.lines.length === 0) {
+                await new Promise(r => setTimeout(r, 1000));
+                continue;
+            }
+
             let line = this.lines[this.fetchCursor];
             if (!line) {
                 await new Promise(r => setTimeout(r, 1000));
                 continue;
             }
+
             let url = await this.fetchTTS(line.t, line.v);
-            if (this.loopSession !== session) break;
+            
+            // 核心：请求回来后立即检查 Session，如果变了，直接丢弃结果并重试
+            if (this.loopSession !== session) {
+                if (url && url !== "speech_synthesis") URL.revokeObjectURL(url);
+                continue;
+            }
+
             if (url) {
                 let id = Math.random().toString(36).substr(2, 9);
                 if (url === "speech_synthesis") {
                     let mockAudio = {
-                        isSpeech: true,
-                        text: line.t,
-                        paused: true,
-                        ended: false,
+                        isSpeech: true, text: line.t, paused: true, ended: false,
                         play: async function() {
                             this.paused = false; this.ended = false;
                             window.speechSynthesis.cancel(); 
-                            return new Promise((resolve, reject) => {
+                            return new Promise((resolve) => {
                                 let u = new SpeechSynthesisUtterance(this.text);
                                 u.lang = "zh-CN";
-                                u.rate = 1.1; // 稍微加快语速
                                 u.onend = () => { this.ended = true; this.paused = true; if(this.onended) this.onended(); resolve(); };
                                 u.onerror = () => { this.ended = true; this.paused = true; if(this.onerror) this.onerror(); resolve(); };
                                 window.speechSynthesis.speak(u);
                             });
                         },
-                        pause: function() {
-                            this.paused = true;
-                            window.speechSynthesis.cancel();
-                        }
+                        pause: function() { this.paused = true; window.speechSynthesis.cancel(); }
                     };
                     this.audioBufferArray.push({ url: url, id: id, obj: mockAudio });
                 } else {
@@ -572,108 +560,90 @@ export class AudioManager {
                 }
                 this.fetchCursor = (this.fetchCursor + 1) % this.lines.length;
             } else {
-                this.audioBufferArray.push({ url: null, id: "fail", obj: null });
-                this.fetchCursor = (this.fetchCursor + 1) % this.lines.length;
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 2000));
             }
         }
-        if (this.loopSession === session) this.prefetching = false;
+        this.prefetching = false;
     }
 
     async startPlayLoop() {
-        // 核心逻辑：如果当前已经有相同 Session 的循环在跑，则直接返回
-        if (this.playingSession === this.loopSession && this.isPlaying) return;
-        
+        if (this.isPlaying) return;
         this.isPlaying = true;
-        this.playingSession = this.loopSession; // 抢占当前 Session 的播放权
-        let session = this.loopSession;
         
-        while (this.enabled && this.loopSession === session) {
+        while (this.enabled) {
+            let session = this.loopSession; // 记录当前播放周期所属的 Session ID
+            
             if (this.audioBufferArray.length === 0) {
                 let ch = document.getElementById("player-chapter");
-                if (this.enabled && ch) ch.innerHTML = '<span style="color:#fbbf24">⏳ 神经信号缓冲中...</span>';
-                if (this.isSpeaking) {
-                    this.isSpeaking = false;
+                if (this.enabled && ch) ch.innerHTML = '<span style="color:#fbbf24">⏳ 神经数据加载中...</span>';
+                if (this.isSpeaking) { this.isSpeaking = false; this.updateUI(); }
+                await new Promise(r => setTimeout(r, 200));
+                continue;
+            }
+
+            let item = this.audioBufferArray.shift();
+            if (!item || !item.obj) {
+                if (this.loopSession === session) {
+                    this.cursor = (this.cursor + 1) % (this.lines.length || 1);
                     this.updateUI();
                 }
-                await new Promise(r => setTimeout(r, 100));
                 continue;
             }
-            let item = this.audioBufferArray.shift();
-            if (!item.obj) {
-                if (this.lines && this.lines.length > 0) {
-                    this.cursor = (this.cursor + 1) % this.lines.length;
-                    localStorage.setItem("novel_index", this.cursor.toString());
-                    if(typeof window._syncIdleState === 'function') window._syncIdleState();
-                }
-                this.updateUI();
-                continue;
-            }
+
             this.isSpeaking = true;
             this.updateUI();
             
             await new Promise(resolve => {
                 let audio = item.obj;
                 this.currentAudio = audio;
-                // 临门一脚检查：在真正发出声音前，最后确认一次 Session 是否过期
+                
+                // 临门一脚检查
                 if (this.loopSession !== session) return resolve();
 
+                audio.onended = resolve;
+                audio.onerror = resolve;
+
                 if (audio.isSpeech) {
-                    audio.onended = resolve;
-                    audio.onerror = resolve;
-                    // 确保语音播报前清除所有可能的遗留队列
                     window.speechSynthesis.cancel();
-                    audio.play().catch(() => resolve());
+                    audio.play().catch(resolve);
                 } else {
-                    audio.onended = () => resolve();
-                    audio.onerror = () => resolve();
-                    
                     if (!audio._routed && this.u && this.ttsInput) {
                         try {
                             let src = this.u.createMediaElementSource(audio);
-                            src.connect(this.ttsInput);
-                            audio._routed = true;
-                        } catch(e) { console.warn("TTS Audio routing failed:", e); }
+                            src.connect(this.ttsInput); audio._routed = true;
+                        } catch(e) {}
                     }
-                    
-                    let playPromise = audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(err => {
-                            if (err.name === "NotAllowedError") {
-                                let mask = document.getElementById("autoplay-mask");
-                                if (mask) mask.classList.remove("hidden");
-                                let btn = document.getElementById("btn-unblock-audio");
-                                if (btn) {
-                                btn.onclick = () => {
-                                    mask.classList.add("hidden");
-                                    if (this.loopSession !== session) return resolve(); // 如果 Session 变了，直接退出不播放
-                                    audio.play().then(() => resolve()).catch(() => resolve());
-                                };
-                                }
-                            } else if (err.name !== "AbortError") {
-                                resolve();
-                            }
-                        });
-                    }
+                    audio.play().catch(err => {
+                        if (err.name === "NotAllowedError") {
+                            let mask = document.getElementById("autoplay-mask");
+                            if (mask) mask.classList.remove("hidden");
+                            let btn = document.getElementById("btn-unblock-audio");
+                            if (btn) btn.onclick = () => {
+                                mask.classList.add("hidden");
+                                if (this.loopSession === session) audio.play().then(resolve).catch(resolve);
+                                else resolve();
+                            };
+                        } else resolve();
+                    });
                 }
             });
-            // 核心修复：执行完 await 后立即检查 Session 是否一致
+
+            // 检查完成一次播报后 Session 是否还一致
             if (this.loopSession !== session) {
                 if (this.currentAudio) this.currentAudio.pause();
-                break;
+                this.currentAudio = null;
+                continue; 
             }
             
             this.currentAudio = null;
-            if (item.url) URL.revokeObjectURL(item.url);
+            if (item.url && item.url !== "speech_synthesis") URL.revokeObjectURL(item.url);
+            
             if (this.lines && this.lines.length > 0) {
                 this.cursor = (this.cursor + 1) % this.lines.length;
                 localStorage.setItem("novel_index", this.cursor.toString());
                 if(typeof window._syncIdleState === 'function') window._syncIdleState();
             }
         }
-        if (this.loopSession === session) {
-            this.isPlaying = false;
-            this.updateUI();
-        }
+        this.isPlaying = false;
     }
 }

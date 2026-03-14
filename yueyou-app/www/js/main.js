@@ -68,29 +68,13 @@ import { LocalDB } from './modules/LocalDB.js';
     const unlockAudioEngine = () => {
         if (_unlocked) return;
         _unlocked = true;
-        // 解锁 AudioManager 内部的 AudioContext
+        // 只解锁 AudioContext，不启动任何播放循环。
+        // 播放循环由 AudioManager 内部单例管理，解锁后它会自然恢复。
         l.unlockAudio();
         if (l.u && l.u.state === 'suspended') {
-            l.u.resume().then(() => {
-                console.log('[Audio] AudioContext resumed on user interaction.');
-                if (l.enabled && !l.isPlaying) {
-                    l.startPrefetchLoop();
-                    l.startPlayLoop();
-                }
-            }).catch(() => {});
-        } else if (l.enabled && !l.isPlaying) {
-            l.startPrefetchLoop();
-            l.startPlayLoop();
+            l.u.resume().catch(() => {});
         }
-        // 尝试播放一段无声的极短音频以解锁浏览器静音策略
-        try {
-            let silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
-            silentAudio.volume = 0.01;
-            silentAudio.play().then(() => silentAudio.pause()).catch(() => {});
-        } catch(e) {}
-        
         if (typeof window._syncIdleState === 'function') window._syncIdleState();
-        
         document.removeEventListener('touchstart', unlockAudioEngine);
         document.removeEventListener('click', unlockAudioEngine);
     };
