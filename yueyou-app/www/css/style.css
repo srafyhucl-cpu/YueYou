@@ -1005,13 +1005,27 @@ body::after {
     max-height: 60vh;
 }
 .chapter-list-container::-webkit-scrollbar {
-    width: 4px;
-    background: rgba(255, 255, 255, 0.05);
+    display: block !important;
+    width: 6px;
+    background: rgba(255, 255, 255, 0.03);
 }
 .chapter-list-container::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.4);
-    border-radius: 4px;
-    backdrop-filter: blur(10px);
+    background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-purple));
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+}
+.chapter-list-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* 图书书架滚动条 */
+#library-content::-webkit-scrollbar {
+    display: block !important;
+    width: 6px;
+}
+#library-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, var(--accent-pink), var(--accent-purple));
+    border-radius: 10px;
 }
 
 #chapter-list {
