@@ -421,13 +421,15 @@ export class AudioManager {
                 body: JSON.stringify({ text: text, voice: voice })
             });
             if (!res.ok) {
-                console.error(`[TTS Error] Remote server returned HTTP ${res.status}`);
-                return null;
+                console.warn(`[TTS] Server returned HTTP ${res.status}. Falling back to native.`);
+                throw new Error("HTTP " + res.status);
             }
             let blob = await res.blob();
             return URL.createObjectURL(blob);
         } catch (e) {
-            console.error("[TTS Error] Network/Fetch failed:", e);
+            // 网络或 CORS 错误时，降级使用浏览器内置的 SpeechSynthesis API
+            if ("speechSynthesis" in window) return "speech_synthesis";
+            console.error("[TTS Error] Network/Fetch failed and no native TTS available:", e);
             return null;
         }
     }
@@ -463,9 +465,35 @@ export class AudioManager {
             if (this.loopSession !== session) break;
             if (url) {
                 let id = Math.random().toString(36).substr(2, 9);
-                let audioObj = new Audio(url);
-                audioObj.preload = "auto";
-                this.audioBufferArray.push({ url: url, id: id, obj: audioObj });
+                if (url === "speech_synthesis") {
+                    let mockAudio = {
+                        isSpeech: true,
+                        text: line.t,
+                        paused: true,
+                        ended: false,
+                        play: async function() {
+                            this.paused = false; this.ended = false;
+                            window.speechSynthesis.cancel(); 
+                            return new Promise((resolve, reject) => {
+                                let u = new SpeechSynthesisUtterance(this.text);
+                                u.lang = "zh-CN";
+                                u.rate = 1.1; // 稍微加快语速
+                                u.onend = () => { this.ended = true; this.paused = true; if(this.onended) this.onended(); resolve(); };
+                                u.onerror = () => { this.ended = true; this.paused = true; if(this.onerror) this.onerror(); resolve(); };
+                                window.speechSynthesis.speak(u);
+                            });
+                        },
+                        pause: function() {
+                            this.paused = true;
+                            window.speechSynthesis.cancel();
+                        }
+                    };
+                    this.audioBufferArray.push({ url: url, id: id, obj: mockAudio });
+                } else {
+                    let audioObj = new Audio(url);
+                    audioObj.preload = "auto";
+                    this.audioBufferArray.push({ url: url, id: id, obj: audioObj });
+                }
                 this.fetchCursor = (this.fetchCursor + 1) % this.lines.length;
             } else {
                 this.audioBufferArray.push({ url: null, id: "fail", obj: null });
@@ -507,34 +535,41 @@ export class AudioManager {
             await new Promise(resolve => {
                 let audio = item.obj;
                 this.currentAudio = audio;
-                audio.onended = () => resolve();
-                audio.onerror = () => resolve();
                 
-                if (!audio._routed && this.u && this.ttsInput) {
-                    try {
-                        let src = this.u.createMediaElementSource(audio);
-                        src.connect(this.ttsInput);
-                        audio._routed = true;
-                    } catch(e) { console.warn("TTS Audio routing failed:", e); }
-                }
-                
-                let playPromise = audio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(err => {
-                        if (err.name === "NotAllowedError") {
-                            let mask = document.getElementById("autoplay-mask");
-                            if (mask) mask.classList.remove("hidden");
-                            let btn = document.getElementById("btn-unblock-audio");
-                            if (btn) {
-                                btn.onclick = () => {
-                                    mask.classList.add("hidden");
-                                    audio.play().then(() => resolve()).catch(() => resolve());
-                                };
+                if (audio.isSpeech) {
+                    audio.onended = resolve;
+                    audio.onerror = resolve;
+                    audio.play().catch(() => resolve());
+                } else {
+                    audio.onended = () => resolve();
+                    audio.onerror = () => resolve();
+                    
+                    if (!audio._routed && this.u && this.ttsInput) {
+                        try {
+                            let src = this.u.createMediaElementSource(audio);
+                            src.connect(this.ttsInput);
+                            audio._routed = true;
+                        } catch(e) { console.warn("TTS Audio routing failed:", e); }
+                    }
+                    
+                    let playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => {
+                            if (err.name === "NotAllowedError") {
+                                let mask = document.getElementById("autoplay-mask");
+                                if (mask) mask.classList.remove("hidden");
+                                let btn = document.getElementById("btn-unblock-audio");
+                                if (btn) {
+                                    btn.onclick = () => {
+                                        mask.classList.add("hidden");
+                                        audio.play().then(() => resolve()).catch(() => resolve());
+                                    };
+                                }
+                            } else if (err.name !== "AbortError") {
+                                resolve();
                             }
-                        } else if (err.name !== "AbortError") {
-                            resolve();
-                        }
-                    });
+                        });
+                    }
                 }
             });
             if (this.loopSession !== session) break;
