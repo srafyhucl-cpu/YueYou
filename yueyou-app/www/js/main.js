@@ -101,7 +101,13 @@ import { LocalDB } from './modules/LocalDB.js';
     let G = async (f) => {
         let i = document.getElementById("tile-container");
         if (p.phaseJustCleared || i.classList.contains("targeting")) return;
-        let { moved: c, mergedTiles: a } = p.move(f);
+        let res = p.move(f);
+        let c = res.moved;
+        let a = res.mergedTiles;
+        if (res.mergedTiles && res.mergedTiles.isResetAction) {
+            e.render(p);
+            return;
+        }
         if (c) {
           if ((l.heartbeat(), A(), e.render(p, a), a.length > 0)) {
             let g = Math.max(...a.map((x) => x.value));
@@ -123,8 +129,6 @@ import { LocalDB } from './modules/LocalDB.js';
           }
           if (p.over) {
               await e.playTransition("defeat");
-              alert("维度崩溃！重新启动...");
-              p.reset();
               e.render(p);
           }
         }
@@ -178,6 +182,14 @@ import { LocalDB } from './modules/LocalDB.js';
         let label = document.getElementById("idle-timeout-label");
         if (label) label.innerText = o == 0 ? "永不停止" : o + " 分钟";
       }
+      let ttsVoiceSelect = document.getElementById("tts-voice-select");
+      if (ttsVoiceSelect) {
+          let savedVoice = localStorage.getItem("tts_voice");
+          if (savedVoice) ttsVoiceSelect.value = savedVoice;
+          ttsVoiceSelect.addEventListener("change", (e) => {
+              localStorage.setItem("tts_voice", e.target.value);
+          });
+      }
 
       B("btn-settings", () => document.getElementById("modal-settings").classList.remove("hidden"));
       B("close-settings", () => {
@@ -214,7 +226,6 @@ import { LocalDB } from './modules/LocalDB.js';
           if (confirm("重置进度？")) { p.reset(); e.render(p); }
       });
       // 目录按钮事件
-      let isChapterSortAsc = true;
       const renderChapterList = () => {
           let list = document.getElementById("chapter-list");
           if (!list) return;
@@ -224,12 +235,8 @@ import { LocalDB } from './modules/LocalDB.js';
               return;
           }
           let displayChapters = [...l.chapters];
-          if (!isChapterSortAsc) {
-              displayChapters.reverse();
-          }
-          displayChapters.forEach((ch) => {
+          displayChapters.forEach((ch, originalIdx) => {
               // 匹配原数组中对应的对象以判断 isActive，用原始 index 计算范围
-              let originalIdx = l.chapters.indexOf(ch);
               let nextCh = l.chapters[originalIdx + 1];
               let isActive = (l.cursor >= ch.lineIndex) && (!nextCh || l.cursor < nextCh.lineIndex);
               
@@ -257,8 +264,7 @@ import { LocalDB } from './modules/LocalDB.js';
       });
       
       B("btn-sort-chapters", () => {
-          isChapterSortAsc = !isChapterSortAsc;
-          renderChapterList();
+          document.getElementById("chapter-list").classList.toggle("reversed");
       });
 
       B("btn-close-chapters", () => document.getElementById("modal-chapters").classList.add("hidden"));

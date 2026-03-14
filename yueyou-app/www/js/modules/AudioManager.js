@@ -462,6 +462,9 @@ export class AudioManager {
     }
 
     async fetchTTS(text, voice) {
+        let savedVoice = localStorage.getItem("tts_voice");
+        if (savedVoice) voice = savedVoice;
+
         // 如果文本太短，服务器最低要求 5 个字符，自动在末尾补充无声的句号
         let safeText = text.length < 5 ? text.padEnd(5, '。') : text;
 
@@ -512,6 +515,13 @@ export class AudioManager {
         }
         let statusEl = document.getElementById("player-status-icon");
         if (statusEl) statusEl.innerText = this.isSpeaking ? "\u23F8" : "\u25B6";
+
+        let chapterStats = document.getElementById("chapter-stats");
+        if (chapterStats) {
+            let totalChapters = this.chapters ? this.chapters.length : 0;
+            let percent = this.lines && this.lines.length > 0 ? ((this.cursor / this.lines.length) * 100).toFixed(1) : 0;
+            chapterStats.innerText = `共 ${totalChapters} 章 | 阅读进度 ${percent}%`;
+        }
     }
 
     async startPrefetchLoop() {

@@ -17,6 +17,7 @@ export class GameEngine {
         this.combo = 0;
         this.nextId = Date.now();
         this.over = false;
+        this.awaitingRestart = false;
         this.initBoard();
         this.addRandomTile();
         this.addRandomTile();
@@ -28,7 +29,16 @@ export class GameEngine {
             .map(() => Array(this.size).fill(null));
     }
     move(e) {
-        if (this.over) return { moved: false, mergedTiles: [] };
+        if (this.over) {
+            if (this.awaitingRestart) {
+                if (confirm("由于维度塌缩，推演已停止。是否确认重新开始？")) {
+                    this.reset();
+                }
+            } else {
+                this.awaitingRestart = true;
+            }
+            return { moved: false, mergedTiles: Object.assign([], { isResetAction: this.awaitingRestart }) };
+        }
         let s = false,
             t = [],
             r = this.getVector(e),

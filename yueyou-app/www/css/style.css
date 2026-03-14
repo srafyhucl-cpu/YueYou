@@ -231,10 +231,10 @@ body::after {
 
 .top-nav-bar .icon-btn {
     flex: 1;
-    background: transparent !important;
+    background: rgba(255, 255, 255, 0.4) !important;
     border: none !important;
     box-shadow: none !important;
-    color: rgba(255, 255, 255, 0.85);
+    color: #ffffff;
     padding: 10px 0;
     transition: all 0.2s ease;
 }
@@ -385,11 +385,11 @@ body::after {
 }
 
 #combo-display {
-    position: absolute;
+    position: fixed;
     top: 40%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 9999;
+    z-index: 99999;
     color: var(--accent-gold);
     font-size: 36px;
     font-weight: 800;
@@ -437,7 +437,8 @@ body::after {
     font-size: 28px;
     color: #fff;
     transition: all 0.15s cubic-bezier(0.2, 0, 0, 1);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 0 15px rgba(255,255,255,0.4), 0 5px 15px rgba(0,0,0,0.4);
+    text-shadow: 0 0 8px rgba(255,255,255,0.8);
     pointer-events: auto;
 }
 
@@ -611,8 +612,13 @@ body::after {
 .player-info-text {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     cursor: pointer;
-    min-width: 80px;
+    max-width: 60vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 32px;
 }
 
 #player-title {
@@ -1031,12 +1037,18 @@ body::after {
     padding-right: 10px;
 }
 
+.chapter-list-container {
+    overflow-y: auto;
+    max-height: 60vh;
+}
 .chapter-list-container::-webkit-scrollbar {
     width: 4px;
+    background: rgba(255, 255, 255, 0.05);
 }
 .chapter-list-container::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.4);
     border-radius: 4px;
+    backdrop-filter: blur(10px);
 }
 
 #chapter-list {
@@ -1046,6 +1058,9 @@ body::after {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+#chapter-list.reversed {
+    flex-direction: column-reverse;
 }
 
 .chapter-item {

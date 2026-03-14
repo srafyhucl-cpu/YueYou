@@ -48,7 +48,6 @@
                     <div id="grid-bg"></div>
                     <div class="tile-container" id="tile-container"></div>
                     <div class="effects-container" id="effects-container"></div>
-                    <div id="combo-display">连击 x2</div>
                 </div>
             </div>
 
@@ -56,7 +55,7 @@
 
                 <!-- 底部交互栏 -->
                 <div class="bottom-nav-bar">
-                    <button id="restart-btn" class="text-link">返回初始 (重构时间线)</button>
+                    <button id="restart-btn" class="text-link">重来</button>
 
                     <!-- 智能旁白控制 -->
                     <div id="mini-player" class="cyber-player">
@@ -81,9 +80,12 @@
         <!-- 小说目录弹窗 -->
         <div id="modal-chapters" class="modal-overlay hidden">
             <div class="modal chapter-modal">
-                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0;">📑 章节目录</h3>
-                    <button id="btn-sort-chapters" class="btn outline-btn" style="padding: 6px 12px; font-size: 12px; border-radius: 20px;">正序/倒序</button>
+                <div class="modal-header" style="display:flex; flex-direction:column; gap: 8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                        <h3 style="margin:0;">📑 章节目录</h3>
+                        <button id="btn-sort-chapters" class="btn outline-btn" style="padding: 6px 12px; font-size: 12px; border-radius: 20px;">正序/倒序</button>
+                    </div>
+                    <div id="chapter-stats" style="font-size:12px; color:rgba(255,255,255,0.6); align-self:flex-start;">共 0 章 | 阅读进度 0%</div>
                 </div>
                 <div class="chapter-list-container">
                     <ul id="chapter-list">
@@ -137,6 +139,16 @@
                         <label style="display:flex; align-items:center; cursor:pointer;">
                             <input type="checkbox" id="toggle-story" style="width:20px; height:20px;">
                         </label>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <span style="font-weight: 800;">🗣️ 发音人配置</span>
+                        <select id="tts-voice-select" style="background:rgba(0,0,0,0.5); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:5px; border-radius:5px;">
+                            <option value="zh-CN-XiaoxiaoNeural">晓晓 (柔和女声)</option>
+                            <option value="zh-CN-YunxiNeural">云希 (沉稳男声)</option>
+                            <option value="zh-CN-YunjianNeural">云健 (男声)</option>
+                            <option value="zh-CN-XiaoyiNeural">晓伊 (女声)</option>
+                        </select>
                     </div>
                     <div
                         style="display:flex; flex-direction:column; gap:8px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
@@ -223,6 +235,7 @@
                 </div>
             </div>
         </div>
+        <div id="combo-display">连击 x2</div>
     </div>
     <!-- ⚙️ 全局配置（必须在 main.js 之前加载） -->
     <script src="js/config.js"></script>
