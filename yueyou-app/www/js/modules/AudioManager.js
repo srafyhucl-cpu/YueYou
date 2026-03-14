@@ -462,8 +462,7 @@ export class AudioManager {
     }
 
     async fetchTTS(text, voice) {
-        let savedVoice = localStorage.getItem("tts_voice");
-        if (savedVoice) voice = savedVoice;
+        voice = localStorage.getItem("tts_voice") || "zh-CN-XiaoxiaoNeural";
 
         // 如果文本太短，服务器最低要求 5 个字符，自动在末尾补充无声的句号
         let safeText = text.length < 5 ? text.padEnd(5, '。') : text;

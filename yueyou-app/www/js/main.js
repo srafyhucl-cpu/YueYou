@@ -188,6 +188,8 @@ import { LocalDB } from './modules/LocalDB.js';
           if (savedVoice) ttsVoiceSelect.value = savedVoice;
           ttsVoiceSelect.addEventListener("change", (e) => {
               localStorage.setItem("tts_voice", e.target.value);
+              l.audioBufferArray = [];
+              if(window.AudioManager) window.AudioManager.queue = [];
           });
       }
 
@@ -313,13 +315,22 @@ import { LocalDB } from './modules/LocalDB.js';
           shelf = shelf.filter(b => b.id !== id);
           localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
           await LocalDB.deleteBook(id);
-          if(l.novelID === id) {
+          
+          if (localStorage.getItem("current_novel_id") == id) {
+              localStorage.removeItem("current_novel_id");
+              localStorage.removeItem("novel_progress");
+              l.stop();
               l.lines = [];
               l.novelID = null;
-              l.novelTitle = "待选择";
+              l.novelTitle = "未加载书籍";
               l.cursor = 0;
+              let titleEl = document.getElementById("player-title");
+              if (titleEl) titleEl.innerText = "未加载书籍";
+              let chapEl = document.getElementById("player-chapter");
+              if (chapEl) chapEl.innerText = "";
               l.updateUI();
           }
+
           renderLibrary();
           if (typeof window._syncIdleState === 'function') window._syncIdleState();
           window._showToast("书籍已从维度中抹除");
@@ -352,7 +363,7 @@ import { LocalDB } from './modules/LocalDB.js';
              let title = file.name.replace(".txt", "");
              
              let chapters = [];
-             const chapterRegex = /^\s*(第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇][ \t]*.*?)(?:\r?\n|$)/;
+             const chapterRegex = /^\s*(\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
              rawLines.forEach((line, index) => {
                  let match = line.match(chapterRegex);
                  if (match) chapters.push({ title: match[1].trim(), lineIndex: index });

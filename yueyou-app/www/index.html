@@ -36,10 +36,15 @@
                         <div id="phase-progress" class="progress-fill" style="width: 0%"></div>
                     </div>
                 </div>
-                <div class="stats-grid">
-                    <div class="stat-item">当前得分: <span id="score">0</span></div>
-                    <div class="stat-item">最高连击: <span id="max-combo">0</span></div>
-                    <div class="stat-item">最高得分: <span id="best-score">0</span></div>
+                <div class="stats-grid" style="display:flex; justify-content:space-between; gap:10px;">
+                    <div class="stat-box" style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
+                        <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-bottom:5px;">当前得分 | 连击</div>
+                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="score">0</span> <span style="opacity:0.3; margin:0 4px;">|</span> <span id="combo">0</span></div>
+                    </div>
+                    <div class="stat-box" style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
+                        <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-bottom:5px;">最高得分 | 最高连击</div>
+                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="best-score">0</span> <span style="opacity:0.3; margin:0 4px;">|</span> <span id="max-combo">0</span></div>
+                    </div>
                 </div>
             </div>
 

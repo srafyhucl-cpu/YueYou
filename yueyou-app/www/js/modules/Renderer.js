@@ -13,6 +13,7 @@ export class Renderer {
         this.tileContainer = document.getElementById("tile-container");
         this.effectsContainer = document.getElementById("effects-container");
         this.scoreElement = document.getElementById("score");
+        this.comboElement = document.getElementById("combo");
         this.bestScoreElement = document.getElementById("best-score");
         this.maxComboElement = document.getElementById("max-combo");
         this.comboDisplay = document.getElementById("combo-display");
@@ -60,6 +61,7 @@ export class Renderer {
         }
         
         if(this.scoreElement) this.scoreElement.innerText = e.score || 0;
+        if(this.comboElement) this.comboElement.innerText = e.combo || 0;
         let r = e.bestScore && !isNaN(e.bestScore) ? e.bestScore : 0;
         if(this.bestScoreElement) this.bestScoreElement.innerText = Math.max(e.score || 0, r);
         if(this.maxComboElement) this.maxComboElement.innerText = e.maxCombo || 0;

@@ -28,16 +28,23 @@ export class GameEngine {
             .fill()
             .map(() => Array(this.size).fill(null));
     }
+    triggerDeathConfirm() {
+        if (confirm("你失败了！请重新开始\n\n点击【确定】重新开局\n点击【取消】关闭弹窗")) {
+            this.reset();
+            this.awaitingRestart = false;
+            return true;
+        }
+        return false;
+    }
     move(e) {
         if (this.over) {
             if (this.awaitingRestart) {
-                if (confirm("由于维度塌缩，推演已停止。是否确认重新开始？")) {
-                    this.reset();
-                }
+                let didReset = this.triggerDeathConfirm();
+                return { moved: false, mergedTiles: Object.assign([], { isResetAction: didReset }) };
             } else {
                 this.awaitingRestart = true;
             }
-            return { moved: false, mergedTiles: Object.assign([], { isResetAction: this.awaitingRestart }) };
+            return { moved: false, mergedTiles: [] };
         }
         let s = false,
             t = [],
@@ -96,7 +103,15 @@ export class GameEngine {
             this.board = v;
             this.addRandomTile();
             this.updateScore();
-            if(!this.movesAvailable()) this.over = true;
+            if(!this.movesAvailable()) {
+                this.over = true;
+                this.awaitingRestart = true;
+                setTimeout(() => {
+                    if (this.triggerDeathConfirm()) {
+                        document.dispatchEvent(new CustomEvent('game-reset'));
+                    }
+                }, 500);
+            }
         }
         return { moved: s, mergedTiles: t, combo: this.combo };
     }
