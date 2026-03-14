@@ -12,6 +12,7 @@ export class AudioManager {
         this.currentTTSNodes = []; // 当前活跃的 TTS 处理滤镜节点
         this.m = { oscs: [], gains: [], masterGain: null, intervals: [] }; // 环境音效相关的资源跟踪
         this.M = null; // 当前活跃的环境白噪音主题标识符
+        this._ttsFailed = false; // 用于标记远程 TTS 是否已失效，实现快速切离线
 
         // --- TTS Novel Logic State ---
         this.lines = [
@@ -414,19 +415,29 @@ export class AudioManager {
     }
 
     async fetchTTS(text, voice) {
+        if (this._ttsFailed && "speechSynthesis" in window) return "speech_synthesis";
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时直接回退
+
         try {
             let res = await fetch(this.ttsURL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: text, voice: voice })
+                body: JSON.stringify({ text: text, voice: voice }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (!res.ok) {
                 console.warn(`[TTS] Server returned HTTP ${res.status}. Falling back to native.`);
                 throw new Error("HTTP " + res.status);
             }
             let blob = await res.blob();
+            this._ttsFailed = false; // 成功则重置状态
             return URL.createObjectURL(blob);
         } catch (e) {
+            clearTimeout(timeoutId);
+            this._ttsFailed = true; // 标记远程接口失效
             // 网络或 CORS 错误时，降级使用浏览器内置的 SpeechSynthesis API
             if ("speechSynthesis" in window) return "speech_synthesis";
             console.error("[TTS Error] Network/Fetch failed and no native TTS available:", e);
