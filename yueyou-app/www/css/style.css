@@ -210,13 +210,41 @@ body::after {
     cursor: pointer;
     transition: 0.3s;
     color: #fff;
-    background: var(--glass-heavy);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
     white-space: nowrap;
     flex-shrink: 0;
     min-height: 44px; display: flex; align-items: center; justify-content: center;
 }
+
+.top-nav-bar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 8px 12px;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.top-nav-bar .icon-btn {
+    flex: 1;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: rgba(255, 255, 255, 0.85);
+    padding: 10px 0;
+    transition: all 0.2s ease;
+}
+
+.top-nav-bar .icon-btn:hover, .top-nav-bar .icon-btn:active {
+    transform: scale(1.05);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
 #btn-settings {
     background: rgba(255, 255, 255, 0.12) !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -354,6 +382,20 @@ body::after {
     backdrop-filter: var(--blur); 
     -webkit-backdrop-filter: var(--blur);
     max-height: 100%;
+}
+
+#combo-display {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    color: var(--accent-gold);
+    font-size: 36px;
+    font-weight: 800;
+    opacity: 0;
+    pointer-events: none;
+    text-shadow: 0 0 20px rgba(251, 191, 36, 0.8), 0 0 10px rgba(251, 191, 36, 0.5);
 }
 
 .tile-container {
@@ -1015,9 +1057,10 @@ body::after {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.8);
     transition: all 0.2s ease;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 }
 
 .chapter-item:hover {

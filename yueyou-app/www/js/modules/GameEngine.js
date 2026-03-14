@@ -8,6 +8,7 @@ export class GameEngine {
     constructor() {
         let e = localStorage.getItem("bestScore_premium");
         this.bestScore = e && !isNaN(e) ? parseInt(e) : 0;
+        this.maxCombo = parseInt(localStorage.getItem('maxCombo')) || 0;
         this.reset();
     }
     reset() {
@@ -19,6 +20,7 @@ export class GameEngine {
         this.initBoard();
         this.addRandomTile();
         this.addRandomTile();
+        this.updateScore();
     }
     initBoard() {
         this.board = Array(this.size)
@@ -64,10 +66,9 @@ export class GameEngine {
                         A[m.r][m.c] = true;
                         s = true;
                         this.combo++;
-                        this.score += M.value;
-                        if(this.score > this.bestScore) {
-                            this.bestScore = this.score;
-                            localStorage.setItem("bestScore_premium", this.bestScore);
+                        if (this.combo > this.maxCombo) {
+                            this.maxCombo = this.combo;
+                            localStorage.setItem("maxCombo", this.maxCombo);
                         }
                         t.push({
                             r: m.r,
@@ -84,9 +85,22 @@ export class GameEngine {
             if (t.length === 0) this.combo = 0;
             this.board = v;
             this.addRandomTile();
+            this.updateScore();
             if(!this.movesAvailable()) this.over = true;
         }
         return { moved: s, mergedTiles: t, combo: this.combo };
+    }
+    updateScore() {
+        this.score = 0;
+        this.board.forEach((s) =>
+            s.forEach((t) => {
+                if (t) this.score += t.value;
+            })
+        );
+        if (this.score > this.bestScore) {
+            this.bestScore = this.score;
+            localStorage.setItem("bestScore_premium", this.bestScore);
+        }
     }
     getMaxTileValue() {
         let e = 2;

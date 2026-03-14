@@ -498,7 +498,18 @@ export class AudioManager {
         let titleEl = document.getElementById("player-title");
         if (titleEl) titleEl.innerText = `${this.novelTitle}`;
         let chapEl = document.getElementById("player-chapter");
-        if (chapEl) chapEl.innerText = `\u7B2C ${this.cursor + 1} \u53E5 / \u5171 ${this.lines ? this.lines.length : "..."} \u53E5`;
+        if (chapEl) {
+            let currentChapterTitle = "未分类 / 序章";
+            if (this.chapters && this.chapters.length > 0) {
+                for (let i = this.chapters.length - 1; i >= 0; i--) {
+                    if (this.cursor >= this.chapters[i].lineIndex) {
+                        currentChapterTitle = this.chapters[i].title;
+                        break;
+                    }
+                }
+            }
+            chapEl.innerText = currentChapterTitle;
+        }
         let statusEl = document.getElementById("player-status-icon");
         if (statusEl) statusEl.innerText = this.isSpeaking ? "\u23F8" : "\u25B6";
     }

@@ -213,39 +213,55 @@ import { LocalDB } from './modules/LocalDB.js';
       B("restart-btn", () => {
           if (confirm("重置进度？")) { p.reset(); e.render(p); }
       });
-      
       // 目录按钮事件
-      B("btn-chapter-list", () => {
-          let modal = document.getElementById("modal-chapters");
+      let isChapterSortAsc = true;
+      const renderChapterList = () => {
           let list = document.getElementById("chapter-list");
-          if (!modal || !list) return;
-          
+          if (!list) return;
           list.innerHTML = "";
           if (!l.chapters || l.chapters.length === 0) {
               list.innerHTML = '<p style="text-align:center; color:#a0a0b0; margin-top:20px;">当前书籍未解析出目录或尚未加载...</p>';
-          } else {
-              l.chapters.forEach((ch, idx) => {
-                  let nextCh = l.chapters[idx + 1];
-                  let isActive = (l.cursor >= ch.lineIndex) && (!nextCh || l.cursor < nextCh.lineIndex);
-                  let li = document.createElement("li");
-                  li.className = "chapter-item" + (isActive ? " active" : "");
-                  li.innerHTML = `<span>${ch.title}</span>`;
-                  li.onclick = () => {
-                      l.jumpToChapter(ch.lineIndex);
-                      modal.classList.add("hidden");
-                  };
-                  list.appendChild(li);
-              });
-              // 自动滚动到当前活动章节
-              setTimeout(() => {
-                  let activeItem = list.querySelector(".chapter-item.active");
-                  if (activeItem) activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
-              }, 50);
+              return;
           }
+          let displayChapters = [...l.chapters];
+          if (!isChapterSortAsc) {
+              displayChapters.reverse();
+          }
+          displayChapters.forEach((ch) => {
+              // 匹配原数组中对应的对象以判断 isActive，用原始 index 计算范围
+              let originalIdx = l.chapters.indexOf(ch);
+              let nextCh = l.chapters[originalIdx + 1];
+              let isActive = (l.cursor >= ch.lineIndex) && (!nextCh || l.cursor < nextCh.lineIndex);
+              
+              let li = document.createElement("li");
+              li.className = "chapter-item" + (isActive ? " active" : "");
+              li.innerHTML = `<span>${ch.title}</span>`;
+              li.onclick = () => {
+                  l.jumpToChapter(ch.lineIndex);
+                  document.getElementById("modal-chapters").classList.add("hidden");
+              };
+              list.appendChild(li);
+          });
+          // 自动滚动到当前活动章节
+          setTimeout(() => {
+              let activeItem = list.querySelector(".chapter-item.active");
+              if (activeItem) activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 50);
+      };
+
+      B("btn-chapter-list", () => {
+          let modal = document.getElementById("modal-chapters");
+          if (!modal) return;
+          renderChapterList();
           modal.classList.remove("hidden");
       });
-      B("close-chapters", () => document.getElementById("modal-chapters").classList.add("hidden"));
+      
+      B("btn-sort-chapters", () => {
+          isChapterSortAsc = !isChapterSortAsc;
+          renderChapterList();
+      });
 
+      B("btn-close-chapters", () => document.getElementById("modal-chapters").classList.add("hidden"));
       let V = document.getElementById("modal-library");
       let H = document.getElementById("library-content");
       let renderLibrary = () => {
@@ -352,7 +368,13 @@ import { LocalDB } from './modules/LocalDB.js';
         });
       }
       B("btn-library", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
-      B("player-info", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
+      B("player-info", () => {
+          let modal = document.getElementById("modal-chapters");
+          if (modal) {
+              renderChapterList();
+              modal.classList.remove("hidden");
+          }
+      });
       B("close-library", () => { if (V) V.classList.add("hidden"); });
 
       B("btn-idle-import", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });

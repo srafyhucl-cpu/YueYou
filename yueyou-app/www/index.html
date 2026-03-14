@@ -20,12 +20,7 @@
     <div id="app" class="mode-standard">
         <div id="game-viewport">
             <header class="top-nav">
-                <div class="local-badge">
-                    <span class="pulse-dot"></span>
-                    <span class="badge-text" id="display-name">本地观测者</span>
-                </div>
-                <div class="nav-actions">
-                    <button class="icon-btn glow-btn hidden" id="btn-admin">📡 控制台</button>
+                <div class="top-nav-bar">
                     <button class="icon-btn highlight-btn" id="btn-library">📚 图书馆</button>
                     <button class="icon-btn outline-btn" id="btn-chapter-list">📑 目录</button>
                     <button class="icon-btn highlight-btn" id="btn-leaderboard">🌌 星图</button>
@@ -34,19 +29,17 @@
             </header>
 
             <div class="status-panel">
-                <div class="hud-corner-indicator"><span class="hud-dot"></span> 同步状态: 本地</div>
                 <div class="phase-indicator">
                     <div class="phase-badge"><span id="phase-tag">经典模式</span></div>
-                    <span id="phase-label">初始维度：冲击 2048</span>
+                    <span id="phase-label">挑战进展</span>
                     <div class="progress-bar-container">
                         <div id="phase-progress" class="progress-fill" style="width: 0%"></div>
                     </div>
                 </div>
                 <div class="stats-grid">
-                    <div class="stat-item">能量值: <span id="score">0</span><span class="stat-label-hud">[熵级指数]</span></div>
-                    <div class="stat-item" id="combo-display" style="color:#fbbf24; opacity:0; transition:0.2s;">连击
-                        x2</div>
-                    <div class="stat-item">峰值: <span id="best-score">0</span><span class="stat-label-hud">[最大维度]</span></div>
+                    <div class="stat-item">当前得分: <span id="score">0</span></div>
+                    <div class="stat-item">最高连击: <span id="max-combo">0</span></div>
+                    <div class="stat-item">最高得分: <span id="best-score">0</span></div>
                 </div>
             </div>
 
@@ -55,13 +48,11 @@
                     <div id="grid-bg"></div>
                     <div class="tile-container" id="tile-container"></div>
                     <div class="effects-container" id="effects-container"></div>
+                    <div id="combo-display">连击 x2</div>
                 </div>
             </div>
 
                 <footer class="bottom-controls">
-                <div class="msg-scroller">
-                    <p id="game-hint">滑动手势以操纵数字物质...</p>
-                </div>
 
                 <!-- 底部交互栏 -->
                 <div class="bottom-nav-bar">
@@ -90,16 +81,17 @@
         <!-- 小说目录弹窗 -->
         <div id="modal-chapters" class="modal-overlay hidden">
             <div class="modal chapter-modal">
-                <div class="modal-header">
-                    <h3>📑 章节目录</h3>
-                    <button id="close-chapters" class="close-btn">&times;</button>
+                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0;">📑 章节目录</h3>
+                    <button id="btn-sort-chapters" class="btn outline-btn" style="padding: 6px 12px; font-size: 12px; border-radius: 20px;">正序/倒序</button>
                 </div>
                 <div class="chapter-list-container">
                     <ul id="chapter-list">
                         <!-- 章节项动态生成 -->
-                        <p style="text-align:center; color: #a0a0b0; margin-top: 20px;">当前书记未解析出目录或尚未加载...</p>
+                        <p style="text-align:center; color: #a0a0b0; margin-top: 20px;">当前书籍未解析出目录或尚未加载...</p>
                     </ul>
                 </div>
+                <button id="btn-close-chapters" class="btn-return" style="margin-top:20px; width:100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; font-weight: bold; cursor: pointer;">返回</button>
             </div>
         </div>
 

@@ -14,6 +14,7 @@ export class Renderer {
         this.effectsContainer = document.getElementById("effects-container");
         this.scoreElement = document.getElementById("score");
         this.bestScoreElement = document.getElementById("best-score");
+        this.maxComboElement = document.getElementById("max-combo");
         this.comboDisplay = document.getElementById("combo-display");
         
         // 由于阶段相关的进度条和标签已经不再需要，但在 HTML 里还没删，所以这里加上宽容处理
@@ -61,6 +62,7 @@ export class Renderer {
         if(this.scoreElement) this.scoreElement.innerText = e.score || 0;
         let r = e.bestScore && !isNaN(e.bestScore) ? e.bestScore : 0;
         if(this.bestScoreElement) this.bestScoreElement.innerText = Math.max(e.score || 0, r);
+        if(this.maxComboElement) this.maxComboElement.innerText = e.maxCombo || 0;
         
         this.updateProgress(e);
     }
@@ -127,7 +129,7 @@ export class Renderer {
         if(e < 2 || !this.comboDisplay) return;
         this.comboDisplay.innerText = `连击 x${e}`;
         this.comboDisplay.style.opacity = "1";
-        this.comboDisplay.style.transform = `scale(${1 + Math.min(e, 5) * 0.1})`;
+        this.comboDisplay.style.transform = `translate(-50%, -50%) scale(${1 + Math.min(e, 5) * 0.1})`;
     }
     
     hideCombo() {
@@ -136,12 +138,15 @@ export class Renderer {
     
     updateProgress(e) {
         if(this.phaseTag) this.phaseTag.innerText = "无尽推演";
-        if(this.phaseLabel) this.phaseLabel.innerText = "挑战时间界限";
-        let maxTile = e.getMaxTileValue();
-        let scoreProgress = (e.score / 20000) * 100;
-        let tileProgress = (Math.log2(maxTile) / 11) * 100; 
-        let s = Math.max(scoreProgress, tileProgress);
-        if(this.progressBar) this.progressBar.style.width = `${Math.min(100, s)}%`;
+        if(this.phaseLabel) this.phaseLabel.innerText = "挑战进展";
+        let s = 0;
+        if (e.score > 0 || e.combo > 0 || e.getMaxTileValue() > 4) {
+            let maxTile = e.getMaxTileValue();
+            let scoreProgress = (e.score / 20000) * 100;
+            let tileProgress = (Math.log2(maxTile) / 11) * 100; 
+            s = Math.max(scoreProgress, tileProgress);
+        }
+        if(this.progressBar) this.progressBar.style.width = `${Math.min(100, Math.max(0, s))}%`;
         
         let root = document.documentElement;
         root.style.setProperty("--orb-a", "rgba(139, 92, 246, 0.25)");
