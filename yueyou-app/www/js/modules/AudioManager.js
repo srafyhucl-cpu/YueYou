@@ -426,6 +426,10 @@ export class AudioManager {
     }
 
     toggle(enable) {
+        this.setEnabled(enable);
+    }
+
+    setEnabled(enable) {
         this.enabled = enable;
         this.settings.storyTTS = enable;
         localStorage.setItem("setting_story_tts", enable);
@@ -442,8 +446,23 @@ export class AudioManager {
         } else {
             if (this.currentAudio) this.currentAudio.pause();
             this.isSpeaking = false;
+            this.isPlaying = false;
             this.updateUI();
         }
+    }
+
+    stop() {
+        this.loopSession++; // 递增 session 强制终止所有异步循环
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio.src = "";
+            this.currentAudio = null;
+        }
+        this.audioBufferArray.forEach(x => { if(x.url) URL.revokeObjectURL(x.url); });
+        this.audioBufferArray = [];
+        this.isPlaying = false;
+        this.isSpeaking = false;
+        this.updateUI();
     }
 
     jumpToChapter(lineIndex) {
@@ -516,8 +535,9 @@ export class AudioManager {
             // 允许 application/octet-stream，因为部分服务器可能以该类型返回音频流
             let isValidType = blob.type.includes("audio") || blob.type === "application/octet-stream";
             if (!blob || blob.size === 0 || !isValidType) {
-                console.error("[TTS Error] Invalid blob received, size:", blob ? blob.size : 0, "type:", blob ? blob.type : "null");
-                if (window._showToast) window._showToast(`TTS数据异常: 未接收到有效音频`);
+                console.warn("[TTS Error] Invalid blob received, size:", blob ? blob.size : 0, "type:", blob ? blob.type : "null");
+                if (window._showToast) window._showToast(`TTS数据异常: 未接收到有效音频 (Size: ${blob ? blob.size : 0})`);
+                // 如果是 0 字节，不再 throw，直接返回 null 触发 SpeechSynthesis 兜底
                 if ("speechSynthesis" in window) return "speech_synthesis";
                 return null;
             }

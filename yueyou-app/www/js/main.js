@@ -369,44 +369,51 @@ import { LocalDB } from './modules/LocalDB.js';
           let file = e.target.files[0];
           if (!file) return;
           let reader = new FileReader();
-          let mask = document.createElement("div");
-          mask.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); z-index:10000; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;";
-          mask.innerHTML = "<div style='text-align:center;'><div style='font-size:40px; margin-bottom:20px;'>📚</div>正在构建本地维度数据库...</div>";
-          document.body.appendChild(mask);
           reader.onload = async (ev) => {
-             let text = ev.target.result;
-             let rawLines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
-             if (rawLines.length === 0) { mask.remove(); return alert("文件为空"); }
-             let newLines = rawLines.map((line, idx) => {
-                let speakers = ["zh-CN-YunyangNeural", "zh-CN-YunxiNeural", "zh-CN-YunxiaNeural", "zh-CN-YunjianNeural"];
-                return { v: speakers[idx % 4], t: line };
-             });
-             let title = file.name.replace(".txt", "");
-             
-             let chapters = [];
-             const chapterRegex = /^\s*(\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
-             rawLines.forEach((line, index) => {
-                 let match = line.match(chapterRegex);
-                 if (match) chapters.push({ title: match[1].trim(), lineIndex: index });
-             });
+             let mask = document.createElement("div");
+             mask.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); z-index:10000; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;";
+             mask.innerHTML = "<div style='text-align:center;'><div style='font-size:40px; margin-bottom:20px;'>📚</div>正在构建本地维度数据库...</div>";
+             document.body.appendChild(mask);
 
-             let bookId = Date.now();
-             await LocalDB.saveBook(bookId, { lines: newLines, chapters: chapters });
-             let shelfText = localStorage.getItem("local_bookshelf");
-             let shelf = shelfText ? JSON.parse(shelfText) : [];
-             shelf.unshift({ id: bookId, title: title, total: newLines.length, cursor: 0 });
-             localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
-             await l.loadNovel(bookId, title, 0);
-             // 导入后自动播放（用户参与了文件选择，算有效交互）
-             let autoTts = document.getElementById("toggle-story");
-             if (autoTts && autoTts.checked) {
-                 if (l.u && l.u.state === 'suspended') l.u.resume().catch(() => {});
-                 l.setEnabled(true);
+             try {
+                 let text = ev.target.result;
+                 let rawLines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+                 if (rawLines.length === 0) return alert("文件为空");
+                 let newLines = rawLines.map((line, idx) => {
+                    let speakers = ["zh-CN-YunyangNeural", "zh-CN-YunxiNeural", "zh-CN-YunxiaNeural", "zh-CN-YunjianNeural"];
+                    return { v: speakers[idx % 4], t: line };
+                 });
+                 let title = file.name.replace(".txt", "");
+                 
+                 let chapters = [];
+                 const chapterRegex = /^\s*(\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
+                 rawLines.forEach((line, index) => {
+                     let match = line.match(chapterRegex);
+                     if (match) chapters.push({ title: match[1].trim(), lineIndex: index });
+                 });
+
+                 let bookId = Date.now();
+                 await LocalDB.saveBook(bookId, { lines: newLines, chapters: chapters });
+                 let shelfText = localStorage.getItem("local_bookshelf");
+                 let shelf = shelfText ? JSON.parse(shelfText) : [];
+                 shelf.unshift({ id: bookId, title: title, total: newLines.length, cursor: 0 });
+                 localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
+                 await l.loadNovel(bookId, title, 0);
+                 // 导入后自动播放（用户参与了文件选择，算有效交互）
+                 let autoTts = document.getElementById("toggle-story");
+                 if (autoTts && autoTts.checked) {
+                     if (l.u && l.u.state === 'suspended') l.u.resume().catch(() => {});
+                     l.setEnabled(true);
+                 }
+                 window._showToast("加载本地小说成功");
+                 renderLibrary();
+             } catch (e) {
+                 console.error("Import failed:", e);
+                 window._showToast("导入失败: " + (e.message || "未知错误"));
+             } finally {
+                 mask.remove();
+                 e.target.value = "";
              }
-             window._showToast("加载本地小说成功");
-             mask.remove();
-             e.target.value = "";
-             renderLibrary();
           };
           reader.readAsText(file, "UTF-8");
         });
