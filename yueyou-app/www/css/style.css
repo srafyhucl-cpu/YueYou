@@ -217,40 +217,43 @@ body::after {
 
 .top-nav-bar {
     display: flex;
-    justify-content: space-around;
+    justify-content: center;
     align-items: center;
     width: 100%;
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 20px;
-    padding: 8px 12px;
+    background: transparent;
+    padding: 6px 4px;
     gap: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    flex-wrap: nowrap;
 }
 
 .top-nav-bar .icon-btn {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.6) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    flex: 0 1 auto;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    box-shadow: none !important;
-    color: rgba(255, 255, 255, 0.6);
-    padding: 10px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+    color: #fff;
+    font-weight: bold;
+    letter-spacing: 0.5px;
     transition: all 0.2s ease;
 }
 
-.top-nav-bar .icon-btn:hover, .top-nav-bar .icon-btn:active {
-    transform: scale(1.05);
-    color: #fff !important;
-    background: rgba(255, 255, 255, 0.8) !important;
+.top-nav-bar .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+    transform: scale(1.03);
+}
+.top-nav-bar .icon-btn:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.2) !important;
 }
 
 #btn-settings {
     background: rgba(255, 255, 255, 0.12) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
 }
 
 .highlight-btn {
@@ -388,16 +391,17 @@ body::after {
 
 #combo-display {
     position: fixed;
-    top: 40%;
+    top: 22%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 99999;
-    color: var(--accent-gold);
-    font-size: 36px;
-    font-weight: 800;
+    color: #fff;
+    font-size: 42px;
+    font-weight: 900;
     opacity: 0;
     pointer-events: none;
-    text-shadow: 0 0 20px rgba(251, 191, 36, 0.8), 0 0 10px rgba(251, 191, 36, 0.5);
+    text-shadow: 0 0 25px rgba(255, 200, 55, 0.9), 0 0 50px rgba(236, 72, 153, 0.6), 0 2px 4px rgba(0, 0, 0, 0.5);
+    letter-spacing: 2px;
 }
 
 .tile-container {
@@ -437,9 +441,10 @@ body::after {
     align-items: center;
     font-weight: 800;
     font-size: 28px;
-    color: #e2e8f0;
+    color: #ffffff;
     transition: all 0.15s cubic-bezier(0.2, 0, 0, 1);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     pointer-events: auto;
 }
 
@@ -450,25 +455,31 @@ body::after {
 }
 
 @keyframes tileBurst {
-    0% { transform: scale(0.6); filter: brightness(1.2); }
-    50% { transform: scale(1.15); filter: brightness(1.1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
+    0% { transform: scale(0.6); filter: brightness(1.5); }
+    50% { transform: scale(1.15); filter: brightness(1.2); box-shadow: 0 0 20px rgba(255, 255, 255, 0.4); }
     100% { transform: scale(1); filter: brightness(1); }
 }
 
-/* 数值色彩 - 莫兰迪色系与高级灰黑 */
-.tile-2 { background: linear-gradient(135deg, #2b2b36, #2d2e38); }
-.tile-4 { background: linear-gradient(135deg, #2f323e, #323543); }
-.tile-8 { background: linear-gradient(135deg, #343748, #363d4f); }
-.tile-16 { background: linear-gradient(135deg, #373a4b, #3b4256); }
+/* 数值色彩 - 微霓虹流体渐变 */
+.tile-2 { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+.tile-4 { background: linear-gradient(135deg, #00f2fe, #4facfe); }
+.tile-8 { background: linear-gradient(135deg, #4facfe, #00c6fb); }
+.tile-16 { background: linear-gradient(135deg, #0093e9, #80d0c7); }
 
-.tile-32 { background: linear-gradient(135deg, #4f4136, #59473b); }
-.tile-64 { background: linear-gradient(135deg, #624b3e, #6f5144); }
-.tile-128 { background: linear-gradient(135deg, #784e4e, #804f51); }
-.tile-256 { background: linear-gradient(135deg, #894d58, #924d5e); }
+.tile-32 { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
+.tile-64 { background: linear-gradient(135deg, #c471f5, #fa71cd); }
+.tile-128 { background: linear-gradient(135deg, #e040fb, #8e24aa); }
+.tile-256 { background: linear-gradient(135deg, #f857a6, #ff5858); }
 
-.tile-512 { background: linear-gradient(135deg, #2a2a2a, #333333); border: 1px solid rgba(212,175,55,0.3); color: rgba(212,175,55,0.8); }
-.tile-1024 { background: linear-gradient(135deg, #222222, #2b2b2b); border: 1px solid rgba(212,175,55,0.5); color: rgba(212,175,55,0.9); font-size: 22px; letter-spacing: -1.5px; }
-.tile-2048 { background: linear-gradient(135deg, #1a1a1a, #242424); border: 1px solid rgba(212,175,55,0.8); color: #e6c875; font-size: 22px; letter-spacing: -1.5px; box-shadow: 0 4px 15px rgba(212,175,55,0.2); }
+.tile-512 { background: linear-gradient(135deg, #f7971e, #ffd200); box-shadow: 0 4px 20px rgba(255,210,0,0.4); }
+.tile-1024 { background: linear-gradient(135deg, #ff6a00, #ee0979); box-shadow: 0 4px 25px rgba(238,9,121,0.4); font-size: 22px; letter-spacing: -1.5px; font-weight: 900; }
+.tile-2048 { background: linear-gradient(135deg, #f12711, #f5af19); background-size: 200% 200%; animation: gradientShift 3s infinite; box-shadow: 0 4px 30px rgba(245,175,25,0.6); font-size: 22px; letter-spacing: -1.5px; font-weight: 900; }
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
 
 .tile-anchor {
     background: #0d0d12 !important;

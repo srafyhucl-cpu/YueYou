@@ -63,10 +63,24 @@ import { LocalDB } from './modules/LocalDB.js';
     const l = new AudioManager(t);
     let y = null;
 
-    // 监听首次触摸，解锁移动端音频（iOS/Chrome 限制）
-    window.addEventListener('touchstart', () => {
+    // 浏览器音频策略静音解锁器（全域首次交互 - iOS/Chrome AutoPlay Policy）
+    const unlockAudioEngine = () => {
+        // 解锁 AudioManager 内部的 AudioContext
         l.unlockAudio();
-    }, { once: true });
+        if (l.u && l.u.state === 'suspended') {
+            l.u.resume().then(() => console.log('[Audio] AudioContext resumed on user interaction.')).catch(() => {});
+        }
+        // 尝试播放一段无声的极炉音频以解锁浏览器静音策略
+        try {
+            let silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+            silentAudio.volume = 0.01;
+            silentAudio.play().then(() => silentAudio.pause()).catch(() => {});
+        } catch(e) {}
+        document.removeEventListener('touchstart', unlockAudioEngine);
+        document.removeEventListener('click', unlockAudioEngine);
+    };
+    document.addEventListener('touchstart', unlockAudioEngine, { once: true });
+    document.addEventListener('click', unlockAudioEngine, { once: true });
 
     window._showToast = (f) => {
         let i = document.getElementById("sys-toast");

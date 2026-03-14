@@ -479,9 +479,13 @@ export class AudioManager {
             });
             clearTimeout(timeoutId);
             
-            // 服务端如果返回 400（比如由于太多任务并发排队等），只降级当前这句
             if (!res.ok) {
-                console.warn(`[TTS] Server returned HTTP ${res.status}. Falling back to native temporarily.`);
+                let errMsg = `[TTS] 服务端返回 HTTP ${res.status}`;
+                if (res.status === 404) {
+                    errMsg = `404错误: 无法找到资源 ${res.url || this.ttsURL}`;
+                }
+                console.warn(errMsg);
+                if (window._showToast) window._showToast(errMsg);
                 throw new Error("HTTP " + res.status);
             }
             
