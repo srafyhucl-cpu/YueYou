@@ -121,14 +121,7 @@ export class AudioManager {
         this.currentTTSNodes = [];
 
         // 根据当前环境主题，为 TTS 播报添加不同的实时音频滤镜
-        if (this.settings.ambientTheme === "rain") {
-            // "暗雨"主题：模仿无线电对讲机音效 (带通滤波 + 畸变)
-            let bp = this.u.createBiquadFilter(), dist = this.u.createWaveShaper();
-            bp.type = "bandpass"; bp.frequency.value = 1500; bp.Q.value = 1.0;
-            dist.curve = this.makeDistortionCurve(20); dist.oversample = '4x';
-            this.ttsInput.connect(bp); bp.connect(dist); dist.connect(this.masterCompressor);
-            this.currentTTSNodes.push(bp, dist);
-        } else if (this.settings.ambientTheme === "wuxia") {
+        if (this.settings.ambientTheme === "wuxia") {
             // "武侠"主题：模拟山谷空灵效果 (卷积混响)
             let convolver = this.u.createConvolver();
             convolver.buffer = this.createReverbIR(this.u, 2.0, 3.0);
@@ -137,12 +130,6 @@ export class AudioManager {
             this.ttsInput.connect(dry); dry.connect(this.masterCompressor);
             this.ttsInput.connect(convolver); convolver.connect(wet); wet.connect(this.masterCompressor);
             this.currentTTSNodes.push(convolver, dry, wet);
-        } else if (this.settings.ambientTheme === "relax") {
-            // "冥想"主题：追求温暖 ASMR 听感 (低通滤波)
-            let lp = this.u.createBiquadFilter();
-            lp.type = "lowpass"; lp.frequency.value = 1000;
-            this.ttsInput.connect(lp); lp.connect(this.masterCompressor);
-            this.currentTTSNodes.push(lp);
         } else {
             // 默认无滤镜
             this.ttsInput.connect(this.masterCompressor);
@@ -234,51 +221,7 @@ export class AudioManager {
             return source;
         };
 
-        if (this.settings.ambientTheme === "rain") {
-            // --- 1. 底层雨声与微风起伏 ---
-            let src = createNoiseSource();
-            let lp = this.u.createBiquadFilter();
-            lp.type = "lowpass"; lp.frequency.value = 400; 
-            let rainGain = this.u.createGain(); rainGain.gain.value = 0.5;
-            let lfo = this.u.createOscillator(); let lfoGain = this.u.createGain();
-            lfo.frequency.value = 0.05; lfoGain.gain.value = 0.2; 
-            lfo.connect(lfoGain); lfoGain.connect(rainGain.gain);
-            src.connect(lp); lp.connect(rainGain); rainGain.connect(masterGain);
-            src.start(); lfo.start();
-            this.m.oscs.push(src, lfo);
-
-            // --- 2. 随机全息水滴 ---
-            const playDrip = () => {
-                if (this.M !== sig || !this.settings.sound) return;
-                let freq = 800 + Math.random() * 600;
-                let osc = this.u.createOscillator(); let g = this.u.createGain();
-                osc.frequency.setValueAtTime(freq, this.u.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(300, this.u.currentTime + 0.1);
-                g.gain.setValueAtTime(0, this.u.currentTime);
-                g.gain.linearRampToValueAtTime(0.05, this.u.currentTime + 0.01);
-                g.gain.exponentialRampToValueAtTime(0.001, this.u.currentTime + 0.2);
-                osc.connect(g); g.connect(masterGain);
-                osc.start(); osc.stop(this.u.currentTime + 0.3);
-                this.m.intervals.push(setTimeout(playDrip, 500 + Math.random() * 1500));
-            };
-            playDrip();
-
-            // --- 3. 深空沉雷 ---
-            const playThunder = () => {
-                if (this.M !== sig || !this.settings.sound) return;
-                let noise = createNoiseSource();
-                let filter = this.u.createBiquadFilter();
-                filter.type = "lowpass"; filter.frequency.value = 150;
-                let g = this.u.createGain();
-                g.gain.setValueAtTime(0, this.u.currentTime);
-                g.gain.linearRampToValueAtTime(0.1, this.u.currentTime + 1.5);
-                g.gain.exponentialRampToValueAtTime(0.001, this.u.currentTime + 7.5);
-                noise.connect(filter); filter.connect(g); g.connect(masterGain);
-                noise.start(); noise.stop(this.u.currentTime + 8.0);
-                this.m.intervals.push(setTimeout(playThunder, 10000 + Math.random() * 15000));
-            };
-            this.m.intervals.push(setTimeout(playThunder, 5000));
-        } else if (this.settings.ambientTheme === "wuxia") {
+        if (this.settings.ambientTheme === "wuxia") {
             // --- 1. 竹林微风 ---
             let wind = createNoiseSource();
             let bp = this.u.createBiquadFilter();
@@ -302,19 +245,6 @@ export class AudioManager {
             };
             this.m.intervals.push(setInterval(playFlute, 4000));
             setTimeout(playFlute, 500); 
-        } else if (this.settings.ambientTheme === "relax") {
-            // --- 云端冥想 (空灵的和弦) ---
-            const chord = [130.81, 164.81, 196.00, 246.94];
-            chord.forEach((freq) => {
-                let osc = this.u.createOscillator(); let g = this.u.createGain();
-                osc.type = "triangle"; osc.frequency.value = freq; g.gain.value = 0.03;
-                let lfo = this.u.createOscillator(); let lfoGain = this.u.createGain();
-                lfo.frequency.value = 0.05 + Math.random() * 0.03; lfoGain.gain.value = 0.015;
-                lfo.connect(lfoGain); lfoGain.connect(g.gain);
-                osc.connect(g); g.connect(masterGain);
-                osc.start(); lfo.start();
-                this.m.oscs.push(osc, lfo);
-            });
         }
     }
 

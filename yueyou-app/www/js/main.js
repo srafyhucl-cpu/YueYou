@@ -221,14 +221,9 @@ import { LocalDB } from './modules/LocalDB.js';
           localStorage.setItem("setting_sound", t.sound);
           localStorage.setItem("setting_vibration", t.vibration);
           localStorage.setItem("setting_ambient_vol", t.ambientVol);
-          let ts = document.getElementById("ambient-theme");
-          if(ts) {
-            t.ambientTheme = ts.value;
-            localStorage.setItem("setting_ambient_theme", t.ambientTheme);
-          }
           document.getElementById("modal-settings").classList.add("hidden");
           t.sound ? l.syncGameState(p) : l.stopAmbient();
-          document.body.className = 'theme-' + (t.ambientTheme || 'wuxia');
+          document.body.className = 'theme-wuxia';
       });
 
       B("btn-admin", () => document.getElementById("admin-panel").classList.toggle("hidden"));
@@ -443,9 +438,7 @@ import { LocalDB } from './modules/LocalDB.js';
       };
       window._syncIdleState();
 
-      document.body.className = 'theme-' + (t.ambientTheme || 'wuxia');
-
-      document.body.className = 'theme-' + (t.ambientTheme || 'wuxia');
+      document.body.className = 'theme-wuxia';
 
       window.onkeydown = (o) => {
           let d = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[o.key];
