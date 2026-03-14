@@ -22,6 +22,7 @@ export class AudioManager {
         this.fetchCursor = this.cursor;
         this.audioBufferArray = [];
         this.isPlaying = false;
+        this.playingSession = 0; // 核心：记录当前正在运行播放循环的会话 ID
         this.prefetching = false;
         this.lastActive = Date.now();
         
@@ -309,7 +310,7 @@ export class AudioManager {
             this.audioBufferArray = [];
             this.isSpeaking = false;
             this.prefetching = false;
-            this.isPlaying = false;
+            // 核心修复：不要在这里重置 isPlaying，让旧循环自然退出，新循环通过 session 校验进入
             this.novelID = id;
             this.novelTitle = title;
             this.cursor = newCursor !== null ? newCursor : 0;
@@ -347,17 +348,19 @@ export class AudioManager {
 
     heartbeat() {
         this.lastActive = Date.now();
-        if (this.enabled) {
-            if (this.isPlaying) {
-                if (this.idleTimeout > 0 && this.currentAudio && this.currentAudio.paused && !this.currentAudio.ended) {
-                    this.currentAudio.play().then(() => {
-                        this.isSpeaking = true;
-                        this.updateUI();
-                        if(window._showToast) window._showToast("\u5DF2\u6062\u590D\u64AD\u62A5");
-                    }).catch(err => console.warn(err));
-                }
-            } else {
-                this.startPlayLoop();
+        if (!this.enabled) return;
+
+        // 如果未在运行，或者当前运行的会话已经过期，则尝试启动新会话循环
+        if (!this.isPlaying || this.playingSession !== this.loopSession) {
+            this.startPlayLoop();
+        } else if (this.isPlaying) {
+            // 如果已经在运行（Session 正确），检查是否因为超时自动暂停了，如果是则恢复
+            if (this.idleTimeout > 0 && this.currentAudio && this.currentAudio.paused && !this.currentAudio.ended) {
+                this.currentAudio.play().then(() => {
+                    this.isSpeaking = true;
+                    this.updateUI();
+                    if(window._showToast) window._showToast("\u5DF2\u6062\u590D\u64AD\u62A5");
+                }).catch(err => console.warn(err));
             }
         }
     }
@@ -376,7 +379,9 @@ export class AudioManager {
                 this.isSpeaking = true;
                 this.currentAudio.play().catch(c => console.warn("Failed to resume audio:", c));
                 this.updateUI();
-            } else {
+            }
+            // 核心修复：即使 isPlaying 为 true，如果 session 不一致也要尝试启动
+            if (!this.isPlaying || this.playingSession !== this.loopSession) {
                 this.startPrefetchLoop();
                 this.startPlayLoop();
             }
@@ -424,9 +429,8 @@ export class AudioManager {
         });
         this.audioBufferArray = [];
         this.prefetching = false;
-        this.isPlaying = false;
         this.isSpeaking = false;
-
+        // 核心修复：同 loadNovel，不再手动重置 isPlaying，依靠 session 切换逻辑
         // 更新位置
         this.cursor = lineIndex;
         this.fetchCursor = lineIndex;
@@ -577,9 +581,13 @@ export class AudioManager {
     }
 
     async startPlayLoop() {
-        if (this.isPlaying) return;
+        // 核心逻辑：如果当前已经有相同 Session 的循环在跑，则直接返回
+        if (this.playingSession === this.loopSession && this.isPlaying) return;
+        
         this.isPlaying = true;
+        this.playingSession = this.loopSession; // 抢占当前 Session 的播放权
         let session = this.loopSession;
+        
         while (this.enabled && this.loopSession === session) {
             if (this.audioBufferArray.length === 0) {
                 let ch = document.getElementById("player-chapter");
@@ -607,10 +615,14 @@ export class AudioManager {
             await new Promise(resolve => {
                 let audio = item.obj;
                 this.currentAudio = audio;
-                
+                // 临门一脚检查：在真正发出声音前，最后确认一次 Session 是否过期
+                if (this.loopSession !== session) return resolve();
+
                 if (audio.isSpeech) {
                     audio.onended = resolve;
                     audio.onerror = resolve;
+                    // 确保语音播报前清除所有可能的遗留队列
+                    window.speechSynthesis.cancel();
                     audio.play().catch(() => resolve());
                 } else {
                     audio.onended = () => resolve();

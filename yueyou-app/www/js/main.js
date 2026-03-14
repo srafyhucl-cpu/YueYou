@@ -64,7 +64,10 @@ import { LocalDB } from './modules/LocalDB.js';
     let y = null;
 
     // 浏览器音频策略静音解锁器（全域首次交互 - iOS/Chrome AutoPlay Policy）
+    let _unlocked = false;
     const unlockAudioEngine = () => {
+        if (_unlocked) return;
+        _unlocked = true;
         // 解锁 AudioManager 内部的 AudioContext
         l.unlockAudio();
         if (l.u && l.u.state === 'suspended') {
