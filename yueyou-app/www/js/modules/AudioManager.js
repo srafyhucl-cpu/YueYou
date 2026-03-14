@@ -12,7 +12,6 @@ export class AudioManager {
         this.currentTTSNodes = []; // 当前活跃的 TTS 处理滤镜节点
         this.m = { oscs: [], gains: [], masterGain: null, intervals: [] }; // 环境音效相关的资源跟踪
         this.M = null; // 当前活跃的环境白噪音主题标识符
-        this._ttsFailed = false; // 用于标记远程 TTS 是否已失效，实现快速切离线
 
         // --- TTS Novel Logic State ---
         this.lines = [
@@ -415,39 +414,33 @@ export class AudioManager {
     }
 
     async fetchTTS(text, voice) {
-        if (this._ttsFailed && "speechSynthesis" in window) return "speech_synthesis";
-
-        // 如果文本太短，直接走本地（服务器有时候要求最短 5 个字符）
-        if (text.length < 5 && "speechSynthesis" in window) {
-            return "speech_synthesis";
-        }
+        // 如果文本太短，服务器最低要求 5 个字符，自动在末尾补充无声的句号
+        let safeText = text.length < 5 ? text.padEnd(5, '。') : text;
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时直接回退
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 把超时放宽到 8 秒，保障远程云端大模型有充足时间生成音频
 
         try {
             let res = await fetch(this.ttsURL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: text, voice: voice }),
+                body: JSON.stringify({ text: safeText, voice: voice }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
             
-            // 服务端如果返回 400（文本太短、达到了最大任务限制等情况），直接降级
+            // 服务端如果返回 400（比如由于太多任务并发排队等），只降级当前这句
             if (!res.ok) {
-                console.warn(`[TTS] Server returned HTTP ${res.status}. Falling back to native.`);
+                console.warn(`[TTS] Server returned HTTP ${res.status}. Falling back to native temporarily.`);
                 throw new Error("HTTP " + res.status);
             }
             
             let blob = await res.blob();
-            this._ttsFailed = false; // 成功则重置状态
             return URL.createObjectURL(blob);
         } catch (e) {
             clearTimeout(timeoutId);
-            // 这里修改：只要遇到任何服务端拒绝或网络错误，立刻标记失败并返回离线语音
-            this._ttsFailed = true; 
-            console.error("[TTS Error] Falling back to native SpeechSynthesis due to:", e.message || e);
+            // 无论任何失败，只对“当前这句”执行原生兜底，不把整套系统限死，后续句子接着请求服务器
+            console.error("[TTS Error] Falling back to native SpeechSynthesis for this sentence due to:", e.message || e);
             if ("speechSynthesis" in window) return "speech_synthesis";
             return null;
         }
