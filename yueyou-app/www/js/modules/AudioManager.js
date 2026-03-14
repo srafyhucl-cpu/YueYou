@@ -73,6 +73,16 @@ export class AudioManager {
     initContext() {
         if (!this.u) {
             this.u = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // 终极质感：总线动态压缩器 (让音效更饱满、不爆音)
+            this.masterCompressor = this.u.createDynamicsCompressor();
+            this.masterCompressor.threshold.setValueAtTime(-24, this.u.currentTime);
+            this.masterCompressor.knee.setValueAtTime(40, this.u.currentTime);
+            this.masterCompressor.ratio.setValueAtTime(12, this.u.currentTime);
+            this.masterCompressor.attack.setValueAtTime(0, this.u.currentTime);
+            this.masterCompressor.release.setValueAtTime(0.25, this.u.currentTime);
+            this.masterCompressor.connect(this.u.destination);
+
             this.ttsInput = this.u.createGain();
             this.ttsInput.gain.value = 1.0;
             this.updateTTSFilter();
@@ -116,7 +126,7 @@ export class AudioManager {
             let bp = this.u.createBiquadFilter(), dist = this.u.createWaveShaper();
             bp.type = "bandpass"; bp.frequency.value = 1500; bp.Q.value = 1.0;
             dist.curve = this.makeDistortionCurve(20); dist.oversample = '4x';
-            this.ttsInput.connect(bp); bp.connect(dist); dist.connect(this.u.destination);
+            this.ttsInput.connect(bp); bp.connect(dist); dist.connect(this.masterCompressor);
             this.currentTTSNodes.push(bp, dist);
         } else if (this.settings.ambientTheme === "wuxia") {
             // "武侠"主题：模拟山谷空灵效果 (卷积混响)
@@ -124,18 +134,18 @@ export class AudioManager {
             convolver.buffer = this.createReverbIR(this.u, 2.0, 3.0);
             let dry = this.u.createGain(), wet = this.u.createGain();
             dry.gain.value = 0.8; wet.gain.value = 0.4;
-            this.ttsInput.connect(dry); dry.connect(this.u.destination);
-            this.ttsInput.connect(convolver); convolver.connect(wet); wet.connect(this.u.destination);
+            this.ttsInput.connect(dry); dry.connect(this.masterCompressor);
+            this.ttsInput.connect(convolver); convolver.connect(wet); wet.connect(this.masterCompressor);
             this.currentTTSNodes.push(convolver, dry, wet);
         } else if (this.settings.ambientTheme === "relax") {
             // "冥想"主题：追求温暖 ASMR 听感 (低通滤波)
             let lp = this.u.createBiquadFilter();
             lp.type = "lowpass"; lp.frequency.value = 1000;
-            this.ttsInput.connect(lp); lp.connect(this.u.destination);
+            this.ttsInput.connect(lp); lp.connect(this.masterCompressor);
             this.currentTTSNodes.push(lp);
         } else {
             // 默认无滤镜
-            this.ttsInput.connect(this.u.destination);
+            this.ttsInput.connect(this.masterCompressor);
         }
     }
 
@@ -147,18 +157,31 @@ export class AudioManager {
         let idx = Math.min(Math.floor(Math.log2(value)), freqs.length - 1);
         let freq = freqs[idx] || 300;
         try {
-            let osc = this.u.createOscillator();
+            // 增强质感：双振荡器合成器音效 (Sine + Triangle 层叠)
+            let osc1 = this.u.createOscillator();
+            let osc2 = this.u.createOscillator();
             let g = this.u.createGain();
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(freq, this.u.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(freq * 2.5, this.u.currentTime + 0.15);
+            
+            osc1.type = "sine";
+            osc1.frequency.setValueAtTime(freq, this.u.currentTime);
+            osc1.frequency.exponentialRampToValueAtTime(freq * 1.5, this.u.currentTime + 0.1);
+            
+            osc2.type = "triangle";
+            osc2.frequency.setValueAtTime(freq * 2, this.u.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(freq, this.u.currentTime + 0.1);
+
             g.gain.setValueAtTime(0, this.u.currentTime);
-            g.gain.linearRampToValueAtTime(0.3, this.u.currentTime + 0.02);
-            g.gain.exponentialRampToValueAtTime(0.001, this.u.currentTime + 0.2);
-            osc.connect(g);
-            g.connect(this.u.destination);
-            osc.start();
-            osc.stop(this.u.currentTime + 0.25);
+            g.gain.linearRampToValueAtTime(0.2, this.u.currentTime + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, this.u.currentTime + 0.25);
+            
+            osc1.connect(g);
+            osc2.connect(g);
+            g.connect(this.masterCompressor);
+            
+            osc1.start();
+            osc2.start();
+            osc1.stop(this.u.currentTime + 0.3);
+            osc2.stop(this.u.currentTime + 0.3);
         } catch {}
     }
 
@@ -173,7 +196,7 @@ export class AudioManager {
             g.gain.setValueAtTime(0.1, this.u.currentTime);
             g.gain.exponentialRampToValueAtTime(0.0001, this.u.currentTime + duration);
             osc.connect(g);
-            g.connect(this.u.destination);
+            g.connect(this.masterCompressor);
             osc.start();
             osc.stop(this.u.currentTime + duration);
         } catch {}
@@ -490,8 +513,10 @@ export class AudioManager {
             }
             
             let blob = await res.blob();
-            if (!blob || blob.size === 0 || !blob.type.includes("audio")) {
-                console.error("[TTS Error] Invalid audio blob received, size:", blob ? blob.size : 0, "type:", blob ? blob.type : "null");
+            // 允许 application/octet-stream，因为部分服务器可能以该类型返回音频流
+            let isValidType = blob.type.includes("audio") || blob.type === "application/octet-stream";
+            if (!blob || blob.size === 0 || !isValidType) {
+                console.error("[TTS Error] Invalid blob received, size:", blob ? blob.size : 0, "type:", blob ? blob.type : "null");
                 if (window._showToast) window._showToast(`TTS数据异常: 未接收到有效音频`);
                 if ("speechSynthesis" in window) return "speech_synthesis";
                 return null;

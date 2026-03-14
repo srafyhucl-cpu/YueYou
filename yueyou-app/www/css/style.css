@@ -262,65 +262,31 @@ body::after {
 
 /* 状态面板 - 核心毛玻璃 */
 .status-panel {
-    background: var(--glass);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
     border-radius: 28px;
-    padding: 20px 25px;
-    border: 1px solid var(--glass-border);
-    margin-bottom: 20px;
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 24px;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
     flex-shrink: 0;
     position: relative;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    overflow: hidden; /* Added for layout fix */
-}
-
-.phase-indicator {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.phase-badge {
-    background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
-    padding: 4px 14px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 900;
-    color: #fff;
-    letter-spacing: 1.5px;
-    margin-bottom: 8px;
-    display: inline-block;
-    align-self: flex-start;
-    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
-}
-
-#phase-label {
-    font-size: 20px;
-    font-weight: 800;
-    margin-bottom: 12px;
-    background: linear-gradient(to right, #fff, rgba(255,255,255,0.7));
-    background-clip: text; /* Added for lint warning fix */
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.progress-bar-container {
-    height: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 6px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
     overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.05);
 }
 
-.progress-fill {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--accent-pink), var(--accent-purple), var(--accent-cyan));
-    background-size: 200% 200%;
-    animation: progressFlow 3s linear infinite;
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+.status-panel::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+    pointer-events: none;
 }
+
+
 
 @keyframes progressFlow {
     0% { background-position: 0% 50%; }
@@ -389,21 +355,7 @@ body::after {
     max-height: 100%;
 }
 
-#combo-display {
-    width: 100%;
-    text-align: center;
-    z-index: 100;
-    color: #fff;
-    font-size: 28px;
-    font-weight: 900;
-    opacity: 0;
-    pointer-events: none;
-    text-shadow: 0 0 15px rgba(255, 200, 55, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5);
-    letter-spacing: 1px;
-    height: 30px;
-    line-height: 30px;
-    transition: opacity 0.15s ease;
-}
+
 
 .tile-container {
     position: absolute;
@@ -443,10 +395,11 @@ body::after {
     font-weight: 800;
     font-size: 28px;
     color: #ffffff;
-    transition: all 0.15s cubic-bezier(0.2, 0, 0, 1);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1);
+    text-shadow: 0 3px 6px rgba(0,0,0,0.4);
     pointer-events: auto;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* 合并特效 - 爆发式 */

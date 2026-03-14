@@ -16,12 +16,6 @@ export class Renderer {
         this.comboElement = document.getElementById("combo");
         this.bestScoreElement = document.getElementById("best-score");
         this.maxComboElement = document.getElementById("max-combo");
-        this.comboDisplay = document.getElementById("combo-display");
-        
-        // 由于阶段相关的进度条和标签已经不再需要，但在 HTML 里还没删，所以这里加上宽容处理
-        this.progressBar = document.getElementById("phase-progress");
-        this.phaseLabel = document.getElementById("phase-label");
-        this.phaseTag = document.getElementById("phase-tag");
     }
     
     render(e, s = []) {
@@ -55,9 +49,6 @@ export class Renderer {
         
         if(s.length > 0) {
             s.forEach((l) => this.createSplash(l, e.size));
-            this.showCombo(e.combo);
-        } else {
-            this.hideCombo();
         }
         
         if(this.scoreElement) this.scoreElement.innerText = e.score || 0;
@@ -66,7 +57,7 @@ export class Renderer {
         if(this.bestScoreElement) this.bestScoreElement.innerText = Math.max(e.score || 0, r);
         if(this.maxComboElement) this.maxComboElement.innerText = e.maxCombo || 0;
         
-        this.updateProgress(e);
+
     }
     
     renderGridBg(e) {
@@ -127,32 +118,5 @@ export class Renderer {
         }
     }
     
-    showCombo(e) {
-        if(e < 2 || !this.comboDisplay) return;
-        this.comboDisplay.innerText = `连击 x${e}`;
-        this.comboDisplay.style.opacity = "1";
-        // 自动消散：1秒后淡出
-        clearTimeout(this._comboTimer);
-        this._comboTimer = setTimeout(() => {
-            if(this.comboDisplay) this.comboDisplay.style.opacity = "0";
-        }, 1000);
-    }
-    
-    hideCombo() {
-        clearTimeout(this._comboTimer);
-        if(this.comboDisplay) this.comboDisplay.style.opacity = "0";
-    }
-    
-    updateProgress(e) {
-        if(this.phaseTag) this.phaseTag.innerText = "无尽推演";
-        if(this.phaseLabel) this.phaseLabel.innerText = "挑战进展";
-        let maxTile = e.getMaxTileValue();
-        maxTile = maxTile > 0 ? maxTile : 2;
-        let s = Math.min(100, (Math.log2(maxTile) / 11) * 100);
-        if(this.progressBar) this.progressBar.style.width = `${Math.max(0, s)}%`;
-        
-        let root = document.documentElement;
-        root.style.setProperty("--orb-a", "rgba(139, 92, 246, 0.25)");
-        root.style.setProperty("--orb-b", "rgba(236, 72, 153, 0.25)");
-    }
+
 }
