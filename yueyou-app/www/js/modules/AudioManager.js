@@ -14,17 +14,8 @@ export class AudioManager {
         this.M = null; // 当前活跃的环境白噪音主题标识符
 
         // --- TTS Novel Logic State ---
-        this.lines = [
-            { v: "zh-CN-YunyangNeural", t: "\u4E1C\u6C49\u672B\u5E74\uFF0C\u5929\u4E0B\u5927\u4E71\u3002\u9EC4\u5DFE\u8D3C\u5BC7\u56DB\u8D77\uFF0C\u767E\u59D3\u6D41\u79BB\u5931\u6240\u3002" },
-            { v: "zh-CN-YunxiNeural", t: "\u6211\u4E43\u4E2D\u5C71\u9756\u738B\u4E4B\u540E\uFF0C\u6C49\u666F\u5E1D\u9601\u4E0B\u7384\u5B59\uFF0C\u59D3\u5218\u540D\u5907\uFF0C\u5B57\u7384\u5FB7\u3002" },
-            { v: "zh-CN-YunxiaNeural", t: "\u5927\u4E08\u592B\u4E0D\u4E0E\u56FD\u5BB6\u51FA\u529B\uFF0C\u5728\u8FD9\u91CC\u957F\u5401\u77ED\u53F9\uFF0C\u6709\u4EC0\u4E48\u7528\uFF01\u6211\u4E43\u71D5\u4EBA\u5F20\u98DE\uFF0C\u5B57\u7FFC\u5FB7\u3002" },
-            { v: "zh-CN-YunjianNeural", t: "\u67D0\u59D3\u5173\u540D\u7FBD\uFF0C\u5B57\u4E91\u957F\uFF0C\u6CB3\u4E1C\u89E3\u826F\u4EBA\u6C0F\u3002" },
-            { v: "zh-CN-YunxiaNeural", t: "\u597D\uFF01\u6B63\u5408\u6211\u610F\uFF01\u6211\u5E84\u540E\u6709\u4E00\u5EA7\u6843\u56ED\uFF0C\u82B1\u5F00\u6B63\u76DB\u3002" },
-            { v: "zh-CN-YunxiNeural", t: "\u5FF5\u5218\u5907\u3001\u5173\u7FBD\u3001\u5F20\u98DE\uFF0C\u867D\u7136\u5F02\u59D3\uFF0C\u65E2\u7ED3\u4E3A\u5144\u5F1F\uFF0C\u5219\u540C\u5FC3\u534F\u529B\u3002" },
-            { v: "zh-CN-YunjianNeural", t: "\u4E0D\u6C42\u540C\u5E74\u540C\u6708\u540C\u65E5\u751F\u3002" },
-            { v: "zh-CN-YunxiaNeural", t: "\u4F46\u613F\u540C\u5E74\u540C\u6708\u540C\u65E5\u6B7B\uFF01" },
-            { v: "zh-CN-YunyangNeural", t: "\u8A93\u6BD5\uFF0C\u62DC\u5218\u5907\u4E3A\u5144\uFF0C\u5173\u7FBD\u6B21\u4E4B\uFF0C\u5F20\u98DE\u4E3A\u5F1F\u3002\u6843\u56ED\u6625\u98CE\u6D69\u8361\uFF0C\u4E09\u4EBA\u4ECE\u6B64\u809D\u80C6\u76F8\u7167\uFF0C\u5171\u8D74\u5929\u4E0B\u3002" }
-        ];
+        this.lines = [];
+        this.chapters = [];
         this.novelID = parseInt(localStorage.getItem("current_novel_id") || "1");
         this.novelTitle = localStorage.getItem("current_novel_title") || "\u4E09\u56FD\u6F14\u4E49\xB7\u6843\u56ED\u7ED3\u4E49\u7247\u6BB5";
         this.cursor = parseInt(localStorage.getItem("novel_index") || "0");
@@ -62,6 +53,10 @@ export class AudioManager {
         this.initContext();
         if (this.u && this.u.state === "suspended") {
             this.u.resume();
+        }
+        // 尝试恢复当前由于自动播放限制而暂停的小说音频
+        if (this.currentAudio && this.currentAudio.paused) {
+            this.currentAudio.play().catch(() => {});
         }
         // 播放一段极短的静音音频，强制浏览器激活该页面的音频输出
         const silentAudio = new Audio();
@@ -281,8 +276,17 @@ export class AudioManager {
 
     // --- TTS Novel Logic ---
     async initLibrary() {
-        if (!this.lines || this.lines.length === 0) {
-            await this.loadNovel(this.novelID, this.novelTitle, this.cursor);
+        await this.loadNovel(this.novelID, this.novelTitle, this.cursor);
+        // 如果加载后依然没内容，使用内置默认数据
+        if (this.lines.length === 0) {
+            this.lines = [
+                { v: "zh-CN-YunyangNeural", t: "东汉末年，天下大乱。黄巾贼寇四起，百姓流离失所。" },
+                { v: "zh-CN-YunxiNeural", t: "我乃中山靖王之后，汉景帝阁下玄孙，姓刘名备，字玄德。" },
+                { v: "zh-CN-YunxiaNeural", t: "大丈夫不与国家出力，在这里长吁短叹，有什么用！我乃燕人张飞，字翼德。" },
+                { v: "zh-CN-YunjianNeural", t: "某姓关名羽，字云长，河东解良人氏。" }
+            ];
+            this.chapters = [{ title: "桃园三结义", lineIndex: 0 }];
+            this.updateUI();
         }
     }
 

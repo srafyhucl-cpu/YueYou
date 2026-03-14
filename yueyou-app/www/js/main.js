@@ -68,14 +68,26 @@ import { LocalDB } from './modules/LocalDB.js';
         // 解锁 AudioManager 内部的 AudioContext
         l.unlockAudio();
         if (l.u && l.u.state === 'suspended') {
-            l.u.resume().then(() => console.log('[Audio] AudioContext resumed on user interaction.')).catch(() => {});
+            l.u.resume().then(() => {
+                console.log('[Audio] AudioContext resumed on user interaction.');
+                if (l.enabled && !l.isPlaying) {
+                    l.startPrefetchLoop();
+                    l.startPlayLoop();
+                }
+            }).catch(() => {});
+        } else if (l.enabled && !l.isPlaying) {
+            l.startPrefetchLoop();
+            l.startPlayLoop();
         }
-        // 尝试播放一段无声的极炉音频以解锁浏览器静音策略
+        // 尝试播放一段无声的极短音频以解锁浏览器静音策略
         try {
             let silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
             silentAudio.volume = 0.01;
             silentAudio.play().then(() => silentAudio.pause()).catch(() => {});
         } catch(e) {}
+        
+        if (typeof window._syncIdleState === 'function') window._syncIdleState();
+        
         document.removeEventListener('touchstart', unlockAudioEngine);
         document.removeEventListener('click', unlockAudioEngine);
     };
@@ -460,6 +472,7 @@ import { LocalDB } from './modules/LocalDB.js';
         l.syncGameState(p);
         if (!t.sound) l.stopAmbient();
         l.checkHeadphonesAndStart();
+        if (typeof window._syncIdleState === 'function') window._syncIdleState();
     };
 
     const pm = document.getElementById('privacy-modal');
