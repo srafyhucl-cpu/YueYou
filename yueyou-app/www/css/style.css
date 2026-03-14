@@ -1008,13 +1008,16 @@ body::after {
 }
 .chapter-list-container::-webkit-scrollbar {
     display: block !important;
-    width: 8px !important;
-    background: rgba(0, 0, 0, 0.2) !important;
+    width: 4px !important;
+    background: rgba(255, 255, 255, 0.02) !important;
 }
 .chapter-list-container::-webkit-scrollbar-thumb {
-    background: #22d3ee !important; /* 直接使用高亮色确保可见 */
+    background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-purple)) !important;
     border-radius: 10px;
-    border: 2px solid rgba(0,0,0,0.1);
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.4);
+}
+.chapter-list-container::-webkit-scrollbar-track {
+    background: transparent;
 }
 .chapter-list-container::-webkit-scrollbar-track {
     background: transparent;
@@ -1029,11 +1032,11 @@ body::after {
 
 #library-content::-webkit-scrollbar {
     display: block !important;
-    width: 8px !important;
-    background: rgba(0, 0, 0, 0.2) !important;
+    width: 4px !important;
+    background: rgba(255, 255, 255, 0.02) !important;
 }
 #library-content::-webkit-scrollbar-thumb {
-    background: #ec4899 !important;
+    background: linear-gradient(to bottom, var(--accent-pink), var(--accent-purple)) !important;
     border-radius: 10px;
 }
 
@@ -1062,6 +1065,11 @@ body::after {
     overflow: hidden;
     text-overflow: ellipsis;
     display: block;
+    
+    /* 性能终极优化：开启浏览器级虚拟化 */
+    content-visibility: auto;
+    contain-intrinsic-size: 45px;
+    will-change: transform, opacity;
 }
 
 .chapter-item:hover {

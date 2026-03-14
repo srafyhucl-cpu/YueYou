@@ -256,26 +256,52 @@ import { LocalDB } from './modules/LocalDB.js';
               list.innerHTML = '<p style="text-align:center; color:#a0a0b0; margin-top:20px;">当前书籍未解析出目录或尚未加载...</p>';
               return;
           }
-          let displayChapters = [...l.chapters];
-          displayChapters.forEach((ch, originalIdx) => {
-              // 匹配原数组中对应的对象以判断 isActive，用原始 index 计算范围
-              let nextCh = l.chapters[originalIdx + 1];
-              let isActive = (l.cursor >= ch.lineIndex) && (!nextCh || l.cursor < nextCh.lineIndex);
+
+          const total = l.chapters.length;
+          const batchSize = 150; // 每一帧渲染的数量
+          let currentIdx = 0;
+
+          const renderBatch = () => {
+              if (currentIdx >= total) return;
               
-              let li = document.createElement("li");
-              li.className = "chapter-item" + (isActive ? " active" : "");
-              li.innerHTML = `<span>${ch.title}</span>`;
-              li.onclick = () => {
-                  l.jumpToChapter(ch.lineIndex);
-                  document.getElementById("modal-chapters").classList.add("hidden");
-              };
-              list.appendChild(li);
-          });
-          // 自动滚动到当前活动章节
-          setTimeout(() => {
-              let activeItem = list.querySelector(".chapter-item.active");
-              if (activeItem) activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
-          }, 50);
+              const fragment = document.createDocumentFragment();
+              const endIdx = Math.min(currentIdx + batchSize, total);
+              
+              for (let i = currentIdx; i < endIdx; i++) {
+                  const ch = l.chapters[i];
+                  const nextCh = l.chapters[i + 1];
+                  const isActive = (l.cursor >= ch.lineIndex) && (!nextCh || l.cursor < nextCh.lineIndex);
+                  
+                  const li = document.createElement("li");
+                  li.className = "chapter-item" + (isActive ? " active" : "");
+                  li.innerHTML = `<span>${ch.title}</span>`;
+                  li.onclick = () => {
+                      l.jumpToChapter(ch.lineIndex);
+                      document.getElementById("modal-chapters").classList.add("hidden");
+                  };
+                  fragment.appendChild(li);
+              }
+              
+              list.appendChild(fragment);
+              
+              // 寻找并滚动到活动章节（如果在当前批次中找到）
+              if (currentIdx === 0 || (l.cursor >= l.chapters[currentIdx].lineIndex)) {
+                  setTimeout(() => {
+                      const activeItem = list.querySelector(".chapter-item.active");
+                      if (activeItem && !activeItem._scrolled) {
+                          activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
+                          activeItem._scrolled = true;
+                      }
+                  }, 100);
+              }
+
+              currentIdx = endIdx;
+              if (currentIdx < total) {
+                  requestAnimationFrame(renderBatch);
+              }
+          };
+
+          renderBatch();
       };
 
       B("btn-chapter-list", () => {
