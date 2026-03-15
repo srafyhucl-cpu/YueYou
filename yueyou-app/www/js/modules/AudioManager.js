@@ -304,8 +304,7 @@ export class AudioManager {
             this.audioBufferArray.forEach(x => { if (x.url) URL.revokeObjectURL(x.url); });
             this.audioBufferArray = [];
             this.isSpeaking = false;
-            this.prefetching = false;
-            // 核心修复：不要在这里重置 isPlaying，让旧循环自然退出，新循环通过 session 校验进入
+            // 核心修复：不要手动重置 prefetching/isPlaying，让旧循环通过 session 校验自然退出
             this.novelID = id;
             this.novelTitle = title;
             this.cursor = newCursor !== null ? newCursor : 0;
@@ -350,12 +349,12 @@ export class AudioManager {
             this.startPlayLoop();
         } else if (this.isPlaying) {
             // 如果已经在运行（Session 正确），检查是否因为超时自动暂停了，如果是则恢复
-            if (this.idleTimeout > 0 && this.currentAudio && this.currentAudio.paused && !this.currentAudio.ended) {
+            if (this.currentAudio && this.currentAudio.paused && !this.currentAudio.ended) {
+                if (this.u && this.u.state === 'suspended') this.u.resume();
                 this.currentAudio.play().then(() => {
                     this.isSpeaking = true;
                     this.updateUI();
-                    if (window._showToast) window._showToast("\u5DF2\u6062\u590D\u64AD\u62A5");
-                }).catch(err => console.warn(err));
+                }).catch(err => console.warn("Heartbeat resume failed:", err));
             }
         }
     }
@@ -377,8 +376,6 @@ export class AudioManager {
         } else {
             if (this.currentAudio) this.currentAudio.pause();
             this.isSpeaking = false;
-            this.isPlaying = false;
-            this.prefetching = false;
             this.updateUI();
         }
     }
@@ -434,9 +431,13 @@ export class AudioManager {
     async fetchTTS(text, voice) {
         voice = localStorage.getItem("tts_voice") || "zh-CN-XiaoxiaoNeural";
         let safeText = text.length < 5 ? text.padEnd(5, '。') : text;
+        const startSession = this.loopSession; // 记录发起请求时的会话
 
         const maxRetries = 2; 
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            // 检查会话是否已经过期
+            if (this.loopSession !== startSession) return null;
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -452,9 +453,15 @@ export class AudioManager {
                 if (!res.ok) {
                     let errorBody = "";
                     try { errorBody = await res.text(); } catch(e) {}
-                    console.warn(`[TTS] Attempt ${attempt+1} failed with HTTP ${res.status}:`, errorBody);
+                    console.warn(`[TTS] Attempt ${attempt+1} failed (HTTP ${res.status}):`, errorBody);
                     
-                    // 如果是服务器 500，且还没到最大重试次数，则等一下再试
+                    // 特殊逻辑：如果是任务已存在，说明服务器正在处理或由于之前的并发导致，我们等久一点再试，不扣除重试次数
+                    if (errorBody.includes("already exists") && attempt < maxRetries) {
+                        await new Promise(r => setTimeout(r, 2000));
+                        continue;
+                    }
+
+                    // 如果是服务器 500 且未到次数，正常退避重试
                     if (res.status >= 500 && attempt < maxRetries) {
                         await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); 
                         continue;
@@ -528,13 +535,14 @@ export class AudioManager {
         this.prefetching = true;
 
         while (this.enabled) {
-            let session = this.loopSession; // 记录进入时的 Session
+            let session = this.loopSession; 
 
             if (this.idleTimeout > 0 && Date.now() - this.lastActive > this.idleTimeout) {
                 await new Promise(r => setTimeout(r, 1000));
+                if (this.loopSession !== session) continue; 
                 continue;
             }
-            if (this.audioBufferArray.length >= 3) { // 增加缓冲深度
+            if (this.audioBufferArray.length >= 3) {
                 await new Promise(r => setTimeout(r, 300));
                 continue;
             }
@@ -549,9 +557,12 @@ export class AudioManager {
                 continue;
             }
 
+            // 核心修复：在发起请求前再次核对 Session，防止切书/切章瞬间启动了多个冗余请求
+            if (this.loopSession !== session) continue;
+
             let url = await this.fetchTTS(line.t, line.v);
 
-            // 核心：请求回来后立即检查 Session，如果变了，直接丢弃结果并重试
+            // 核心：请求回来后立即检查 Session，如果变了，直接丢弃结果并重跳循环
             if (this.loopSession !== session) {
                 if (url && url !== "speech_synthesis") URL.revokeObjectURL(url);
                 continue;
@@ -592,6 +603,8 @@ export class AudioManager {
     async startPlayLoop() {
         if (this.isPlaying) return;
         this.isPlaying = true;
+        this.playingSession = this.loopSession;
+        this.initContext(); // 确保上下文已初始化
 
         while (this.enabled) {
             let session = this.loopSession; // 记录当前播放周期所属的 Session ID
