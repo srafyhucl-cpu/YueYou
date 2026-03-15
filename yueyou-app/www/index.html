@@ -26,11 +26,13 @@
                     <button class="icon-btn outline-btn" id="btn-chapter-list">📑 目录</button>
                     <button class="icon-btn highlight-btn" id="btn-leaderboard">🌌 星图</button>
                     <button class="icon-btn outline-btn" id="btn-settings">⚙️ 设置</button>
-                    <button class="icon-btn outline-btn" id="restart-btn" title="重新开始游戏">🔄</button>
                 </div>
             </header>
 
             <div class="status-panel">
+                <button id="restart-btn" class="btn-circular-restart" title="重新推演">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                </button>
 
                 <div class="stats-grid" style="display:flex; justify-content:space-between; gap:10px;">
                     <div class="stat-box" style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
@@ -71,7 +73,9 @@
                         </div>
                         
                         <div class="capsule-control" onclick="toggleTTS(event)">
-                            <span id="play-pause-icon">⏸</span>
+                            <span id="play-pause-icon">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                            </span>
                         </div>
                         
                         <div class="capsule-text-container">

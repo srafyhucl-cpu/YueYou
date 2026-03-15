@@ -323,7 +323,11 @@ export class AudioManager {
         let statusEl = document.getElementById("player-status-icon");
         if (statusEl) statusEl.innerText = this.isSpeaking ? "⏸" : "▶";
         let capsuleIcon = document.getElementById("play-pause-icon");
-        if (capsuleIcon) capsuleIcon.innerText = this.enabled ? "⏸" : "▶";
+        if (capsuleIcon) {
+            const playSVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M8 5v14l11-7z"/></svg>`;
+            const pauseSVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+            capsuleIcon.innerHTML = this.isSpeaking ? pauseSVG : playSVG;
+        }
 
         // 更新进度环 (Perimeter ~ 668.5)
         const aura = document.getElementById("capsule-aura-bar");
