@@ -30,6 +30,7 @@ export class AudioManager {
         this._playLoopActive = false;
         this._prefetchLoopActive = false;
 
+        this.playbackRate = parseFloat(localStorage.getItem("setting_tts_rate") || "1.0");
         this.initLibrary();
     }
 
@@ -301,11 +302,23 @@ export class AudioManager {
                 if (this.cursor >= this.chapters[i].lineIndex) { title = this.chapters[i].title; break; }
             }
         }
-        let chapEl = document.getElementById("player-chapter");
-        if (chapEl) chapEl.innerText = title;
-        let capsuleEl = document.getElementById("player-progress-text");
-        if (capsuleEl) {
-            capsuleEl.innerText = (this.enabled && !this.isSpeaking && this.lines.length > 0) ? "⌛ 加载中..." : `${this.novelTitle} - ${title}`;
+        // 灵动岛胶囊智能滚动文本同步
+        let scroller = document.getElementById("capsule-scroller");
+        let container = document.querySelector(".capsule-text-container");
+        if (scroller && container) {
+            let currentChapterTitle = title;
+            scroller.innerText = (this.enabled && this.lines.length > 0) ? `${this.novelTitle} - ${currentChapterTitle}` : "▶ 点击任意处唤醒神经接入";
+            
+            // 下一帧计算超长文本，赋予 CSS 变量进行乒乓滚动
+            requestAnimationFrame(() => {
+                if (scroller.scrollWidth > container.clientWidth) {
+                    scroller.classList.add("scrolling");
+                    scroller.style.setProperty('--scroll-dist', `-${scroller.scrollWidth - container.clientWidth}px`);
+                } else {
+                    scroller.classList.remove("scrolling");
+                    scroller.style.setProperty('--scroll-dist', `0px`);
+                }
+            });
         }
         let statusEl = document.getElementById("player-status-icon");
         if (statusEl) statusEl.innerText = this.isSpeaking ? "⏸" : "▶";
@@ -380,6 +393,8 @@ export class AudioManager {
                             return new Promise(resolve => {
                                 window.speechSynthesis.cancel();
                                 let u = new SpeechSynthesisUtterance(this.text);
+                                u.lang = "zh-CN";
+                                u.rate = window.AudioManager.playbackRate || 1.0;
                                 u.onend = () => resolve(); u.onerror = () => resolve();
                                 window.speechSynthesis.speak(u);
                             });
@@ -421,6 +436,9 @@ export class AudioManager {
             this.isSpeaking = true; this.updateUI();
             const audio = item.obj;
             this.currentAudio = audio;
+                if (!audio.isSpeech) {
+                    audio.playbackRate = this.playbackRate || 1.0;
+                }
 
             let finished = false;
             // 高灵敏哨兵机制

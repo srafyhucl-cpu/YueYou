@@ -1,4 +1,4 @@
-/* 2048: 无限闭环 (Premium v4.4 Final) - 极简主义与毛玻璃美学 */
+﻿/* 2048: 无限闭环 (Premium v4.4 Final) - 极简主义与毛玻璃美学 */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap');
 
 :root {
@@ -1984,33 +1984,4 @@ body::after {
 .btn-bento-delete:active {
     background: rgba(255, 60, 60, 0.9);
     color: #fff;
-}
-
-/* 灵动岛滚动文本引擎 */
-.capsule-text-container {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    position: relative;
-    /* 边缘羽化渐隐，更具高级感 */
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 5%, black 95%, transparent 100%);
-    mask-image: linear-gradient(90deg, transparent 0%, black 5%, black 95%, transparent 100%);
-}
-
-.capsule-text-scroller {
-    display: inline-block;
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-}
-
-.capsule-text-scroller.scrolling {
-    animation: capsuleScroll 6s linear infinite alternate;
-}
-
-@keyframes capsuleScroll {
-    0%, 15% { transform: translateX(0); }
-    85%, 100% { transform: translateX(var(--scroll-dist)); }
 }
