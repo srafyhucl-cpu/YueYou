@@ -512,6 +512,9 @@ export class AudioManager {
         let statusEl = document.getElementById("player-status-icon");
         if (statusEl) statusEl.innerText = this.isSpeaking ? "\u23F8" : "\u25B6";
 
+        let capsuleIcon = document.getElementById("play-pause-icon");
+        if (capsuleIcon) capsuleIcon.innerText = this.isSpeaking ? "⏸" : "▶";
+
         let chapterStats = document.getElementById("chapter-stats");
         if (chapterStats) {
             let totalChapters = this.chapters ? this.chapters.length : 0;

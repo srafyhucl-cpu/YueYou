@@ -60,7 +60,10 @@
                     <button id="restart-btn" class="text-link">重来</button>
 
                     <!-- 智能旁白控制 - 已进化为灵动岛胶囊 -->
-                    <div id="player-capsule" class="dynamic-capsule">
+                    <div id="player-capsule" class="dynamic-capsule" onclick="document.getElementById('modal-chapters').classList.remove('hidden')">
+                        <div class="capsule-control" onclick="toggleTTS(event)">
+                            <span id="play-pause-icon">⏸</span>
+                        </div>
                         <div class="capsule-visualizer">
                             <canvas id="audio-visualizer" width="36" height="20"></canvas>
                         </div>

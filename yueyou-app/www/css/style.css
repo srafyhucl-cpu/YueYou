@@ -1120,6 +1120,32 @@ body::after {
     background: rgba(30, 30, 40, 0.95);
 }
 
+.capsule-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    margin-right: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.capsule-control:active {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(0.85);
+}
+
+#play-pause-icon {
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1;
+    user-select: none;
+}
+
 .capsule-visualizer {
     margin-right: 12px;
     display: flex;

@@ -64,6 +64,8 @@ let visualizerCtx = null;
 
     // 初始化声音管理器（使用模块化组件）
     const l = new AudioManager(t);
+    window.AudioManager = l; // 暴露给全局控播逻辑
+    Object.defineProperty(window, 'u', { get: () => l.u }); // 映射全局 AudioContext 引用
     let y = null;
 
     // 浏览器音频策略静音解锁器（全域首次交互 - iOS/Chrome AutoPlay Policy）
@@ -562,3 +564,33 @@ const drawVisualizer = () => {
 
 // DOM 加载后立刻启动循环监听
 document.addEventListener('DOMContentLoaded', () => { drawVisualizer(); });
+
+// ==========================================
+// 控播逻辑：切换 TTS 播放与暂停
+// ==========================================
+window.toggleTTS = (e) => {
+    e.stopPropagation(); // 绝对阻断冒泡，防止误开目录弹窗信号
+    if (!window.AudioManager) return;
+    
+    const am = window.AudioManager;
+    const audio = am.currentAudio;
+    const icon = document.getElementById('play-pause-icon');
+    
+    // 如果已经有音频在播或暂停中
+    if (audio) {
+        if (audio.paused) {
+            if (window.u && window.u.state === 'suspended') window.u.resume();
+            audio.play();
+            if(icon) icon.innerText = '⏸'; // 切换为暂停图标
+        } else {
+            audio.pause();
+            if(icon) icon.innerText = '▶'; // 切换为播放图标
+        }
+    } 
+    // 如果还没初始化，但队列里有小说
+    else if (am.lines && am.lines.length > 0) {
+        if (window.u && window.u.state === 'suspended') window.u.resume();
+        am.startPlayLoop();
+        if(icon) icon.innerText = '⏸';
+    }
+};
