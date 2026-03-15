@@ -26,6 +26,7 @@
                     <button class="icon-btn outline-btn" id="btn-chapter-list">📑 目录</button>
                     <button class="icon-btn highlight-btn" id="btn-leaderboard">🌌 星图</button>
                     <button class="icon-btn outline-btn" id="btn-settings">⚙️ 设置</button>
+                    <button class="icon-btn outline-btn" id="restart-btn" title="重新开始游戏">🔄</button>
                 </div>
             </header>
 
@@ -57,17 +58,25 @@
 
                 <!-- 底部交互栏 -->
                 <div class="bottom-nav-bar">
-                    <button id="restart-btn" class="text-link">重来</button>
-
                     <!-- 智能旁白控制 - 已进化为灵动岛胶囊 -->
-                    <div id="player-capsule" class="dynamic-capsule" onclick="document.getElementById('modal-chapters').classList.remove('hidden')">
+                    <div id="player-capsule" class="dynamic-capsule">
+                        <!-- 章节字数进度环: 使用 Path + viewBox 增强稳定性 -->
+                        <svg class="capsule-aura-svg" viewBox="0 0 310 48">
+                            <path class="aura-progress-bg" d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
+                            <path id="capsule-aura-bar" class="aura-progress-bar" d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
+                        </svg>
+                        
                         <div class="capsule-control" onclick="toggleTTS(event)">
-                            <span id="play-pause-icon">⏸</span>
+                            <span id="play-pause-icon">▶</span>
                         </div>
+                        
+                        <div id="player-progress-text" class="capsule-text" onclick="document.getElementById('modal-chapters').classList.remove('hidden')">
+                            ▶ 点击任意处唤醒系统
+                        </div>
+
                         <div class="capsule-visualizer">
                             <canvas id="audio-visualizer" width="36" height="20"></canvas>
                         </div>
-                        <div id="player-progress-text" class="capsule-text">▶ 点击任意处唤醒神经接入</div>
                     </div>
                 </div>
 

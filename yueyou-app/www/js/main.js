@@ -20,38 +20,13 @@ let visualizerCtx = null;
           let st = {
             board_data: JSON.stringify(p.board),
             score: p.score, 
+            combo: p.combo,
             bestScore: p.bestScore,
+            maxCombo: p.maxCombo,
             novel_index: l.cursor,
             current_novel_id: l.novelID
           };
           localStorage.setItem("local_save_data", JSON.stringify(st));
-          let shelfText = localStorage.getItem("local_bookshelf");
-          if (shelfText) {
-              try {
-                  let shelf = JSON.parse(shelfText);
-                  let b = shelf.find(x => x.id === l.novelID);
-                  if (b) {
-                      b.cursor = l.cursor;
-                      localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
-                  }
-              } catch(e){}
-          }
-        },
-        async loadLocalState() {
-          let st = localStorage.getItem("local_save_data");
-          if(st) {
-            try {
-              let I = JSON.parse(st);
-              p.board = JSON.parse(I.board_data);
-              p.score = I.score || 0; 
-              p.bestScore = Math.max(p.bestScore || 0, I.bestScore || 0, p.score);
-              e.render(p);
-              if (I.current_novel_id) {
-                  l.novelID = I.current_novel_id;
-                  l.cursor = I.novel_index || 0;
-              }
-            } catch(e){}
-          }
         }
       },
       t = {
@@ -62,535 +37,306 @@ let visualizerCtx = null;
         storyTTS: localStorage.getItem("setting_story_tts") === "true",
       };
 
-    // 初始化声音管理器（使用模块化组件）
     const l = new AudioManager(t);
-    window.AudioManager = l; // 暴露给全局控播逻辑
-    Object.defineProperty(window, 'u', { get: () => l.u }); // 映射全局 AudioContext 引用
-    let y = null;
+    window.AudioManager = l;
+    Object.defineProperty(window, 'u', { get: () => l.u });
 
-    // 浏览器音频策略静音解锁器（全域首次交互 - iOS/Chrome AutoPlay Policy）
-    let _unlocked = false;
-    const unlockAudioEngine = () => {
-        if (_unlocked) return;
-        _unlocked = true;
-        // 只解锁 AudioContext，不启动任何播放循环。
-        // 播放循环由 AudioManager 内部单例管理，解锁后它会自然恢复。
-        l.unlockAudio();
-        if (l.u && l.u.state === 'suspended') {
-            l.u.resume().catch(() => {});
+    function B(i, f) { let el = document.getElementById(i); if(el) el.addEventListener("click", f); }
+    let V = document.getElementById("modal-library");
+    let S = document.getElementById("modal-settings");
+    let L = document.getElementById("modal-leaderboard");
+    let C = document.getElementById("modal-chapters");
+
+    // 恢复游戏进度
+    const loadSavedState = () => {
+        const saved = localStorage.getItem("local_save_data");
+        if (saved) {
+            try {
+                const st = JSON.parse(saved);
+                if (st.board_data) {
+                    p.board = JSON.parse(st.board_data);
+                    p.score = st.score || 0;
+                    p.combo = st.combo || 0;
+                    p.bestScore = st.bestScore || p.bestScore;
+                    p.maxCombo = st.maxCombo || p.maxCombo;
+                    
+                    // 确保 ID 不冲突
+                    let maxId = 0;
+                    p.board.forEach(row => row.forEach(tile => {
+                        if (tile && tile.id) maxId = Math.max(maxId, tile.id);
+                    }));
+                    p.nextId = maxId + 1;
+                }
+            } catch (err) { console.error("Failed to load game state", err); }
         }
-        if (typeof window._syncIdleState === 'function') window._syncIdleState();
-        document.removeEventListener('touchstart', unlockAudioEngine);
-        document.removeEventListener('click', unlockAudioEngine);
-    };
-    document.addEventListener('touchstart', unlockAudioEngine, { once: true });
-    document.addEventListener('click', unlockAudioEngine, { once: true });
-
-    window._showToast = (f) => {
-        let i = document.getElementById("sys-toast");
-        (i ||
-          ((i = document.createElement("div")),
-          (i.id = "sys-toast"),
-          (i.style.cssText =
-            "position:fixed; bottom:120px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:#fff; padding:12px 24px; border-radius:30px; font-size:14px; word-break:keep-all; z-index:9999; opacity:0; transition:opacity 0.3s; pointer-events:none;"),
-          document.body.appendChild(i)),
-          (i.innerText = f),
-          (i.style.opacity = "1"),
-          clearTimeout(i._to),
-          (i._to = setTimeout(() => (i.style.opacity = "0"), 3e3)));
     };
 
-    let v = () => {
-        s.saveLocalState();
-    },
-    A = () => {
-        (y && clearTimeout(y), (y = setTimeout(v, 1e3)));
-    };
-
-    (document.addEventListener("visibilitychange", () => {
-      document.hidden && v();
-    }),
-    s.loadLocalState(), 
-    localStorage.getItem("score_version_v2") ||
-    (localStorage.removeItem("bestScore_premium"),
-    localStorage.setItem("score_version_v2", "1"),
-    (p.bestScore = 0)));
-
-    let G = async (f) => {
-        let i = document.getElementById("tile-container");
-        if (p.phaseJustCleared || i.classList.contains("targeting")) return;
-        let res = p.move(f);
-        let c = res.moved;
-        let a = res.mergedTiles;
-        if (res.mergedTiles && res.mergedTiles.isResetAction) {
-            e.render(p);
+    const renderLibrary = async () => {
+        let shelfText = localStorage.getItem("local_bookshelf");
+        let shelf = shelfText ? JSON.parse(shelfText) : [];
+        let container = document.getElementById("library-content");
+        if (!container) return;
+        if (shelf.length === 0) {
+            container.innerHTML = `<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3);"><div style="font-size:40px;margin-bottom:10px;">🕳️</div>书架空空的</div>`;
             return;
         }
-        if (c) {
-          if ((l.heartbeat(), A(), e.render(p, a), a.length > 0)) {
-            let g = Math.max(...a.map((x) => x.value));
-            l.playMergeSound(g);
-            if (t.vibration && navigator.vibrate) {
-                if (g >= 512) { e.shake(); navigator.vibrate([80, 30, 40]); }
-                else if (g >= 128) { e.shake(); navigator.vibrate([50, 20, 30]); }
-                else if (g >= 64) { navigator.vibrate(30); }
-                else { navigator.vibrate(10); }
+        container.innerHTML = shelf.map(b => `
+            <div class="book-card" onclick="loadBookFromShelf(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.cursor})">
+                <div class="book-cover">📖</div>
+                <div class="book-info">
+                    <div class="book-title">${b.title}</div>
+                    <div class="book-meta">进度: ${Math.floor((b.cursor/b.total)*100)}%</div>
+                </div>
+                <div class="book-delete" onclick="event.stopPropagation(); deleteBook(${b.id})">🗑️</div>
+            </div>
+        `).join('');
+    };
+
+    window.loadBookFromShelf = async (id, title, cursor) => {
+        await l.loadNovel(id, title, cursor);
+        if (V) V.classList.add("hidden");
+    };
+
+    window.deleteBook = (id) => {
+        if (!confirm("确定删除本书吗？")) return;
+        let shelf = JSON.parse(localStorage.getItem("local_bookshelf") || "[]");
+        shelf = shelf.filter(x => x.id !== id);
+        localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
+        LocalDB.deleteBook(id);
+        renderLibrary();
+    };
+
+    const renderChapterList = () => {
+        let container = document.getElementById("chapter-list");
+        if (!container) return;
+        if (!l.chapters || l.chapters.length === 0) {
+            container.innerHTML = `<div style="text-align:center;padding:20px;color:gray;">暂无目录数据</div>`;
+            return;
+        }
+        
+        // 计算当前活动章节
+        let activeIdx = -1;
+        for (let i = l.chapters.length - 1; i >= 0; i--) {
+            if (l.cursor >= l.chapters[i].lineIndex) {
+                activeIdx = i;
+                break;
             }
-            if ([512, 1024, 2048].includes(g)) {
-                [g * 2, g * 4, g * 8, g * 16].forEach((x, T) =>
-                    setTimeout(() => l.playMergeSound(x), T * 150)
-                );
-            }
-          }
-          if ((p.won || p.phaseJustCleared)) {
-            s.saveScore(localStorage.getItem("player_name"), p.score);
-          }
-          if (p.over) {
-              await e.playTransition("defeat");
-              e.render(p);
-          }
+        }
+
+        container.innerHTML = l.chapters.map((c, i) => {
+            let cls = "";
+            if (i === activeIdx) cls = "active";
+            else if (i < activeIdx) cls = "read";
+            
+            return `
+                <div id="chapter-item-${i}" class="chapter-item ${cls}" onclick="jumpTo(${c.lineIndex})">
+                    <span class="chapter-status-dot"></span>
+                    ${c.title}
+                </div>
+            `;
+        }).join('');
+
+        // 自动滚动到当前章节
+        if (activeIdx !== -1) {
+            setTimeout(() => {
+                const activeEl = document.getElementById(`chapter-item-${activeIdx}`);
+                if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
         }
     };
 
-    // UI 控制与事件监听
-    (() => {
-      let B = (o, d) => {
-        let S = document.getElementById(o);
-        S && (S.onclick = d);
-      };
-
-      B("player-mute-btn", () => {
-        let o = !l.enabled;
-        l.toggle(o);
-        let toggle = document.getElementById("toggle-story");
-        if (toggle) toggle.checked = o;
-        let btn = document.getElementById("player-mute-btn");
-        if (btn) btn.innerText = o ? "\u{1F50A}" : "\u{1F507}";
-      });
-
-      document.querySelectorAll('.modal-overlay').forEach(overlay => {
-          overlay.addEventListener('click', (e) => {
-              if (e.target === overlay) {
-                  let closeBtnId = overlay.id === 'modal-settings' ? 'close-settings' :
-                                 overlay.id === 'modal-library' ? 'close-library' :
-                                 overlay.id === 'modal-chapters' ? 'btn-close-chapters' : 
-                                 overlay.id === 'modal-leaderboard' ? 'close-leaderboard' : null;
-                  
-                  if (closeBtnId) {
-                      let btn = document.getElementById(closeBtnId);
-                      if (btn) btn.click();
-                  } else {
-                      overlay.classList.add('hidden');
-                  }
-              }
-          });
-      });
-
-      let C = document.getElementById("toggle-sound"),
-        D = document.getElementById("toggle-vibration"),
-        z = document.getElementById("toggle-story"),
-        T = document.getElementById("ambient-theme"),
-        R = document.getElementById("idle-timeout");
-
-      if (C) C.checked = t.sound;
-      if (D) D.checked = t.vibration;
-      if (z) z.checked = t.storyTTS;
-      if (T) T.value = t.ambientTheme;
-      if (R) {
-        let o = parseInt(localStorage.getItem("setting_idle_timeout") || "1");
-        R.value = o;
-        let label = document.getElementById("idle-timeout-label");
-        if (label) label.innerText = o == 0 ? "永不停止" : o + " 分钟";
-      }
-      let ttsVoiceSelect = document.getElementById("tts-voice-select");
-      if (ttsVoiceSelect) {
-          let savedVoice = localStorage.getItem("tts_voice");
-          if (savedVoice) ttsVoiceSelect.value = savedVoice;
-          ttsVoiceSelect.addEventListener("change", (e) => {
-              localStorage.setItem("tts_voice", e.target.value);
-              l.jumpToChapter(l.cursor);
-          });
-      }
-
-      B("btn-settings", () => document.getElementById("modal-settings").classList.remove("hidden"));
-      B("close-settings", () => {
-          if (C) t.sound = C.checked;
-          if (D) t.vibration = D.checked;
-          if (z) l.toggle(z.checked);
-          let o = document.getElementById("ambient-volume");
-          if (o) t.ambientVol = parseFloat(o.value);
-          if (R) {
-            let d = parseInt(R.value);
-            localStorage.setItem("setting_idle_timeout", d);
-            l.idleTimeout = d * 6e4;
-          }
-          localStorage.setItem("setting_sound", t.sound);
-          localStorage.setItem("setting_vibration", t.vibration);
-          localStorage.setItem("setting_ambient_vol", t.ambientVol);
-          document.getElementById("modal-settings").classList.add("hidden");
-          t.sound ? l.syncGameState(p) : l.stopAmbient();
-          document.body.className = 'theme-wuxia';
-      });
-
-      B("btn-admin", () => document.getElementById("admin-panel").classList.toggle("hidden"));
-      B("btn-leaderboard", () => {
-          document.getElementById("modal-leaderboard").classList.remove("hidden");
-          s.loadLeaderboard();
-      });
-      B("close-leaderboard", () => document.getElementById("modal-leaderboard").classList.add("hidden"));
-      B("restart-btn", () => {
-          if (confirm("重置进度？")) { p.reset(); e.render(p); }
-      });
-      // 目录按钮事件
-      const renderChapterList = () => {
-          let list = document.getElementById("chapter-list");
-          if (!list) return;
-          list.innerHTML = "";
-          if (!l.chapters || l.chapters.length === 0) {
-              list.innerHTML = '<p style="text-align:center; color:#a0a0b0; margin-top:20px;">当前书籍未解析出目录或尚未加载...</p>';
-              return;
-          }
-
-          const total = l.chapters.length;
-          const batchSize = 150; // 每一帧渲染的数量
-          let currentIdx = 0;
-
-          const renderBatch = () => {
-              if (currentIdx >= total) return;
-              
-              const fragment = document.createDocumentFragment();
-              const endIdx = Math.min(currentIdx + batchSize, total);
-              
-              for (let i = currentIdx; i < endIdx; i++) {
-                  const ch = l.chapters[i];
-                  const nextCh = l.chapters[i + 1];
-                  const isActive = (l.cursor >= ch.lineIndex) && (!nextCh || l.cursor < nextCh.lineIndex);
-                  
-                  const li = document.createElement("li");
-                  li.className = "chapter-item" + (isActive ? " active" : "");
-                  li.innerHTML = `<span>${ch.title}</span>`;
-                  li.onclick = () => {
-                      l.jumpToChapter(ch.lineIndex);
-                      document.getElementById("modal-chapters").classList.add("hidden");
-                  };
-                  fragment.appendChild(li);
-              }
-              
-              list.appendChild(fragment);
-              
-              // 寻找并滚动到活动章节（如果在当前批次中找到）
-              if (currentIdx === 0 || (l.cursor >= l.chapters[currentIdx].lineIndex)) {
-                  setTimeout(() => {
-                      const activeItem = list.querySelector(".chapter-item.active");
-                      if (activeItem && !activeItem._scrolled) {
-                          activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
-                          activeItem._scrolled = true;
-                      }
-                  }, 100);
-              }
-
-              currentIdx = endIdx;
-              if (currentIdx < total) {
-                  requestAnimationFrame(renderBatch);
-              }
-          };
-
-          renderBatch();
-      };
-
-      B("btn-chapter-list", () => {
-          let modal = document.getElementById("modal-chapters");
-          if (!modal) return;
-          renderChapterList();
-          modal.classList.remove("hidden");
-      });
-      
-      B("btn-sort-chapters", () => {
-          document.getElementById("chapter-list").classList.toggle("reversed");
-      });
-
-      B("btn-close-chapters", () => document.getElementById("modal-chapters").classList.add("hidden"));
-      let V = document.getElementById("modal-library");
-      let H = document.getElementById("library-content");
-      let renderLibrary = () => {
-          if (!H) return;
-          let shelfText = localStorage.getItem("local_bookshelf");
-          let shelf = shelfText ? JSON.parse(shelfText) : [];
-          if(shelf.length === 0) {
-              H.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,0.5);margin-top:20px;">当前书架为空，请导入 TXT 本地小说</p>';
-              return;
-          }
-          H.innerHTML = '<div style="display:flex; flex-direction:column; gap:12px;">' + shelf.map((b, I) => {
-              let isCur = (String(b.id) === String(l.novelID));
-              let pct = b.total > 0 ? Math.floor((b.cursor / b.total) * 100) : 0;
-              return `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-radius:12px; cursor:pointer; transition:all 0.2s; background:rgba(255,255,255,0.1); border:1px solid ${isCur ? 'var(--accent-pink)' : 'rgba(255,255,255,0.15)'}; box-shadow:0 4px 6px rgba(0,0,0,0.2);" 
-                     onclick="window._readBook(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.cursor})">
-                    <div style="flex:1; min-width:0; margin-right:12px;">
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                            <span style="font-size:20px;">📖</span>
-                            <div style="color:#fff; font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${b.title}</div>
-                            ${isCur ? '<span style="background:var(--accent-pink); color:#fff; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; flex-shrink:0;">阅读中</span>' : ''}
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
-                                <div style="width:${pct}%; height:100%; background:${isCur ? 'var(--accent-pink)' : 'rgba(255,255,255,0.4)'}; border-radius:2px;"></div>
-                            </div>
-                            <span style="font-size:11px; color:rgba(255,255,255,0.5); font-weight:bold; flex-shrink:0;">${pct}%</span>
-                        </div>
-                    </div>
-                    <div style="width:32px; height:32px; background:rgba(255,80,80,0.15); border:1px solid rgba(255,80,80,0.3); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; cursor:pointer; transition:all 0.2s;" 
-                         onclick="window._deleteBook(${b.id}, event)" 
-                         onmouseover="this.style.background='rgba(255,80,80,0.4)'" 
-                         onmouseout="this.style.background='rgba(255,80,80,0.15)'"
-                    >🗑️</div>
-                </div>
-              `;
-          }).join("") + '</div>';
-      };
-
-      window._deleteBook = async (id, e) => {
-          e.stopPropagation();
-          if(!confirm("确认从本地数据库中彻底抹除此书的维度记录？")) return;
-          let shelfText = localStorage.getItem("local_bookshelf");
-          let shelf = shelfText ? JSON.parse(shelfText) : [];
-          shelf = shelf.filter(b => b.id !== id);
-          localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
-          await LocalDB.deleteBook(id);
-          
-          if (String(localStorage.getItem("current_novel_id")) === String(id)) {
-              localStorage.removeItem("current_novel_id");
-              localStorage.removeItem("novel_progress");
-              l.stop();
-              l.lines = [];
-              l.novelID = null;
-              l.novelTitle = "未加载书籍";
-              l.cursor = 0;
-              let titleEl = document.getElementById("player-title");
-              if (titleEl) titleEl.innerText = "未加载书籍";
-              let chapEl = document.getElementById("player-chapter");
-              if (chapEl) chapEl.innerText = "";
-              l.updateUI();
-          }
-
-          renderLibrary();
-          if (typeof window._syncIdleState === 'function') window._syncIdleState();
-          window._showToast("书籍已从维度中抹除");
-      };
-
-      window._readBook = async (id, title, cursor) => {
-           await l.loadNovel(id, title, cursor);
-           if (V) V.classList.add("hidden");
-           // 自动播放：用户点击本身就是 User Gesture，不会被浏览器拦截
-           let autoTts = document.getElementById("toggle-story");
-           if (autoTts && autoTts.checked) {
-               if (l.u && l.u.state === 'suspended') l.u.resume().catch(() => {});
-               l.setEnabled(true);
-           }
-           renderLibrary();
-      };
-
-      let uploader = document.getElementById("upload-novel-file");
-      if (uploader) {
-        uploader.addEventListener("change", (e) => {
-          let file = e.target.files[0];
-          if (!file) return;
-          let reader = new FileReader();
-          reader.onload = async (ev) => {
-             let mask = document.createElement("div");
-             mask.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); z-index:10000; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;";
-             mask.innerHTML = "<div style='text-align:center;'><div style='font-size:40px; margin-bottom:20px;'>📚</div>正在构建本地维度数据库...</div>";
-             document.body.appendChild(mask);
-
-             try {
-                 let text = ev.target.result;
-                 let rawLines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
-                 if (rawLines.length === 0) return alert("文件为空");
-                 let newLines = rawLines.map((line, idx) => {
-                    let speakers = ["zh-CN-XiaoxiaoNeural", "zh-CN-YunxiNeural", "zh-CN-YunjianNeural", "zh-CN-XiaoyiNeural"];
-                    return { v: speakers[idx % 4], t: line };
-                 });
-                 let title = file.name.replace(".txt", "");
-                 
-                 let chapters = [];
-                 const chapterRegex = /^\s*(\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
-                 rawLines.forEach((line, index) => {
-                     let match = line.match(chapterRegex);
-                     if (match) chapters.push({ title: match[1].trim(), lineIndex: index });
-                 });
-
-                 let bookId = Date.now();
-                 await LocalDB.saveBook(bookId, { lines: newLines, chapters: chapters });
-                 let shelfText = localStorage.getItem("local_bookshelf");
-                 let shelf = shelfText ? JSON.parse(shelfText) : [];
-                 shelf.unshift({ id: bookId, title: title, total: newLines.length, cursor: 0 });
-                 localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
-                 await l.loadNovel(bookId, title, 0);
-                 // 导入后自动播放（用户参与了文件选择，算有效交互）
-                 let autoTts = document.getElementById("toggle-story");
-                 if (autoTts && autoTts.checked) {
-                     if (l.u && l.u.state === 'suspended') l.u.resume().catch(() => {});
-                     l.setEnabled(true);
-                 }
-                 window._showToast("加载本地小说成功");
-                 renderLibrary();
-             } catch (e) {
-                 console.error("Import failed:", e);
-                 window._showToast("导入失败: " + (e.message || "未知错误"));
-             } finally {
-                 mask.remove();
-                 e.target.value = "";
-             }
-          };
-          reader.readAsText(file, "UTF-8");
-        });
-      }
-      B("btn-library", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
-      B("player-capsule", () => {
-          let modal = document.getElementById("modal-chapters");
-          if (modal) {
-              renderChapterList();
-              modal.classList.remove("hidden");
-          }
-      });
-      B("close-library", () => { if (V) V.classList.add("hidden"); });
-
-      B("btn-idle-import", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
-      window._syncIdleState = () => {
-          let idle = document.getElementById("player-idle-state");
-          let player = document.getElementById("mini-player");
-          if (!idle) return;
-          if (l.lines && l.lines.length > 0) {
-              idle.style.display = "none";
-              if (player) player.style.display = "flex";
-          } else {
-              idle.style.display = "flex";
-              if (player) player.style.display = "none";
-          }
-      };
-      window._syncIdleState();
-
-      document.body.className = 'theme-wuxia';
-
-      window.onkeydown = (o) => {
-          let d = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[o.key];
-          if (d) { o.preventDefault(); G(d); }
-      };
-
-      let F, X;
-      window.ontouchstart = (o) => { F = o.touches[0].clientX; X = o.touches[0].clientY; };
-      window.ontouchend = (o) => {
-          let d = o.changedTouches[0].clientX - F, S = o.changedTouches[0].clientY - X;
-          if (Math.max(Math.abs(d), Math.abs(S)) > 30) {
-            G(Math.abs(d) > Math.abs(S) ? (d > 0 ? "right" : "left") : (S > 0 ? "down" : "up"));
-          }
-      };
-    })();
-
-    const startApp = () => {
-        e.render(p);
-        l.syncGameState(p);
-        if (!t.sound) l.stopAmbient();
-        l.checkHeadphonesAndStart();
-        if (typeof window._syncIdleState === 'function') window._syncIdleState();
+    window.jumpTo = (idx) => {
+        l.jumpToChapter(idx);
+        if (C) C.classList.add("hidden");
     };
 
-    const pm = document.getElementById('privacy-modal');
+    const fileInput = document.getElementById("upload-novel-file");
+    if (fileInput) {
+        fileInput.addEventListener("change", async (e) => {
+           let file = e.target.files[0];
+           if (!file) return;
+           let reader = new FileReader();
+           reader.onload = async (ev) => {
+              let mask = document.createElement("div");
+              mask.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); z-index:10000; display:flex; align-items:center; justify-content:center; color:#fff;";
+              mask.innerHTML = "<div style='text-align:center;'><div style='font-size:40px; margin-bottom:20px;'>📚</div>正在构建本地库...</div>";
+              document.body.appendChild(mask);
+              try {
+                  let text = ev.target.result;
+                  let rawLines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+                  let newLines = rawLines.map((line, idx) => ({ v: "zh-CN-XiaoxiaoNeural", t: line }));
+                  let title = file.name.replace(".txt", "");
+                  let chapters = [];
+                  const chapterRegex = /^第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*$/;
+                  rawLines.forEach((line, index) => {
+                      if (line.match(chapterRegex)) chapters.push({ title: line.trim(), lineIndex: index });
+                  });
+                  let bookId = Date.now();
+                  await LocalDB.saveBook(bookId, { lines: newLines, chapters: chapters });
+                  let shelf = JSON.parse(localStorage.getItem("local_bookshelf") || "[]");
+                  shelf.unshift({ id: bookId, title: title, total: newLines.length, cursor: 0 });
+                  localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
+                  await l.loadNovel(bookId, title, 0);
+                  renderLibrary();
+              } catch (err) { console.error(err); } finally { mask.remove(); e.target.value = ""; }
+           };
+           reader.readAsText(file, "UTF-8");
+        });
+    }
+
+    B("btn-library", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
+    B("close-library", () => { if (V) V.classList.add("hidden"); });
+    
+    B("btn-settings", () => { if (S) S.classList.remove("hidden"); });
+    B("close-settings", () => { if (S) S.classList.add("hidden"); });
+    
+    B("btn-leaderboard", () => { s.loadLeaderboard(); if (L) L.classList.remove("hidden"); });
+    B("close-leaderboard", () => { if (L) L.classList.add("hidden"); });
+
+    B("btn-chapter-list", () => { if (C) { renderChapterList(); C.classList.remove("hidden"); } });
+
+    B("play-pause-icon", (e) => {
+        window.toggleTTS(e);
+    });
+
+    B("player-progress-text", () => {
+        if (C) { renderChapterList(); C.classList.remove("hidden"); }
+    });
+
+    B("player-capsule", (e) => {
+        if (e.target.id === "play-pause-icon") return;
+        if (C) { renderChapterList(); C.classList.remove("hidden"); }
+    });
+    B("btn-close-chapters", () => { if (C) C.classList.add("hidden"); });
+    B("btn-idle-import", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
+    
+    B("restart-btn", () => {
+        if (confirm("确定要重新开始游戏吗？进度将丢失。")) {
+            p.reset();
+            e.render(p);
+            s.saveLocalState();
+        }
+    });
+
+    // 点击空白处关闭弹窗
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.add('hidden');
+        });
+    });
+
+    // 游戏核心输入绑定
+    const handleMove = (dir) => {
+        const result = p.move(dir);
+        if (result.moved) {
+            e.render(p, Array.isArray(result.mergedTiles) ? result.mergedTiles : []); 
+            if (result.mergedTiles && result.mergedTiles.length > 0) l.playEffect('merge');
+            l.unlockAudio(); 
+            s.saveLocalState(); // 移动后强制保存进度
+        }
+    };
+
+    document.addEventListener("keydown", (e) => {
+        const map = {
+            ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+            w: "up", s: "down", a: "left", d: "right",
+            W: "up", S: "down", A: "left", D: "right"
+        };
+        if (map[e.key]) {
+            e.preventDefault();
+            handleMove(map[e.key]);
+        }
+    });
+
+    // 触摸滑动支持
+    let tsX, tsY;
+    document.addEventListener("touchstart", (e) => { tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; }, { passive: false });
+    document.addEventListener("touchend", (e) => {
+        if (!tsX || !tsY) return;
+        let teX = e.changedTouches[0].clientX, teY = e.changedTouches[0].clientY;
+        let dx = teX - tsX, dy = teY - tsY;
+        if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
+            if (Math.abs(dx) > Math.abs(dy)) handleMove(dx > 0 ? "right" : "left");
+            else handleMove(dy > 0 ? "down" : "up");
+        }
+        tsX = null; tsY = null;
+    }, { passive: false });
+
+    window._syncIdleState = () => {
+        let idle = document.getElementById("player-idle-state");
+        let capsule = document.getElementById("player-capsule");
+        if (!idle) return;
+        if (l.lines && l.lines.length > 0) {
+            idle.classList.add("hidden");
+            if (capsule) capsule.classList.remove("hidden");
+        } else {
+            idle.classList.remove("hidden");
+            if (capsule) capsule.classList.add("hidden");
+        }
+    };
+
+    const startApp = () => {
+        loadSavedState(); // 启动时注入存档
+        e.render(p);
+        l.syncGameState(p);
+        l.checkHeadphonesAndStart();
+    };
+
+    let pm = document.getElementById('privacy-modal');
     if (!pm || localStorage.getItem('privacy_agreed') === 'true') {
         if (pm) pm.classList.add('hidden');
         startApp();
     } else {
         pm.classList.remove('hidden');
-        const btnAgree = document.getElementById('btn-privacy-agree');
-        if (btnAgree) {
-            btnAgree.onclick = () => {
-                localStorage.setItem('privacy_agreed', 'true');
-                pm.classList.add('hidden');
-                startApp();
-            };
-        }
-        const btnDisagree = document.getElementById('btn-privacy-disagree');
-        if (btnDisagree) {
-            btnDisagree.onclick = () => {
-                const modalPart = pm.querySelector('.modal');
-                if (modalPart) {
-                    modalPart.innerHTML = `
-                        <h3 style="text-align: center;">您已拒绝协议</h3>
-                        <p style="margin: 20px 0; color: rgba(255,255,255,0.7); line-height: 1.6;">很抱歉，根据合规要求，若您不同意《隐私政策》，阅游将无法为您提供基本的本地书籍解析与保存服务。请通过系统多任务界面手动清理并退出本应用。</p>
-                    `;
-                }
-            };
-        }
+        B('btn-privacy-agree', () => {
+            localStorage.setItem('privacy_agreed', 'true');
+            pm.classList.add('hidden');
+            startApp();
+        });
     }
+
+    const drawVisualizer = () => {
+        requestAnimationFrame(drawVisualizer);
+        if (!analyser && window.analyser) analyser = window.analyser;
+        let canvas = document.getElementById('audio-visualizer');
+        if (!canvas) return;
+        if (!visualizerCtx) visualizerCtx = canvas.getContext('2d');
+        visualizerCtx.clearRect(0, 0, canvas.width, canvas.height);
+        const barCount = 4; const barWidth = 3; const gap = 3;
+        const totalWidth = barCount * barWidth + (barCount - 1) * gap;
+        const startX = (canvas.width - totalWidth) / 2;
+        let dataArray = new Uint8Array(32);
+        if (analyser) analyser.getByteFrequencyData(dataArray);
+        for (let i = 0; i < barCount; i++) {
+            let value = dataArray[[1, 3, 5, 8][i]] || 0;
+            if (l.isSpeaking) { if (value < 10) value = 50 + Math.random() * 150; } 
+            else if (l.enabled) { value = 40 + Math.sin(Date.now() / 200 + i) * 30; } 
+            else { value = 5; }
+            let percent = Math.pow(value / 255, 0.85); 
+            let barHeight = Math.max(2, percent * canvas.height * 1.2); 
+            if (barHeight > canvas.height) barHeight = canvas.height;
+            let gradient = visualizerCtx.createLinearGradient(0, (canvas.height - barHeight)/2, 0, (canvas.height + barHeight)/2);
+            gradient.addColorStop(0, '#00f2fe'); gradient.addColorStop(0.5, '#4facfe'); gradient.addColorStop(1, '#00f2fe');
+            visualizerCtx.fillStyle = gradient;
+            const x = startX + i * (barWidth + gap);
+            const y = (canvas.height - barHeight) / 2;
+            visualizerCtx.beginPath();
+            visualizerCtx.roundRect(x, y, barWidth, barHeight, 2);
+            visualizerCtx.fill();
+        }
+    };
+    drawVisualizer();
   });
 })();
 
-// ==========================================
-// 实时声波律动可视化 (Audio Visualizer)
-// ==========================================
-const drawVisualizer = () => {
-    requestAnimationFrame(drawVisualizer);
-    
-    // 从 window 活取由 AudioManager 挂载的解析器
-    if (!analyser && window.analyser) analyser = window.analyser;
-    if (!analyser) return;
-    
-    let canvas = document.getElementById('audio-visualizer');
-    if (!canvas) return;
-    if (!visualizerCtx) visualizerCtx = canvas.getContext('2d');
-    
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray); // 获取当前音频频率数据
-    
-    visualizerCtx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 绘制 4 根能量柱
-    const barCount = 4;
-    const barWidth = 4;
-    const gap = 3;
-    const startX = (canvas.width - (barCount * barWidth + (barCount - 1) * gap)) / 2;
-    
-    for (let i = 0; i < barCount; i++) {
-        let value = dataArray[i * 4 + 2]; // 采样特定频段
-        let percent = value / 255;
-        let barHeight = Math.max(3, percent * canvas.height); // 基础高度最小为3
-        
-        // 霓虹蓝色柱体
-        visualizerCtx.fillStyle = 'rgba(0, 242, 254, 0.9)'; 
-        visualizerCtx.fillRect(startX + i * (barWidth + gap), (canvas.height - barHeight) / 2, barWidth, barHeight);
-    }
-};
-
-// DOM 加载后立刻启动循环监听
-document.addEventListener('DOMContentLoaded', () => { drawVisualizer(); });
-
-// ==========================================
-// 控播逻辑：切换 TTS 播放与暂停
-// ==========================================
 window.toggleTTS = (e) => {
-    e.stopPropagation(); // 绝对阻断冒泡，防止误开目录弹窗信号
+    e.stopPropagation();
     if (!window.AudioManager) return;
-    
     const am = window.AudioManager;
-    const audio = am.currentAudio;
-    const icon = document.getElementById('play-pause-icon');
-    
-    // 如果已经有音频在播或暂停中
-    if (audio) {
-        if (audio.paused) {
-            if (window.u && window.u.state === 'suspended') window.u.resume();
-            audio.play();
-            if(icon) icon.innerText = '⏸'; // 切换为暂停图标
-        } else {
-            audio.pause();
-            if(icon) icon.innerText = '▶'; // 切换为播放图标
-        }
-    } 
-    // 如果还没初始化，但队列里有小说
-    else if (am.lines && am.lines.length > 0) {
-        if (window.u && window.u.state === 'suspended') window.u.resume();
-        am.startPlayLoop();
-        if(icon) icon.innerText = '⏸';
+    if (!am.lines || am.lines.length === 0) {
+        if (window._showToast) window._showToast("请先在图书馆中加载书籍");
+        return;
     }
+    if (window.u && window.u.state === 'suspended') window.u.resume();
+    am.setEnabled(!am.enabled);
 };

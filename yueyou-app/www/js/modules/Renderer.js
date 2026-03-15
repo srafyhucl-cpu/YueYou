@@ -20,6 +20,7 @@ export class Renderer {
     
     render(e, s = []) {
         if (!this.tileContainer) return;
+        s = Array.isArray(s) ? s : []; // 深度防御：确保 s 始终为数组
         
         // 渲染一次背景格子
         if(this.gridBg && this.gridBg.children.length === 0) {

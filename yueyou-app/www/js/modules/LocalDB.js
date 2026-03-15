@@ -21,12 +21,39 @@ export const LocalDB = {
         });
     },
 
-    async saveBook(id, lines) {
+    async saveBook(id, rawData) {
         let db = await this.open();
-        if(!db) return;
+        if (!db) return;
+
+        // 核心修复：在此处拦截数据，强制格式化并提取章节
+        let formattedLines = [];
+        let chapters = [];
+        const chapterRegex = /^\s*(?:\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
+
+        if (Array.isArray(rawData)) {
+            for (let i = 0; i < rawData.length; i++) {
+                let item = rawData[i];
+                let textStr = typeof item === 'string' ? item : (item.t || "");
+                if (!textStr.trim()) continue;
+
+                // 强制转换为标准对象格式
+                formattedLines.push(typeof item === 'string' ? { t: textStr } : item);
+
+                // 正则匹配章节
+                if (chapterRegex.test(textStr)) {
+                    chapters.push({ title: textStr.trim(), lineIndex: formattedLines.length - 1 });
+                }
+            }
+        } else {
+            // 如果已经是标准对象
+            formattedLines = rawData.lines || [];
+            chapters = rawData.chapters || [];
+        }
+
         return new Promise(resolve => {
             let tx = db.transaction(STORE_NAME, "readwrite");
-            tx.objectStore(STORE_NAME).put(lines, id.toString());
+            // 以 {lines, chapters} 的标准结构存入数据库
+            tx.objectStore(STORE_NAME).put({ lines: formattedLines, chapters: chapters }, id.toString());
             tx.oncomplete = () => resolve(true);
             tx.onerror = () => resolve(false);
         });
@@ -34,20 +61,20 @@ export const LocalDB = {
 
     async loadBook(id) {
         let db = await this.open();
-        if(!db) return null;
+        if (!db) return null;
         return new Promise(resolve => {
             try {
                 let tx = db.transaction(STORE_NAME, "readonly");
                 let req = tx.objectStore(STORE_NAME).get(id.toString());
                 req.onsuccess = () => resolve(req.result);
                 req.onerror = () => resolve(null);
-            } catch(e) { resolve(null); }
+            } catch (e) { resolve(null); }
         });
     },
 
     async deleteBook(id) {
         let db = await this.open();
-        if(!db) return false;
+        if (!db) return false;
         return new Promise(resolve => {
             let tx = db.transaction(STORE_NAME, "readwrite");
             tx.objectStore(STORE_NAME).delete(id.toString());
