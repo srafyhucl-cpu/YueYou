@@ -271,9 +271,9 @@ export class AudioManager {
         // 如果加载后依然没内容，使用内置默认数据
         if (this.lines.length === 0) {
             this.lines = [
-                { v: "zh-CN-YunyangNeural", t: "东汉末年，天下大乱。黄巾贼寇四起，百姓流离失所。" },
+                { v: "zh-CN-XiaoxiaoNeural", t: "东汉末年，天下大乱。黄巾贼寇四起，百姓流离失所。" },
                 { v: "zh-CN-YunxiNeural", t: "我乃中山靖王之后，汉景帝阁下玄孙，姓刘名备，字玄德。" },
-                { v: "zh-CN-YunxiaNeural", t: "大丈夫不与国家出力，在这里长吁短叹，有什么用！我乃燕人张飞，字翼德。" },
+                { v: "zh-CN-XiaoyiNeural", t: "大丈夫不与国家出力，在这里长吁短叹，有什么用！我乃燕人张飞，字翼德。" },
                 { v: "zh-CN-YunjianNeural", t: "某姓关名羽，字云长，河东解良人氏。" }
             ];
             this.chapters = [{ title: "桃园三结义", lineIndex: 0 }];
@@ -433,49 +433,55 @@ export class AudioManager {
 
     async fetchTTS(text, voice) {
         voice = localStorage.getItem("tts_voice") || "zh-CN-XiaoxiaoNeural";
-
-        // 如果文本太短，服务器最低要求 5 个字符，自动在末尾补充无声的句号
         let safeText = text.length < 5 ? text.padEnd(5, '。') : text;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 把超时放宽到 8 秒，保障远程云端大模型有充足时间生成音频
+        const maxRetries = 2; 
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        try {
-            let res = await fetch(this.ttsURL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: safeText, voice: voice }),
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
+            try {
+                let res = await fetch(this.ttsURL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: safeText, voice: voice }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
 
-            if (!res.ok) {
-                let errMsg = `[TTS] 服务端返回 HTTP ${res.status}`;
-                if (res.status === 404) {
-                    errMsg = `404错误: 无法找到资源 ${res.url || this.ttsURL}`;
+                if (!res.ok) {
+                    let errorBody = "";
+                    try { errorBody = await res.text(); } catch(e) {}
+                    console.warn(`[TTS] Attempt ${attempt+1} failed with HTTP ${res.status}:`, errorBody);
+                    
+                    // 如果是服务器 500，且还没到最大重试次数，则等一下再试
+                    if (res.status >= 500 && attempt < maxRetries) {
+                        await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); 
+                        continue;
+                    }
+                    
+                    let errMsg = `[TTS] 服务端返回 HTTP ${res.status}: ${errorBody.substring(0, 100)}`;
+                    if (window._showToast) window._showToast(errMsg);
+                    throw new Error("HTTP " + res.status);
                 }
-                console.warn(errMsg);
-                if (window._showToast) window._showToast(errMsg);
-                throw new Error("HTTP " + res.status);
-            }
 
-            let blob = await res.blob();
-            // 允许 application/octet-stream，因为部分服务器可能以该类型返回音频流
-            let isValidType = blob.type.includes("audio") || blob.type === "application/octet-stream";
-            if (!blob || blob.size === 0 || !isValidType) {
-                console.warn("[TTS Error] Invalid blob received, size:", blob ? blob.size : 0, "type:", blob ? blob.type : "null");
-                if (window._showToast) window._showToast(`TTS数据异常: 未接收到有效音频 (Size: ${blob ? blob.size : 0})`);
-                // 如果是 0 字节，不再 throw，直接返回 null 触发 SpeechSynthesis 兜底
+                let blob = await res.blob();
+                let isValidType = blob.type.includes("audio") || blob.type === "application/octet-stream";
+                if (!blob || blob.size === 0 || !isValidType) {
+                    throw new Error("Invalid Audio Blob");
+                }
+                return URL.createObjectURL(blob);
+            } catch (e) {
+                clearTimeout(timeoutId);
+                console.warn(`[TTS] Attempt ${attempt+1} caught error:`, e.message);
+                if (attempt < maxRetries) {
+                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                    continue;
+                }
+                console.error("[TTS Final Error] Falling back to native SpeechSynthesis:", e.message || e);
                 if ("speechSynthesis" in window) return "speech_synthesis";
                 return null;
             }
-            return URL.createObjectURL(blob);
-        } catch (e) {
-            clearTimeout(timeoutId);
-            // 无论任何失败，只对“当前这句”执行原生兜底，不把整套系统限死，后续句子接着请求服务器
-            console.error("[TTS Error] Falling back to native SpeechSynthesis for this sentence due to:", e.message || e);
-            if ("speechSynthesis" in window) return "speech_synthesis";
-            return null;
         }
     }
 

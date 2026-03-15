@@ -405,7 +405,7 @@ let visualizerCtx = null;
                  let rawLines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
                  if (rawLines.length === 0) return alert("文件为空");
                  let newLines = rawLines.map((line, idx) => {
-                    let speakers = ["zh-CN-YunyangNeural", "zh-CN-YunxiNeural", "zh-CN-YunxiaNeural", "zh-CN-YunjianNeural"];
+                    let speakers = ["zh-CN-XiaoxiaoNeural", "zh-CN-YunxiNeural", "zh-CN-YunjianNeural", "zh-CN-XiaoyiNeural"];
                     return { v: speakers[idx % 4], t: line };
                  });
                  let title = file.name.replace(".txt", "");
