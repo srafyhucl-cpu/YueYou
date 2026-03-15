@@ -59,24 +59,26 @@
                 <!-- 底部交互栏 -->
                 <div class="bottom-nav-bar">
                     <!-- 智能旁白控制 - 已进化为灵动岛胶囊 -->
-                    <div id="player-capsule" class="dynamic-capsule">
+                    <div id="player-capsule" class="dynamic-capsule" onclick="document.getElementById('modal-chapters').classList.remove('hidden')">
                         <!-- 章节字数进度环: 使用 Path + viewBox 增强稳定性 -->
                         <svg class="capsule-aura-svg" viewBox="0 0 310 48">
                             <path class="aura-progress-bg" d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
                             <path id="capsule-aura-bar" class="aura-progress-bar" d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
                         </svg>
                         
-                        <div class="capsule-control" onclick="toggleTTS(event)">
-                            <span id="play-pause-icon">▶</span>
-                        </div>
-                        
-                        <div class="capsule-text-container" onclick="document.getElementById('modal-chapters').classList.remove('hidden')">
-                            <div id="capsule-scroller" class="capsule-text-scroller">▶ 点击任意处唤醒神经接入</div>
-                        </div>
-
                         <div class="capsule-visualizer">
                             <canvas id="audio-visualizer" width="36" height="20"></canvas>
                         </div>
+                        
+                        <div class="capsule-control" onclick="toggleTTS(event)">
+                            <span id="play-pause-icon">⏸</span>
+                        </div>
+                        
+                        <div class="capsule-text-container">
+                            <div id="capsule-scroller" class="capsule-text-scroller">▶ 点击任意处唤醒神经接入</div>
+                        </div>
+
+                        <div class="capsule-speed" id="capsule-speed-btn" onclick="cycleTTSpeed(event)">1.0x</div>
                     </div>
                 </div>
 

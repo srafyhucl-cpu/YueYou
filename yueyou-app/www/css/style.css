@@ -1602,28 +1602,27 @@ body::after {
 }
 
 .capsule-control {
-    width: 32px;
-    height: 32px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
+    margin-right: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 12px;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
     cursor: pointer;
-    transition: 0.2s;
-    z-index: 2;
+    transition: all 0.2s ease;
     flex-shrink: 0;
+    z-index: 2;
 }
 
 .capsule-control:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.25);
     transform: scale(1.05);
 }
 
 .capsule-control:active {
-    transform: scale(0.9);
+    transform: scale(0.85);
 }
 
 .capsule-text {
@@ -1641,12 +1640,12 @@ body::after {
 }
 
 .capsule-visualizer {
-    width: 36px;
+    margin-right: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
+    height: 20px;
     z-index: 2;
-    flex-shrink: 0;
 }
 
 /* 浮动说明框系统 */
@@ -2013,4 +2012,26 @@ body::after {
 @keyframes capsuleScroll {
     0%, 15% { transform: translateX(0); }
     85%, 100% { transform: translateX(var(--scroll-dist)); }
+}
+
+/* 灵动岛内嵌的倍速按钮美学 */
+.capsule-speed {
+    margin-left: 10px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 2;
+}
+
+.capsule-speed:active {
+    background: rgba(255, 255, 255, 0.35);
+    transform: scale(0.85);
 }

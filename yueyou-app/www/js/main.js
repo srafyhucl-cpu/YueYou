@@ -166,6 +166,10 @@ window._showToast = (e, text) => {
                 let rateLabel = document.getElementById("tts-rate-label");
                 if (rateLabel) rateLabel.innerText = rate + "x";
             }
+            // 初始化灵动岛的倍速显示
+            let savedRate = parseFloat(localStorage.getItem("setting_tts_rate") || "1.0").toFixed(1);
+            let speedBtn = document.getElementById("capsule-speed-btn");
+            if (speedBtn) speedBtn.innerText = savedRate + "x";
         };
 
         const updateSetting = (key, value) => {
@@ -449,8 +453,10 @@ window._showToast = (e, text) => {
                     let percent = Math.pow(value / 255, 0.85);
                     let barHeight = Math.max(2, percent * canvas.height * 1.2);
                     if (barHeight > canvas.height) barHeight = canvas.height;
-                    let gradient = visualizerCtx.createLinearGradient(0, (canvas.height - barHeight) / 2, 0, (canvas.height + barHeight) / 2);
-                    gradient.addColorStop(0, '#00f2fe'); gradient.addColorStop(0.5, '#4facfe'); gradient.addColorStop(1, '#00f2fe');
+                    // 核心视觉升级：Apple Music 级紫粉色流体渐变
+                    let gradient = visualizerCtx.createLinearGradient(0, 0, 0, canvas.height);
+                    gradient.addColorStop(0, '#ec4899'); // 顶部：亮粉色 (accent-pink)
+                    gradient.addColorStop(1, '#8b5cf6'); // 底部：深紫色 (accent-purple)
                     visualizerCtx.fillStyle = gradient;
                     const x = startX + i * (barWidth + gap);
                     const y = (canvas.height - barHeight) / 2;
@@ -470,4 +476,39 @@ window.toggleTTS = (e) => {
     if (!am.lines || am.lines.length === 0) { window._showToast(e, "请先在图书馆中加载书籍"); return; }
     if (window.u && window.u.state === 'suspended') window.u.resume();
     am.setEnabled(!am.enabled);
+};
+
+// ==========================================
+// 控播逻辑：一键倍速循环引擎
+// ==========================================
+window.cycleTTSpeed = (e) => {
+    e.stopPropagation(); // 绝对阻断冒泡，防止触发打开目录
+    const speeds = [1.0, 1.2, 1.5, 2.0, 2.5, 0.7]; // 主流听书倍速档位
+    let currentRate = parseFloat(localStorage.getItem("setting_tts_rate") || "1.0");
+    
+    // 循环切换到下一档位
+    let nextIndex = (speeds.indexOf(currentRate) + 1) % speeds.length;
+    if (speeds.indexOf(currentRate) === -1) nextIndex = 1; // 容错
+    let newRate = speeds[nextIndex];
+
+    // 1. 持久化存储
+    localStorage.setItem("setting_tts_rate", newRate.toString());
+    
+    // 2. 核心：动态同步到底层音频引擎
+    if (window.AudioManager) {
+        window.AudioManager.playbackRate = newRate;
+        if (window.AudioManager.currentAudio && !window.AudioManager.currentAudio.isSpeech) {
+            window.AudioManager.currentAudio.playbackRate = newRate;
+        }
+    }
+
+    // 3. UI 更新：更新灵动岛按钮文字
+    let btn = document.getElementById("capsule-speed-btn");
+    if (btn) btn.innerText = newRate.toFixed(1) + "x";
+
+    // 4. UI 更新：同步设置页的滑块（如果存在）
+    let ttsRateInput = document.getElementById("tts-rate");
+    if (ttsRateInput) ttsRateInput.value = newRate;
+    let ttsRateLabel = document.getElementById("tts-rate-label");
+    if (ttsRateLabel) ttsRateLabel.innerText = newRate.toFixed(1) + "x";
 };
