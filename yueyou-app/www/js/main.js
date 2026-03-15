@@ -3,25 +3,24 @@ import { GameEngine } from './modules/GameEngine.js';
 import { Renderer } from './modules/Renderer.js';
 import { LocalDB } from './modules/LocalDB.js';
 
-// 全局高维阅读进度引擎
+// 全局高维阅读进度引擎 (加固版)
 window.ProgressManager = {
-    // 获取指定书籍的进度
     getRecord(bookId) {
+        if (!bookId) return { cursor: 0, total: 1, percent: 0 };
         let records = JSON.parse(localStorage.getItem('reading_records') || '{}');
-        return records[bookId] || { cursor: 0, total: 1, percent: 0 };
+        return records[String(bookId)] || { cursor: 0, total: 1, percent: 0 };
     },
-    // 更新指定书籍的进度
     updateRecord(bookId, cursor, total) {
         if (!bookId || total <= 0) return;
         let records = JSON.parse(localStorage.getItem('reading_records') || '{}');
         let percent = Math.min(100, (cursor / total) * 100);
-        records[bookId] = { cursor, total, percent: parseFloat(percent.toFixed(2)) };
+        records[String(bookId)] = { cursor, total, percent: parseFloat(percent.toFixed(2)) };
         localStorage.setItem('reading_records', JSON.stringify(records));
     },
-    // 删除指定书籍的进度
     deleteRecord(bookId) {
+        if (!bookId) return;
         let records = JSON.parse(localStorage.getItem('reading_records') || '{}');
-        delete records[bookId];
+        delete records[String(bookId)];
         localStorage.setItem('reading_records', JSON.stringify(records));
     }
 };
@@ -231,10 +230,10 @@ window._showToast = (e, text) => {
         container.innerHTML = shelf.map(b => {
             const record = window.ProgressManager.getRecord(b.id);
             const progressValue = record.percent || 0;
+            const displayWidth = Math.max(1, progressValue);
             const cleanTitle = (b.title || "未知").replace(/\.txt$/i, '');
             const coverChar = cleanTitle.charAt(0);
             const coverBg = window.generateCoverGradient(cleanTitle);
-            const dashOffset = 62.8 - (progressValue / 100) * 62.8;
 
             return `
                 <div class="bento-card" onclick="loadBookFromShelf(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.cursor})">
@@ -243,10 +242,12 @@ window._showToast = (e, text) => {
                         <div class="bento-info-overlay">
                             <div class="bento-title">${cleanTitle}</div>
                             <div class="bento-meta">
-                                <svg class="progress-ring" viewBox="0 0 24 24">
-                                    <circle class="progress-ring-bg" cx="12" cy="12" r="10"></circle>
-                                    <circle class="progress-ring-fill" cx="12" cy="12" r="10" stroke-dasharray="62.8" stroke-dashoffset="${dashOffset}"></circle>
-                                </svg>
+                                <div class="bento-progress-container">
+                                    <div class="bento-progress-text">已读 ${progressValue}%</div>
+                                    <div class="bento-progress-track">
+                                        <div class="bento-progress-fill" style="width: ${displayWidth}%;"></div>
+                                    </div>
+                                </div>
                                 <button class="btn-bento-delete" onclick="event.stopPropagation(); deleteBook(${b.id})">删</button>
                             </div>
                         </div>

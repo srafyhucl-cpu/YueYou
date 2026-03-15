@@ -164,11 +164,11 @@ export class AudioManager {
             this.stopAllAudio();
             this.audioBufferArray.forEach(x => { if (x.url && x.url !== 'speech_synthesis') URL.revokeObjectURL(x.url); });
             this.audioBufferArray = [];
-            this.novelID = id; this.novelTitle = title;
-            // 优先使用传入的 cursor，其次读取独立进度引擎的记录，最后默认 0
-            let savedRecord = window.ProgressManager ? window.ProgressManager.getRecord(id) : { cursor: 0 };
-            this.cursor = (newCursor !== null) ? newCursor : savedRecord.cursor;
-            this.fetchCursor = this.cursor;
+            
+            // 强制将当前小说 ID 锁定为字符串，供高维引擎精准对接
+            this.novelID = String(id);
+            this.novelTitle = title;
+
             let data = await LocalDB.loadBook(id);
             if (!data) return;
             if (this.loopSession !== currentSession) return;
@@ -188,13 +188,25 @@ export class AudioManager {
                 this.chapters = data.chapters || [];
             }
 
-            this.cursor = (newCursor !== null && newCursor < this.lines.length) ? newCursor : (this.cursor < this.lines.length ? this.cursor : 0);
-            localStorage.setItem("current_novel_id", id);
+            // 引擎加固：读取精准进度
+            let savedRecord = window.ProgressManager ? window.ProgressManager.getRecord(this.novelID) : { cursor: 0 };
+            
+            // 如果外部明确传入了大于 0 的游标（如跳章），使用外部游标；否则优先使用本地档
+            if (newCursor !== null && newCursor !== undefined && newCursor > 0) {
+                this.cursor = newCursor;
+            } else {
+                this.cursor = savedRecord.cursor || 0;
+            }
+
+            if (this.lines && this.cursor >= this.lines.length) this.cursor = 0;
+            this.fetchCursor = this.cursor;
+
+            localStorage.setItem("current_novel_id", this.novelID);
             localStorage.setItem("current_novel_title", title);
             localStorage.setItem("novel_index", this.cursor.toString());
             // 同步一次进度
             if (window.ProgressManager && this.lines.length > 0) {
-                window.ProgressManager.updateRecord(id, this.cursor, this.lines.length);
+                window.ProgressManager.updateRecord(this.novelID, this.cursor, this.lines.length);
             }
             this.updateUI();
         } catch (e) { console.error("LoadNovel error:", e); }
