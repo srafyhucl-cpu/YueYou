@@ -182,20 +182,14 @@ export class AudioManager {
             if (this.loopSession !== currentSession) return;
 
             // 兼容旧版本纯数组数据，并动态解析章节
-            if (Array.isArray(data)) {
-                this.lines = data.map(item => typeof item === 'string' ? { t: item } : item);
-                this.chapters = [];
-                const chapterRegex = /^\s*(?:\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
-                this.lines.forEach((line, index) => {
-                    if (chapterRegex.test(line.t)) {
-                        this.chapters.push({ title: line.t.trim(), lineIndex: index });
-                    }
-                });
-            } else {
-                // 核心修复 4：将读取出来的纯文本实时反向映射为 Object
-                this.lines = (data.lines || []).map(item => typeof item === 'string' ? { t: item } : item);
-                this.chapters = data.chapters || [];
-            }
+                // 核心修复：纯文本与对象的兼容反向映射
+                if (Array.isArray(data)) {
+                    this.lines = data.map(item => typeof item === 'string' ? { t: item } : item);
+                    this.chapters = [];
+                } else {
+                    this.lines = (data.lines || []).map(item => typeof item === 'string' ? { t: item } : item);
+                    this.chapters = data.chapters || [];
+                }
 
             // 引擎加固：读取精准进度
             let savedRecord = window.ProgressManager ? window.ProgressManager.getRecord(this.novelID) : { cursor: 0 };
@@ -375,21 +369,22 @@ export class AudioManager {
                 await new Promise(r => setTimeout(r, 500));
                 continue;
             }
-            const session = this.loopSession;
-            const line = this.lines[this.fetchCursor];
+            let line = this.lines[this.fetchCursor];
+            if (!line) {
+                await new Promise(r => setTimeout(r, 1000));
+                continue;
+            }
 
-            // --- 核心修复区：安全提取文本，向下兼容旧数据 ---
+            // 核心修复：极其安全的文本提取，彻底防止 undefined 崩溃
             let textToRead = typeof line === 'string' ? line : line.t;
-            let voiceToUse = (typeof line === 'object' && line.v) ? line.v : (this.settings.voice || "zh-CN-XiaoxiaoNeural");
+            let voiceToUse = typeof line === 'string' ? null : line.v;
 
-            // 拦截空字符串或 undefined，防止报错或错误朗读
-            if (!textToRead || textToRead.trim() === "" || String(textToRead) === "undefined") {
+            if (!textToRead || String(textToRead).trim() === "" || String(textToRead) === "undefined") {
                 this.fetchCursor = (this.fetchCursor + 1) % this.lines.length;
                 continue;
             }
-            // ------------------------------------------------
 
-            const url = await this.fetchTTS(textToRead, voiceToUse); // 使用安全文本
+            let url = await this.fetchTTS(textToRead, voiceToUse);
 
             if (this.loopSession !== session) {
                 if (url && url !== "speech_synthesis") URL.revokeObjectURL(url);
@@ -400,20 +395,24 @@ export class AudioManager {
                 let item = { url, session };
                 if (url === "speech_synthesis") {
                     item.obj = {
-                        isSpeech: true, text: textToRead, // 使用安全文本
-                        play: function () {
-                            return new Promise(resolve => {
-                                window.speechSynthesis.cancel();
+                        isSpeech: true, text: textToRead, paused: true, ended: false,
+                        play: async function() {
+                            this.paused = false; this.ended = false;
+                            window.speechSynthesis.cancel(); 
+                            return new Promise((resolve) => {
                                 let u = new SpeechSynthesisUtterance(this.text);
                                 u.lang = "zh-CN";
-                                u.rate = window.AudioManager.playbackRate || 1.0;
-                                u.onend = () => resolve(); u.onerror = () => resolve();
+                                u.rate = window.AudioManager ? window.AudioManager.playbackRate || 1.0 : 1.0;
+                                u.onend = () => { this.ended = true; this.paused = true; if(this.onended) this.onended(); resolve(); };
+                                u.onerror = () => { this.ended = true; this.paused = true; if(this.onerror) this.onerror(); resolve(); };
                                 window.speechSynthesis.speak(u);
                             });
                         },
-                        pause: () => window.speechSynthesis.cancel()
+                        pause: function() { this.paused = true; window.speechSynthesis.cancel(); }
                     };
-                } else { item.obj = new Audio(url); }
+                } else { 
+                    item.obj = new Audio(url); 
+                }
                 this.audioBufferArray.push(item);
                 this.fetchCursor = (this.fetchCursor + 1) % this.lines.length;
                 this.updateUI();
