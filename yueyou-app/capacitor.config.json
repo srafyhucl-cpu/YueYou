@@ -1,6 +1,5 @@
 {
     "appId": "com.dimension.library2048",
     "appName": "阅游",
-    "webDir": "www",
-    "bundledWebRuntime": false
+    "webDir": "www"
 }

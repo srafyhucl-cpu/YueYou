@@ -364,12 +364,28 @@ window._showToast = (e, text) => {
                             }
                             let rawLines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
                             let title = file.name.replace(".txt", "");
+
+                            // 预提取章节信息，减少播放时的计算
+                            let chapters = [];
+                            const chapterRegex = /^\s*(?:\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
+                            rawLines.forEach((line, index) => {
+                                if (chapterRegex.test(line)) {
+                                    chapters.push({ title: line, lineIndex: index });
+                                }
+                            });
+
                             let bookId = Date.now();
-                            await LocalDB.saveBook(bookId, rawLines);
-                            let shelf = JSON.parse(localStorage.getItem("local_bookshelf") || "[]");
+                            // 核心修复 2：不再存入庞大的 Object，直接存入纯字符串数组 (rawLines)
+                            await window.LocalDB.saveBook(bookId, { lines: rawLines, chapters: chapters });
+                            
+                            let shelfText = localStorage.getItem("local_bookshelf");
+                            let shelf = shelfText ? JSON.parse(shelfText) : [];
                             shelf.unshift({ id: bookId, title: title, total: rawLines.length, cursor: 0 });
                             localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
+
                             await l.loadNovel(bookId, title, 0);
+                            if (V) V.classList.add("hidden");
+                            window._showToast(null, "档案注入成功");
                             renderLibrary();
                         } catch (err) { console.error(err); } finally { mask.remove(); e.target.value = ""; }
                     };
@@ -409,13 +425,21 @@ window._showToast = (e, text) => {
             document.addEventListener("touchstart", (e) => { tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; }, { passive: false });
             document.addEventListener("touchend", (e) => { if (!tsX || !tsY) return; let teX = e.changedTouches[0].clientX, teY = e.changedTouches[0].clientY; let dx = teX - tsX, dy = teY - tsY; if (Math.abs(dx) > 30 || Math.abs(dy) > 30) { if (Math.abs(dx) > Math.abs(dy)) handleMove(dx > 0 ? "right" : "left"); else handleMove(dy > 0 ? "down" : "up"); } tsX = null; tsY = null; }, { passive: false });
 
+            // 核心修复 1：精准指向 player-capsule，实现主页状态互斥
             window._syncIdleState = () => {
                 let idle = document.getElementById("player-idle-state");
-                let capsule = document.getElementById("player-capsule");
+                let player = document.getElementById("player-capsule"); 
                 if (!idle) return;
-                if (l.lines && l.lines.length > 0) { idle.classList.add("hidden"); if (capsule) capsule.classList.remove("hidden"); }
-                else { idle.classList.remove("hidden"); if (capsule) capsule.classList.add("hidden"); }
+                if (window.AudioManager && window.AudioManager.lines && window.AudioManager.lines.length > 0) {
+                    idle.style.display = "none";
+                    if (player) player.style.display = "flex";
+                } else {
+                    idle.style.display = "flex";
+                    if (player) player.style.display = "none";
+                }
             };
+            // 确保启动时执行一次同步
+            window._syncIdleState();
 
             const startApp = () => { loadSavedState(); e.render(p); l.syncGameState(p); l.checkHeadphonesAndStart(); };
             let pm = document.getElementById('privacy-modal');

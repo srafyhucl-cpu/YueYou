@@ -156,7 +156,14 @@ export class AudioManager {
 
     async initLibrary() {
         await this.loadNovel(this.novelID, this.novelTitle, this.cursor);
-        this.heartbeat();
+        
+        // 核心修复 3：初始化完成后强制同步 UI 状态，消灭占位图
+        if (typeof window._syncIdleState === 'function') window._syncIdleState();
+
+        if (this.enabled) {
+            this.startPrefetchLoop();
+            this.startPlayLoop();
+        }
     }
 
     async loadNovel(id, title, newCursor = null) {
@@ -185,7 +192,8 @@ export class AudioManager {
                     }
                 });
             } else {
-                this.lines = data.lines || [];
+                // 核心修复 4：将读取出来的纯文本实时反向映射为 Object
+                this.lines = (data.lines || []).map(item => typeof item === 'string' ? { t: item } : item);
                 this.chapters = data.chapters || [];
             }
 
