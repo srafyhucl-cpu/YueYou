@@ -28,7 +28,7 @@ export const LocalDB = {
         // 核心修复：在此处拦截数据，强制格式化并提取章节
         let formattedLines = [];
         let chapters = [];
-        const chapterRegex = /^\s*(?:\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
+        const chapterRegex = /^\s*(?:第\s*[0-9零一二三四五六七八九十百千两]+[章节回卷集部篇]|正文\s+第\s*[0-9零一二三四五六七八九十百千两]+[章节回卷集部篇]|[序前引楔][言子]|[Cc]hapter\s*\d+|\d{1,5}\s+).*/;
 
         if (Array.isArray(rawData)) {
             for (let i = 0; i < rawData.length; i++) {

@@ -58,6 +58,11 @@ export class AudioManager {
         if (window.analyser) this.ttsInput.connect(window.analyser);
         this.currentTTSNodes.forEach(node => node.disconnect());
         this.currentTTSNodes = [];
+        
+        // 实时更新环境音量
+        if (this.m.masterGain) {
+            this.m.masterGain.gain.setTargetAtTime(this.settings.ambientVol, this.u.currentTime, 0.1);
+        }
         if (this.settings.ambientTheme === "wuxia") {
             let convolver = this.u.createConvolver();
             convolver.buffer = this.createReverbIR(this.u, 2.0, 3.0);
@@ -92,16 +97,17 @@ export class AudioManager {
 
     playAmbient(phase) {
         let sig = phase + '_' + (this.settings.ambientTheme || 'wuxia');
-        if (!this.settings.sound || !this.u || this.M === sig) return;
+        if (!this.settings.ambientEnabled || !this.u || this.M === sig) return;
         this.stopAmbient();
         this.M = sig;
         let masterGain = this.u.createGain();
+        this.m.masterGain = masterGain;
         masterGain.gain.value = this.settings.ambientVol;
         masterGain.connect(this.u.destination);
         if (this.settings.ambientTheme === "wuxia") {
             const fluteFreqs = [329.63, 392.00, 440.00, 523.25, 587.33];
             const playFlute = () => {
-                if (this.M !== sig || !this.settings.sound) return;
+                if (this.M !== sig || !this.settings.ambientEnabled) return;
                 let osc = this.u.createOscillator(); let g = this.u.createGain();
                 osc.type = "sine"; osc.frequency.value = fluteFreqs[Math.floor(Math.random() * fluteFreqs.length)];
                 g.gain.setValueAtTime(0, this.u.currentTime);
@@ -154,12 +160,14 @@ export class AudioManager {
 
     async loadNovel(id, title, newCursor = null) {
         try {
-            this.loopSession++;
+            const currentSession = ++this.loopSession;
             this.stopAllAudio();
             this.audioBufferArray.forEach(x => { if (x.url && x.url !== 'speech_synthesis') URL.revokeObjectURL(x.url); });
             this.audioBufferArray = [];
             this.novelID = id; this.novelTitle = title;
-            this.cursor = (newCursor !== null) ? newCursor : 0;
+            // 优先使用传入的 cursor，其次读取独立进度引擎的记录，最后默认 0
+            let savedRecord = window.ProgressManager ? window.ProgressManager.getRecord(id) : { cursor: 0 };
+            this.cursor = (newCursor !== null) ? newCursor : savedRecord.cursor;
             this.fetchCursor = this.cursor;
             let data = await LocalDB.loadBook(id);
             if (!data) return;
@@ -180,10 +188,14 @@ export class AudioManager {
                 this.chapters = data.chapters || [];
             }
 
-            this.cursor = (newCursor !== null && newCursor < this.lines.length) ? newCursor : 0;
+            this.cursor = (newCursor !== null && newCursor < this.lines.length) ? newCursor : (this.cursor < this.lines.length ? this.cursor : 0);
             localStorage.setItem("current_novel_id", id);
             localStorage.setItem("current_novel_title", title);
             localStorage.setItem("novel_index", this.cursor.toString());
+            // 同步一次进度
+            if (window.ProgressManager && this.lines.length > 0) {
+                window.ProgressManager.updateRecord(id, this.cursor, this.lines.length);
+            }
             this.updateUI();
         } catch (e) { console.error("LoadNovel error:", e); }
     }
@@ -218,12 +230,24 @@ export class AudioManager {
         }
     }
 
+    refreshSession() {
+        this.loopSession++;
+        this.stopAllAudio();
+        this.audioBufferArray.forEach(x => { if (x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); });
+        this.audioBufferArray = [];
+        this.fetchCursor = this.cursor; // 从当前行重新开始抓取
+        this.heartbeat();
+    }
+
     jumpToChapter(lineIndex) {
         this.loopSession++;
         this.stopAllAudio();
         this.audioBufferArray.forEach(x => { if (x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); });
         this.audioBufferArray = [];
         this.cursor = lineIndex; this.fetchCursor = lineIndex;
+        if (window.ProgressManager && this.lines) {
+            window.ProgressManager.updateRecord(this.novelID, this.cursor, this.lines.length);
+        }
         localStorage.setItem("novel_index", this.cursor.toString());
         this.updateUI();
         this.heartbeat();
@@ -319,7 +343,7 @@ export class AudioManager {
 
             // --- 核心修复区：安全提取文本，向下兼容旧数据 ---
             let textToRead = typeof line === 'string' ? line : line.t;
-            let voiceToUse = typeof line === 'string' ? null : line.v;
+            let voiceToUse = (typeof line === 'object' && line.v) ? line.v : (this.settings.voice || "zh-CN-XiaoxiaoNeural");
 
             // 拦截空字符串或 undefined，防止报错或错误朗读
             if (!textToRead || textToRead.trim() === "" || String(textToRead) === "undefined") {
@@ -415,6 +439,10 @@ export class AudioManager {
             if (item.url && item.url !== "speech_synthesis") URL.revokeObjectURL(item.url);
             if (this.loopSession === sessionAtStep && finished) {
                 this.cursor = (this.cursor + 1) % this.lines.length;
+                // 将最新进度同步至高维引擎
+                if (window.ProgressManager) {
+                    window.ProgressManager.updateRecord(this.novelID, this.cursor, this.lines.length);
+                }
                 localStorage.setItem("novel_index", this.cursor.toString());
             }
         }

@@ -9,6 +9,7 @@ export class GameEngine {
         let e = localStorage.getItem("bestScore_premium");
         this.bestScore = e && !isNaN(e) ? parseInt(e) : 0;
         this.maxCombo = parseInt(localStorage.getItem('maxCombo')) || 0;
+        this.oldScore = 0;
         this.reset();
     }
     reset() {
@@ -112,6 +113,21 @@ export class GameEngine {
                     }
                 }, 500);
             }
+
+            // --- 注入：3D 物理惯性倾斜 ---
+            const gridEl = document.getElementById('grid-container');
+            if (gridEl) {
+                const tilt = 
+                    e === 'up'    ? 'perspective(800px) rotateX(10deg)' :
+                    e === 'right' ? 'perspective(800px) rotateY(10deg)' :
+                    e === 'down'  ? 'perspective(800px) rotateX(-10deg)' :
+                    e === 'left'  ? 'perspective(800px) rotateY(-10deg)' : '';
+                gridEl.style.transform = tilt;
+                
+                setTimeout(() => {
+                    gridEl.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg)';
+                }, 150);
+            }
         }
         return { moved: s, mergedTiles: t, combo: this.combo };
     }
@@ -122,6 +138,16 @@ export class GameEngine {
                 if (t) this.score += t.value;
             })
         );
+
+        // 注入：机械翻页动画接管当前得分
+        if (window.animateValue) {
+            window.animateValue('score', this.oldScore || 0, this.score, 600);
+        } else {
+            const scoreEl = document.getElementById('score');
+            if (scoreEl) scoreEl.innerText = this.score;
+        }
+        this.oldScore = this.score;
+
         if (this.score > this.bestScore) {
             this.bestScore = this.score;
             localStorage.setItem("bestScore_premium", this.bestScore);

@@ -362,6 +362,12 @@ body::after {
     backdrop-filter: var(--blur); 
     -webkit-backdrop-filter: var(--blur);
     max-height: 100%;
+    
+    /* 注入：3D 弹性材质 */
+    transform-style: preserve-3d;
+    transform: perspective(800px) rotateX(0deg) rotateY(0deg);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 超级弹性的回弹曲线 */
+    will-change: transform;
 }
 
 
@@ -1308,4 +1314,146 @@ body::after {
     justify-content: center;
     z-index: 2;
     flex-shrink: 0;
+}
+
+/* 浮动说明框系统 */
+.floating-tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 13px;
+    z-index: 100000;
+    pointer-events: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    max-width: 240px;
+    line-height: 1.5;
+    animation: tooltip-fade-in 0.3s ease;
+}
+
+@keyframes tooltip-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tooltip-fade-out {
+    animation: tooltip-fade-out 0.5s ease forwards;
+}
+
+@keyframes tooltip-fade-out {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Bento Box 档案馆网格布局 */
+#library-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); /* 尺寸微调，排版更紧凑 */
+    gap: 14px;
+    padding: 10px 0 90px 0;
+    list-style: none;
+    margin: 0;
+}
+
+/* 全画幅卡片基座 */
+.bento-card {
+    border-radius: 12px;
+    aspect-ratio: 3 / 4; /* 强制图书修长比例 */
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15); /* 边缘高光 */
+    position: relative;
+    background: #000;
+}
+
+.bento-card:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* 充满整个卡片的流体容器 */
+.bento-full-cover {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 高级暗纹水印：巨型字体 + 叠加混合模式 */
+.bento-watermark {
+    font-size: 85px;
+    font-family: "Songti SC", "SimSun", serif;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.12); /* 极低透明度 */
+    mix-blend-mode: overlay; /* 融入渐变背景的黑魔法 */
+    user-select: none;
+    position: absolute;
+    top: 15%; /* 偏上放置 */
+}
+
+/* 底部悬浮信息区：渐变毛玻璃 */
+.bento-info-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 16px 12px 12px 12px;
+    /* 从透明到极暗的过渡，保证文字绝对清晰 */
+    background: linear-gradient(to top, rgba(10,10,15,0.95) 0%, rgba(10,10,15,0.7) 50%, transparent 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* 书名脱水展示 */
+.bento-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    letter-spacing: 0.5px;
+}
+
+.bento-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 进度环微调 */
+.progress-ring { width: 16px; height: 16px; transform: rotate(-90deg); }
+.progress-ring-bg { fill: transparent; stroke: rgba(255,255,255,0.2); stroke-width: 3; }
+.progress-ring-fill { fill: transparent; stroke: #fff; stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+
+/* 极简删除键 */
+.btn-bento-delete {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255,255,255,0.7);
+    border: none;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.btn-bento-delete:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.btn-bento-delete:active {
+    background: rgba(255, 60, 60, 0.9);
+    color: #fff;
 }

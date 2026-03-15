@@ -3,8 +3,90 @@ import { GameEngine } from './modules/GameEngine.js';
 import { Renderer } from './modules/Renderer.js';
 import { LocalDB } from './modules/LocalDB.js';
 
+// 全局高维阅读进度引擎
+window.ProgressManager = {
+    // 获取指定书籍的进度
+    getRecord(bookId) {
+        let records = JSON.parse(localStorage.getItem('reading_records') || '{}');
+        return records[bookId] || { cursor: 0, total: 1, percent: 0 };
+    },
+    // 更新指定书籍的进度
+    updateRecord(bookId, cursor, total) {
+        if (!bookId || total <= 0) return;
+        let records = JSON.parse(localStorage.getItem('reading_records') || '{}');
+        let percent = Math.min(100, (cursor / total) * 100);
+        records[bookId] = { cursor, total, percent: parseFloat(percent.toFixed(2)) };
+        localStorage.setItem('reading_records', JSON.stringify(records));
+    },
+    // 删除指定书籍的进度
+    deleteRecord(bookId) {
+        let records = JSON.parse(localStorage.getItem('reading_records') || '{}');
+        delete records[bookId];
+        localStorage.setItem('reading_records', JSON.stringify(records));
+    }
+};
+
+// 全局赛博数字翻页器 (Odometer Engine)
+window.animateValue = (elementId, start, end, duration) => {
+    const obj = document.getElementById(elementId);
+    if (!obj) return;
+    if (end - start === 0) {
+        obj.innerText = end;
+        return;
+    }
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const easeOutProgress = 1 - Math.pow(1 - progress, 3); 
+        obj.innerText = Math.floor(easeOutProgress * (end - start) + start);
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            obj.innerText = end;
+        }
+    };
+    window.requestAnimationFrame(step);
+};
+
+// 字符串转高定色彩流体渐变算法
+window.generateCoverGradient = (title) => {
+    let hash = 0;
+    for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
+    const h1 = Math.abs(hash % 360);
+    const h2 = (h1 + 40) % 360; // 取相邻色相产生高级流体感
+    return `linear-gradient(135deg, hsl(${h1}, 80%, 60%), hsl(${h2}, 80%, 40%))`;
+};
+
 let analyser = null;
 let visualizerCtx = null;
+
+// --- 浮动说明框系统 ---
+window._showToast = (e, text) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    
+    // 清除旧的 tooltip
+    const old = document.querySelector('.floating-tooltip');
+    if (old) old.remove();
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'floating-tooltip';
+    tooltip.innerText = text;
+    document.body.appendChild(tooltip);
+
+    // 计算位置 (优先尝试在点击点上方)
+    const x = e.clientX || (e.touches && e.touches[0].clientX);
+    const y = e.clientY || (e.touches && e.touches[0].clientY);
+    
+    tooltip.style.left = Math.min(window.innerWidth - 200, Math.max(20, x - 100)) + 'px';
+    tooltip.style.top = (y - 50) + 'px';
+
+    // 3秒后自动淡出并销毁
+    setTimeout(() => {
+        tooltip.classList.add('tooltip-fade-out');
+        setTimeout(() => tooltip.remove(), 500);
+    }, 3000);
+};
 
 (() => {
   document.addEventListener("DOMContentLoaded", () => {
@@ -30,11 +112,13 @@ let visualizerCtx = null;
         }
       },
       t = {
-        sound: localStorage.getItem("setting_sound") !== "false",
-        vibration: localStorage.getItem("setting_vibration") !== "false",
+        sound: localStorage.getItem("setting_sound") !== "false", 
         ambientVol: parseFloat(localStorage.getItem("setting_ambient_vol") || "0.5"),
+        ambientEnabled: localStorage.getItem("setting_ambient_enabled") !== "false", // 默认开启
         ambientTheme: localStorage.getItem("setting_ambient_theme") || "wuxia",
-        storyTTS: localStorage.getItem("setting_story_tts") === "true",
+        storyTTS: localStorage.getItem("setting_story_tts") !== "false", 
+        voice: localStorage.getItem("setting_voice") || "zh-CN-XiaoxiaoNeural",
+        idleTimeout: parseInt(localStorage.getItem("setting_idle_timeout") || "1"),
       };
 
     const l = new AudioManager(t);
@@ -47,7 +131,72 @@ let visualizerCtx = null;
     let L = document.getElementById("modal-leaderboard");
     let C = document.getElementById("modal-chapters");
 
-    // 恢复游戏进度
+    let lastInteractionTime = Date.now();
+    const updateInteraction = () => { lastInteractionTime = Date.now(); };
+    ['mousedown', 'touchstart', 'keydown'].forEach(evt => document.addEventListener(evt, updateInteraction));
+
+    setInterval(() => {
+        if (!l.enabled || t.idleTimeout === 0) return;
+        const idleTime = (Date.now() - lastInteractionTime) / 1000 / 60; 
+        if (idleTime > t.idleTimeout && l.isSpeaking) {
+            l.setEnabled(false);
+            window._showToast({clientX: window.innerWidth/2, clientY: 100}, "由于长时间未操作，播报已自动暂停");
+        }
+    }, 10000); 
+
+    const syncSettingsUI = () => {
+        const ts = document.getElementById("toggle-sound");
+        const tst = document.getElementById("toggle-story");
+        const tv = document.getElementById("tts-voice-select");
+        const ta = document.getElementById("toggle-ambient");
+        const it = document.getElementById("idle-timeout");
+        const itl = document.getElementById("idle-timeout-label");
+        
+        if (ts) ts.checked = t.sound;
+        if (tst) tst.checked = t.storyTTS;
+        if (tv) tv.value = t.voice;
+        if (ta) ta.checked = t.ambientEnabled;
+        if (it) it.value = t.idleTimeout;
+        if (itl) itl.innerText = t.idleTimeout === 0 ? '永不停止' : t.idleTimeout + ' 分钟';
+    };
+
+    const updateSetting = (key, value) => {
+        t[key] = value;
+        const storageKey = `setting_${key === 'storyTTS' ? 'story_tts' : (key === 'ambientEnabled' ? 'ambient_enabled' : (key === 'idleTimeout' ? 'idle_timeout' : key))}`;
+        localStorage.setItem(storageKey, value);
+        l.settings = { ...t };
+        
+        if (key === 'voice' || key === 'storyTTS') {
+            if (t.storyTTS) l.refreshSession();
+            else l.setEnabled(false);
+        }
+        if (key === 'ambientEnabled') {
+            if (value) l.playAmbient('game');
+            else l.stopAmbient();
+        }
+        if (key === 'idleTimeout') {
+            const itl = document.getElementById("idle-timeout-label");
+            if (itl) itl.innerText = value === 0 ? '永不停止' : value + ' 分钟';
+        }
+    };
+
+    const initSettingsListeners = () => {
+        const ts = document.getElementById("toggle-sound");
+        if (ts) ts.onchange = (e) => updateSetting('sound', e.target.checked);
+        const tst = document.getElementById("toggle-story");
+        if (tst) tst.onchange = (e) => updateSetting('storyTTS', e.target.checked);
+        const tv = document.getElementById("tts-voice-select");
+        if (tv) tv.onchange = (e) => updateSetting('voice', e.target.value);
+        const ta = document.getElementById("toggle-ambient");
+        if (ta) ta.onchange = (e) => updateSetting('ambientEnabled', e.target.checked);
+        const it = document.getElementById("idle-timeout");
+        if (it) it.oninput = (e) => updateSetting('idleTimeout', parseInt(e.target.value));
+    };
+    initSettingsListeners();
+
+    B("btn-settings", () => { syncSettingsUI(); if (S) S.classList.remove("hidden"); });
+    B("close-settings", () => { if (S) S.classList.add("hidden"); });
+
     const loadSavedState = () => {
         const saved = localStorage.getItem("local_save_data");
         if (saved) {
@@ -59,8 +208,6 @@ let visualizerCtx = null;
                     p.combo = st.combo || 0;
                     p.bestScore = st.bestScore || p.bestScore;
                     p.maxCombo = st.maxCombo || p.maxCombo;
-                    
-                    // 确保 ID 不冲突
                     let maxId = 0;
                     p.board.forEach(row => row.forEach(tile => {
                         if (tile && tile.id) maxId = Math.max(maxId, tile.id);
@@ -80,16 +227,33 @@ let visualizerCtx = null;
             container.innerHTML = `<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3);"><div style="font-size:40px;margin-bottom:10px;">🕳️</div>书架空空的</div>`;
             return;
         }
-        container.innerHTML = shelf.map(b => `
-            <div class="book-card" onclick="loadBookFromShelf(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.cursor})">
-                <div class="book-cover">📖</div>
-                <div class="book-info">
-                    <div class="book-title">${b.title}</div>
-                    <div class="book-meta">进度: ${Math.floor((b.cursor/b.total)*100)}%</div>
+
+        container.innerHTML = shelf.map(b => {
+            const record = window.ProgressManager.getRecord(b.id);
+            const progressValue = record.percent || 0;
+            const cleanTitle = (b.title || "未知").replace(/\.txt$/i, '');
+            const coverChar = cleanTitle.charAt(0);
+            const coverBg = window.generateCoverGradient(cleanTitle);
+            const dashOffset = 62.8 - (progressValue / 100) * 62.8;
+
+            return `
+                <div class="bento-card" onclick="loadBookFromShelf(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.cursor})">
+                    <div class="bento-full-cover" style="background: ${coverBg};">
+                        <span class="bento-watermark">${coverChar}</span>
+                        <div class="bento-info-overlay">
+                            <div class="bento-title">${cleanTitle}</div>
+                            <div class="bento-meta">
+                                <svg class="progress-ring" viewBox="0 0 24 24">
+                                    <circle class="progress-ring-bg" cx="12" cy="12" r="10"></circle>
+                                    <circle class="progress-ring-fill" cx="12" cy="12" r="10" stroke-dasharray="62.8" stroke-dashoffset="${dashOffset}"></circle>
+                                </svg>
+                                <button class="btn-bento-delete" onclick="event.stopPropagation(); deleteBook(${b.id})">删</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="book-delete" onclick="event.stopPropagation(); deleteBook(${b.id})">🗑️</div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     };
 
     window.loadBookFromShelf = async (id, title, cursor) => {
@@ -99,6 +263,7 @@ let visualizerCtx = null;
 
     window.deleteBook = (id) => {
         if (!confirm("确定删除本书吗？")) return;
+        if (window.ProgressManager) window.ProgressManager.deleteRecord(id);
         let shelf = JSON.parse(localStorage.getItem("local_bookshelf") || "[]");
         shelf = shelf.filter(x => x.id !== id);
         localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
@@ -106,15 +271,22 @@ let visualizerCtx = null;
         renderLibrary();
     };
 
+    window._chapterReversed = false;
     const renderChapterList = () => {
         let container = document.getElementById("chapter-list");
         if (!container) return;
         if (!l.chapters || l.chapters.length === 0) {
             container.innerHTML = `<div style="text-align:center;padding:20px;color:gray;">暂无目录数据</div>`;
+            const stats = document.getElementById("chapter-stats");
+            if (stats) stats.innerText = "共 0 章 | 阅读进度 0%";
             return;
         }
+
+        const total = l.chapters.length;
+        const readPercent = Math.floor((l.cursor / l.lines.length) * 100);
+        const stats = document.getElementById("chapter-stats");
+        if (stats) stats.innerText = `共 ${total} 章 | 阅读进度 ${readPercent}%`;
         
-        // 计算当前活动章节
         let activeIdx = -1;
         for (let i = l.chapters.length - 1; i >= 0; i--) {
             if (l.cursor >= l.chapters[i].lineIndex) {
@@ -123,20 +295,23 @@ let visualizerCtx = null;
             }
         }
 
-        container.innerHTML = l.chapters.map((c, i) => {
+        let displayChapters = window._chapterReversed ? [...l.chapters].reverse() : l.chapters;
+        let html = "";
+        for (let i = 0; i < displayChapters.length; i++) {
+            const c = displayChapters[i];
+            const originalIdx = window._chapterReversed ? (total - 1 - i) : i;
             let cls = "";
-            if (i === activeIdx) cls = "active";
-            else if (i < activeIdx) cls = "read";
-            
-            return `
-                <div id="chapter-item-${i}" class="chapter-item ${cls}" onclick="jumpTo(${c.lineIndex})">
+            if (originalIdx === activeIdx) cls = "active";
+            else if (originalIdx < activeIdx) cls = "read";
+            html += `
+                <div id="chapter-item-${originalIdx}" class="chapter-item ${cls}" onclick="jumpTo(${c.lineIndex})">
                     <span class="chapter-status-dot"></span>
                     ${c.title}
                 </div>
             `;
-        }).join('');
+        }
+        container.innerHTML = html;
 
-        // 自动滚动到当前章节
         if (activeIdx !== -1) {
             setTimeout(() => {
                 const activeEl = document.getElementById(`chapter-item-${activeIdx}`);
@@ -162,138 +337,74 @@ let visualizerCtx = null;
               mask.innerHTML = "<div style='text-align:center;'><div style='font-size:40px; margin-bottom:20px;'>📚</div>正在构建本地库...</div>";
               document.body.appendChild(mask);
               try {
-                  let text = ev.target.result;
-                  let rawLines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
-                  let newLines = rawLines.map((line, idx) => ({ v: "zh-CN-XiaoxiaoNeural", t: line }));
+                  const buffer = ev.target.result;
+                  let text = "";
+                  try {
+                      const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+                      text = utf8Decoder.decode(buffer);
+                  } catch (e) {
+                      const gbkDecoder = new TextDecoder('gb18030');
+                      text = gbkDecoder.decode(buffer);
+                  }
+                  let rawLines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
                   let title = file.name.replace(".txt", "");
-                  let chapters = [];
-                  const chapterRegex = /^第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*$/;
-                  rawLines.forEach((line, index) => {
-                      if (line.match(chapterRegex)) chapters.push({ title: line.trim(), lineIndex: index });
-                  });
                   let bookId = Date.now();
-                  await LocalDB.saveBook(bookId, { lines: newLines, chapters: chapters });
+                  await LocalDB.saveBook(bookId, rawLines);
                   let shelf = JSON.parse(localStorage.getItem("local_bookshelf") || "[]");
-                  shelf.unshift({ id: bookId, title: title, total: newLines.length, cursor: 0 });
+                  shelf.unshift({ id: bookId, title: title, total: rawLines.length, cursor: 0 });
                   localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
                   await l.loadNovel(bookId, title, 0);
                   renderLibrary();
               } catch (err) { console.error(err); } finally { mask.remove(); e.target.value = ""; }
            };
-           reader.readAsText(file, "UTF-8");
+           reader.readAsArrayBuffer(file);
         });
     }
 
     B("btn-library", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
     B("close-library", () => { if (V) V.classList.add("hidden"); });
-    
-    B("btn-settings", () => { if (S) S.classList.remove("hidden"); });
-    B("close-settings", () => { if (S) S.classList.add("hidden"); });
-    
     B("btn-leaderboard", () => { s.loadLeaderboard(); if (L) L.classList.remove("hidden"); });
     B("close-leaderboard", () => { if (L) L.classList.add("hidden"); });
-
     B("btn-chapter-list", () => { if (C) { renderChapterList(); C.classList.remove("hidden"); } });
-
-    B("play-pause-icon", (e) => {
-        window.toggleTTS(e);
-    });
-
-    B("player-progress-text", () => {
-        if (C) { renderChapterList(); C.classList.remove("hidden"); }
-    });
-
-    B("player-capsule", (e) => {
-        if (e.target.id === "play-pause-icon") return;
-        if (C) { renderChapterList(); C.classList.remove("hidden"); }
-    });
+    B("btn-sort-chapters", () => { window._chapterReversed = !window._chapterReversed; renderChapterList(); });
+    B("play-pause-icon", (e) => { window.toggleTTS(e); updateInteraction(); });
+    B("player-progress-text", () => { if (C) { renderChapterList(); C.classList.remove("hidden"); } });
+    B("player-capsule", (e) => { if (e.target.id === "play-pause-icon") return; if (C) { renderChapterList(); C.classList.remove("hidden"); } });
     B("btn-close-chapters", () => { if (C) C.classList.add("hidden"); });
     B("btn-idle-import", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
-    
-    B("restart-btn", () => {
-        if (confirm("确定要重新开始游戏吗？进度将丢失。")) {
-            p.reset();
-            e.render(p);
-            s.saveLocalState();
-        }
-    });
+    B("restart-btn", () => { if (confirm("确定要重新开始游戏吗？进度将丢失。")) { p.reset(); e.render(p); s.saveLocalState(); } });
+    document.querySelectorAll('.modal-overlay').forEach(overlay => { overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('hidden'); }); });
 
-    // 点击空白处关闭弹窗
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.classList.add('hidden');
-        });
-    });
-
-    // 游戏核心输入绑定
     const handleMove = (dir) => {
         const result = p.move(dir);
         if (result.moved) {
             e.render(p, Array.isArray(result.mergedTiles) ? result.mergedTiles : []); 
-            if (result.mergedTiles && result.mergedTiles.length > 0) l.playEffect('merge');
+            if (result.mergedTiles && result.mergedTiles.length > 0 && t.sound) l.playEffect('merge');
             l.unlockAudio(); 
-            s.saveLocalState(); // 移动后强制保存进度
+            s.saveLocalState();
+            updateInteraction();
         }
     };
-
     document.addEventListener("keydown", (e) => {
-        const map = {
-            ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
-            w: "up", s: "down", a: "left", d: "right",
-            W: "up", S: "down", A: "left", D: "right"
-        };
-        if (map[e.key]) {
-            e.preventDefault();
-            handleMove(map[e.key]);
-        }
+        const map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right", W: "up", S: "down", A: "left", D: "right" };
+        if (map[e.key]) { e.preventDefault(); handleMove(map[e.key]); }
     });
-
-    // 触摸滑动支持
     let tsX, tsY;
     document.addEventListener("touchstart", (e) => { tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; }, { passive: false });
-    document.addEventListener("touchend", (e) => {
-        if (!tsX || !tsY) return;
-        let teX = e.changedTouches[0].clientX, teY = e.changedTouches[0].clientY;
-        let dx = teX - tsX, dy = teY - tsY;
-        if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
-            if (Math.abs(dx) > Math.abs(dy)) handleMove(dx > 0 ? "right" : "left");
-            else handleMove(dy > 0 ? "down" : "up");
-        }
-        tsX = null; tsY = null;
-    }, { passive: false });
+    document.addEventListener("touchend", (e) => { if (!tsX || !tsY) return; let teX = e.changedTouches[0].clientX, teY = e.changedTouches[0].clientY; let dx = teX - tsX, dy = teY - tsY; if (Math.abs(dx) > 30 || Math.abs(dy) > 30) { if (Math.abs(dx) > Math.abs(dy)) handleMove(dx > 0 ? "right" : "left"); else handleMove(dy > 0 ? "down" : "up"); } tsX = null; tsY = null; }, { passive: false });
 
     window._syncIdleState = () => {
         let idle = document.getElementById("player-idle-state");
         let capsule = document.getElementById("player-capsule");
         if (!idle) return;
-        if (l.lines && l.lines.length > 0) {
-            idle.classList.add("hidden");
-            if (capsule) capsule.classList.remove("hidden");
-        } else {
-            idle.classList.remove("hidden");
-            if (capsule) capsule.classList.add("hidden");
-        }
+        if (l.lines && l.lines.length > 0) { idle.classList.add("hidden"); if (capsule) capsule.classList.remove("hidden"); }
+        else { idle.classList.remove("hidden"); if (capsule) capsule.classList.add("hidden"); }
     };
 
-    const startApp = () => {
-        loadSavedState(); // 启动时注入存档
-        e.render(p);
-        l.syncGameState(p);
-        l.checkHeadphonesAndStart();
-    };
-
+    const startApp = () => { loadSavedState(); e.render(p); l.syncGameState(p); l.checkHeadphonesAndStart(); };
     let pm = document.getElementById('privacy-modal');
-    if (!pm || localStorage.getItem('privacy_agreed') === 'true') {
-        if (pm) pm.classList.add('hidden');
-        startApp();
-    } else {
-        pm.classList.remove('hidden');
-        B('btn-privacy-agree', () => {
-            localStorage.setItem('privacy_agreed', 'true');
-            pm.classList.add('hidden');
-            startApp();
-        });
-    }
+    if (!pm || localStorage.getItem('privacy_agreed') === 'true') { if (pm) pm.classList.add('hidden'); startApp(); }
+    else { pm.classList.remove('hidden'); B('btn-privacy-agree', () => { localStorage.setItem('privacy_agreed', 'true'); pm.classList.add('hidden'); startApp(); }); }
 
     const drawVisualizer = () => {
         requestAnimationFrame(drawVisualizer);
@@ -333,10 +444,7 @@ window.toggleTTS = (e) => {
     e.stopPropagation();
     if (!window.AudioManager) return;
     const am = window.AudioManager;
-    if (!am.lines || am.lines.length === 0) {
-        if (window._showToast) window._showToast("请先在图书馆中加载书籍");
-        return;
-    }
+    if (!am.lines || am.lines.length === 0) { window._showToast(e, "请先在图书馆中加载书籍"); return; }
     if (window.u && window.u.state === 'suspended') window.u.resume();
     am.setEnabled(!am.enabled);
 };
