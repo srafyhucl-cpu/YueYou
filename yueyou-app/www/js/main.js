@@ -375,11 +375,20 @@ window._showToast = (e, text) => {
                             });
 
                             let bookId = Date.now();
-                            // 核心修复 2：不再存入庞大的 Object，直接存入纯字符串数组 (rawLines)
-                            await window.LocalDB.saveBook(bookId, { lines: rawLines, chapters: chapters });
+                            
+                            // 🚨 核心修复：绝对不能加 window. 前缀！直接使用当前模块引用的 LocalDB
+                            await LocalDB.saveBook(bookId, { lines: rawLines, chapters: chapters });
                             
                             let shelfText = localStorage.getItem("local_bookshelf");
                             let shelf = shelfText ? JSON.parse(shelfText) : [];
+                            
+                            // 增强体验：查重逻辑，防止重复导入同一本小说导致书架冗余
+                            let existingIndex = shelf.findIndex(b => b.title === title);
+                            if (existingIndex !== -1) {
+                                shelf.splice(existingIndex, 1);
+                            }
+                            
+                            // 将新书插入书架最前面
                             shelf.unshift({ id: bookId, title: title, total: rawLines.length, cursor: 0 });
                             localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
 
