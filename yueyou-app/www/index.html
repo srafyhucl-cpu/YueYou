@@ -7,7 +7,8 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>2048 霓虹: 无限闭环 (云端版)</title>
     <!-- 使用单一全量 CSS，杜绝 404 -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
     <link rel="stylesheet" href="css/style.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -31,17 +32,24 @@
 
             <div class="status-panel">
                 <button id="restart-btn" class="btn-circular-restart" title="重新推演">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
+                        <path
+                            d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+                    </svg>
                 </button>
 
                 <div class="stats-grid" style="display:flex; justify-content:space-between; gap:10px;">
-                    <div class="stat-box" style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
+                    <div class="stat-box"
+                        style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
                         <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-bottom:5px;">当前得分 | 连击</div>
-                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="score">0</span> <span style="opacity:0.3; margin:0 4px;">|</span> <span id="combo">0</span></div>
+                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="score">0</span> <span
+                                style="opacity:0.3; margin:0 4px;">|</span> <span id="combo">0</span></div>
                     </div>
-                    <div class="stat-box" style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
+                    <div class="stat-box"
+                        style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
                         <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-bottom:5px;">最高得分 | 最高连击</div>
-                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="best-score">0</span> <span style="opacity:0.3; margin:0 4px;">|</span> <span id="max-combo">0</span></div>
+                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="best-score">0</span> <span
+                                style="opacity:0.3; margin:0 4px;">|</span> <span id="max-combo">0</span></div>
                     </div>
                 </div>
             </div>
@@ -56,30 +64,35 @@
                 </div>
             </div>
 
-                <footer class="bottom-controls">
+            <footer class="bottom-controls">
 
                 <!-- 底部交互栏 -->
                 <div class="bottom-nav-bar">
                     <!-- 智能旁白控制 - 已进化为灵动岛胶囊 -->
-                    <div id="player-capsule" class="dynamic-capsule" onclick="document.getElementById('modal-chapters').classList.remove('hidden')">
+                    <div id="player-capsule" class="dynamic-capsule"
+                        onclick="document.getElementById('modal-chapters').classList.remove('hidden')">
                         <!-- 章节字数进度环: 使用 Path + viewBox 增强稳定性 -->
                         <svg class="capsule-aura-svg" viewBox="0 0 310 48">
-                            <path class="aura-progress-bg" d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
-                            <path id="capsule-aura-bar" class="aura-progress-bar" d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
+                            <path class="aura-progress-bg"
+                                d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
+                            <path id="capsule-aura-bar" class="aura-progress-bar"
+                                d="M 155,1 L 286,1 A 23,23 0 0 1 286,47 L 24,47 A 23,23 0 0 1 24,1 L 155,1 Z"></path>
                         </svg>
-                        
+
                         <div class="capsule-visualizer">
                             <canvas id="audio-visualizer" width="36" height="20"></canvas>
                         </div>
-                        
+
                         <div class="capsule-control" onclick="toggleTTS(event)">
                             <span id="play-pause-icon">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="white">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
                             </span>
                         </div>
-                        
+
                         <div class="capsule-text-container">
-                            <div id="capsule-scroller" class="capsule-text-scroller">▶ 点击任意处唤醒神经接入</div>
+                            <div id="capsule-scroller" class="capsule-text-scroller">点击任意处唤醒神经接入</div>
                         </div>
 
                         <div class="capsule-speed" id="capsule-speed-btn" onclick="cycleTTSpeed(event)">1.0x</div>
@@ -101,9 +114,11 @@
                 <div class="modal-header" style="display:flex; flex-direction:column; gap: 8px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
                         <h3 style="margin:0;">📑 章节目录</h3>
-                        <button id="btn-sort-chapters" class="btn outline-btn" style="padding: 6px 12px; font-size: 12px; border-radius: 20px;">正序/倒序</button>
+                        <button id="btn-sort-chapters" class="btn outline-btn"
+                            style="padding: 6px 12px; font-size: 12px; border-radius: 20px;">正序/倒序</button>
                     </div>
-                    <div id="chapter-stats" style="font-size:12px; color:rgba(255,255,255,0.6); align-self:flex-start;">共 0 章 | 阅读进度 0%</div>
+                    <div id="chapter-stats" style="font-size:12px; color:rgba(255,255,255,0.6); align-self:flex-start;">
+                        共 0 章 | 阅读进度 0%</div>
                 </div>
                 <div class="chapter-list-container">
                     <ul id="chapter-list">
@@ -111,7 +126,8 @@
                         <p style="text-align:center; color: #a0a0b0; margin-top: 20px;">当前书籍未解析出目录或尚未加载...</p>
                     </ul>
                 </div>
-                <button id="btn-close-chapters" class="btn-return" style="margin-top:20px; width:100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; font-weight: bold; cursor: pointer;">返回</button>
+                <button id="btn-close-chapters" class="btn-return"
+                    style="margin-top:20px; width:100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; font-weight: bold; cursor: pointer;">返回</button>
             </div>
         </div>
 
@@ -153,7 +169,8 @@
                     <div
                         style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
                         <span style="font-weight: 800;">🗣️ 播报发音人</span>
-                        <select id="tts-voice-select" style="background:rgba(0,0,0,0.5); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:8px; border-radius:8px; font-size:12px; outline:none;">
+                        <select id="tts-voice-select"
+                            style="background:rgba(0,0,0,0.5); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:8px; border-radius:8px; font-size:12px; outline:none;">
                             <option value="zh-CN-XiaoxiaoNeural">晓晓 (柔和女声)</option>
                             <option value="zh-CN-YunxiNeural">云希 (沉稳男声)</option>
                             <option value="zh-CN-YunjianNeural">云健 (男声)</option>
