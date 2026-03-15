@@ -159,13 +159,7 @@ window._showToast = (e, text) => {
             if (it) it.value = t.idleTimeout;
             if (itl) itl.innerText = t.idleTimeout === 0 ? '永不停止' : t.idleTimeout + ' 分钟';
 
-            let ttsRate = document.getElementById("tts-rate");
-            if (ttsRate) {
-                let rate = localStorage.getItem("setting_tts_rate") || "1.0";
-                ttsRate.value = rate;
-                let rateLabel = document.getElementById("tts-rate-label");
-                if (rateLabel) rateLabel.innerText = rate + "x";
-            }
+
             // 初始化灵动岛的倍速显示
             let savedRate = parseFloat(localStorage.getItem("setting_tts_rate") || "1.0").toFixed(1);
             let speedBtn = document.getElementById("capsule-speed-btn");
@@ -208,11 +202,6 @@ window._showToast = (e, text) => {
 
         B("btn-settings", () => { syncSettingsUI(); if (S) S.classList.remove("hidden"); });
         B("close-settings", () => { 
-            let ttsRate = document.getElementById("tts-rate");
-            if (ttsRate) {
-                localStorage.setItem("setting_tts_rate", ttsRate.value);
-                if (window.AudioManager) window.AudioManager.playbackRate = parseFloat(ttsRate.value);
-            }
             if (S) S.classList.add("hidden"); 
         });
 
