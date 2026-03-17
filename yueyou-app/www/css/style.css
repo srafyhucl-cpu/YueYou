@@ -328,15 +328,15 @@ body::after {
 /* 状态面板 - 核心毛玻璃 */
 .status-panel {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-    border-radius: 20px; /* Updated */
-    padding: 12px; /* Updated */
+    border-radius: 20px; 
+    padding: 12px; /* 消除面板内巨大的留白 */
     border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-bottom: 12px; /* Updated */
+    margin-bottom: 12px; /* 拉近与下方棋盘的距离 */
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     flex-shrink: 0;
     position: relative;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* Updated */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     overflow: hidden;
 }
 
@@ -364,8 +364,8 @@ body::after {
 }
 
 .stats-grid {
-    display: flex; /* Updated */
-    margin-top: 0 !important; /* Updated */
+    display: flex;
+    margin-top: 0 !important; /* 清除不必要的上边距 */
     overflow: hidden;
 }
 

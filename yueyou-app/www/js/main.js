@@ -516,7 +516,7 @@ window._showToast = (e, text) => {
             B("btn-close-chapters", () => { if (C) C.classList.add("hidden"); });
             B("btn-idle-import", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
             B("restart-btn", async () => { 
-                if (await window._showConfirm("进行系统重构？", "当前演变进度将归零，是否确认重新开始？")) { 
+                if (await window._showConfirm("再来一局？", "之前的推演进度将会清空，确定要重新开始吗？")) { 
                     window._forceRestartGame();
                 } 
             });
@@ -525,9 +525,8 @@ window._showToast = (e, text) => {
             const handleMove = (dir) => {
                 // 状态机同步判定
                 if (p.over) {
-                    // 若已结束且未在显示弹窗，则唤起重开确认
                     if (!window._isModalActive) {
-                        window._showConfirm("演变停滞", "当前系统熵值已达上限。是否重置系统并开启新一轮演化？").then(ok => {
+                        window._showConfirm("空间已满", "没有多余的空间可以合并了。要打碎重来吗？").then(ok => {
                             if (ok) window._forceRestartGame();
                         });
                     }
@@ -544,7 +543,7 @@ window._showToast = (e, text) => {
                     
                     // 核心：若此次移动导致游戏结束，立即触发弹窗
                     if (p.over) {
-                        window._showConfirm("演变停滞", "系统熵增已不可逆转。是否开启下一轮演化副本？").then(ok => {
+                        window._showConfirm("空间已满", "没有多余的空间可以合并了。要打碎重来吗？").then(ok => {
                             if (ok) window._forceRestartGame();
                         });
                     }
