@@ -48,7 +48,6 @@ window.animateValue = (elementId, start, end, duration) => {
     window.requestAnimationFrame(step);
 };
 
-// 字符串转高定色彩流体渐变算法
 window.generateCoverGradient = (title) => {
     let hash = 0;
     for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
@@ -60,11 +59,50 @@ window.generateCoverGradient = (title) => {
 let analyser = null;
 let visualizerCtx = null;
 
-// --- 浮动说明框系统 ---
+// ======================================
+// 归一化 UI 组件库：自定义确认弹窗
+// ======================================
+window._isModalActive = false;
+window._showConfirm = (title, msg, isAlert = false) => {
+    // 强制清理旧的弹窗残留（如果由于异常未关闭）
+    if (window._isModalActive) {
+        const existing = document.querySelector('.custom-confirm-overlay');
+        if (!existing) window._isModalActive = false;
+        else return Promise.resolve(false); 
+    }
+    
+    return new Promise((resolve) => {
+        window._isModalActive = true;
+        document.body.classList.add('modal-open');
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-confirm-overlay';
+        overlay.innerHTML = `
+        <div class="custom-confirm-modal">
+            <div class="custom-confirm-title">${title}</div>
+            <div class="custom-confirm-msg">${msg}</div>
+            <div class="custom-confirm-btns">
+                ${!isAlert ? '<button class="custom-confirm-btn cancel" id="confirm-cancel">取消</button>' : ''}
+                <button class="custom-confirm-btn confirm" id="confirm-ok">确定</button>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        const close = (res) => {
+            overlay.style.opacity = '0';
+            document.body.classList.remove('modal-open');
+            window._isModalActive = false; // 释放锁
+            setTimeout(() => { if(overlay.parentNode) document.body.removeChild(overlay); resolve(res); }, 200);
+        };
+        const cancelBtn = overlay.querySelector('#confirm-cancel');
+        if (cancelBtn) cancelBtn.onclick = () => close(false);
+        overlay.querySelector('#confirm-ok').onclick = () => close(true);
+        overlay.onclick = (e) => { if (e.target === overlay) close(false); };
+    });
+};
+
+window._showAlert = (title, msg) => window._showConfirm(title, msg, true);
+
 window._showToast = (e, text) => {
     if (e && e.stopPropagation) e.stopPropagation();
-
-    // 清除旧的 tooltip
     const old = document.querySelector('.floating-tooltip');
     if (old) old.remove();
 
@@ -73,18 +111,8 @@ window._showToast = (e, text) => {
     tooltip.innerText = text;
     document.body.appendChild(tooltip);
 
-    // 计算位置 (优先尝试在点击点上方)
-    const x = e.clientX || (e.touches && e.touches[0].clientX);
-    const y = e.clientY || (e.touches && e.touches[0].clientY);
-
-    tooltip.style.left = Math.min(window.innerWidth - 200, Math.max(20, x - 100)) + 'px';
-    tooltip.style.top = (y - 50) + 'px';
-
-    // 3秒后自动淡出并销毁
-    setTimeout(() => {
-        tooltip.classList.add('tooltip-fade-out');
-        setTimeout(() => tooltip.remove(), 500);
-    }, 3000);
+    // 自动移除逻辑已通过 CSS 动画 forwards 实现，此处仅需清理 DOM
+    setTimeout(() => { if(tooltip.parentNode) tooltip.remove(); }, 3500);
 };
 
 (() => {
@@ -166,14 +194,18 @@ window._showToast = (e, text) => {
             if (speedBtn) speedBtn.innerText = savedRate + "x";
         };
 
-        const updateSetting = (key, value) => {
+        const updateSetting = async (key, value) => {
             t[key] = value;
             const storageKey = `setting_${key === 'storyTTS' ? 'story_tts' : (key === 'ambientEnabled' ? 'ambient_enabled' : (key === 'idleTimeout' ? 'idle_timeout' : key))}`;
             localStorage.setItem(storageKey, value);
             l.settings = { ...t };
 
-            if (key === 'voice' || key === 'storyTTS') {
+            if (key === 'voice') {
                 if (t.storyTTS) l.refreshSession();
+                window._showToast(null, "发声人已切换");
+            }
+            if (key === 'storyTTS') {
+                if (value) l.refreshSession();
                 else l.setEnabled(false);
             }
             if (key === 'ambientEnabled') {
@@ -275,16 +307,24 @@ window._showToast = (e, text) => {
             window.loadBookFromShelf = async (id, title, cursor) => {
                 await l.loadNovel(id, title, cursor);
                 if (V) V.classList.add("hidden");
+                
+                // 唤醒音频上下文并开启模式
+                if (window.u && window.u.state === 'suspended') window.u.resume();
+                l.setEnabled(true);
+                l.refreshSession();
+                window._syncIdleState();
             };
 
-            window.deleteBook = (id) => {
-                if (!confirm("确定删除本书吗？")) return;
-                if (window.ProgressManager) window.ProgressManager.deleteRecord(id);
-                let shelf = JSON.parse(localStorage.getItem("local_bookshelf") || "[]");
-                shelf = shelf.filter(x => x.id !== id);
-                localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
-                LocalDB.deleteBook(id);
-                renderLibrary();
+            window.deleteBook = async (id, event) => {
+                if (event) event.stopPropagation(); // 禁止触发书籍加载
+                if (await window._showConfirm("初始化抹除？", "此操作将永久移除该档案及其所有阅读进度，确认执行？")) {
+                   if (window.ProgressManager) window.ProgressManager.deleteRecord(id);
+                   let shelf = JSON.parse(localStorage.getItem("local_bookshelf") || "[]");
+                   shelf = shelf.filter(x => x.id !== id);
+                   localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
+                   LocalDB.deleteBook(id);
+                   renderLibrary();
+                }
             };
 
             window._chapterReversed = false;
@@ -365,12 +405,12 @@ window._showToast = (e, text) => {
                             let rawLines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
                             let title = file.name.replace(".txt", "");
 
-                            // 预提取章节信息，减少播放时的计算
+                            // 归一化章节识别算法：适配《斗破苍穹》(正文 第X章)、校对版(卷一 第X章)、以及多种复杂前缀
                             let chapters = [];
-                            const chapterRegex = /^\s*(?:\d{1,5}\s+.*|\d{1,5}\s*第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*|第[0-9零一二三四五六七八九十百千两]+[章回节卷集部篇].*)$/;
+                            const chapterRegex = /^\s*(?:(?:正文|卷[0-9零一二三四五六七八九十百千两\s]+|.{0,4})\s*第?\s*[0-9零一二三四五六七八九十百千两]+\s*[章回节卷集部篇]|Chapter\s*[0-9]+|引子|序言|楔子|前言|内容简介|致读者)/i;
                             rawLines.forEach((line, index) => {
-                                if (chapterRegex.test(line)) {
-                                    chapters.push({ title: line, lineIndex: index });
+                                if (chapterRegex.test(line) && line.length < 50) { // 长度限制防止误报
+                                    chapters.push({ title: line.trim(), lineIndex: index });
                                 }
                             });
 
@@ -392,15 +432,22 @@ window._showToast = (e, text) => {
                             shelf.unshift({ id: bookId, title: title, total: rawLines.length, cursor: 0 });
                             localStorage.setItem("local_bookshelf", JSON.stringify(shelf));
 
-                            await l.loadNovel(bookId, title, 0);
-                            if (V) V.classList.add("hidden");
-                            window._showToast(null, "档案注入成功");
-                            renderLibrary();
+                             // 核心变更：不再自动切换加载，不再关闭图书馆
+                             window._showToast(null, "档案注入成功");
+                             renderLibrary();
+                             // window._syncIdleState(); // 暂不需要，书架保持开启状态
                         } catch (err) { console.error(err); } finally { mask.remove(); e.target.value = ""; }
                     };
                     reader.readAsArrayBuffer(file);
                 });
             }
+
+            // 归一化重启引擎：确保重置动作是原子性的，同步刷新 UI 与持久化存储
+            window._forceRestartGame = () => {
+                p.reset(); 
+                e.render(p); 
+                s.saveLocalState();
+            };
 
             B("btn-library", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
             B("close-library", () => { if (V) V.classList.add("hidden"); });
@@ -413,10 +460,25 @@ window._showToast = (e, text) => {
             B("player-capsule", (e) => { if (e.target.id === "play-pause-icon") return; if (C) { renderChapterList(); C.classList.remove("hidden"); } });
             B("btn-close-chapters", () => { if (C) C.classList.add("hidden"); });
             B("btn-idle-import", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
-            B("restart-btn", () => { if (confirm("确定要重新开始游戏吗？进度将丢失。")) { p.reset(); e.render(p); s.saveLocalState(); } });
+            B("restart-btn", async () => { 
+                if (await window._showConfirm("重组系统架构？", "当前游戏进度将重置，所有合并记录将归零，是否继续？")) { 
+                    window._forceRestartGame();
+                } 
+            });
             document.querySelectorAll('.modal-overlay').forEach(overlay => { overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('hidden'); }); });
 
             const handleMove = (dir) => {
+                // 状态机同步判定
+                if (p.over) {
+                    // 若已结束且未在显示弹窗，则唤起重开确认
+                    if (!window._isModalActive) {
+                        window._showConfirm("演化终止", "当前熵值已达极限。是否重启系统演化进程？").then(ok => {
+                            if (ok) window._forceRestartGame();
+                        });
+                    }
+                    return;
+                }
+
                 const result = p.move(dir);
                 if (result.moved) {
                     e.render(p, Array.isArray(result.mergedTiles) ? result.mergedTiles : []);
@@ -424,6 +486,13 @@ window._showToast = (e, text) => {
                     l.unlockAudio();
                     s.saveLocalState();
                     updateInteraction();
+                    
+                    // 核心：若此次移动导致游戏结束，立即触发弹窗
+                    if (p.over) {
+                        window._showConfirm("演化终止", "熵増无法逆转。是否重启系统演化进程？").then(ok => {
+                            if (ok) window._forceRestartGame();
+                        });
+                    }
                 }
             };
             document.addEventListener("keydown", (e) => {
@@ -435,17 +504,24 @@ window._showToast = (e, text) => {
             document.addEventListener("touchend", (e) => { if (!tsX || !tsY) return; let teX = e.changedTouches[0].clientX, teY = e.changedTouches[0].clientY; let dx = teX - tsX, dy = teY - tsY; if (Math.abs(dx) > 30 || Math.abs(dy) > 30) { if (Math.abs(dx) > Math.abs(dy)) handleMove(dx > 0 ? "right" : "left"); else handleMove(dy > 0 ? "down" : "up"); } tsX = null; tsY = null; }, { passive: false });
 
             // 核心修复 1：精准指向 player-capsule，实现主页状态互斥
+            // 归一化 UI 同步引擎
             window._syncIdleState = () => {
-                let idle = document.getElementById("player-idle-state");
-                let player = document.getElementById("player-capsule"); 
-                if (!idle) return;
-                if (window.AudioManager && window.AudioManager.lines && window.AudioManager.lines.length > 0) {
-                    idle.style.display = "none";
-                    if (player) player.style.display = "flex";
-                } else {
-                    idle.style.display = "flex";
-                    if (player) player.style.display = "none";
-                }
+                requestAnimationFrame(() => {
+                    let idle = document.getElementById("player-idle-state");
+                    let player = document.getElementById("player-capsule"); 
+                    if (!idle) return;
+
+                    // 优先级判定：1. 内存存在数据 2. 存储存在 ID
+                    const hasActiveBook = (l.lines && l.lines.length > 0) || localStorage.getItem("current_novel_id");
+
+                    if (hasActiveBook) {
+                        idle.style.display = "none";
+                        if (player) player.style.display = "flex";
+                    } else {
+                        idle.style.display = "flex";
+                        if (player) player.style.display = "none";
+                    }
+                });
             };
             // 确保启动时执行一次同步
             window._syncIdleState();
@@ -498,6 +574,7 @@ window.toggleTTS = (e) => {
     if (!am.lines || am.lines.length === 0) { window._showToast(e, "请先在图书馆中加载书籍"); return; }
     if (window.u && window.u.state === 'suspended') window.u.resume();
     am.setEnabled(!am.enabled);
+    if (am.updateUI) am.updateUI(); // 强制刷新图标，打破停滞死锁
 };
 
 // ==========================================

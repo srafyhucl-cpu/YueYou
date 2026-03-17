@@ -1,5 +1,9 @@
 {
     "appId": "com.dimension.library2048",
     "appName": "阅游",
-    "webDir": "www"
+    "webDir": "www",
+    "server": {
+        "url": "http://10.161.106.143:3000",
+        "cleartext": true
+    }
 }

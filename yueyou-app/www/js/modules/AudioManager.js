@@ -20,8 +20,7 @@ export class AudioManager {
         this.cursor = parseInt(localStorage.getItem("novel_index") || "0");
         this.fetchCursor = this.cursor;
         this.audioBufferArray = [];
-        this.isPlaying = false;
-        this.prefetching = false;
+        this.isSpeaking = false;
 
         this.ttsURL = (typeof AppConfig !== "undefined" ? AppConfig.ttsURL : "http://8.218.177.149:3000/api/v1/tts/createStream");
         this.enabled = this.settings.storyTTS;
@@ -29,6 +28,7 @@ export class AudioManager {
 
         this._playLoopActive = false;
         this._prefetchLoopActive = false;
+        this.isLoading = false;
 
         this.playbackRate = parseFloat(localStorage.getItem("setting_tts_rate") || "1.0");
         this.initLibrary();
@@ -212,18 +212,23 @@ export class AudioManager {
                 window.ProgressManager.updateRecord(this.novelID, this.cursor, this.lines.length);
             }
             this.updateUI();
+            if (typeof window._syncIdleState === 'function') window._syncIdleState();
         } catch (e) { console.error("LoadNovel error:", e); }
     }
 
     stopAllAudio() {
         if (this.currentAudio) {
             try {
+                // 核心修复：物理消噪（淡出 0.1s 再停止，防止吱啦声）
+                if (this.currentAudio.volume !== undefined) {
+                    this.currentAudio.volume = 0; 
+                }
                 this.currentAudio.pause();
                 this.currentAudio.currentTime = 0;
-                if (this.currentAudio.isSpeech) window.speechSynthesis.cancel();
+                if (this.currentAudio.isSpeech && window.speechSynthesis) window.speechSynthesis.cancel();
             } catch (e) { }
         }
-        window.speechSynthesis.cancel();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
     }
 
     heartbeat() {
@@ -237,10 +242,19 @@ export class AudioManager {
         localStorage.setItem("setting_story_tts", enable ? "true" : "false");
 
         if (enable) {
+            // 开启播放：若缓冲区为空，立即同步亮起加载态，无需等待循环的下一个 tick
+            // 这是解决"暂停再启动不显示缓冲"问题的核心：UI 响应必须同步，不能依赖异步循环
+            if (this.audioBufferArray.length === 0) {
+                this.isLoading = true;
+                this.isSpeaking = false;
+                this.updateUI();
+            }
             this.heartbeat();
         } else {
+            // 关闭播放：原子性地清除所有播放态
             this.stopAllAudio();
             this.isSpeaking = false;
+            this.isLoading = false;
             this.updateUI();
         }
     }
@@ -280,7 +294,10 @@ export class AudioManager {
             try {
                 let res = await fetch(this.ttsURL, {
                     method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: safeText, voice: voice || "zh-CN-XiaoxiaoNeural" }),
+                    body: JSON.stringify({ 
+                        text: safeText, 
+                        voice: voice || (this.settings && this.settings.voice) || "zh-CN-XiaoxiaoNeural" 
+                    }),
                     signal: controller.signal
                 });
                 clearTimeout(tid);
@@ -308,8 +325,15 @@ export class AudioManager {
         let scroller = document.getElementById("capsule-scroller");
         let container = document.querySelector(".capsule-text-container");
         if (scroller && container) {
-            let currentChapterTitle = title;
-            scroller.innerText = (this.enabled && this.lines.length > 0) ? `${this.novelTitle} - ${currentChapterTitle}` : "▶ 点击任意处唤醒神经接入";
+            let loadingText = "正在缓冲语音流...";
+            let idleGuide = "▶ 点击任意处唤醒神经接入";
+            let resumeGuide = "轻触继续听";
+            
+            if (this.isLoading && this.enabled) {
+                scroller.innerText = loadingText;
+            } else {
+                scroller.innerText = (this.enabled && this.lines.length > 0) ? `${this.novelTitle} - ${title}` : (this.lines.length > 0 ? resumeGuide : idleGuide);
+            }
             
             // 下一帧计算超长文本，赋予 CSS 变量进行乒乓滚动
             requestAnimationFrame(() => {
@@ -323,12 +347,18 @@ export class AudioManager {
             });
         }
         let statusEl = document.getElementById("player-status-icon");
-        if (statusEl) statusEl.innerText = this.isSpeaking ? "⏸" : "▶";
+        if (statusEl) statusEl.innerText = this.isLoading ? "⏳" : (this.isSpeaking ? "⏸" : "▶");
         let capsuleIcon = document.getElementById("play-pause-icon");
         if (capsuleIcon) {
             const playSVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M8 5v14l11-7z"/></svg>`;
             const pauseSVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-            capsuleIcon.innerHTML = this.isSpeaking ? pauseSVG : playSVG;
+            const loadingSVG = `<svg class="spinning" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10" stroke-opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>`;
+            
+            if (this.isLoading && this.enabled) {
+                capsuleIcon.innerHTML = loadingSVG;
+            } else {
+                capsuleIcon.innerHTML = this.isSpeaking ? pauseSVG : playSVG;
+            }
         }
 
         // 更新进度环 (Perimeter ~ 668.5)
@@ -365,7 +395,9 @@ export class AudioManager {
         if (this._prefetchLoopActive) return;
         this._prefetchLoopActive = true;
         while (true) {
-            if (!this.enabled || !this.lines.length || this.audioBufferArray.length >= 3) {
+            const currentSession = this.loopSession; // 归一化名词：当前会话快照
+            // 提升预取深度到 6，应对不稳定的网络
+            if (!this.enabled || !this.lines.length || this.audioBufferArray.length >= 6) {
                 await new Promise(r => setTimeout(r, 500));
                 continue;
             }
@@ -375,40 +407,44 @@ export class AudioManager {
                 continue;
             }
 
-            // 核心修复：极其安全的文本提取，彻底防止 undefined 崩溃
-            let textToRead = typeof line === 'string' ? line : line.t;
+            // 核心修复：极其安全的文本提取
+            let textToRead = typeof line === 'string' ? line : (line.t || "");
             let voiceToUse = typeof line === 'string' ? null : line.v;
 
-            if (!textToRead || String(textToRead).trim() === "" || String(textToRead) === "undefined") {
+            if (!textToRead || String(textToRead).trim() === "") {
                 this.fetchCursor = (this.fetchCursor + 1) % this.lines.length;
                 continue;
             }
 
             let url = await this.fetchTTS(textToRead, voiceToUse);
 
-            if (this.loopSession !== session) {
+            if (this.loopSession !== currentSession) {
                 if (url && url !== "speech_synthesis") URL.revokeObjectURL(url);
                 continue;
             }
 
             if (url) {
-                let item = { url, session };
+                let item = { url, session: currentSession };
                 if (url === "speech_synthesis") {
                     item.obj = {
                         isSpeech: true, text: textToRead, paused: true, ended: false,
                         play: async function() {
                             this.paused = false; this.ended = false;
-                            window.speechSynthesis.cancel(); 
+                            if (window.speechSynthesis) window.speechSynthesis.cancel(); 
                             return new Promise((resolve) => {
                                 let u = new SpeechSynthesisUtterance(this.text);
                                 u.lang = "zh-CN";
                                 u.rate = window.AudioManager ? window.AudioManager.playbackRate || 1.0 : 1.0;
                                 u.onend = () => { this.ended = true; this.paused = true; if(this.onended) this.onended(); resolve(); };
                                 u.onerror = () => { this.ended = true; this.paused = true; if(this.onerror) this.onerror(); resolve(); };
-                                window.speechSynthesis.speak(u);
+                                if (window.speechSynthesis) {
+                                    window.speechSynthesis.speak(u);
+                                } else {
+                                    this.ended = true; resolve();
+                                }
                             });
                         },
-                        pause: function() { this.paused = true; window.speechSynthesis.cancel(); }
+                        pause: function() { this.paused = true; if (window.speechSynthesis) window.speechSynthesis.cancel(); }
                     };
                 } else { 
                     item.obj = new Audio(url); 
@@ -424,17 +460,28 @@ export class AudioManager {
         if (this._playLoopActive) return;
         this._playLoopActive = true;
         while (true) {
+            // 暂停状态：彻底清空所有播放和加载态，交出 CPU
             if (!this.enabled) {
-                this.isSpeaking = false; this.updateUI();
+                this.isSpeaking = false;
+                this.isLoading = false;
+                this.updateUI();
                 await new Promise(r => setTimeout(r, 100));
                 continue;
             }
             const sessionAtStep = this.loopSession;
+            // 缓冲中：当前会话已启用，但预取队列尚未准备好
             if (this.audioBufferArray.length === 0) {
-                this.isSpeaking = false; this.updateUI();
+                this.isSpeaking = false;
+                // 只有属于当前 session 才亮缓冲灯，防止僵尸循环覆写状态
+                if (this.loopSession === sessionAtStep) {
+                    this.isLoading = true;
+                }
+                this.updateUI();
                 await new Promise(r => setTimeout(r, 100));
                 continue;
             }
+            // 正常播放前：清除缓冲态
+            this.isLoading = false;
             const item = this.audioBufferArray.shift();
             if (!item || item.session !== this.loopSession) {
                 if (item && item.url && item.url !== "speech_synthesis") URL.revokeObjectURL(item.url);
@@ -471,7 +518,7 @@ export class AudioManager {
                 new Promise(r => setTimeout(r, 40000))
             ]);
 
-            // 核心修复：如果不是正常播完（比如因为暂停而被哨兵中断），将 item 放回队列首部
+            // 核心修复：如果没有完成播放（可能因为暂停），回收该 item
             if (!finished && this.enabled === false && this.loopSession === sessionAtStep) {
                 this.audioBufferArray.unshift(item);
                 continue;

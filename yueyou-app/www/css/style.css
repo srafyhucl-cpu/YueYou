@@ -1638,28 +1638,12 @@ body::after {
     padding-right: 10px;
     cursor: pointer;
     z-index: 2;
-}
-
-.capsule-visualizer {
-    width: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
     flex-shrink: 0;
 }
 
-/* 浮动说明框系统 */
+/* 归一化重构：提示框系统 (Toast) - 高性能 CSS 居中方案 */
 .floating-tooltip {
     position: fixed;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(10px);
-    color: #fff;
-    padding: 10px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: 13px;
-    z-index: 100000;
     pointer-events: none;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     max-width: 240px;
@@ -1693,6 +1677,100 @@ body::after {
         opacity: 0;
         transform: translateY(-10px);
     }
+}
+
+/* 阅游风格自定义弹窗系统 */
+.custom-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    z-index: 99999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: modal-bg-fade 0.3s ease;
+}
+
+.custom-confirm-modal {
+    width: 85%;
+    max-width: 320px;
+    background: rgba(30, 30, 35, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    animation: modal-scale-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-confirm-title {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.custom-confirm-msg {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.custom-confirm-btns {
+    display: flex;
+    gap: 12px;
+}
+
+.custom-confirm-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 30px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.custom-confirm-btn.cancel {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.custom-confirm-btn.confirm {
+    background: #fff;
+    color: #000;
+}
+
+.custom-confirm-btn:active {
+    transform: scale(0.95);
+    filter: brightness(0.8);
+}
+
+@keyframes modal-bg-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modal-scale-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* 弹窗激活时的背景置灰效果 */
+body.modal-open #app {
+    filter: grayscale(0.6) brightness(0.5);
+    transition: filter 0.3s ease;
+}
+
+#app {
+    transition: filter 0.3s ease;
 }
 
 /* Bento Box 档案馆网格布局 */
@@ -1998,6 +2076,44 @@ body::after {
     mask-image: linear-gradient(90deg, transparent 0%, black 5%, black 95%, transparent 100%);
 }
 
+/* 归一化重构：提示框系统 (Toast) - 高性能 CSS 居中方案 */
+.floating-tooltip {
+    position: fixed;
+    top: 15%; /* 统一显示在屏幕上方，避开灵动岛和键盘 */
+    left: 50%;
+    transform: translate(-50%, 0);
+    background: rgba(12, 12, 20, 0.95);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 50px; 
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 999999;
+    pointer-events: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    animation: toast-in-out 3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes toast-in-out {
+    0% { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
+    15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -15px) scale(0.9); }
+}
+
+.capsule-visualizer {
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    flex-shrink: 0;
+}
+
 .capsule-text-scroller {
     display: inline-block;
     color: rgba(255, 255, 255, 0.95);
@@ -2065,6 +2181,10 @@ body::after {
     transition: fill 0.2s;
 }
 
-.btn-circular-restart:active svg {
-    fill: #ff4d4d;
+.spinning {
+    animation: loading-rotate 1s linear infinite;
+}
+@keyframes loading-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }

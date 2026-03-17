@@ -29,24 +29,8 @@ export class GameEngine {
             .fill()
             .map(() => Array(this.size).fill(null));
     }
-    triggerDeathConfirm() {
-        if (confirm("你失败了！请重新开始\n\n点击【确定】重新开局\n点击【取消】关闭弹窗")) {
-            this.reset();
-            this.awaitingRestart = false;
-            return true;
-        }
-        return false;
-    }
     move(e) {
-        if (this.over) {
-            if (this.awaitingRestart) {
-                let didReset = this.triggerDeathConfirm();
-                return { moved: false, mergedTiles: Object.assign([], { isResetAction: didReset }) };
-            } else {
-                this.awaitingRestart = true;
-            }
-            return { moved: false, mergedTiles: [] };
-        }
+        if (this.over) return { moved: false, mergedTiles: [] };
         let s = false,
             t = [],
             r = this.getVector(e),
@@ -106,12 +90,7 @@ export class GameEngine {
             this.updateScore();
             if(!this.movesAvailable()) {
                 this.over = true;
-                this.awaitingRestart = true;
-                setTimeout(() => {
-                    if (this.triggerDeathConfirm()) {
-                        document.dispatchEvent(new CustomEvent('game-reset'));
-                    }
-                }, 500);
+                // 不再在此处处理 UI，由 main.js 控制器监听状态并弹窗
             }
 
             // --- 注入：3D 物理惯性倾斜 ---

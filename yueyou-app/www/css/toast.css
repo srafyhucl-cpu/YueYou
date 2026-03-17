@@ -1,0 +1,37 @@
+/* 归一化重构：提示框系统 (Toast) - 高性能 CSS 居中方案 */
+.floating-tooltip {
+    position: fixed;
+    top: 15%; /* 统一显示在屏幕上方，避开灵动岛和键盘 */
+    left: 50%;
+    transform: translate(-50%, 0);
+    background: rgba(12, 12, 20, 0.95);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 50px; /* 药丸外形更现代 */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 999999;
+    pointer-events: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    animation: toast-in-out 3.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes toast-in-out {
+    0% { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
+    10% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    90% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+}
+
+.capsule-visualizer {
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    flex-shrink: 0;
+}
