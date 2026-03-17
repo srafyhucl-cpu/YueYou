@@ -481,6 +481,19 @@ export class AudioManager {
         }
 
         if (typeof window._syncIdleState === 'function') window._syncIdleState();
+
+        // 实时推送当前阅读的句子到赛博字幕屏
+        const subtitleEl = document.getElementById('cyber-subtitle-text');
+        if (subtitleEl) {
+            if (this.enabled && this.lines && this.lines.length > 0 && this.cursor >= 0) {
+                let currentLine = this.lines[this.cursor];
+                // 兼容字符串或对象格式（代码库内部属性名为 t）
+                let text = typeof currentLine === 'object' ? currentLine.t : currentLine;
+                subtitleEl.innerText = text ? text.trim() : "正在解析神经数据...";
+            } else {
+                subtitleEl.innerText = "神经链路已休眠";
+            }
+        }
     }
 
     getChapterProgress() {

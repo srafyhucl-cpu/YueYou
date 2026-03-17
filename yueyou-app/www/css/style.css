@@ -2081,3 +2081,33 @@ body.modal-open #app {
     margin-top: 0 !important;
     margin-bottom: auto !important; /* 核心黑魔法：吃掉下方所有剩余空白空间 */
 }
+
+/* =========================================
+   赛博提词器 (全息字幕屏)
+   ========================================= */
+.cyber-subtitle-container {
+    flex: 1; /* 核心黑魔法：吃掉棋盘和灵动岛之间所有的剩余垂直空间 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 25px;
+    width: 100%;
+    overflow: hidden;
+}
+
+#cyber-subtitle-text {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* 最多显示 3 行，超出优雅省略，绝不挤压棋盘 */
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-weight: 300;
+    letter-spacing: 1px;
+    transition: opacity 0.3s ease;
+}
