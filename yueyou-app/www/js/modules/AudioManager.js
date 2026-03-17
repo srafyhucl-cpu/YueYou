@@ -288,10 +288,7 @@ export class AudioManager {
                     this.currentAudio.volume = 0; 
                 }
                 this.currentAudio.pause();
-                // 核心修复：切断正在播放的音频的网络流，防止 ERR_FILE_NOT_FOUND
-                this.currentAudio.removeAttribute('src');
-                if (typeof this.currentAudio.load === 'function') this.currentAudio.load();
-                this.currentAudio.currentTime = 0;
+                // 🚨 核心修复：删除 currentTime = 0，以便恢复时在原断点继续发声
                 if (this.currentAudio.isSpeech && window.speechSynthesis) window.speechSynthesis.cancel();
             } catch (e) { }
         }
@@ -596,8 +593,8 @@ export class AudioManager {
             this.isSpeaking = true; this.updateUI();
             const audio = item.obj;
             this.currentAudio = audio;
-
-            // 🚨 核心修复：恢复在 stopAllAudio 中可能被置为 0 的音量，防止静默播放！
+            
+            // 🚨 核心修复：在这里必须恢复 1.0 音量！否则上一句会被“静默播放”，导致漫长等待+跳句！
             if (this.currentAudio.volume !== undefined) {
                 this.currentAudio.volume = 1.0;
             }
