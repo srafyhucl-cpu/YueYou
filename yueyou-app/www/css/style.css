@@ -2056,3 +2056,28 @@ body.modal-open #app {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+/* =========================================
+   全面屏紧凑聚合布局优化 (彻底消除割裂感)
+   ========================================= */
+
+/* 强制主容器从上往下依次紧凑排列，取消原有的空间均分 */
+#game-viewport {
+    justify-content: flex-start !important; 
+    padding-bottom: calc(env(safe-area-inset-bottom) + 15px) !important;
+}
+
+/* 精确控制顶部各模块之间的微小间距 */
+.top-nav {
+    margin-bottom: 12px !important;
+}
+
+.status-panel {
+    margin-bottom: 25px !important; /* 计分板与棋盘的完美呼吸距 */
+}
+
+/* 棋盘容器：取消自适应上下边距，改为向上对齐，并把底部的灵动岛推到最下面 */
+.game-container {
+    margin-top: 0 !important;
+    margin-bottom: auto !important; /* 核心黑魔法：吃掉下方所有剩余空白空间 */
+}
