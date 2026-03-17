@@ -2087,8 +2087,9 @@ body.modal-open #app {
    ========================================= */
 .cyber-subtitle-container {
     width: 100%;
-    height: 24px; /* 极致单行高度 */
-    margin-bottom: 15px !important; /* 距离底部播放器的距离 */
+    height: 24px;
+    /* 🚨 核心修复：为底部悬浮的灵动岛预留 85px 的防撞高度，并兼容全面屏底部小白条 */
+    margin-bottom: calc(env(safe-area-inset-bottom) + 85px) !important; 
     display: flex;
     align-items: center;
     overflow: hidden;
