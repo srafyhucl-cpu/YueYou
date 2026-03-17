@@ -301,16 +301,29 @@ export class AudioManager {
 
     async manageWakeLock(enable) {
         try {
-            if (enable && 'wakeLock' in navigator) {
-                if (!this.wakeLockObj) this.wakeLockObj = await navigator.wakeLock.request('screen');
-            } else {
-                if (this.wakeLockObj) {
-                    await this.wakeLockObj.release();
-                    this.wakeLockObj = null;
+            // 1. 优先尝试调用 Capacitor 原生底层插件 (解决安卓/iOS真机锁屏问题)
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.KeepAwake) {
+                if (enable) {
+                    await window.Capacitor.Plugins.KeepAwake.keepAwake();
+                } else {
+                    await window.Capacitor.Plugins.KeepAwake.allowSleep();
+                }
+                return; // 原生调用成功，直接返回
+            }
+            
+            // 2. 降级方案：PC 浏览器环境的 Web API
+            if ('wakeLock' in navigator) {
+                if (enable) {
+                    if (!this.wakeLockObj) this.wakeLockObj = await navigator.wakeLock.request('screen');
+                } else {
+                    if (this.wakeLockObj) {
+                        await this.wakeLockObj.release();
+                        this.wakeLockObj = null;
+                    }
                 }
             }
         } catch (err) {
-            console.warn('Wake Lock 申请失败:', err);
+            console.warn('常亮引擎调用失败:', err);
         }
     }
 
