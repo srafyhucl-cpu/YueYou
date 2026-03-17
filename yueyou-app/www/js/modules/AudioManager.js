@@ -31,12 +31,69 @@ export class AudioManager {
         this.isBuffering = false;
 
         this.playbackRate = parseFloat(localStorage.getItem("setting_tts_rate") || "1.0");
+        
+        // --- 系统级硬件 API 引擎初始化 ---
+        this.wakeLockObj = null;
+        this.initMediaSession();
+        
+        // 监听应用切回前台，自动恢复屏幕常亮锁
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && this.enabled) {
+                this.manageWakeLock(true);
+            }
+        });
+
         this.initLibrary();
     }
 
     unlockAudio() {
         this.initContext();
         if (this.u && this.u.state === "suspended") this.u.resume().catch(() => { });
+    }
+
+    // ======================================
+    // 系统级硬件 API：屏幕常亮与锁屏播控
+    // ======================================
+    async manageWakeLock(enable) {
+        try {
+            if (enable && 'wakeLock' in navigator) {
+                if (!this.wakeLockObj) this.wakeLockObj = await navigator.wakeLock.request('screen');
+            } else {
+                if (this.wakeLockObj) {
+                    await this.wakeLockObj.release();
+                    this.wakeLockObj = null;
+                }
+            }
+        } catch (err) {
+            console.warn('Wake Lock 申请被系统拒绝或不支持:', err);
+        }
+    }
+
+    initMediaSession() {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', () => { if(window.toggleTTS) window.toggleTTS(new Event('click')); });
+            navigator.mediaSession.setActionHandler('pause', () => { if(window.toggleTTS) window.toggleTTS(new Event('click')); });
+            navigator.mediaSession.setActionHandler('nexttrack', () => {
+                let next = Math.min(this.cursor + 10, this.lines.length - 1);
+                this.jumpToChapter(next);
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', () => {
+                let prev = Math.max(this.cursor - 10, 0);
+                this.jumpToChapter(prev);
+            });
+        }
+    }
+
+    updateMediaSessionMetadata(chapterTitle) {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = this.enabled ? (this.isBuffering ? 'none' : 'playing') : 'paused';
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: `${this.novelTitle}`,
+                artist: `当前: ${chapterTitle}`,
+                album: '阅游 Cyber-Zen',
+                artwork: [{ src: 'icon.png', sizes: '512x512', type: 'image/png' }]
+            });
+        }
     }
 
     initContext() {
@@ -170,7 +227,14 @@ export class AudioManager {
         try {
             const currentSession = ++this.loopSession;
             this.stopAllAudio();
-            this.audioBufferArray.forEach(x => { if (x.url && x.url !== 'speech_synthesis') URL.revokeObjectURL(x.url); });
+            this.audioBufferArray.forEach(x => { 
+                // 核心修复：在释放内存前，强行切断底层 Audio 的网络流，防止 ERR_FILE_NOT_FOUND
+                if (x.obj && typeof x.obj.pause === 'function') {
+                    x.obj.removeAttribute('src');
+                    if (typeof x.obj.load === 'function') x.obj.load();
+                }
+                if (x.url && x.url !== 'speech_synthesis') URL.revokeObjectURL(x.url); 
+            });
             this.audioBufferArray = [];
             
             // 强制将当前小说 ID 锁定为字符串，供高维引擎精准对接
@@ -224,6 +288,9 @@ export class AudioManager {
                     this.currentAudio.volume = 0; 
                 }
                 this.currentAudio.pause();
+                // 核心修复：切断正在播放的音频的网络流，防止 ERR_FILE_NOT_FOUND
+                this.currentAudio.removeAttribute('src');
+                if (typeof this.currentAudio.load === 'function') this.currentAudio.load();
                 this.currentAudio.currentTime = 0;
                 if (this.currentAudio.isSpeech && window.speechSynthesis) window.speechSynthesis.cancel();
             } catch (e) { }
@@ -240,6 +307,9 @@ export class AudioManager {
     setEnabled(enable) {
         this.enabled = enable;
         localStorage.setItem("setting_story_tts", enable ? "true" : "false");
+        
+        // 核心挂载：同步屏幕常亮状态
+        this.manageWakeLock(enable);
 
         if (enable) {
             // 开启播放：若缓冲区为空，立即同步亮起缓冲态，无需等待循环的下一个 tick
@@ -261,7 +331,14 @@ export class AudioManager {
     refreshSession() {
         this.loopSession++;
         this.stopAllAudio();
-        this.audioBufferArray.forEach(x => { if (x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); });
+        this.audioBufferArray.forEach(x => { 
+            // 核心修复：强行切断底层 Audio 的网络流
+            if (x.obj && typeof x.obj.pause === 'function') {
+                x.obj.removeAttribute('src');
+                if (typeof x.obj.load === 'function') x.obj.load();
+            }
+            if (x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); 
+        });
         this.audioBufferArray = [];
         this.isSpeaking = false;
         this.isBuffering = false; // 核心修复：会话刷新时重置缓冲状态，让新会话重新亮灯
@@ -272,7 +349,14 @@ export class AudioManager {
     jumpToChapter(lineIndex) {
         this.loopSession++;
         this.stopAllAudio();
-        this.audioBufferArray.forEach(x => { if (x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); });
+        this.audioBufferArray.forEach(x => { 
+            // 核心修复：强行切断底层 Audio 的网络流
+            if (x.obj && typeof x.obj.pause === 'function') {
+                x.obj.removeAttribute('src');
+                if (typeof x.obj.load === 'function') x.obj.load();
+            }
+            if (x.url && x.url !== "speech_synthesis") URL.revokeObjectURL(x.url); 
+        });
         this.audioBufferArray = [];
         this.isSpeaking = false;
         this.isBuffering = false; // 核心修复：跳章时重置缓冲，让底层 loop 重新触发 UI 刷新
@@ -324,6 +408,8 @@ export class AudioManager {
                 if (this.cursor >= this.chapters[i].lineIndex) { title = this.chapters[i].title; break; }
             }
         }
+        // 核心挂载：实时投射小说进度到手机系统状态栏
+        this.updateMediaSessionMetadata(title);
         // 灵动岛胶囊智能滚动文本同步与性能优化
         let scroller = document.getElementById("capsule-scroller");
         let container = document.querySelector(".capsule-text-container");
@@ -462,11 +548,13 @@ export class AudioManager {
         if (this._playLoopActive) return;
         this._playLoopActive = true;
         while (true) {
-            // 暂停状态：彻底清空所有播放和加载态，交出 CPU
+            // 暂停状态：交出 CPU，仅在状态发生变化时触发一次 UI 刷新，防止每 100ms 狂刷 DOM
             if (!this.enabled) {
-                this.isSpeaking = false;
-                this.isLoading = false;
-                this.updateUI();
+                if (this.isSpeaking || this.isBuffering) {
+                    this.isSpeaking = false;
+                    this.isBuffering = false;
+                    this.updateUI();
+                }
                 await new Promise(r => setTimeout(r, 100));
                 continue;
             }
@@ -492,7 +580,13 @@ export class AudioManager {
             }
             const item = this.audioBufferArray.shift();
             if (!item || item.session !== this.loopSession) {
-                if (item && item.url && item.url !== "speech_synthesis") URL.revokeObjectURL(item.url);
+                if (item && item.url && item.url !== "speech_synthesis") {
+                    if (item.obj && typeof item.obj.pause === 'function') {
+                        item.obj.removeAttribute('src');
+                        if (typeof item.obj.load === 'function') item.obj.load();
+                    }
+                    URL.revokeObjectURL(item.url);
+                }
                 continue;
             }
 
@@ -502,9 +596,15 @@ export class AudioManager {
             this.isSpeaking = true; this.updateUI();
             const audio = item.obj;
             this.currentAudio = audio;
-                if (!audio.isSpeech) {
-                    audio.playbackRate = this.playbackRate || 1.0;
-                }
+
+            // 🚨 核心修复：恢复在 stopAllAudio 中可能被置为 0 的音量，防止静默播放！
+            if (this.currentAudio.volume !== undefined) {
+                this.currentAudio.volume = 1.0;
+            }
+
+            if (!audio.isSpeech) {
+                audio.playbackRate = this.playbackRate || 1.0;
+            }
 
             let finished = false;
             // 高灵敏哨兵机制
@@ -532,7 +632,13 @@ export class AudioManager {
                 continue;
             }
 
-            if (item.url && item.url !== "speech_synthesis") URL.revokeObjectURL(item.url);
+            if (item.url && item.url !== "speech_synthesis") {
+                if (item.obj && typeof item.obj.pause === 'function') {
+                    item.obj.removeAttribute('src');
+                    if (typeof item.obj.load === 'function') item.obj.load();
+                }
+                URL.revokeObjectURL(item.url);
+            }
             if (this.loopSession === sessionAtStep && finished) {
                 this.cursor = (this.cursor + 1) % this.lines.length;
                 // 将最新进度同步至高维引擎
