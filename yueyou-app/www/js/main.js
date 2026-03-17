@@ -567,14 +567,26 @@ window._showToast = (e, text) => {
         });
 })();
 
+// ==========================================
+// 控播逻辑：全局 TTS 启停接管
+// ==========================================
 window.toggleTTS = (e) => {
-    e.stopPropagation();
+    e.stopPropagation(); // 绝对阻断冒泡
     if (!window.AudioManager) return;
+
     const am = window.AudioManager;
-    if (!am.lines || am.lines.length === 0) { window._showToast(e, "请先在图书馆中加载书籍"); return; }
-    if (window.u && window.u.state === 'suspended') window.u.resume();
-    am.setEnabled(!am.enabled);
-    if (am.updateUI) am.updateUI(); // 强制刷新图标，打破停滞死锁
+
+    // 核心修复：直接利用引擎底层开关，完美覆盖说话、缓冲、待机等所有状态
+    if (am.enabled) {
+        am.setEnabled(false); // 触发全局暂停并终止拉取
+    } else {
+        if (window.u && window.u.state === 'suspended') window.u.resume();
+        am.setEnabled(true);  // 触发全局恢复并重启队列
+    }
+
+    // 同步设置面板的开关状态 UI
+    let autoTts = document.getElementById("toggle-story");
+    if (autoTts) autoTts.checked = am.enabled;
 };
 
 // ==========================================

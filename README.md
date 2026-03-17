@@ -1,94 +1,91 @@
-# 阅游 (YueYou) - 2048 维度越界与全息听书系统
+# 阅游 (YueYou) - 赛博 2048 与沉浸式全息听书系统
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Vue](https://img.shields.io/badge/Frontend-Vanilla_JS-f39f37.svg)
-![Gin](https://img.shields.io/badge/Backend-Gin_(Go)-00add8.svg)
-![SQLite](https://img.shields.io/badge/Database-SQLite_WAL-003B57.svg)
+![Frontend](https://img.shields.io/badge/Frontend-Vanilla_JS_ES6-f39f37.svg)
+![Backend](https://img.shields.io/badge/Backend-Gin_(Go)-00add8.svg)
+![Database](https://img.shields.io/badge/Database-SQLite_&_IndexedDB-003B57.svg)
+![Mobile](https://img.shields.io/badge/Mobile-Capacitor_5.0-60a5fa.svg)
 
 > **"在这里，滑动手势将操纵数字物质，每一本书都是一次向更高维度的跨越。"**
 
-**阅游**是一个将经典的「2048」解谜玩法与「沉浸式白噪音/有声书」完美融合的跨端应用程序。项目采用了赛博朋克 2048 的世界观设定，内置了程序化生成的全息水滴音效与沉浸式声场。
+**阅游**是一个将经典的「2048」数字解谜与「沉浸式有声书/白噪音」完美融合的超感官应用程序。项目核心围绕“维度跨越”与“神经接入”展开，内置了灵动岛级的 UI 交互引擎与 Web Audio API 全息声场。
 
-玩家在游玩 2048 进行“维度跨越”的碎片时间里，不仅可以沉思于冥想级白噪音（赛博暗雨、竹林远笛），还能自动同步聆听由 Azure TTS 驱动的本地与公共书库。
+玩家在游玩 2048 的碎片时间里，可以聆听由 Azure 神经语音驱动的高质量文本播报，享受赛博暗雨、竹林远笛等环境背景音，实现真正的“心流状态”。
 
 ---
 
 ## 🌟 核心特性
 
-- **🎮 多位面 2048 玩法**：从经典的合成 2048，到拆解降维、时间回溯（撤销）、清空场地的「开发者权限」道具系统。
-- **🎧 沉浸式环境音景 (Web Audio API)**：内置 `Rain`（暗雨与深空沉雷）、`Wuxia`（竹林风与远笛）、`Relax`（云端冥想）三种环境声场，并配合游戏物理合成产生动态震动与水滴音效。
-- **📚 跨端公共图书馆**：支持本地免登录导 TXT 阅读，也支持上传至云端公共书库。
-- **🗣️ AI 语音神经脉冲 (TTS)**：连接 Azure 神经语音合成服务，玩游戏的同时自动将文本转化为高质量的有声演播。
-- **💾 无缝断点续传**：基于 IndexedDB 与 SQLite 的双边同步机制，游戏的分数维度与阅读的段落锚点会自动云端漫游。
+- **🎮 赛博脉冲 2048**：纯净、丝滑的经典 2048 棋盘，配合 3D 物理惯性倾斜与机械翻页动画。
+- **🌑 灵动岛 (Dynamic Island) 交互引擎**：顶部的胶囊化控播中心，支持动态实时频谱、进度环监控、以及一键倍速切换。
+- **🎧 全息混响声场 (Web Audio API)**：内置 `Wuxia`（武侠风云）、`Standard`（默认）等声场，支持实时卷积混响与动态滤波，营造极致的听觉包围感。
+- **📚 高维进度引擎 (Progress Manager)**：独立于业务逻辑的进度持久化系统，精准记录每一份本地档案的阅读节点（百分比、行号、章节）。
+- **🗣️ 神经语音脉冲 (TTS)**：连接 Azure 神经语音服务，支持多发音人（晓晓、云希等）切换及 0.7x - 2.5x 灵活调速。
+- **💾 双轨持久化架构**：前端采用原生 IndexedDB 存储超大容量 TXT 文本，后端通过 SQLite WAL 模式维护云端同步。
 
 ---
 
 ## 🏗️ 架构与技术栈
 
-项目采用高内聚、低耦合的前后端分离架构，支持打包为 Android/iOS 独立应用包。
+项目采用极简、高效的前后端分离架构，特别针对移动端原生环境进行了深度适配。
 
-### 前端 (yueyou-app)
-- **核心**：Vanilla JS (ES6 模块化) + 原生 CSS3 网格动画
-- **存储**：IndexedDB (LocalDB) + localStorage
-- **音频**：HTML5 Web Audio API (动态节点生成与滤波处理)
-- **跨端环境**：Capacitor 5.0 (构建安卓/iOS 原生容器)
+### 前端工程 (yueyou-app)
+- **核心逻辑**：Vanilla JS (ES6 模块化) - 彻底解耦 `AudioManager`, `GameEngine`, `Renderer`, `LocalDB`。
+- **UI & 动效**：原生 CSS3 (Grid/Flex) + 滤镜/混合模式 + 自研 Odometer 数字翻页引擎。
+- **存储机制**：IndexedDB (存放小说原文) + localStorage (存放配置与进度锚点)。
+- **原生桥接**：Capacitor 5.0，支持编译为 Android/iOS 独立安装包。
 
-### 后端 (yueyou-server)
-- **核心框架**：Gin Web Framework
-- **数据库**：CGO-Free SQLite (`modernc.org/sqlite`) 开启 WAL 并发写入模式
-- **安全体系**：Bcrypt 密码哈希 + JWT
-- **运行拓扑**：单文件轻量运行与多端 CORS 白名单
+### 后端服务 (yueyou-server)
+- **底层框架**：Go 1.20+ & Gin Web Framework。
+- **数据核心**：CGO-Free SQLite (`modernc.org/sqlite`)，支持多端并发安全。
+- **鉴权体系**：JWT (JSON Web Token) + Bcrypt 密码安全算法。
+- **功能模块**：用户账户系统、进度云端迁移、公共书库检索。
 
 ---
 
-## 🚀 本地开发指南
+## 🚀 快速启动
 
-### 1. 启动后端数据库与 API
-
-确保你已经安装了 Go (>= 1.20)。
-
+### 1. 后端服务 (API & Database)
 ```bash
 cd yueyou-server
-# 编译并运行服务端
-go run .
-# 服务端将在 http://localhost:8080 启动
+# 运行服务端（自动初始化 2048.db）
+go run cmd/server/main.go
+# 默认监听地址：http://localhost:8080
 ```
 
-### 2. 启动前端页面
-
-由于跨域与音频安全策略限制（Web Audio API），前端必须通过本地服务器运行。
-
+### 2. 前端开发 (Web / Mobile)
 ```bash
 cd yueyou-app/www
-# 使用 vite、http-server 或者 python 启动本地服务
+# 使用任何静态服务器运行
+# 推荐使用：npx http-server 或 VSCode Live Server
 npx http-server -p 3000
-# 浏览器访问 http://localhost:3000
 ```
-*(注意：在浏览器测试时，可通过控制台开关切换至本地或线上正式服务器集群。环境配置通过 `config.js` 全局动态调整。)*
+*提示：环境配置位于 `www/js/config.js`，可自动识别移动端/Web端切换后端请求前缀。*
 
 ---
 
-## 📂 项目结构
+## 📂 项目结构指南
 
 ```text
 YueYou-Project/
 ├── yueyou-app/                     # 前端工程 & Capacitor 打包环境
-│   └── www/                        # 核心发版源码
-│       ├── index.html              # 主控台渲染模板
-│       ├── style.css               # 样式与物理动效定义
-│       ├── config.js               # 全局环境路由中心
-│       └── main.js                 # 前端核心驱动模块
+│   ├── android/                    # Android 原生工程目录
+│   └── www/                        # 核心发版源码区
+│       ├── css/                    # 视觉系统 (style.css, toast.css)
+│       ├── js/                     # 核心驱动引擎
+│       │   ├── modules/            # 模块化逻辑 (AudioManager, GameEngine, Renderer, LocalDB)
+│       │   ├── config.js           # 神经中枢：全局静态配置与域名映射
+│       │   └── main.js             # 系统总控：初始化与事件调度
+│       └── index.html              # 宿主页面：灵动岛与游戏容器
 │
 ├── yueyou-server/                  # Go 语言后端服务
-│   ├── main.go                     # Gin 启停与请求分发路由
-│   ├── handlers_auth.go            # 账户注册/登入逻辑
-│   ├── handlers_state.go           # 进度云迁移逻辑
-│   ├── handlers_novel.go           # TXT 解析与图书馆检索
-│   ├── middleware_auth.go          # JWT 拦截器
-│   ├── utils_response.go           # 统一 JSON 返回格式化
-│   └── db.go                       # SQLite 建表与 WAL 初始
+│   ├── cmd/server/main.go          # 服务入口与路由分发
+│   ├── internal/                   # 内部业务逻辑
+│   │   ├── handlers/               # 控制器 (Auth, Novel, State, Middleware)
+│   │   └── models/                 # 数据模型 (SQLite, DB Init)
+│   └── go.mod                      # 依赖管理
 │
-└── .gitignore                      # 安全监控与垃圾排除
+└── README.md                       # 项目启动手册
 ```
 
 ---
@@ -96,4 +93,4 @@ YueYou-Project/
 ## 📜 开源协议
 
 MIT License.
-请遵守当地法律法规运行，本项目的 TTS 服务及小说版权归相关原作者及企业所有。
+请注意：本项目仅作为技术交流与学术研究使用。项目内涉及的 TTS 接口及小说内容版权归原作者及企业所有，请勿用于非法用途。

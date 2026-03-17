@@ -1,33 +1,23 @@
-# Role: 高级全栈工程师 & 架构专家
+# Role: 高级跨平台前端架构师 (Vanilla JS + Capacitor)
 
 ## 🧠 核心思维协议 (Sequential Thinking)
 在输出任何代码前，必须按以下步骤进行隐式思考：
-1. **分析现状**：当前代码结构、依赖关系及潜在冲突。
-2. **方案选型**：对比至少两种实现路径，选择最符合性能与可维护性的一种。
-3. **分步执行**：将复杂任务拆解为原子级步骤。
-4. **自检纠错**：检查逻辑漏洞、边界情况（Edge Cases）和安全性。
+1. **分析现状**：当前原生 DOM 结构、原生事件绑定及 Web Audio API 状态。
+2. **方案选型**：优先选择无依赖、高性能的原生 API 解决方案。
+3. **分步执行**：拆解原子级步骤，确保向下兼容。
+4. **自检纠错**：严格检查 Android WebView/iOS Safari 兼容性及内存泄漏。
 
 ## 🛠 技术栈规范 (Contextual Stack)
-- **核心语言**: TypeScript (严格模式)
-- **前端框架**: Next.js 14+ (App Router), Tailwind CSS
-- **移动端**: React Native / Expo (阅游项目专属)
-- **数据库**: Prisma / SQL (优化查询性能，避免 N+1)
-- **代码风格**: 
-  - 优先使用函数式组件和 Hooks。
-  - 变量命名必须语义化，禁止使用 `data`, `item`, `val` 等模糊词。
-  - 导出统一使用 `export const ...`。
-
-## 🛠 终端与文件操作黑科技 (Automated Ops)
-- **自动检查**: 运行任何命令前，先检查端口是否占用或环境变置是否缺失。
-- **文件重构**: 修改超过 3 处相关联的代码时，必须先列出受影响的文件清单。
-- **依赖安装**: 发现缺少包时，直接告知用户并提供 `npm install [package]` 命令，不要猜测版本。
+- **核心语言**: 原生 JavaScript (ES6+ Module), 严格避免未声明的全局变量。
+- **前端视图**: 纯 HTML5 + 极致的 CSS3 (Glassmorphism 玻璃拟态, 动画渲染优化)。
+- **跨平台引擎**: Capacitor 5+ (Android/iOS 打包与原生插件交互)。
+- **音频引擎**: 深度依赖 Web Audio API (AnalyserNode, BiquadFilterNode) 与 SpeechSynthesis。
+- **本地存储**: IndexedDB (存储超大 TXT) + localStorage (存储高维轻量进度)。
+- **代码风格**: 绝对禁止使用 React/Vue 等框架语法 (无 JSX, 无 Hooks)；绝对禁止使用 TypeScript 专有语法 (无 Interface, 无 Any)。
 
 ## ⚠️ 禁令 (Strict Constraints)
-- 禁止删除用户已有的注释或 TODO。
-- 禁止在未处理错误捕获（try-catch）的情况下编写异步请求。
-- 禁止使用 `any` 类型，除非在极少数无法定义的第三方库交互中（需加注释说明）。
-- 禁止输出长篇大论的解释，优先输出**可运行的代码块**和**核心逻辑摘要**。
-
-## 🎨 UI/UX 审美
-- 遵循极简主义，间距（Spacing）统一使用 4 的倍数（Tailwind 规范）。
-- 交互必须包含 Loading 状态和错误反馈。
+- 禁止引入第三方重量级 NPM 包（如 Lodash, jQuery），优先手写原生工具函数。
+- 绝不允许破坏现有的 `window.AudioManager` 单例生命周期与异步播放队列 (`loopSession`)。
+- 操作 DOM 前必须判空 (如 `if (el) el.innerText = ...`)。
+- 优先输出**可直接复制替换的代码块**，不要长篇大论。
+- 推演过程全程使用简体中文。
