@@ -2058,56 +2058,62 @@ body.modal-open #app {
 }
 
 /* =========================================
-   全面屏紧凑聚合布局优化 (彻底消除割裂感)
+   全面屏“重力下压”布局与正方形绝对防御
    ========================================= */
-
-/* 强制主容器从上往下依次紧凑排列，取消原有的空间均分 */
 #game-viewport {
     justify-content: flex-start !important; 
     padding-bottom: calc(env(safe-area-inset-bottom) + 15px) !important;
 }
 
-/* 精确控制顶部各模块之间的微小间距 */
-.top-nav {
-    margin-bottom: 12px !important;
+.top-nav { margin-bottom: 12px !important; }
+
+.status-panel { 
+    /* 核心黑魔法：把面板下方多余的空白全部霸占，从而把棋盘和播放器狠狠地压到屏幕最下方！ */
+    margin-bottom: auto !important; 
 }
 
-.status-panel {
-    margin-bottom: 25px !important; /* 计分板与棋盘的完美呼吸距 */
-}
-
-/* 棋盘容器：取消自适应上下边距，改为向上对齐，并把底部的灵动岛推到最下面 */
+/* 2048 棋盘容器：绝对防御，强制正方形 */
 .game-container {
+    width: 100%;
+    aspect-ratio: 1 / 1 !important; 
+    flex-shrink: 0 !important;      
     margin-top: 0 !important;
-    margin-bottom: auto !important; /* 核心黑魔法：吃掉下方所有剩余空白空间 */
+    margin-bottom: 15px !important; /* 紧贴下方的提词器 */
 }
+.grid-container { width: 100%; height: 100%; aspect-ratio: 1 / 1 !important; }
 
 /* =========================================
-   赛博提词器 (全息字幕屏)
+   单行赛博提词器 (滚动 + KTV 变色)
    ========================================= */
 .cyber-subtitle-container {
-    flex: 1; /* 核心黑魔法：吃掉棋盘和灵动岛之间所有的剩余垂直空间 */
+    width: 100%;
+    height: 24px; /* 极致单行高度 */
+    margin-bottom: 15px !important; /* 距离底部播放器的距离 */
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 10px 25px;
-    width: 100%;
     overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
 }
 
 #cyber-subtitle-text {
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    font-size: 15px;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.85);
-    text-align: center;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-    display: -webkit-box;
-    -webkit-line-clamp: 3; /* 最多显示 3 行，超出优雅省略，绝不挤压棋盘 */
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: 14px;
+    white-space: nowrap !important; /* 核心：绝对单行，绝不换行 */
     font-weight: 300;
     letter-spacing: 1px;
-    transition: opacity 0.3s ease;
+    position: absolute; /* 脱离文档流，交由 JS 控制滚动偏移 */
+    
+    /* KTV 变色高亮核心：基于 JS 传来的 --read-progress 变量 */
+    background: linear-gradient(90deg, #22d3ee var(--read-progress, 0%), rgba(255, 255, 255, 0.3) var(--read-progress, 0%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent; 
+}
+
+#cyber-subtitle-text::after {
+    content: ' █';
+    -webkit-text-fill-color: #22d3ee; 
+    animation: cyber-blink 1s step-end infinite;
 }

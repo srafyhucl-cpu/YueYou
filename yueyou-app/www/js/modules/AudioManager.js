@@ -42,6 +42,8 @@ export class AudioManager {
         });
 
         this.initLibrary();
+        // 启动高帧率视觉同步引擎 (负责歌词滚动与变色)
+        this.startVisualSync();
     }
 
     unlockAudio() {
@@ -494,6 +496,69 @@ export class AudioManager {
                 subtitleEl.innerText = "神经链路已休眠";
             }
         }
+    }
+
+    startVisualSync() {
+        let fakeStartTime = 0;
+        let fakeDuration = 0;
+        let lastLineIndex = -1;
+        let lastTimestamp = 0;
+
+        const sync = () => {
+            const subtitleEl = document.getElementById('cyber-subtitle-text');
+            const containerEl = document.querySelector('.cyber-subtitle-container');
+            
+            if (subtitleEl && containerEl && this.enabled) {
+                let progress = 0;
+                
+                if (this.currentAudio && this.isSpeaking) {
+                    if (!this.currentAudio.isSpeech && this.currentAudio.duration) {
+                        // 1. 原生音频真实进度读取
+                        progress = (this.currentAudio.currentTime / this.currentAudio.duration) * 100;
+                    } else if (this.currentAudio.isSpeech) {
+                        // 2. TTS 模拟进度估算 (假定每秒读4.5个字)
+                        if (lastLineIndex !== this.cursor) {
+                            lastLineIndex = this.cursor;
+                            fakeStartTime = Date.now();
+                            let textLen = subtitleEl.innerText.length || 20;
+                            let rate = this.playbackRate || 1.0;
+                            fakeDuration = (textLen / (4.5 * rate)) * 1000; 
+                        }
+                        let elapsed = Date.now() - fakeStartTime;
+                        progress = Math.min((elapsed / fakeDuration) * 100, 100);
+                    }
+                } else if (!this.isSpeaking) {
+                    // 暂停时保持进度不变，仅更新 lastLineIndex 防止错乱
+                    if (this.currentAudio && !this.currentAudio.isSpeech && this.currentAudio.duration) {
+                        progress = (this.currentAudio.currentTime / this.currentAudio.duration) * 100;
+                    } else {
+                        fakeStartTime = Date.now() - (progress / 100 * fakeDuration); // 简易休眠补偿
+                    }
+                }
+
+                // 渲染一：KTV 高亮变色
+                subtitleEl.style.setProperty('--read-progress', `${progress}%`);
+
+                // 渲染二：单行滚动推流计算
+                const textWidth = subtitleEl.scrollWidth;
+                const containerWidth = containerEl.clientWidth;
+                
+                if (textWidth > containerWidth - 40) {
+                    // 长文本：左对齐，并根据阅读进度向左滚动
+                    const maxScroll = textWidth - (containerWidth - 40);
+                    const scrollX = (progress / 100) * maxScroll;
+                    subtitleEl.style.left = '20px';
+                    subtitleEl.style.transform = `translateX(-${scrollX}px)`;
+                } else {
+                    // 短文本：不需要滚动，直接在屏幕居中
+                    subtitleEl.style.left = '50%';
+                    subtitleEl.style.transform = `translateX(-50%)`;
+                }
+            }
+            this.visualSyncRAF = requestAnimationFrame(sync);
+        };
+        // 开启浏览器的 60FPS 重绘循环
+        this.visualSyncRAF = requestAnimationFrame(sync);
     }
 
     getChapterProgress() {
