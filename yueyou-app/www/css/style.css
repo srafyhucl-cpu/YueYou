@@ -197,9 +197,9 @@ body::after {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    /* 核心：利用安全区域变量向下推移，确保功能按钮不被摄像头遮挡 */
-    margin-top: calc(env(safe-area-inset-top) + 28px);
-    margin-bottom: 25px;
+    /* 核心：缩减下推距离，消除割裂感 */
+    margin-top: calc(env(safe-area-inset-top) + 12px);
+    margin-bottom: 15px;
     flex-wrap: nowrap;
     gap: 10px;
     flex-shrink: 0;
@@ -228,11 +228,6 @@ body::after {
 .mode-loop .tile-2048 {
     font-size: 15px !important;
     letter-spacing: -1px;
-}
-
-.mode-loop .tile-anchor {
-    font-size: 14px !important;
-    letter-spacing: -0.5px !important;
 }
 
 .avatar-placeholder {
@@ -310,13 +305,6 @@ body::after {
     transition: all 0.2s ease;
 }
 
-#restart-btn {
-    flex: 0 0 40px !important;
-    width: 40px;
-    padding: 0 !important;
-    font-size: 14px !important;
-}
-
 .top-nav-bar .icon-btn:hover {
     background: rgba(255, 255, 255, 0.25) !important;
     transform: scale(1.03);
@@ -340,15 +328,15 @@ body::after {
 /* 状态面板 - 核心毛玻璃 */
 .status-panel {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-    border-radius: 28px;
-    padding: 24px;
+    border-radius: 20px; /* Updated */
+    padding: 12px; /* Updated */
     border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-bottom: 24px;
+    margin-bottom: 12px; /* Updated */
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     flex-shrink: 0;
     position: relative;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* Updated */
     overflow: hidden;
 }
 
@@ -376,12 +364,36 @@ body::after {
 }
 
 .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 15px;
-    margin-top: 18px;
+    display: flex; /* Updated */
+    margin-top: 0 !important; /* Updated */
     overflow: hidden;
-    /* Added for overflow fix */
+}
+
+/* 融合在得分框内的迷你重启按钮 */
+.btn-mini-restart {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 10;
+}
+.btn-mini-restart:active {
+    transform: translateY(-50%) rotate(-90deg) scale(0.85);
+    background: rgba(236, 72, 153, 0.4);
+    border-color: rgba(236, 72, 153, 0.8);
+}
+.btn-mini-restart svg {
+    transition: fill 0.2s;
 }
 
 .stat-item {
@@ -1672,27 +1684,6 @@ body::after {
     flex-shrink: 0;
 }
 
-/* 归一化重构：提示框系统 (Toast) - 高性能 CSS 居中方案 */
-.floating-tooltip {
-    position: fixed;
-    pointer-events: none;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    max-width: 240px;
-    line-height: 1.5;
-    animation: tooltip-fade-in 0.3s ease;
-}
-
-@keyframes tooltip-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
 .tooltip-fade-out {
     animation: tooltip-fade-out 0.5s ease forwards;
@@ -1802,160 +1793,6 @@ body.modal-open #app {
 
 #app {
     transition: filter 0.3s ease;
-}
-
-/* Bento Box 档案馆网格布局 */
-#library-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
-    /* 尺寸微调，排版更紧凑 */
-    gap: 14px;
-    padding: 10px 0 90px 0;
-    list-style: none;
-    margin: 0;
-}
-
-/* 全画幅卡片基座 */
-.bento-card {
-    border-radius: 12px;
-    aspect-ratio: 3 / 4;
-    /* 强制图书修长比例 */
-    overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    /* 边缘高光 */
-    position: relative;
-    background: #000;
-}
-
-.bento-card:active {
-    transform: scale(0.94);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-}
-
-/* 充满整个卡片的流体容器 */
-.bento-full-cover {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* 高级暗纹水印：巨型字体 + 叠加混合模式 */
-.bento-watermark {
-    font-size: 85px;
-    font-family: "Songti SC", "SimSun", serif;
-    font-weight: 900;
-    color: rgba(255, 255, 255, 0.12);
-    /* 极低透明度 */
-    mix-blend-mode: overlay;
-    /* 融入渐变背景的黑魔法 */
-    user-select: none;
-    position: absolute;
-    top: 15%;
-    /* 偏上放置 */
-}
-
-/* 底部悬浮信息区：渐变毛玻璃 */
-.bento-info-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 16px 12px 12px 12px;
-    /* 从透明到极暗的过渡，保证文字绝对清晰 */
-    background: linear-gradient(to top, rgba(10, 10, 15, 0.95) 0%, rgba(10, 10, 15, 0.7) 50%, transparent 100%);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-/* 书名脱水展示 */
-.bento-title {
-    font-size: 13px;
-    font-weight: bold;
-    color: #ffffff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-    letter-spacing: 0.5px;
-}
-
-/* 重构 meta 布局：底部对齐，主次分明 */
-.bento-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 12px;
-    margin-top: 4px;
-}
-
-/* 大气全横幅进度条容器 */
-.bento-progress-container {
-    flex: 1;
-    /* 撑满左侧所有空间 */
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-/* 进度数值：极客等宽，极致清晰 */
-.bento-progress-text {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.9);
-    font-family: "Roboto Mono", monospace;
-    letter-spacing: 0.5px;
-    font-weight: bold;
-}
-
-/* 进度轨道 */
-.bento-progress-track {
-    width: 100%;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-/* 进度填充：赛博发光流体 */
-.bento-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #00f2fe, #4facfe);
-    box-shadow: 0 0 10px rgba(0, 242, 254, 0.7);
-    /* 灵魂高光 */
-    border-radius: 2px;
-    transition: width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-/* 极简删除键 */
-.btn-bento-delete {
-    flex-shrink: 0;
-    margin-bottom: 2px;
-    /* 与进度条轨道视觉对齐 */
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-    border: none;
-    font-size: 11px;
-    padding: 4px 8px;
-    border-radius: 12px;
-    transition: all 0.2s;
-}
-
-.btn-bento-delete:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: #fff;
-}
-
-.btn-bento-delete:active {
-    background: rgba(255, 60, 60, 0.9);
-    color: #fff;
 }
 
 
@@ -2162,7 +1999,7 @@ body.modal-open #app {
     85%, 100% { transform: translateX(var(--scroll-dist)); }
 }
 
-/* 鐏靛姩宀涘唴宓岀殑鍊嶉€熸寜閽編瀛?*/
+/* 灵动岛内嵌的倍速按钮美学 */
 .capsule-speed {
     margin-left: 10px;
     padding: 4px 8px;
@@ -2184,7 +2021,7 @@ body.modal-open #app {
     transform: scale(0.85);
 }
 
-/* 璁″垎鏉垮彸涓婅鐜舰閲嶇疆鎸夐挳 */
+/* 计分板右上角圆形重置按钮 */
 .btn-circular-restart {
     position: absolute;
     top: 15px;
@@ -2203,7 +2040,7 @@ body.modal-open #app {
 }
 
 .btn-circular-restart:active {
-    transform: rotate(-90deg) scale(0.85); /* 閰风偒鐨勯€嗘椂閽堟棆鍏ョ壒鏁?*/
+    transform: rotate(-90deg) scale(0.85); /* 酷炫的逆时针旋转特效 */
     background: rgba(255, 60, 60, 0.25);
     border-color: rgba(255, 60, 60, 0.5);
 }

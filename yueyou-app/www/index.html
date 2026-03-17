@@ -41,25 +41,19 @@
             </header>
 
             <div class="status-panel">
-                <button id="restart-btn" class="btn-circular-restart" title="重新推演">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
-                        <path
-                            d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-                    </svg>
-                </button>
-
-                <div class="stats-grid" style="display:flex; justify-content:space-between; gap:10px;">
-                    <div class="stat-box"
-                        style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
+                <div class="stats-grid" style="display:flex; gap:10px;">
+                    <div class="stat-box" style="flex:1; background:rgba(255,255,255,0.05); padding:12px 15px; border-radius:16px; text-align:left; position:relative;">
                         <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-bottom:5px;">当前得分 | 连击</div>
-                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="score">0</span> <span
-                                style="opacity:0.3; margin:0 4px;">|</span> <span id="combo">0</span></div>
+                        <div style="font-size:20px; font-weight:800; color:#fff;"><span id="score">0</span> <span style="opacity:0.3; margin:0 4px;">|</span> <span id="combo">0</span></div>
+                        
+                        <button id="restart-btn" class="btn-mini-restart" title="重新开始">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                        </button>
                     </div>
-                    <div class="stat-box"
-                        style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
+
+                    <div class="stat-box" style="flex:1; background:rgba(255,255,255,0.05); padding:12px 15px; border-radius:16px; text-align:right;">
                         <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-bottom:5px;">最高得分 | 最高连击</div>
-                        <div style="font-size:18px; font-weight:800; color:#fff;"><span id="best-score">0</span> <span
-                                style="opacity:0.3; margin:0 4px;">|</span> <span id="max-combo">0</span></div>
+                        <div style="font-size:20px; font-weight:800; color:#fff;"><span id="best-score">0</span> <span style="opacity:0.3; margin:0 4px;">|</span> <span id="max-combo">0</span></div>
                     </div>
                 </div>
             </div>

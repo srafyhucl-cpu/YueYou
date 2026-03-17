@@ -516,7 +516,7 @@ window._showToast = (e, text) => {
             B("btn-close-chapters", () => { if (C) C.classList.add("hidden"); });
             B("btn-idle-import", () => { renderLibrary(); if (V) V.classList.remove("hidden"); });
             B("restart-btn", async () => { 
-                if (await window._showConfirm("重组系统架构？", "当前游戏进度将重置，所有合并记录将归零，是否继续？")) { 
+                if (await window._showConfirm("进行系统重构？", "当前演变进度将归零，是否确认重新开始？")) { 
                     window._forceRestartGame();
                 } 
             });
@@ -527,7 +527,7 @@ window._showToast = (e, text) => {
                 if (p.over) {
                     // 若已结束且未在显示弹窗，则唤起重开确认
                     if (!window._isModalActive) {
-                        window._showConfirm("演化终止", "当前熵值已达极限。是否重启系统演化进程？").then(ok => {
+                        window._showConfirm("演变停滞", "当前系统熵值已达上限。是否重置系统并开启新一轮演化？").then(ok => {
                             if (ok) window._forceRestartGame();
                         });
                     }
@@ -544,7 +544,7 @@ window._showToast = (e, text) => {
                     
                     // 核心：若此次移动导致游戏结束，立即触发弹窗
                     if (p.over) {
-                        window._showConfirm("演化终止", "熵増无法逆转。是否重启系统演化进程？").then(ok => {
+                        window._showConfirm("演变停滞", "系统熵增已不可逆转。是否开启下一轮演化副本？").then(ok => {
                             if (ok) window._forceRestartGame();
                         });
                     }
