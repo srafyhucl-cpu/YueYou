@@ -59,30 +59,33 @@ window.generateCoverGradient = (title) => {
 // ==========================================
 // 赛博 HUD 状态栏引擎 (系统时间与硬件电量感知)
 // ==========================================
+// ==========================================
+// 赛博 HUD 状态栏引擎 (系统时间与原生电量感知)
+// ==========================================
 window.initCyberHUD = () => {
     const timeEl = document.getElementById('sys-time');
     const batEl = document.getElementById('sys-battery');
     const batIcon = document.getElementById('sys-battery-icon');
     
-    // 1. 时钟引擎
-    const updateTime = () => {
-        if (!timeEl) return;
-        const now = new Date();
-        timeEl.innerText = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    };
-    updateTime();
-    setInterval(updateTime, 1000);
+    // 定时轮询：每隔 10 秒同时刷新时间和电量，极其轻量
+    const updateHUD = async () => {
+        // 1. 刷新时间
+        if (timeEl) {
+            const now = new Date();
+            timeEl.innerText = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        }
 
-    // 2. 硬件电量感知 (Web Battery API)
-    if ('getBattery' in navigator) {
-        navigator.getBattery().then(battery => {
-            const updateBattery = () => {
-                if (!batEl || !batIcon) return;
-                let level = Math.floor(battery.level * 100);
-                batEl.innerText = `PWR ${level}%`;
+        // 2. 刷新原生硬件电量 (利用 Capacitor Device API)
+        if (batEl && batIcon && window.Capacitor && window.Capacitor.Plugins.Device) {
+            try {
+                const info = await window.Capacitor.Plugins.Device.getBatteryInfo();
+                // 某些安卓机型返回的是 0~1 的小数，有些是整数，这里做归一化兼容
+                let level = info.batteryLevel <= 1 ? Math.floor(info.batteryLevel * 100) : Math.floor(info.batteryLevel);
                 
+                batEl.innerText = `PWR ${level}%`;
                 batEl.className = ''; batIcon.className = '';
-                if (battery.charging) {
+                
+                if (info.isCharging) {
                     batIcon.innerText = '⚡';
                     batEl.classList.add('sys-charging');
                     batIcon.classList.add('sys-charging');
@@ -93,15 +96,16 @@ window.initCyberHUD = () => {
                 } else {
                     batIcon.innerText = '🔋';
                 }
-            };
-            updateBattery();
-            battery.addEventListener('levelchange', updateBattery);
-            battery.addEventListener('chargingchange', updateBattery);
-        });
-    } else {
-        if (batEl) batEl.innerText = "SYS OK";
-        if (batIcon) batIcon.innerText = "🌐";
-    }
+            } catch (e) {
+                // 降级兜底
+                batEl.innerText = "SYS OK";
+                batIcon.innerText = "🌐";
+            }
+        }
+    };
+
+    updateHUD();
+    setInterval(updateHUD, 10000); // 10秒刷新一次足以满足时间与电量精度
 };
 
 let analyser = null;

@@ -163,43 +163,48 @@ body::after {
     flex-direction: column;
     overflow: hidden;
 }
-
-/* 顶部赛博 HUD 状态栏 (智能避让刘海) */
+/* 顶部赛博 HUD 状态栏 (绝对置顶，无视文档流) */
 .cyber-status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
-    /* 核心：利用系统环境变量避开刘海/摄像头，并加一点基础内边距 */
-    padding-top: calc(env(safe-area-inset-top) + 10px);
-    padding-bottom: 10px;
+    padding: 8px 18px; /* 紧贴物理屏幕最顶部边缘 */
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 800;
     color: rgba(34, 211, 238, 0.7);
     letter-spacing: 1px;
-    z-index: 100;
-    flex-shrink: 0;
+    z-index: 9999;
+    pointer-events: none; /* 穿透点击，防误触 */
 }
+
 .status-left, .status-right {
     display: flex;
     align-items: center;
     gap: 6px;
     text-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
 }
+
 .sys-charging { color: #43e97b !important; text-shadow: 0 0 8px rgba(67, 233, 123, 0.4) !important; }
 .sys-low { color: #ff4899 !important; text-shadow: 0 0 8px rgba(255, 72, 153, 0.4) !important; filter: drop-shadow(0 0 4px #ff4899); animation: pulseDot 1s infinite; }
 
-/* 顶部导航与身份 */
+/* 顶部导航与身份 (下推避让刘海和置顶状态栏) */
 .top-nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* 核心：利用安全区域变量向下推移，确保功能按钮不被摄像头遮挡 */
+    margin-top: calc(env(safe-area-inset-top) + 28px);
     margin-bottom: 25px;
     flex-wrap: nowrap;
     gap: 10px;
     flex-shrink: 0;
 }
+
 
 #game-viewport {
     display: flex;
