@@ -32,11 +32,9 @@ export class AudioManager {
 
         this.playbackRate = parseFloat(localStorage.getItem("setting_tts_rate") || "1.0");
         
-        // --- 系统级硬件 API 引擎初始化 ---
+        // --- 常亮引擎初始化 ---
         this.wakeLockObj = null;
-        this.initMediaSession();
-        
-        // 监听应用切回前台，自动恢复屏幕常亮锁
+        this.initMediaSession(); // 保留 MediaSession 支持
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && this.enabled) {
                 this.manageWakeLock(true);
@@ -301,11 +299,26 @@ export class AudioManager {
         this.startPrefetchLoop();
     }
 
+    async manageWakeLock(enable) {
+        try {
+            if (enable && 'wakeLock' in navigator) {
+                if (!this.wakeLockObj) this.wakeLockObj = await navigator.wakeLock.request('screen');
+            } else {
+                if (this.wakeLockObj) {
+                    await this.wakeLockObj.release();
+                    this.wakeLockObj = null;
+                }
+            }
+        } catch (err) {
+            console.warn('Wake Lock 申请失败:', err);
+        }
+    }
+
     setEnabled(enable) {
         this.enabled = enable;
         localStorage.setItem("setting_story_tts", enable ? "true" : "false");
         
-        // 核心挂载：同步屏幕常亮状态
+        // 核心挂载：同步触发常亮引擎
         this.manageWakeLock(enable);
 
         if (enable) {
