@@ -56,6 +56,54 @@ window.generateCoverGradient = (title) => {
     return `linear-gradient(135deg, hsl(${h1}, 80%, 60%), hsl(${h2}, 80%, 40%))`;
 };
 
+// ==========================================
+// 赛博 HUD 状态栏引擎 (系统时间与硬件电量感知)
+// ==========================================
+window.initCyberHUD = () => {
+    const timeEl = document.getElementById('sys-time');
+    const batEl = document.getElementById('sys-battery');
+    const batIcon = document.getElementById('sys-battery-icon');
+    
+    // 1. 时钟引擎
+    const updateTime = () => {
+        if (!timeEl) return;
+        const now = new Date();
+        timeEl.innerText = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    };
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // 2. 硬件电量感知 (Web Battery API)
+    if ('getBattery' in navigator) {
+        navigator.getBattery().then(battery => {
+            const updateBattery = () => {
+                if (!batEl || !batIcon) return;
+                let level = Math.floor(battery.level * 100);
+                batEl.innerText = `PWR ${level}%`;
+                
+                batEl.className = ''; batIcon.className = '';
+                if (battery.charging) {
+                    batIcon.innerText = '⚡';
+                    batEl.classList.add('sys-charging');
+                    batIcon.classList.add('sys-charging');
+                } else if (level <= 20) {
+                    batIcon.innerText = '⚠️';
+                    batEl.classList.add('sys-low');
+                    batIcon.classList.add('sys-low');
+                } else {
+                    batIcon.innerText = '🔋';
+                }
+            };
+            updateBattery();
+            battery.addEventListener('levelchange', updateBattery);
+            battery.addEventListener('chargingchange', updateBattery);
+        });
+    } else {
+        if (batEl) batEl.innerText = "SYS OK";
+        if (batIcon) batIcon.innerText = "🌐";
+    }
+};
+
 let analyser = null;
 let visualizerCtx = null;
 
@@ -231,6 +279,9 @@ window._showToast = (e, text) => {
             if (it) it.oninput = (e) => updateSetting('idleTimeout', parseInt(e.target.value));
         };
         initSettingsListeners();
+        
+        // 唤醒 HUD 状态栏
+        window.initCyberHUD();
 
         B("btn-settings", () => { syncSettingsUI(); if (S) S.classList.remove("hidden"); });
         B("close-settings", () => { 
