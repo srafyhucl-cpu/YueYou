@@ -163,6 +163,7 @@ body::after {
     flex-direction: column;
     overflow: hidden;
 }
+
 /* 顶部赛博 HUD 状态栏 (绝对置顶，无视文档流) */
 .cyber-status-bar {
     position: absolute;
@@ -172,25 +173,37 @@ body::after {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 18px; /* 紧贴物理屏幕最顶部边缘 */
+    padding: 8px 18px;
+    /* 紧贴物理屏幕最顶部边缘 */
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 800;
     color: rgba(34, 211, 238, 0.7);
     letter-spacing: 1px;
     z-index: 9999;
-    pointer-events: none; /* 穿透点击，防误触 */
+    pointer-events: none;
+    /* 穿透点击，防误触 */
 }
 
-.status-left, .status-right {
+.status-left,
+.status-right {
     display: flex;
     align-items: center;
     gap: 6px;
     text-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
 }
 
-.sys-charging { color: #43e97b !important; text-shadow: 0 0 8px rgba(67, 233, 123, 0.4) !important; }
-.sys-low { color: #ff4899 !important; text-shadow: 0 0 8px rgba(255, 72, 153, 0.4) !important; filter: drop-shadow(0 0 4px #ff4899); animation: pulseDot 1s infinite; }
+.sys-charging {
+    color: #43e97b !important;
+    text-shadow: 0 0 8px rgba(67, 233, 123, 0.4) !important;
+}
+
+.sys-low {
+    color: #ff4899 !important;
+    text-shadow: 0 0 8px rgba(255, 72, 153, 0.4) !important;
+    filter: drop-shadow(0 0 4px #ff4899);
+    animation: pulseDot 1s infinite;
+}
 
 /* 顶部导航与身份 (下推避让刘海和置顶状态栏) */
 .top-nav {
@@ -328,10 +341,12 @@ body::after {
 /* 状态面板 - 核心毛玻璃 */
 .status-panel {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-    border-radius: 20px; 
-    padding: 12px; /* 消除面板内巨大的留白 */
+    border-radius: 20px;
+    padding: 12px;
+    /* 消除面板内巨大的留白 */
     border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-bottom: 12px; /* 拉近与下方棋盘的距离 */
+    margin-bottom: 12px;
+    /* 拉近与下方棋盘的距离 */
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     flex-shrink: 0;
@@ -365,7 +380,8 @@ body::after {
 
 .stats-grid {
     display: flex;
-    margin-top: 0 !important; /* 清除不必要的上边距 */
+    margin-top: 0 !important;
+    /* 清除不必要的上边距 */
     overflow: hidden;
 }
 
@@ -387,11 +403,13 @@ body::after {
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     z-index: 10;
 }
+
 .btn-mini-restart:active {
     transform: translateY(-50%) rotate(-90deg) scale(0.85);
     background: rgba(236, 72, 153, 0.4);
     border-color: rgba(236, 72, 153, 0.8);
 }
+
 .btn-mini-restart svg {
     transition: fill 0.2s;
 }
@@ -1776,13 +1794,25 @@ body::after {
 }
 
 @keyframes modal-bg-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes modal-scale-in {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* 弹窗激活时的背景置灰效果 */
@@ -1947,7 +1977,8 @@ body.modal-open #app {
 /* 归一化重构：提示框系统 (Toast) - 高性能 CSS 居中方案 */
 .floating-tooltip {
     position: fixed;
-    top: 15%; /* 统一显示在屏幕上方，避开灵动岛和键盘 */
+    top: 15%;
+    /* 统一显示在屏幕上方，避开灵动岛和键盘 */
     left: 50%;
     transform: translate(-50%, 0);
     background: rgba(12, 12, 20, 0.95);
@@ -1955,7 +1986,7 @@ body.modal-open #app {
     -webkit-backdrop-filter: blur(15px);
     color: #fff;
     padding: 12px 24px;
-    border-radius: 50px; 
+    border-radius: 50px;
     border: 1px solid rgba(255, 255, 255, 0.15);
     font-size: 14px;
     font-weight: 600;
@@ -1967,10 +1998,25 @@ body.modal-open #app {
 }
 
 @keyframes toast-in-out {
-    0% { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
-    15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-    85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -15px) scale(0.9); }
+    0% {
+        opacity: 0;
+        transform: translate(-50%, 20px) scale(0.9);
+    }
+
+    15% {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+
+    85% {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -15px) scale(0.9);
+    }
 }
 
 .capsule-visualizer {
@@ -1995,8 +2041,16 @@ body.modal-open #app {
 }
 
 @keyframes capsuleScroll {
-    0%, 15% { transform: translateX(0); }
-    85%, 100% { transform: translateX(var(--scroll-dist)); }
+
+    0%,
+    15% {
+        transform: translateX(0);
+    }
+
+    85%,
+    100% {
+        transform: translateX(var(--scroll-dist));
+    }
 }
 
 /* 灵动岛内嵌的倍速按钮美学 */
@@ -2012,7 +2066,7 @@ body.modal-open #app {
     transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     font-family: 'JetBrains Mono', monospace;
     flex-shrink: 0;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     z-index: 2;
 }
 
@@ -2040,7 +2094,8 @@ body.modal-open #app {
 }
 
 .btn-circular-restart:active {
-    transform: rotate(-90deg) scale(0.85); /* 酷炫的逆时针旋转特效 */
+    transform: rotate(-90deg) scale(0.85);
+    /* 酷炫的逆时针旋转特效 */
     background: rgba(255, 60, 60, 0.25);
     border-color: rgba(255, 60, 60, 0.5);
 }
@@ -2052,44 +2107,62 @@ body.modal-open #app {
 .spinning {
     animation: loading-rotate 1s linear infinite;
 }
+
 @keyframes loading-rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* =========================================
-   全面屏“重力下压”布局与正方形绝对防御
+   全面屏“底部引力”终极布局
    ========================================= */
+
 #game-viewport {
-    justify-content: flex-start !important; 
-    padding-bottom: calc(env(safe-area-inset-bottom) + 15px) !important;
+    justify-content: flex-start !important;
 }
 
-.top-nav { margin-bottom: 12px !important; }
-
-.status-panel { 
-    /* 核心黑魔法：把面板下方多余的空白全部霸占，从而把棋盘和播放器狠狠地压到屏幕最下方！ */
-    margin-bottom: auto !important; 
+/* 顶部导航与计分板 */
+.top-nav {
+    margin-bottom: 12px !important;
 }
 
-/* 2048 棋盘容器：绝对防御，强制正方形 */
+.status-panel {
+    /* 核心黑魔法：把计分板和下方元素彻底推开，制造屏幕中部的巨大留白 */
+    margin-bottom: auto !important;
+}
+
+/* 2048 棋盘容器：死死压在提词器正上方 */
 .game-container {
     width: 100%;
-    aspect-ratio: 1 / 1 !important; 
-    flex-shrink: 0 !important;      
+    aspect-ratio: 1 / 1 !important;
+    flex-shrink: 0 !important;
     margin-top: 0 !important;
-    margin-bottom: 15px !important; /* 紧贴下方的提词器 */
+    /* 核心修改 1：极其微小的下边距，让棋盘紧紧贴住提词器 */
+    margin-bottom: 5px !important;
 }
-.grid-container { width: 100%; height: 100%; aspect-ratio: 1 / 1 !important; }
+
+.grid-container {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1 !important;
+}
 
 /* =========================================
-   单行赛博提词器 (滚动 + KTV 变色)
+   单行赛博提词器 (极窄高度 + 紧贴灵动岛)
    ========================================= */
 .cyber-subtitle-container {
     width: 100%;
-    height: 24px;
-    /* 🚨 核心修复：为底部悬浮的灵动岛预留 85px 的防撞高度，并兼容全面屏底部小白条 */
-    margin-bottom: calc(env(safe-area-inset-bottom) + 85px) !important; 
+    /* 核心修改 2：高度收缩到约 1.5 行字的大小 (28px)，极其精致 */
+    height: 28px;
+    /* 核心修改 3：物理防撞区。
+       💡 如果保存后发现提词器和灵动岛之间还有缝隙，就把这里的 75px 改小 (比如 65px)；
+       💡 如果提词器被灵动岛盖住了一点点，就把 75px 改大 (比如 85px)。*/
+    margin-bottom: calc(env(safe-area-inset-bottom) + 55px) !important;
     display: flex;
     align-items: center;
     overflow: hidden;
@@ -2100,21 +2173,76 @@ body.modal-open #app {
 #cyber-subtitle-text {
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
     font-size: 14px;
-    white-space: nowrap !important; /* 核心：绝对单行，绝不换行 */
+    white-space: nowrap !important;
+    /* 绝对单行 */
     font-weight: 300;
     letter-spacing: 1px;
-    position: absolute; /* 脱离文档流，交由 JS 控制滚动偏移 */
-    
-    /* KTV 变色高亮核心：基于 JS 传来的 --read-progress 变量 */
+    position: absolute;
+
+    /* KTV 变色高亮 */
     background: linear-gradient(90deg, #22d3ee var(--read-progress, 0%), rgba(255, 255, 255, 0.3) var(--read-progress, 0%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    color: transparent; 
+    color: transparent;
 }
 
 #cyber-subtitle-text::after {
     content: ' █';
-    -webkit-text-fill-color: #22d3ee; 
+    -webkit-text-fill-color: #22d3ee;
     animation: cyber-blink 1s step-end infinite;
+}
+
+/* =========================================
+   消除棋盘与提词器之间的“隐形结界”
+   ========================================= */
+
+/* 1. 剥夺游戏主视图的底部留白 */
+.game-view {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* 2. 剥夺棋盘容器的底层抗拒力 */
+.game-container {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* 3. 剥夺提词器的顶部抗拒力，使其主动向上吸附 */
+.cyber-subtitle-container {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* =========================================
+   终极猎杀：彻底消除棋盘与提词器之间的隐形墙壁
+   ========================================= */
+
+/* 1. 消除最外层大容器可能存在的隐式 gap 列间距 */
+#game-viewport {
+    gap: 0 !important;
+}
+
+/* 2. 剥夺 game-view 的膨胀权，强制它像紧身衣一样包裹棋盘，绝不允许多占 1px */
+.game-view {
+    flex: 0 0 auto !important; /* 绝对禁止伸缩 */
+    height: auto !important;
+    min-height: 0 !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    display: block !important; /* 取消它内部的 flex 居中机制，防止高度溢出 */
+}
+
+/* 3. 微调棋盘底部间距，与下方保持视觉统一 */
+.game-container {
+    /* 将之前的 0 改为 18px，这个数值通常能完美呼应下方的视觉留白 */
+    margin-bottom: 18px !important; 
+    padding-bottom: 0 !important;
+}
+
+/* 4. 强制提词器向上吸附 */
+.cyber-subtitle-container {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
 }
