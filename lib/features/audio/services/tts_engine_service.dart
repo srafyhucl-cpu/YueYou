@@ -19,6 +19,7 @@ class TtsEngineService extends ChangeNotifier {
   Completer<void>? _playInterruptCompleter;
 
   bool get isEnabled => _isEnabled;
+  bool get isPlaying => _isEnabled;
   bool get isSpeaking => _isSpeaking;
   bool get isBuffering => _isBuffering;
   double get playbackRate => _playbackRate;
@@ -29,6 +30,14 @@ class TtsEngineService extends ChangeNotifier {
   Future<TtsAudioRequest?> Function(int session)? onNeedPrefetch;
   FutureOr<void> Function(TtsAudioItem item)? onItemStarted;
   FutureOr<void> Function(TtsAudioItem item)? onItemFinished;
+
+  void play() {
+    setEnabled(true);
+  }
+
+  void pause() {
+    setEnabled(false);
+  }
 
   void setEnabled(bool enable) {
     if (_isEnabled == enable) {

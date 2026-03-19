@@ -50,10 +50,8 @@ class CyberPlayerConsole extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              reader.currentSentence ?? '神经链路已休眠',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            _LoopMarqueeText(
+                              text: reader.currentSentence ?? '神经链路已休眠',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 13,
@@ -61,14 +59,12 @@ class CyberPlayerConsole extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              ttsEngine.isEnabled
+                            _LoopMarqueeText(
+                              text: ttsEngine.isEnabled
                                   ? (ttsEngine.isBuffering
                                       ? '⏳ 神经数据连接中...'
                                       : reader.currentChapterTitle)
                                   : '轻触继续听',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xCC22D3EE),
                                 fontSize: 10,
@@ -150,6 +146,75 @@ class CyberPlayerConsole extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LoopMarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _LoopMarqueeText({required this.text, required this.style});
+
+  @override
+  State<_LoopMarqueeText> createState() => _LoopMarqueeTextState();
+}
+
+class _LoopMarqueeTextState extends State<_LoopMarqueeText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ClipRect(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              final double width = constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : MediaQuery.of(context).size.width;
+              final double offset = width * _controller.value;
+              return Transform.translate(
+                offset: Offset(-offset, 0),
+                child: Row(
+                  children: [
+                    Text(
+                      widget.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.visible,
+                      style: widget.style,
+                    ),
+                    const SizedBox(width: 32),
+                    Text(
+                      widget.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.visible,
+                      style: widget.style,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
