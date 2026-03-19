@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:provider/provider.dart';
 import '../../game_2048/providers/game_provider.dart';
 import '../../reader/presentation/widgets/teleprompter_view.dart';
@@ -97,7 +99,8 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: _buildInfoCard(
                 title: "当前得分 | 连击",
-                value: "${provider.score} | ${provider.combo}",
+                score: provider.score,
+                combo: provider.combo,
                 showReset: true,
                 onReset: () => provider.reset(),
               ),
@@ -107,7 +110,8 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: _buildInfoCard(
                 title: "最高得分 | 最高连击",
-                value: "${provider.bestScore} | ${provider.maxCombo}",
+                score: provider.bestScore,
+                combo: provider.maxCombo,
               ),
             ),
           ],
@@ -116,58 +120,110 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  /// 私有卡片样式生成器
+  /// 私有卡片样式生成器 - 注入原生毛玻璃与数字滚动动画
   Widget _buildInfoCard({
     required String title,
-    required String value,
+    required int score,
+    int combo = 0,
     bool showReset = false,
     VoidCallback? onReset,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      height: 90,
-      decoration: BoxDecoration(
-        color: CyberColors.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          height: 90,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
           ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                value,
+                title,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontFamily: 'JetBrains Mono',
+                  color: Colors.white38,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (showReset)
-                GestureDetector(
-                  onTap: onReset,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.white12,
-                      shape: BoxShape.circle,
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // 数字滚动动画 - 分数
+                        _buildAnimatedCounter(score),
+                        const Text(
+                          " | ",
+                          style: TextStyle(
+                            color: Colors.white24,
+                            fontSize: 18,
+                            fontFamily: 'JetBrains Mono',
+                          ),
+                        ),
+                        // 数字滚动动画 - 连击
+                        _buildAnimatedCounter(combo, isCombo: true),
+                      ],
                     ),
-                    child: const Icon(Icons.refresh, color: Colors.white, size: 18),
                   ),
+                  if (showReset)
+                    GestureDetector(
+                      onTap: onReset,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.refresh, color: Colors.white, size: 18),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 核心数字滚动组件
+  Widget _buildAnimatedCounter(int value, {bool isCombo = false}) {
+    return TweenAnimationBuilder<int>(
+      tween: IntTween(begin: 0, end: value),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      builder: (context, animatedValue, child) {
+        return Text(
+          "$animatedValue",
+          style: TextStyle(
+            color: isCombo ? CyberColors.neonPink : Colors.white,
+            fontSize: 20,
+            fontFamily: 'JetBrains Mono',
+            fontWeight: FontWeight.bold,
+            shadows: [
+              if (isCombo)
+                Shadow(
+                  color: CyberColors.pinkGlow.withOpacity(0.5),
+                  blurRadius: 8,
+                )
+              else
+                Shadow(
+                  color: Colors.white.withOpacity(0.3),
+                  blurRadius: 4,
                 ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -196,7 +252,13 @@ class DashboardScreen extends StatelessWidget {
                style: TextStyle(color: Colors.white54, fontSize: 12),
              ),
            ),
-           const Text("1.0x", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+           Text(
+             "1.0x",
+             style: (CyberTextStyles.gameGridNumber).copyWith(
+               color: Colors.white,
+               fontSize: 16,
+             ),
+           ),
          ],
        ),
      );

@@ -1,0 +1,7 @@
+# 告诉 GitHub：屏蔽所有跨平台模版代码的语言统计，把属于 Dart 的主场还给我！
+ios/* linguist-generated=true
+android/* linguist-generated=true
+windows/* linguist-generated=true
+linux/* linguist-generated=true
+macos/* linguist-generated=true
+web/* linguist-generated=true
