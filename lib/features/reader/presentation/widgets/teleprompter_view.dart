@@ -1,54 +1,89 @@
 import 'package:flutter/material.dart';
-import 'package:yueyou/core/theme/cyber_text_styles.dart';
-import 'package:yueyou/shared/widgets/cyber_cursor.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/theme/cyber_text_styles.dart';
+import '../../../../shared/widgets/cyber_cursor.dart';
+import '../../providers/reader_provider.dart';
 
-/// 提词器核心展示组件
-/// 重构目标：支持流式滚动，防止长文本在有限布局内溢出
+/// 提词器核心展示层
+/// 视觉：使用 AnimatedSwitcher + Fade + Slide 实现赛博残影动效
 class TeleprompterView extends StatelessWidget {
-  static const String _hardcodedText =
-      "城市在灰色的雨幕中颤抖。代码在天际线的流光中交织，那是一场名为‘协议’的永恒审判。杰克握紧了手中发烫的接口盒，神经链路里的电流正在疯狂反噬。他知道，在这个霓虹灯永远不熄灭的深渊里，每一次登入都是对灵魂的抵押。如果你能听见电子脉冲的跳动，那说明你已经成为了矩阵的一部分。别回头，那里只有被格式化的阴影和永不停止的循环。";
-
-  final int progressIndex;
-
-  const TeleprompterView({
-    super.key,
-    this.progressIndex = 40,
-  });
+  const TeleprompterView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (progressIndex > _hardcodedText.length) return const SizedBox.shrink();
-    
-    final String readPart = _hardcodedText.substring(0, progressIndex);
-    final String unreadPart = _hardcodedText.substring(progressIndex);
+    return Consumer<ReaderProvider>(
+      builder: (context, provider, child) {
+        // 1. 神经数据解析中状态
+        if (provider.isParsing) {
+          return const Center(
+            child: Text(
+              "🧩 正在连接神经数据链路...",
+              style: TextStyle(color: Colors.white30, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          );
+        }
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: RichText(
-          textAlign: TextAlign.justify,
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: readPart,
-                style: CyberTextStyles.teleprompterActive,
+        // 2. 空数据/等待接入状态
+        if (provider.sentences.isEmpty) {
+          return Center(
+            child: Opacity(
+              opacity: 0.5,
+              child: Text(
+                "等待数据流接入 [ _ ]",
+                style: CyberTextStyles.teleprompterDim.copyWith(fontSize: 16),
               ),
-              const WidgetSpan(
-                alignment: PlaceholderAlignment.middle,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.0),
-                  child: CyberCursor(),
+            ),
+          );
+        }
+
+        final String? text = provider.currentSentence;
+
+        // 3. 阅读主展示区域 - 支持手势步进，增加动画交互
+        return GestureDetector(
+          onTap: () => provider.nextSentence(), // 点击此处逻辑与老项目的点击切换 1:1 还原
+          child: Container(
+            width: double.infinity,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                // 工业级视觉：FadeTransition + 微小垂直平移 (SlideTransition)
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.0, 0.2), // 从下方微小滑入
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                    child: child,
+                  ),
+                );
+              },
+              child: RichText(
+                // 必须绑定 ValueKey<int>(provider.currentIndex) 才能触发 Widget 过场动画
+                key: ValueKey<int>(provider.currentIndex),
+                textAlign: TextAlign.left,
+                text: TextSpan(
+                  children: [
+                    const WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 8, bottom: 4),
+                        child: CyberCursor(width: 8, height: 22),
+                      ),
+                    ),
+                    TextSpan(
+                      text: text ?? "",
+                      style: CyberTextStyles.teleprompterActive,
+                    ),
+                  ],
                 ),
               ),
-              TextSpan(
-                text: unreadPart,
-                style: CyberTextStyles.teleprompterDim,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

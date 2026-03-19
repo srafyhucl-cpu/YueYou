@@ -1,22 +1,48 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
-import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:provider/provider.dart';
 import '../../game_2048/providers/game_provider.dart';
-import '../../reader/presentation/widgets/teleprompter_view.dart';
 import '../../game_2048/presentation/widgets/square_board.dart';
+import '../../reader/providers/reader_provider.dart';
+import '../../reader/presentation/widgets/teleprompter_view.dart';
+import '../../audio/services/tts_engine_service.dart';
+import '../../audio/presentation/widgets/cyber_player_console.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late final TtsEngineService _ttsEngine;
+
+  @override
+  void initState() {
+    super.initState();
+    _ttsEngine = TtsEngineService();
+  }
+
+  @override
+  void dispose() {
+    _ttsEngine.stopAll();
+    _ttsEngine.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 注入全局 Provider 状态管理，用于计分板实时刷新
-    return ChangeNotifierProvider(
-      create: (_) => GameProvider(),
+    // 注入多重 Provider 状态管理：游戏核心 + 阅读引擎 + 音频引擎
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => GameProvider()),
+        ChangeNotifierProvider.value(value: _ttsEngine),
+        ChangeNotifierProvider(create: (_) => ReaderProvider(_ttsEngine)),
+      ],
       child: Scaffold(
         backgroundColor: CyberColors.background,
         body: SafeArea(
@@ -25,7 +51,7 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 16),
-                // 1. 顶部 Nav 导航组 (虽然目前是静态，但保持骨架到位)
+                // 1. 顶部 Nav 导航组
                 _buildTopNavigation(),
                 const SizedBox(height: 24),
 
@@ -50,8 +76,8 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 
-                // 5. 底部播放器操作指示 (预留)
-                _buildBottomControlBar(),
+                // 5. 底部播放器操作指示 (复刻老项目 CyberPlayer)
+                const CyberPlayerConsole(),
                 const SizedBox(height: 12),
               ],
             ),
@@ -225,42 +251,5 @@ class DashboardScreen extends StatelessWidget {
         );
       },
     );
-  }
-
-  Widget _buildBottomControlBar() {
-     return Container(
-       height: 60,
-       width: double.infinity,
-       padding: const EdgeInsets.symmetric(horizontal: 20),
-       decoration: BoxDecoration(
-         color: CyberColors.cardBackground,
-         borderRadius: BorderRadius.circular(30),
-         border: Border.all(color: CyberColors.neonPink.withOpacity(0.3)),
-         boxShadow: [
-           BoxShadow(color: CyberColors.pinkGlow.withOpacity(0.1), blurRadius: 15)
-         ]
-       ),
-       child: Row(
-         children: [
-           const Icon(Icons.bar_chart, color: CyberColors.neonPink, size: 24),
-           const SizedBox(width: 16),
-           const Icon(Icons.pause, color: Colors.white, size: 28),
-           const SizedBox(width: 16),
-           const Expanded(
-             child: Text(
-               "神经数据流已同步...",
-               style: TextStyle(color: Colors.white54, fontSize: 12),
-             ),
-           ),
-           Text(
-             "1.0x",
-             style: (CyberTextStyles.gameGridNumber).copyWith(
-               color: Colors.white,
-               fontSize: 16,
-             ),
-           ),
-         ],
-       ),
-     );
   }
 }
