@@ -8,24 +8,55 @@ class ReaderProvider with ChangeNotifier {
   final TtsEngineService _ttsEngine;
   List<String> _sentences = [];
   int _currentIndex = 0;
+  int _fetchIndex = 0;
   bool _isParsing = false;
 
   ReaderProvider(this._ttsEngine) {
-    // 注入 TTS 获取文本回调，完美解决预取队列取词竞争
-    _ttsEngine.onNeedText = (session) async {
-      // 获取当前 fetchCursor 的文本，由 TTS 引擎自行维护 fetch 指针
-      // 此处逻辑与老代码 fetchCursor 同步
-      if (_sentences.isEmpty) return null;
-      // 这里的 logic 需注意：预取文本不一定就是当前正在播放的文本，
-      // 所以我们通过一个本地 fetchIndex 分离
-      return null; // 这里我们将使用直接控制的方式，由 TTS 主动触发 nextSentence()
+    _ttsEngine.onNeedPrefetch = (session) async {
+      if (_sentences.isEmpty) {
+        return null;
+      }
+      if (_fetchIndex >= _sentences.length) {
+        _fetchIndex = 0;
+      }
+      final int lineIndex = _fetchIndex;
+      final String text = _sentences[lineIndex].trim();
+      _fetchIndex = (_fetchIndex + 1) % _sentences.length;
+      if (text.isEmpty) {
+        return TtsAudioRequest(
+          lineIndex: lineIndex,
+          text: '',
+          title: currentChapterTitle,
+        );
+      }
+      return TtsAudioRequest(
+        lineIndex: lineIndex,
+        text: text,
+        title: currentChapterTitle,
+      );
+    };
+    _ttsEngine.onItemStarted = (item) {
+      if (_currentIndex != item.lineIndex) {
+        _currentIndex = item.lineIndex;
+        notifyListeners();
+      }
+    };
+    _ttsEngine.onItemFinished = (item) async {
+      if (_sentences.isEmpty) {
+        return;
+      }
+      _currentIndex = (_currentIndex + 1) % _sentences.length;
+      await _saveProgress();
+      notifyListeners();
     };
   }
 
   List<String> get sentences => _sentences;
   int get currentIndex => _currentIndex;
+  int get fetchIndex => _fetchIndex;
   bool get isParsing => _isParsing;
   TtsEngineService get ttsEngine => _ttsEngine;
+  String get currentChapterTitle => '当前章节';
 
   /// 进度引擎：当前进度百分比 (0.01 - 1.0)
   double get progress {
@@ -42,18 +73,17 @@ class ReaderProvider with ChangeNotifier {
   /// 核心加载方法：加载书籍并解析
   Future<void> loadBook(String rawText, {String? bookId}) async {
     if (_isParsing) return;
-    
+
     _isParsing = true;
     notifyListeners();
 
     try {
       _sentences = await TextParser.parse(rawText);
-      _currentIndex = 0; 
-      
-      // 解析完成，如果 TTS 已开启，自动启动首句预热
+      _currentIndex = 0;
+      _fetchIndex = 0;
+
       if (_ttsEngine.isEnabled) {
-        // 因涉及到复杂的双循环架构，此处我们通常通过重置 TTS Session 来生效
-        _ttsEngine.stopAll();
+        _ttsEngine.refreshSession();
       }
     } catch (e) {
       debugPrint("📖 神经数据加载异常 (ReaderProvider): $e");
@@ -66,44 +96,49 @@ class ReaderProvider with ChangeNotifier {
   /// 切换播放/暂停状态
   void toggleTTS() {
     _ttsEngine.setEnabled(!_ttsEngine.isEnabled);
-    notifyListeners();
   }
 
   /// 倍速切换桥接
   void cycleSpeed() {
     _ttsEngine.cycleSpeed();
-    notifyListeners();
   }
 
   /// 步进逻辑 - 进入下一句
-  void nextSentence() {
+  Future<void> nextSentence() async {
     if (_currentIndex < _sentences.length - 1) {
       _currentIndex++;
-      _saveProgress(); 
+      _fetchIndex = _currentIndex;
+      await _saveProgress();
+      if (_ttsEngine.isEnabled) {
+        _ttsEngine.refreshSession();
+      }
       notifyListeners();
     }
   }
 
   /// 步进逻辑 - 回退上一句
-  void previousSentence() {
+  Future<void> previousSentence() async {
     if (_currentIndex > 0) {
       _currentIndex--;
-      _saveProgress();
+      _fetchIndex = _currentIndex;
+      await _saveProgress();
+      if (_ttsEngine.isEnabled) {
+        _ttsEngine.refreshSession();
+      }
       notifyListeners();
     }
   }
 
   /// 跳转至指定索引进度
-  void jumpTo(int index) {
+  Future<void> jumpTo(int index) async {
     if (index >= 0 && index < _sentences.length) {
       _currentIndex = index;
-      _saveProgress();
-      notifyListeners();
-      // 如果正在播放，跳转后重置 TTS 会话，从新位置开始
+      _fetchIndex = index;
+      await _saveProgress();
       if (_ttsEngine.isEnabled) {
-        _ttsEngine.stopAll();
-        _ttsEngine.setEnabled(true);
+        _ttsEngine.refreshSession();
       }
+      notifyListeners();
     }
   }
 
