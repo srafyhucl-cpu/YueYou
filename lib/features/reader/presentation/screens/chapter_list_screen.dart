@@ -16,19 +16,19 @@ class ChapterListScreen extends StatefulWidget {
 
 class _ChapterListScreenState extends State<ChapterListScreen> {
   bool _reversed = false;
-  final ScrollController _scrollController = ScrollController();
+  ScrollController? _scrollController;
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _scrollController?.dispose();
     super.dispose();
   }
 
-  void _scrollToCurrentChapter(ReaderProvider reader) {
-    if (!_scrollController.hasClients) return;
-
+  ScrollController _createScrollController(ReaderProvider reader) {
     final chapters = reader.chapters;
-    if (chapters.isEmpty) return;
+    if (chapters.isEmpty) {
+      return ScrollController();
+    }
 
     // 找到当前章节索引
     int activeIdx = -1;
@@ -39,24 +39,17 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
       }
     }
 
-    if (activeIdx == -1) return;
+    if (activeIdx == -1) {
+      return ScrollController();
+    }
 
-    // 计算滚动位置（每个item高度约49px）
+    // O(1) 直接定位：创建时就设置初始偏移
     final targetIndex =
         _reversed ? (chapters.length - 1 - activeIdx) : activeIdx;
-    final itemHeight = 49.0;
+    const itemHeight = 56.0;
     final offset = targetIndex * itemHeight;
 
-    // 延迟滚动，确保列表已渲染
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          offset.clamp(0.0, _scrollController.position.maxScrollExtent),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    return ScrollController(initialScrollOffset: offset);
   }
 
   @override
@@ -164,13 +157,13 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
         final displayChapters =
             _reversed ? chapters.reversed.toList() : chapters;
 
-        // 自动滚动到当前章节
-        _scrollToCurrentChapter(reader);
+        // O(1) 极限性能：创建时直接定位
+        _scrollController ??= _createScrollController(reader);
 
         return ListView.builder(
           controller: _scrollController,
           itemCount: displayChapters.length,
-          itemExtent: 49.0, // 固定item高度，提升性能
+          itemExtent: 56.0, // 固定item高度，提升性能
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemBuilder: (ctx, i) {
             final chapter = displayChapters[i];

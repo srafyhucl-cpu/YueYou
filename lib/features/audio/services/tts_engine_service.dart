@@ -111,6 +111,8 @@ class TtsEngineService extends ChangeNotifier {
     _volume = _settings.ambientVol;
     _playbackRate = _settings.ttsRate;
 
+    // 音质调优：设置 pitch 为 1.05 提升听感
+    await _flutterTts.setPitch(1.05);
     _flutterTts.setVolume(_volume.clamp(0.0, 1.0));
     double hardwareRate = 0.5 * (_playbackRate / 1.0);
     _flutterTts.setSpeechRate(hardwareRate.clamp(0.1, 1.0));

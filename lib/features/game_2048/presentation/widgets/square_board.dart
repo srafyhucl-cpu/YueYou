@@ -1,11 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'tile_widget.dart';
 import 'board_reset_animation.dart';
-import 'floating_score.dart';
 
 /// 2048 棋盘主组件
 /// 物理引擎重构：Stack + AnimatedPositioned 实现丝滑滑动动画
@@ -16,102 +15,186 @@ class SquareBoard extends StatefulWidget {
   State<SquareBoard> createState() => _SquareBoardState();
 }
 
-class _SquareBoardState extends State<SquareBoard> {
+class _SquareBoardState extends State<SquareBoard>
+    with SingleTickerProviderStateMixin {
   Offset? _dragStart;
   Offset? _dragUpdate;
-  final List<Widget> _floatingScores = [];
-  int _previousScore = 0;
+  double _accumulatedDx = 0;
+  double _accumulatedDy = 0;
+  bool _hasMoved = false;
+  late AnimationController _tiltController;
+  late Animation<double> _tiltX;
+  late Animation<double> _tiltY;
+
+  @override
+  void initState() {
+    super.initState();
+    _tiltController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _tiltX = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
+    );
+    _tiltY = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tiltController.dispose();
+    super.dispose();
+  }
+
+  void _triggerTilt(Direction direction) {
+    const tiltAngle = 0.08; // 约5度
+    double targetX = 0;
+    double targetY = 0;
+
+    switch (direction) {
+      case Direction.up:
+        targetX = tiltAngle;
+        break;
+      case Direction.down:
+        targetX = -tiltAngle;
+        break;
+      case Direction.left:
+        targetY = tiltAngle;
+        break;
+      case Direction.right:
+        targetY = -tiltAngle;
+        break;
+    }
+
+    setState(() {
+      _tiltX = Tween<double>(begin: 0, end: targetX).animate(
+        CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
+      );
+      _tiltY = Tween<double>(begin: 0, end: targetY).animate(
+        CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
+      );
+    });
+
+    _tiltController.forward().then((_) => _tiltController.reverse());
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
 
-    // 检测分数变化，触发漂浮加分特效
-    if (provider.score > _previousScore && _previousScore > 0) {
-      final scoreDiff = provider.score - _previousScore;
-      _addFloatingScore(scoreDiff);
-    }
-    _previousScore = provider.score;
+    return AnimatedBuilder(
+      animation: _tiltController,
+      builder: (context, child) {
+        return Transform(
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateX(_tiltX.value)
+            ..rotateY(_tiltY.value),
+          alignment: Alignment.center,
+          child: child,
+        );
+      },
+      child: BoardResetAnimation(
+        triggerReset: provider.score == 0 && provider.combo == 0,
+        child: GestureDetector(
+          onPanStart: (d) {
+            _accumulatedDx = 0;
+            _accumulatedDy = 0;
+            _hasMoved = false;
+          },
+          onPanUpdate: (d) {
+            if (_hasMoved) return;
 
-    return BoardResetAnimation(
-      triggerReset: provider.score == 0 && provider.combo == 0,
-      child: GestureDetector(
-        onPanStart: (d) => _dragStart = d.localPosition,
-        onPanUpdate: (d) => _dragUpdate = d.localPosition,
-        onPanEnd: (d) {
-          if (_dragStart == null || _dragUpdate == null) return;
-          final dx = _dragUpdate!.dx - _dragStart!.dx;
-          final dy = _dragUpdate!.dy - _dragStart!.dy;
+            _accumulatedDx += d.delta.dx;
+            _accumulatedDy += d.delta.dy;
 
-          if (dx.abs() > 25 || dy.abs() > 25) {
-            if (dx.abs() > dy.abs()) {
-              provider.move(dx > 0 ? Direction.right : Direction.left);
-            } else {
-              provider.move(dy > 0 ? Direction.down : Direction.up);
+            // 电竞级响应：累积超过20像素立即触发
+            if (_accumulatedDx.abs() > 20 || _accumulatedDy.abs() > 20) {
+              Direction direction;
+              if (_accumulatedDx.abs() > _accumulatedDy.abs()) {
+                direction =
+                    _accumulatedDx > 0 ? Direction.right : Direction.left;
+              } else {
+                direction = _accumulatedDy > 0 ? Direction.down : Direction.up;
+              }
+              provider.move(direction);
+              _triggerTilt(direction);
+              _hasMoved = true;
             }
-          }
-          _dragStart = null;
-          _dragUpdate = null;
-        },
-        child: RepaintBoundary(
-          child: AspectRatio(
-            aspectRatio: 1.0,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final boardSize = constraints.maxWidth;
-                const padding = 16.0;
-                const spacing = 10.0;
-                final cellSize = (boardSize - padding * 2 - spacing * 3) / 4;
+          },
+          onPanEnd: (d) {
+            _dragStart = null;
+            _accumulatedDx = 0;
+            _accumulatedDy = 0;
+            _hasMoved = false;
+          },
+          child: RepaintBoundary(
+            child: AspectRatio(
+              aspectRatio: 1.0,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final boardSize = constraints.maxWidth;
+                  const padding = 16.0;
+                  const spacing = 10.0;
+                  final cellSize = (boardSize - padding * 2 - spacing * 3) / 4;
 
-                return Consumer<GameProvider>(
-                  builder: (context, provider, _) {
-                    return Container(
-                      padding: const EdgeInsets.all(padding),
-                      decoration: BoxDecoration(
-                        color: CyberColors.cardBackground,
+                  return Consumer<GameProvider>(
+                    builder: (context, provider, _) {
+                      return ClipRRect(
                         borderRadius: BorderRadius.circular(32.0),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.05),
-                          width: 1,
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          child: Container(
+                            clipBehavior: Clip.none,
+                            padding: const EdgeInsets.all(padding),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.04),
+                              borderRadius: BorderRadius.circular(32.0),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.12),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.5),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 10),
+                                )
+                              ],
+                            ),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                // 背景网格
+                                _buildBackgroundGrid(cellSize, spacing),
+                                // 动画方块层
+                                ...provider.board
+                                    .expand((row) => row)
+                                    .where((tile) => tile != null)
+                                    .map((tile) {
+                                  final pos =
+                                      _findTilePosition(provider.board, tile!);
+                                  return AnimatedPositioned(
+                                    key: ValueKey(tile.id),
+                                    duration: const Duration(milliseconds: 150),
+                                    curve: Curves.easeOut,
+                                    left: pos.$2 * (cellSize + spacing),
+                                    top: pos.$1 * (cellSize + spacing),
+                                    width: cellSize,
+                                    height: cellSize,
+                                    child: TileWidget(value: tile.value),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
-                          )
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          // 背景网格
-                          _buildBackgroundGrid(cellSize, spacing),
-                          // 动画方块层
-                          ...provider.board
-                              .expand((row) => row)
-                              .where((tile) => tile != null)
-                              .map((tile) {
-                            final pos =
-                                _findTilePosition(provider.board, tile!);
-                            return AnimatedPositioned(
-                              key: ValueKey(tile.id),
-                              duration: const Duration(milliseconds: 150),
-                              curve: Curves.easeOut,
-                              left: pos.$2 * (cellSize + spacing),
-                              top: pos.$1 * (cellSize + spacing),
-                              width: cellSize,
-                              height: cellSize,
-                              child: TileWidget(value: tile.value),
-                            );
-                          }),
-                          // 漂浮加分特效层
-                          ..._floatingScores,
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -148,23 +231,5 @@ class _SquareBoardState extends State<SquareBoard> {
       }
     }
     return (0, 0);
-  }
-
-  void _addFloatingScore(int score) {
-    final key = UniqueKey();
-    final floatingScore = FloatingScore(
-      key: key,
-      score: score,
-      position: const Offset(100, 50), // 棋盘中心位置
-      onComplete: () {
-        setState(() {
-          _floatingScores.removeWhere((widget) => widget.key == key);
-        });
-      },
-    );
-
-    setState(() {
-      _floatingScores.add(floatingScore);
-    });
   }
 }

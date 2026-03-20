@@ -155,7 +155,7 @@ class GameProvider extends ChangeNotifier {
           }
         }
       }
-      SfxService.playMerge(mergedValue: maxMergedValue);
+      SfxService.playMerge(maxMergedValue);
     }
 
     // 获取移动向量 (溯源：JS L147-154)
@@ -239,7 +239,7 @@ class GameProvider extends ChangeNotifier {
 
       // 合并音效（对应 JS: if (result.mergedTiles.length > 0 && t.sound) l.playEffect('merge')）
       if (mergedTiles.isNotEmpty && soundEnabled) {
-        SfxService.playMerge();
+        SfxService.playMerge(0);
       }
       _persistState();
       notifyListeners();

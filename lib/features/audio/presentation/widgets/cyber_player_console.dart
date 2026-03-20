@@ -20,7 +20,6 @@ class CyberPlayerConsole extends StatelessWidget {
       builder: (context, reader, ttsEngine, bookshelf, child) {
         final String novelTitle = _getNovelTitle(reader, bookshelf);
         final String chapterName = reader.currentChapterTitle;
-        final String displayText = '《$novelTitle》 - $chapterName';
 
         return Padding(
           padding: const EdgeInsets.only(top: 15),
@@ -73,15 +72,34 @@ class CyberPlayerConsole extends StatelessWidget {
                             _buildPlayButton(reader, ttsEngine),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Text(
-                                displayText,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '《$novelTitle》',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.6),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    chapterName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 12),

@@ -100,7 +100,18 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 12),
         const _LabelRow(label: '发声人'),
         _VoiceSelector(settings: settings),
-        const SizedBox(height: 20),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            '💡 若音色无感情，请前往手机系统设置 -> 文本转语音 (TTS) 中切换系统高音质发音人',
+            style: TextStyle(
+              color: Color(0xFF8B5CF6),
+              fontSize: 11,
+              height: 1.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         const _SectionTitle(title: '省电管理'),
         _IdleTimeoutSelector(settings: settings),
       ],

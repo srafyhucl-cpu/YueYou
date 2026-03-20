@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/reader_provider.dart';
+import 'package:yueyou/features/reader/providers/reader_provider.dart';
 
 /// 提词器核心展示层
 /// 单行横向滚动，适中字体，无点击交互
@@ -10,11 +10,11 @@ class TeleprompterView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<ReaderProvider>(
-      builder: (context, provider, child) {
-        if (provider.isParsing) {
+      builder: (context, reader, _) {
+        if (reader.isParsing) {
           return const Center(
             child: Text(
-              "🧩 正在连接神经数据链路...",
+              "正在连接神经数据链路...",
               style: TextStyle(
                 color: Colors.white30,
                 fontSize: 16,
@@ -24,7 +24,7 @@ class TeleprompterView extends StatelessWidget {
           );
         }
 
-        if (provider.sentences.isEmpty) {
+        if (reader.sentences.isEmpty) {
           return Center(
             child: Text(
               "等待数据流接入 [ _ ]",
@@ -37,7 +37,7 @@ class TeleprompterView extends StatelessWidget {
           );
         }
 
-        final String text = provider.currentSentence ?? "";
+        final String text = reader.currentSentence ?? "";
 
         return Center(
           child: SingleChildScrollView(

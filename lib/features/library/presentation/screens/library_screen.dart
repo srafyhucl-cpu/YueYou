@@ -74,10 +74,10 @@ class LibraryScreen extends StatelessWidget {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           Icon(Icons.auto_stories_outlined, size: 64, color: Colors.white24),
           SizedBox(height: 16),
           Text(

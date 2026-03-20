@@ -1,5 +1,4 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// 物理音效引擎
@@ -14,24 +13,27 @@ class SfxService {
 
   /// 触发合并音效 —— 使用轻脆的触觉反馈
   /// 仅在 settings.sound == true 时调用
-  static Future<void> playMerge({int mergedValue = 0}) async {
+  static Future<void> playMerge(int mergedValue) async {
     if (!_enabled) return;
+
+    // 战区1.3: 找回合并音效 - 使用更强烈的触觉反馈
+    // 所有合并都使用 mediumImpact 确保清晰的反馈
+    if (mergedValue <= 64) {
+      await HapticFeedback.mediumImpact();
+    } else if (mergedValue <= 512) {
+      await HapticFeedback.heavyImpact();
+    } else {
+      // 超大合并：双重震动
+      await HapticFeedback.heavyImpact();
+      await Future.delayed(const Duration(milliseconds: 50));
+      await HapticFeedback.heavyImpact();
+    }
+
+    // 播放合并音效
     try {
       await _mergePlayer.play(AssetSource('audio/merge.mp3'));
-
-      // 听觉震感分级：根据合并数字大小使用不同强度的震动
-      if (mergedValue >= 1024) {
-        // 生成 1024 以上：重度震动
-        await HapticFeedback.heavyImpact();
-      } else if (mergedValue >= 128) {
-        // 生成 128 以上：中度震动
-        await HapticFeedback.mediumImpact();
-      } else {
-        // 小数字：轻度震动
-        await HapticFeedback.lightImpact();
-      }
     } catch (e) {
-      debugPrint('⚠️ SFX merge error: $e');
+      // 静默失败，不影响游戏
     }
   }
 

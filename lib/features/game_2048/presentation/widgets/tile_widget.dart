@@ -59,18 +59,29 @@ class _TileWidgetState extends State<TileWidget>
       scale: _scaleAnimation,
       child: Container(
         decoration: BoxDecoration(
-          color: _getTileColor(widget.value),
-          borderRadius: BorderRadius.circular(16.0),
+          gradient: _getTileGradient(widget.value),
+          borderRadius: BorderRadius.circular(14.0),
           boxShadow: _getDynamicGlow(widget.value),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.05),
+            width: 1,
+          ),
         ),
         alignment: Alignment.center,
         child: Text(
           '${widget.value}',
           style: TextStyle(
-            color: widget.value <= 4 ? Colors.black87 : Colors.white,
+            color: Colors.white,
             fontSize: _getFontSize(widget.value),
             fontWeight: FontWeight.w900,
             fontFamily: 'JetBrains Mono',
+            shadows: const [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
         ),
       ),
@@ -118,19 +129,69 @@ class _TileWidgetState extends State<TileWidget>
     ];
   }
 
-  /// 依据图一配置的赛博色彩映射表
-  Color _getTileColor(int val) {
+  /// 提取自旧版style.css的经典渐变配色
+  LinearGradient _getTileGradient(int val) {
     return switch (val) {
-      2 => CyberColors.tile2,
-      4 => CyberColors.tile4,
-      8 => CyberColors.tile8,
-      16 => CyberColors.tile16,
-      32 => CyberColors.tile32,
-      64 => CyberColors.tile64,
-      128 => CyberColors.tile128,
-      256 => CyberColors.tile256,
-      512 => CyberColors.tile512,
-      _ => CyberColors.neonPink,
+      2 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile2Start, CyberColors.tile2End],
+        ),
+      4 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile4Start, CyberColors.tile4End],
+        ),
+      8 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile8Start, CyberColors.tile8End],
+        ),
+      16 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile16Start, CyberColors.tile16End],
+        ),
+      32 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile32Start, CyberColors.tile32End],
+        ),
+      64 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile64Start, CyberColors.tile64End],
+        ),
+      128 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile128Start, CyberColors.tile128End],
+        ),
+      256 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile256Start, CyberColors.tile256End],
+        ),
+      512 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile512Start, CyberColors.tile512End],
+        ),
+      1024 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile1024Start, CyberColors.tile1024End],
+        ),
+      2048 => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.tile2048Start, CyberColors.tile2048End],
+        ),
+      _ => const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CyberColors.neonPink, CyberColors.neonPurple],
+        ),
     };
   }
 
