@@ -61,7 +61,23 @@ class ReaderProvider with ChangeNotifier {
   bool get isParsing => _isParsing;
   TtsEngineService get ttsEngine => _ttsEngine;
   List<ChapterModel> get chapters => _chapters;
-  String get currentChapterTitle => '当前章节';
+  String? get currentBookId => _currentBookId;
+
+  /// 计算当前章节标题（遍历 chapters，找到 lineIndex <= currentIndex 的最新章节）
+  String get currentChapterTitle {
+    if (_chapters.isEmpty) return '未知章节';
+
+    ChapterModel? currentChapter;
+    for (final chapter in _chapters) {
+      if (chapter.lineIndex <= _currentIndex) {
+        currentChapter = chapter;
+      } else {
+        break;
+      }
+    }
+
+    return currentChapter?.title ?? _chapters.first.title;
+  }
 
   /// 进度引擎：当前进度百分比 (0.01 - 1.0)
   double get progress {
@@ -77,7 +93,10 @@ class ReaderProvider with ChangeNotifier {
 
   /// 核心加载方法：加载书籍并解析
   Future<void> loadBook(String rawText,
-      {String? bookId, List<ChapterModel>? chapters}) async {
+      {String? bookId,
+      List<ChapterModel>? chapters,
+      int? initialIndex,
+      bool forceIndex = false}) async {
     if (_isParsing) return;
 
     _isParsing = true;
@@ -89,14 +108,22 @@ class ReaderProvider with ChangeNotifier {
       _chapters = chapters ?? [];
 
       // 恢复之前的阅读进度（对应 JS loadBookFromShelf 传入 cursor）
-      if (bookId != null) {
+      int targetIndex = 0;
+      if (forceIndex && initialIndex != null) {
+        targetIndex = initialIndex;
+      } else if (bookId != null) {
         final record = StorageService.getReadingRecord(bookId);
-        final savedCursor = (record['cursor'] as num?)?.toInt() ?? 0;
-        _currentIndex = savedCursor.clamp(
-            0, _sentences.isEmpty ? 0 : _sentences.length - 1);
-      } else {
-        _currentIndex = 0;
+        final total = (record['total'] as num?)?.toInt() ?? 0;
+        if (total > 1) {
+          targetIndex = (record['cursor'] as num?)?.toInt() ?? 0;
+        } else if (initialIndex != null) {
+          targetIndex = initialIndex;
+        }
+      } else if (initialIndex != null) {
+        targetIndex = initialIndex;
       }
+      _currentIndex =
+          targetIndex.clamp(0, _sentences.isEmpty ? 0 : _sentences.length - 1);
       _fetchIndex = _currentIndex;
 
       await StorageService.setCurrentNovelId(bookId);
@@ -172,5 +199,6 @@ class ReaderProvider with ChangeNotifier {
       _currentIndex,
       _sentences.length,
     );
+    await StorageService.setCurrentNovelIndex(_currentIndex);
   }
 }

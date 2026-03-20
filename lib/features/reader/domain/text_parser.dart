@@ -12,6 +12,11 @@ class TextParser {
   static List<String> _internalParse(String text) {
     if (text.trim().isEmpty) return [];
 
+    // 0. 预清洗：过滤连续标点符号，防止 TTS 读成"点点点点"
+    text = text.replaceAll(RegExp(r'\.{2,}'), '。');
+    text = text.replaceAll(RegExp(r'。{2,}'), '。');
+    text = text.replaceAll(RegExp(r'…{2,}'), '。');
+
     // 1. 预处理：按换行符拆分，过滤空白行，去除首尾冗余空格
     final lines = text
         .split(RegExp(r'\r?\n'))

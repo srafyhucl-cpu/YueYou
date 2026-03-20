@@ -10,19 +10,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 键名与旧版 JS 100% 对齐，保证未来双端迁移零成本
 class StorageService {
   // ── 键名（1:1 对应 JS localStorage key）───────────────────────────────────
-  static const String _kBestScore        = 'bestScore_premium';
-  static const String _kMaxCombo         = 'maxCombo';
-  static const String _kLocalSave        = 'local_save_data';
-  static const String _kBookshelf        = 'local_bookshelf';
-  static const String _kReadingRecords   = 'reading_records';
-  static const String _kCurrentNovelId   = 'current_novel_id';
+  static const String _kBestScore = 'bestScore_premium';
+  static const String _kMaxCombo = 'maxCombo';
+  static const String _kLocalSave = 'local_save_data';
+  static const String _kBookshelf = 'local_bookshelf';
+  static const String _kReadingRecords = 'reading_records';
+  static const String _kCurrentNovelId = 'current_novel_id';
+  static const String _kNovelIndex = 'novel_index';
+  static const String _kAuthToken = 'auth_token';
 
-  static const String _kSettingSound         = 'setting_sound';
-  static const String _kSettingStoryTts      = 'setting_story_tts';
-  static const String _kSettingVoice         = 'setting_voice';
-  static const String _kSettingIdleTimeout   = 'setting_idle_timeout';
-  static const String _kSettingTtsRate       = 'setting_tts_rate';
-  static const String _kSettingAmbientVol    = 'setting_ambient_vol';
+  static const String _kSettingSound = 'setting_sound';
+  static const String _kSettingStoryTts = 'setting_story_tts';
+  static const String _kSettingVoice = 'setting_voice';
+  static const String _kSettingIdleTimeout = 'setting_idle_timeout';
+  static const String _kSettingTtsRate = 'setting_tts_rate';
+  static const String _kSettingAmbientVol = 'setting_ambient_vol';
   static const String _kSettingAmbientEnabled = 'setting_ambient_enabled';
 
   static SharedPreferences? _prefs;
@@ -59,6 +61,10 @@ class StorageService {
     await _p.setString(_kLocalSave, jsonEncode(st));
     await _p.setInt(_kBestScore, bestScore);
     await _p.setInt(_kMaxCombo, maxCombo);
+    await _p.setInt(_kNovelIndex, novelIndex);
+    if (currentNovelId != null) {
+      await _p.setString(_kCurrentNovelId, currentNovelId);
+    }
   }
 
   static Map<String, dynamic>? loadGameState() {
@@ -72,7 +78,7 @@ class StorageService {
   }
 
   static int loadBestScore() => _p.getInt(_kBestScore) ?? 0;
-  static int loadMaxCombo()  => _p.getInt(_kMaxCombo) ?? 0;
+  static int loadMaxCombo() => _p.getInt(_kMaxCombo) ?? 0;
 
   // ── 书架元数据 (local_bookshelf) ──────────────────────────────────────────
   static Future<void> saveBookshelf(List<Map<String, dynamic>> shelf) async {
@@ -135,6 +141,22 @@ class StorageService {
 
   static String? getCurrentNovelId() => _p.getString(_kCurrentNovelId);
 
+  static int getCurrentNovelIndex() => _p.getInt(_kNovelIndex) ?? 0;
+
+  static Future<void> setCurrentNovelIndex(int index) async {
+    await _p.setInt(_kNovelIndex, index);
+  }
+
+  static String? getAuthToken() => _p.getString(_kAuthToken);
+
+  static Future<void> setAuthToken(String? token) async {
+    if (token == null || token.isEmpty) {
+      await _p.remove(_kAuthToken);
+    } else {
+      await _p.setString(_kAuthToken, token);
+    }
+  }
+
   // ── 书籍正文内容（替代 IndexedDB LocalDB.js）──────────────────────────────
   static Future<File> _bookFile(String bookId) async {
     final dir = await getApplicationDocumentsDirectory();
@@ -149,8 +171,8 @@ class StorageService {
     try {
       final file = await _bookFile(bookId);
       await file.parent.create(recursive: true);
-      await file.writeAsString(
-          jsonEncode({'lines': lines, 'chapters': chapters}));
+      await file
+          .writeAsString(jsonEncode({'lines': lines, 'chapters': chapters}));
     } catch (e, st) {
       debugPrint('StorageService.saveBookContent error: $e\n$st');
     }
@@ -175,24 +197,33 @@ class StorageService {
   }
 
   // ── 全局设置 ──────────────────────────────────────────────────────────────
-  static bool   getSettingSound()            => _p.getBool(_kSettingSound)              ?? true;
-  static Future<void> setSettingSound(bool v)    => _p.setBool(_kSettingSound, v);
+  static bool getSettingSound() => _p.getBool(_kSettingSound) ?? true;
+  static Future<void> setSettingSound(bool v) => _p.setBool(_kSettingSound, v);
 
-  static bool   getSettingStoryTts()         => _p.getBool(_kSettingStoryTts)           ?? true;
-  static Future<void> setSettingStoryTts(bool v) => _p.setBool(_kSettingStoryTts, v);
+  static bool getSettingStoryTts() => _p.getBool(_kSettingStoryTts) ?? true;
+  static Future<void> setSettingStoryTts(bool v) =>
+      _p.setBool(_kSettingStoryTts, v);
 
-  static String getSettingVoice()            => _p.getString(_kSettingVoice)            ?? 'zh-CN-XiaoxiaoNeural';
-  static Future<void> setSettingVoice(String v)  => _p.setString(_kSettingVoice, v);
+  static String getSettingVoice() =>
+      _p.getString(_kSettingVoice) ?? 'zh-CN-XiaoxiaoNeural';
+  static Future<void> setSettingVoice(String v) =>
+      _p.setString(_kSettingVoice, v);
 
-  static int    getSettingIdleTimeout()      => _p.getInt(_kSettingIdleTimeout)         ?? 1;
-  static Future<void> setSettingIdleTimeout(int v) => _p.setInt(_kSettingIdleTimeout, v);
+  static int getSettingIdleTimeout() => _p.getInt(_kSettingIdleTimeout) ?? 1;
+  static Future<void> setSettingIdleTimeout(int v) =>
+      _p.setInt(_kSettingIdleTimeout, v);
 
-  static double getSettingTtsRate()          => _p.getDouble(_kSettingTtsRate)          ?? 1.0;
-  static Future<void> setSettingTtsRate(double v)  => _p.setDouble(_kSettingTtsRate, v);
+  static double getSettingTtsRate() => _p.getDouble(_kSettingTtsRate) ?? 1.0;
+  static Future<void> setSettingTtsRate(double v) =>
+      _p.setDouble(_kSettingTtsRate, v);
 
-  static double getSettingAmbientVol()       => _p.getDouble(_kSettingAmbientVol)       ?? 0.5;
-  static Future<void> setSettingAmbientVol(double v) => _p.setDouble(_kSettingAmbientVol, v);
+  static double getSettingAmbientVol() =>
+      _p.getDouble(_kSettingAmbientVol) ?? 0.5;
+  static Future<void> setSettingAmbientVol(double v) =>
+      _p.setDouble(_kSettingAmbientVol, v);
 
-  static bool   getSettingAmbientEnabled()   => _p.getBool(_kSettingAmbientEnabled)     ?? true;
-  static Future<void> setSettingAmbientEnabled(bool v) => _p.setBool(_kSettingAmbientEnabled, v);
+  static bool getSettingAmbientEnabled() =>
+      _p.getBool(_kSettingAmbientEnabled) ?? true;
+  static Future<void> setSettingAmbientEnabled(bool v) =>
+      _p.setBool(_kSettingAmbientEnabled, v);
 }

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
+import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
+import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
+import 'voice_waveform.dart';
+import 'neon_progress_painter.dart';
 
 /// 阅游赛博控播台 (CyberPlayerConsole)
 /// 1:1 复刻 style.css 中的 .cyber-player 与 .bottom-controls 视觉设定
@@ -11,75 +15,82 @@ class CyberPlayerConsole extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<ReaderProvider, TtsEngineService>(
-      builder: (context, reader, ttsEngine, child) {
-        return Padding(
-          padding: const EdgeInsets.only(top: 15),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xD90A0A0F),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color.fromRGBO(255, 255, 255, 0.1),
-                    width: 1,
+    return Consumer3<ReaderProvider, TtsEngineService, BookshelfProvider>(
+      builder: (context, reader, ttsEngine, bookshelf, child) {
+        final String novelTitle = _getNovelTitle(reader, bookshelf);
+        final String chapterName = reader.currentChapterTitle;
+        final String displayText = '《$novelTitle》 - $chapterName';
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChapterListScreen()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(top: 15),
+            child: Stack(
+              children: [
+                CustomPaint(
+                  painter: NeonProgressPainter(
+                    progress: reader.progress,
+                    color: const Color(0xFF22D3EE),
+                    strokeWidth: 2.5,
                   ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(0, 0, 0, 0.4),
-                      blurRadius: 25,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    _buildPlayButton(reader, ttsEngine),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(minHeight: 32),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xD90A0A0F),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: const Color.fromRGBO(255, 255, 255, 0.1),
+                            width: 1,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color.fromRGBO(0, 0, 0, 0.4),
+                              blurRadius: 25,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
                           children: [
-                            _LoopMarqueeText(
-                              text: reader.currentSentence ?? '神经链路已休眠',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
+                            VoiceWaveform(
+                              isActive: ttsEngine.isSpeaking,
+                              color: const Color(0xFF22D3EE),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildPlayButton(reader, ttsEngine),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                displayText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            _LoopMarqueeText(
-                              text: ttsEngine.isEnabled
-                                  ? (ttsEngine.isBuffering
-                                      ? '⏳ 神经数据连接中...'
-                                      : reader.currentChapterTitle)
-                                  : '轻触继续听',
-                              style: const TextStyle(
-                                color: Color(0xCC22D3EE),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
+                            const SizedBox(width: 12),
+                            _buildSpeedCapsule(reader, ttsEngine),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    _buildSpeedCapsule(reader, ttsEngine),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         );
@@ -123,9 +134,20 @@ class CyberPlayerConsole extends StatelessWidget {
     );
   }
 
+  String _getNovelTitle(ReaderProvider reader, BookshelfProvider bookshelf) {
+    final bookId = reader.currentBookId;
+    if (bookId == null) return '阅游';
+    final book = bookshelf.shelf.cast<dynamic>().firstWhere(
+          (b) => b.id.toString() == bookId,
+          orElse: () => null,
+        );
+    return book?.displayTitle ?? '阅游';
+  }
+
   Widget _buildSpeedCapsule(ReaderProvider reader, TtsEngineService ttsEngine) {
     return GestureDetector(
       onTap: () => reader.cycleSpeed(),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
@@ -146,75 +168,6 @@ class CyberPlayerConsole extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LoopMarqueeText extends StatefulWidget {
-  final String text;
-  final TextStyle style;
-
-  const _LoopMarqueeText({required this.text, required this.style});
-
-  @override
-  State<_LoopMarqueeText> createState() => _LoopMarqueeTextState();
-}
-
-class _LoopMarqueeTextState extends State<_LoopMarqueeText>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return ClipRect(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              final double width = constraints.maxWidth.isFinite
-                  ? constraints.maxWidth
-                  : MediaQuery.of(context).size.width;
-              final double offset = width * _controller.value;
-              return Transform.translate(
-                offset: Offset(-offset, 0),
-                child: Row(
-                  children: [
-                    Text(
-                      widget.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.visible,
-                      style: widget.style,
-                    ),
-                    const SizedBox(width: 32),
-                    Text(
-                      widget.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.visible,
-                      style: widget.style,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
     );
   }
 }

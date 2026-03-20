@@ -6,10 +6,11 @@ import '../../game_2048/providers/game_provider.dart';
 import '../../game_2048/presentation/widgets/square_board.dart';
 import '../../reader/presentation/widgets/teleprompter_view.dart';
 import '../../audio/presentation/widgets/cyber_player_console.dart';
-import 'package:yueyou/features/library/presentation/widgets/cyber_import_button.dart';
 import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
 import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
+import 'package:yueyou/shared/widgets/cyber_modal.dart';
+import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
@@ -17,18 +18,37 @@ class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   void _openLibrary(BuildContext context) {
-    Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const LibraryScreen()));
+    showCyberModal(
+      context: context,
+      child: const LibraryScreen(),
+    );
   }
 
   void _openChapterList(BuildContext context) {
-    Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const ChapterListScreen()));
+    showCyberModal(
+      context: context,
+      child: const ChapterListScreen(),
+    );
   }
 
   void _openSettings(BuildContext context) {
-    Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    showCyberModal(
+      context: context,
+      child: const SettingsScreen(),
+    );
+  }
+
+  Future<void> _handleReset(BuildContext context) async {
+    final confirmed = await showCyberConfirmDialog(
+      context: context,
+      title: '重置棋盘',
+      message: '确定要重置当前游戏吗？所有进度将会丢失。',
+      confirmText: '确认重置',
+      cancelText: '取消',
+    );
+    if (confirmed && context.mounted) {
+      context.read<GameProvider>().reset();
+    }
   }
 
   @override
@@ -74,12 +94,6 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ),
             ),
-            // 2. 悬浮在右上角的赛博导入按钮！
-            const Positioned(
-              top: 16,
-              right: 16,
-              child: CyberImportButton(),
-            ),
           ],
         ),
       ),
@@ -94,7 +108,6 @@ class DashboardScreen extends StatelessWidget {
         _buildNavButton(context, "📚 图书馆", onTap: () => _openLibrary(context)),
         _buildNavButton(context, "📜 目录",
             onTap: () => _openChapterList(context)),
-        _buildNavButton(context, "🌌 星图", onTap: null),
         _buildNavButton(context, "⚙️ 设置", onTap: () => _openSettings(context)),
       ],
     );
@@ -105,18 +118,37 @@ class DashboardScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: CyberColors.cardBackground,
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF22D3EE).withOpacity(0.1),
+              const Color(0xFF8B5CF6).withOpacity(0.1),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(
+            color: const Color(0xFF22D3EE).withOpacity(0.3),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF22D3EE).withOpacity(0.15),
+              blurRadius: 8,
+              spreadRadius: 0,
+            ),
+          ],
         ),
         child: Text(
           label,
-          style: TextStyle(
-              color: onTap != null ? Colors.white : Colors.white38,
-              fontSize: 12,
-              fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+          ),
         ),
       ),
     );
@@ -135,7 +167,7 @@ class DashboardScreen extends StatelessWidget {
                 score: provider.score,
                 combo: provider.combo,
                 showReset: true,
-                onReset: () => provider.reset(),
+                onReset: () => _handleReset(context),
               ),
             ),
             const SizedBox(width: 12),

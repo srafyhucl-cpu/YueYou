@@ -135,6 +135,11 @@ class GameProvider extends ChangeNotifier {
     // 记录是否有任何合并发生，用于维护 combo
     List<Map<String, dynamic>> mergedTiles = [];
 
+    // 触发滑动音效（轻量级触觉反馈）
+    if (soundEnabled) {
+      SfxService.playMerge();
+    }
+
     // 获取移动向量 (溯源：JS L147-154)
     final vector = _getVector(direction);
     // 获取遍历顺序 (溯源：JS L155-161)
@@ -252,14 +257,89 @@ class GameProvider extends ChangeNotifier {
               if (t == null) return null;
               return <String, dynamic>{'id': t.id, 'value': t.value};
             }));
+    final int novelIndex = StorageService.getCurrentNovelIndex();
+    final String? currentNovelId = StorageService.getCurrentNovelId();
     StorageService.saveGameState(
       board: boardJson,
       score: score,
       combo: combo,
       bestScore: bestScore,
       maxCombo: maxCombo,
-      novelIndex: 0,
+      novelIndex: novelIndex,
+      currentNovelId: currentNovelId,
     );
+  }
+
+  /// 导出当前棋盘 JSON（用于云同步）
+  String exportBoardDataJson() {
+    final boardJson = List.generate(
+        size,
+        (r) => List.generate(size, (c) {
+              final t = board[r][c];
+              if (t == null) return null;
+              return <String, dynamic>{'id': t.id, 'value': t.value};
+            }));
+    return jsonEncode(boardJson);
+  }
+
+  /// 云端拉取后的状态灌入
+  void applyRemoteState({
+    required String boardData,
+    required int score,
+    int? novelIndex,
+    int? currentNovelId,
+  }) {
+    try {
+      final List<dynamic> rows = List<dynamic>.from(
+          (boardData.isNotEmpty ? jsonDecode(boardData) : null) ?? []);
+      if (rows.length != size) {
+        return;
+      }
+      board = List.generate(size, (r) {
+        final row = rows[r] as List<dynamic>;
+        return List.generate(size, (c) {
+          final cell = row[c];
+          if (cell == null) return null;
+          final m = cell as Map<String, dynamic>;
+          return TileModel(
+            id: (m['id'] as num).toInt(),
+            value: (m['value'] as num).toInt(),
+          );
+        });
+      });
+      this.score = score;
+      if (score > bestScore) {
+        bestScore = score;
+      }
+      int maxId = 0;
+      for (final row in board) {
+        for (final tile in row) {
+          if (tile != null && tile.id > maxId) maxId = tile.id;
+        }
+      }
+      _nextId = maxId + 1;
+
+      StorageService.saveGameState(
+        board: List.generate(
+            size,
+            (r) => List.generate(size, (c) {
+                  final t = board[r][c];
+                  if (t == null) return null;
+                  return <String, dynamic>{'id': t.id, 'value': t.value};
+                })),
+        score: this.score,
+        combo: combo,
+        bestScore: bestScore,
+        maxCombo: maxCombo,
+        novelIndex: novelIndex ?? StorageService.getCurrentNovelIndex(),
+        currentNovelId: currentNovelId != null
+            ? currentNovelId.toString()
+            : StorageService.getCurrentNovelId(),
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('GameProvider.applyRemoteState error: $e');
+    }
   }
 
   /// 在空格处添加随机块 (2 或 4)
