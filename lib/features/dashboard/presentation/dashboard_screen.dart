@@ -63,32 +63,21 @@ class DashboardScreen extends StatelessWidget {
               child: Column(
                 children: [
                   const SizedBox(height: 16),
-                  // 1. 顶部 Nav 导航组
+                  // 1. 顶部导航
                   _buildTopNavigation(context),
-                  const SizedBox(height: 24),
-
-                  // 2. 核心状态面板 (双子卡片式设计 - 实时分数)
+                  const SizedBox(height: 16),
+                  // 2. 状态面板
                   _buildStatusPanel(),
-                  const SizedBox(height: 24),
-
-                  // 3. 2048 核心战斗机舱 (1:1 响应式正方形网格)
-                  const Expanded(
-                    flex: 3,
-                    child: Center(
-                      child: SquareBoard(),
-                    ),
-                  ),
-
-                  // 4. 底部动态小说提词区 (文字流式渲染)
-                  const Expanded(
-                    flex: 1,
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: 24.0),
-                      child: TeleprompterView(),
-                    ),
-                  ),
-
-                  // 5. 底部播放器操作指示 (复刻老项目 CyberPlayer)
+                  const SizedBox(height: 16),
+                  // 3. 空白区域（把下面的组件全部往下压）
+                  const Expanded(child: SizedBox()),
+                  // 4. 2048 棋盘区域（紧凑布局，不拉伸）
+                  const SquareBoard(),
+                  const SizedBox(height: 16),
+                  // 5. 提词器区域（紧凑，不抢戏）
+                  const TeleprompterView(),
+                  const SizedBox(height: 16),
+                  // 6. 灵动岛胶囊
                   const CyberPlayerConsole(),
                   const SizedBox(height: 12),
                 ],
@@ -115,43 +104,7 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildNavButton(BuildContext context, String label,
       {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFF22D3EE).withOpacity(0.1),
-              const Color(0xFF8B5CF6).withOpacity(0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFF22D3EE).withOpacity(0.3),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF22D3EE).withOpacity(0.15),
-              blurRadius: 8,
-              spreadRadius: 0,
-            ),
-          ],
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ),
-    );
+    return _NavButton(label: label, onTap: onTap);
   }
 
   /// 构建仿旧版状态卡片组
@@ -160,9 +113,9 @@ class DashboardScreen extends StatelessWidget {
       builder: (context, provider, _) {
         return Row(
           children: [
-            // 左侧：实时分与连击情况
             Expanded(
               child: _buildInfoCard(
+                context,
                 title: "当前得分 | 连击",
                 score: provider.score,
                 combo: provider.combo,
@@ -171,9 +124,9 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // 右侧：战绩巅峰
             Expanded(
               child: _buildInfoCard(
+                context,
                 title: "最高得分 | 最高连击",
                 score: provider.bestScore,
                 combo: provider.maxCombo,
@@ -185,8 +138,8 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  /// 私有卡片样式生成器 - 注入原生毛玻璃与数字滚动动画
-  Widget _buildInfoCard({
+  Widget _buildInfoCard(
+    BuildContext context, {
     required String title,
     required int score,
     int combo = 0,
@@ -206,7 +159,7 @@ class DashboardScreen extends StatelessWidget {
             border: Border.all(color: Colors.white.withOpacity(0.1)),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
@@ -219,12 +172,13 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // 数字滚动动画 - 分数
                         _buildAnimatedCounter(score),
                         const Text(
                           " | ",
@@ -234,7 +188,6 @@ class DashboardScreen extends StatelessWidget {
                             fontFamily: 'JetBrains Mono',
                           ),
                         ),
-                        // 数字滚动动画 - 连击
                         _buildAnimatedCounter(combo, isCombo: true),
                       ],
                     ),
@@ -261,7 +214,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  /// 核心数字滚动组件
   Widget _buildAnimatedCounter(int value, {bool isCombo = false}) {
     return TweenAnimationBuilder<int>(
       tween: IntTween(begin: 0, end: value),
@@ -290,6 +242,73 @@ class DashboardScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _NavButton extends StatefulWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _NavButton({required this.label, this.onTap});
+
+  @override
+  State<_NavButton> createState() => _NavButtonState();
+}
+
+class _NavButtonState extends State<_NavButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF22D3EE).withOpacity(0.15),
+                const Color(0xFF8B5CF6).withOpacity(0.15),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: const Color(0xFF22D3EE).withOpacity(0.4),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF22D3EE).withOpacity(0.25),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: const Color(0xFF8B5CF6).withOpacity(0.15),
+                blurRadius: 8,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Text(
+            widget.label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

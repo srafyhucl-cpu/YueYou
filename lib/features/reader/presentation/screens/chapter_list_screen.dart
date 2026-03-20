@@ -110,6 +110,40 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           );
         }
 
+        final currentIndex = reader.currentIndex;
+
+        return ListView.builder(
+          itemCount: chapters.length,
+          itemBuilder: (context, index) {
+            final chapter = chapters[index];
+            final isCurrentChapter = currentIndex >= chapter.lineIndex &&
+                (index == chapters.length - 1 ||
+                    currentIndex < chapters[index + 1].lineIndex);
+
+            return _buildChapterItem(
+              context,
+              chapter,
+              index,
+              reader,
+              isCurrentChapter,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildChapterItem(
+    BuildContext context,
+    dynamic chapter,
+    int index,
+    ReaderProvider reader,
+    bool isCurrentChapter,
+  ) {
+    return Consumer<ReaderProvider>(
+      builder: (context, reader, _) {
+        final chapters = reader.chapters;
+
         // 判断当前活跃章节（对应 JS activeIdx 逻辑）
         int activeIdx = -1;
         for (int i = chapters.length - 1; i >= 0; i--) {
@@ -127,8 +161,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           itemCount: displayChapters.length,
           itemBuilder: (ctx, i) {
             final chapter = displayChapters[i];
-            final int originalIdx =
-                _reversed ? (chapters.length - 1 - i) : i;
+            final int originalIdx = _reversed ? (chapters.length - 1 - i) : i;
 
             final bool isActive = originalIdx == activeIdx;
             final bool isRead = originalIdx < activeIdx;
@@ -169,7 +202,7 @@ class _ChapterItem extends StatelessWidget {
     Color textColor = Colors.white54;
     if (isActive) {
       dotColor = CyberColors.neonPurple;
-      textColor = Colors.white;
+      textColor = CyberColors.neonPink;
     } else if (isRead) {
       dotColor = Colors.white38;
       textColor = Colors.white38;
@@ -184,28 +217,37 @@ class _ChapterItem extends StatelessWidget {
             bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
           ),
           color: isActive
-              ? CyberColors.neonPurple.withOpacity(0.08)
+              ? CyberColors.neonPink.withOpacity(0.1)
               : Colors.transparent,
         ),
         child: Row(
           children: [
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: dotColor,
+            if (isActive)
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: CyberColors.neonPink,
+                  size: 18,
+                ),
+              )
+            else
+              Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotColor,
+                ),
               ),
-            ),
             Expanded(
               child: Text(
                 title,
                 style: TextStyle(
-                  color: textColor,
+                  color: isActive ? CyberColors.neonPink : textColor,
                   fontSize: 14,
-                  fontWeight:
-                      isActive ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: isActive ? FontWeight.w900 : FontWeight.normal,
                 ),
               ),
             ),

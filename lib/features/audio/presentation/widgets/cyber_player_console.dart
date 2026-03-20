@@ -5,6 +5,7 @@ import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
+import '../../../../shared/widgets/cyber_modal.dart';
 import 'voice_waveform.dart';
 import 'neon_progress_painter.dart';
 
@@ -21,18 +22,19 @@ class CyberPlayerConsole extends StatelessWidget {
         final String chapterName = reader.currentChapterTitle;
         final String displayText = '《$novelTitle》 - $chapterName';
 
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ChapterListScreen()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(top: 15),
-            child: Stack(
-              children: [
-                CustomPaint(
+        return Padding(
+          padding: const EdgeInsets.only(top: 15),
+          child: Stack(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  showCyberModal(
+                    context: context,
+                    child: const ChapterListScreen(),
+                  );
+                },
+                behavior: HitTestBehavior.opaque,
+                child: CustomPaint(
                   painter: NeonProgressPainter(
                     progress: reader.progress,
                     color: const Color(0xFF22D3EE),
@@ -90,8 +92,8 @@ class CyberPlayerConsole extends StatelessWidget {
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

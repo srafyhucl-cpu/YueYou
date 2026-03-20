@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
+import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'tile_widget.dart';
 import 'board_reset_animation.dart';
 
 /// 2048 棋盘主组件
-/// 重构目标：纯粹的战斗网格，极致的性能与视觉
+/// 物理引擎重构：Stack + AnimatedPositioned 实现丝滑滑动动画
 class SquareBoard extends StatefulWidget {
   const SquareBoard({super.key});
 
@@ -15,13 +16,11 @@ class SquareBoard extends StatefulWidget {
 }
 
 class _SquareBoardState extends State<SquareBoard> {
-  // 手势追踪变量
   Offset? _dragStart;
   Offset? _dragUpdate;
 
   @override
   Widget build(BuildContext context) {
-    // 监听最近的 Provider (由 DashboardScreen 注入)
     final provider = context.watch<GameProvider>();
 
     return BoardResetAnimation(
@@ -47,42 +46,90 @@ class _SquareBoardState extends State<SquareBoard> {
         child: RepaintBoundary(
           child: AspectRatio(
             aspectRatio: 1.0,
-            child: Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: CyberColors.cardBackground,
-                borderRadius: BorderRadius.circular(32.0), // 对齐旧版的大圆角
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.05),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
-                  )
-                ],
-              ),
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                ),
-                itemCount: 16,
-                itemBuilder: (context, index) {
-                  final r = index ~/ 4;
-                  final c = index % 4;
-                  // 注意：这里不再传入简单的 int, 以便 TileWidget 能在未来实现更复杂的 ID 动画
-                  return TileWidget(value: provider.grid[r][c]);
-                },
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final boardSize = constraints.maxWidth;
+                final padding = 16.0;
+                final spacing = 10.0;
+                final cellSize = (boardSize - padding * 2 - spacing * 3) / 4;
+
+                return Container(
+                  padding: EdgeInsets.all(padding),
+                  decoration: BoxDecoration(
+                    color: CyberColors.cardBackground,
+                    borderRadius: BorderRadius.circular(32.0),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.05),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 30,
+                        offset: const Offset(0, 10),
+                      )
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      // 背景网格
+                      _buildBackgroundGrid(cellSize, spacing),
+                      // 动画方块层
+                      ...provider.board
+                          .expand((row) => row)
+                          .where((tile) => tile != null)
+                          .map((tile) {
+                        final pos = _findTilePosition(provider.board, tile!);
+                        return AnimatedPositioned(
+                          key: ValueKey(tile.id),
+                          duration: const Duration(milliseconds: 150),
+                          curve: Curves.easeOut,
+                          left: pos.$2 * (cellSize + spacing),
+                          top: pos.$1 * (cellSize + spacing),
+                          width: cellSize,
+                          height: cellSize,
+                          child: TileWidget(value: tile.value),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildBackgroundGrid(double cellSize, double spacing) {
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: spacing,
+        crossAxisSpacing: spacing,
+      ),
+      itemCount: 16,
+      itemBuilder: (context, index) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+        );
+      },
+    );
+  }
+
+  (int, int) _findTilePosition(List<List<TileModel?>> board, TileModel tile) {
+    for (int r = 0; r < board.length; r++) {
+      for (int c = 0; c < board[r].length; c++) {
+        if (board[r][c]?.id == tile.id) {
+          return (r, c);
+        }
+      }
+    }
+    return (0, 0);
   }
 }

@@ -49,9 +49,9 @@ class TeleprompterView extends StatelessWidget {
               overflow: TextOverflow.visible,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
             ),
           ),
