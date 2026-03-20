@@ -69,15 +69,15 @@ class DashboardScreen extends StatelessWidget {
                   // 2. 状态面板
                   _buildStatusPanel(),
                   const SizedBox(height: 16),
-                  // 3. 空白区域（把下面的组件全部往下压）
+                  // 空白区域：将下方组件全部向下挤压
                   const Expanded(child: SizedBox()),
-                  // 4. 2048 棋盘区域（紧凑布局，不拉伸）
+                  // 棋盘（紧凑，不拉伸）
                   const SquareBoard(),
                   const SizedBox(height: 16),
-                  // 5. 提词器区域（紧凑，不抢戏）
+                  // 提词器（紧凑，不抢戏）
                   const TeleprompterView(),
                   const SizedBox(height: 16),
-                  // 6. 灵动岛胶囊
+                  // 灵动岛胶囊
                   const CyberPlayerConsole(),
                   const SizedBox(height: 12),
                 ],

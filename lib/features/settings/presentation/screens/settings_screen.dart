@@ -67,7 +67,7 @@ class SettingsScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _SectionTitle(title: '游戏音效'),
+        const _SectionTitle(title: '游戏音效'),
         _ToggleTile(
           label: '合并音效',
           subtitle: '方块合并时播放提示音',
@@ -79,7 +79,7 @@ class SettingsScreen extends StatelessWidget {
           },
         ),
         const SizedBox(height: 20),
-        _SectionTitle(title: '语音播报'),
+        const _SectionTitle(title: '语音播报'),
         _ToggleTile(
           label: '自动朗读',
           subtitle: '自动播报当前小说内容',
@@ -95,13 +95,13 @@ class SettingsScreen extends StatelessWidget {
           },
         ),
         const SizedBox(height: 12),
-        _LabelRow(label: '播报倍速'),
+        const _LabelRow(label: '播报倍速'),
         _SpeedSelector(settings: settings),
         const SizedBox(height: 12),
-        _LabelRow(label: '发声人'),
+        const _LabelRow(label: '发声人'),
         _VoiceSelector(settings: settings),
         const SizedBox(height: 20),
-        _SectionTitle(title: '省电管理'),
+        const _SectionTitle(title: '省电管理'),
         _IdleTimeoutSelector(settings: settings),
       ],
     );

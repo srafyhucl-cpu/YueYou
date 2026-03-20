@@ -49,29 +49,13 @@ class YueYouApp extends StatelessWidget {
           },
         ),
 
-        // 4号：TTS 发声引擎（实时响应设置）
+        // 4号：TTS 发声引擎（通过内部监听器响应设置变化）
         ChangeNotifierProxyProvider<SettingsProvider, TtsEngineService>(
           create: (ctx) {
-            final tts = TtsEngineService();
             final settings = ctx.read<SettingsProvider>();
-            tts.applySettings(
-              storyTts: settings.storyTts,
-              ttsRate: settings.ttsRate,
-              voice: settings.voice,
-              volume: settings.ambientVol,
-            );
-            return tts;
+            return TtsEngineService(settings);
           },
-          update: (ctx, settings, prev) {
-            final tts = prev ?? TtsEngineService();
-            tts.applySettings(
-              storyTts: settings.storyTts,
-              ttsRate: settings.ttsRate,
-              voice: settings.voice,
-              volume: settings.ambientVol,
-            );
-            return tts;
-          },
+          update: (ctx, settings, prev) => prev ?? TtsEngineService(settings),
         ),
 
         // 5号：提词器解析引擎（ProxyProvider 注入 TTS 引擎）

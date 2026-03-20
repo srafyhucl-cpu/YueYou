@@ -51,31 +51,71 @@ class _TileWidgetState extends State<TileWidget>
 
   @override
   Widget build(BuildContext context) {
-    final bool isEmpty = widget.value == 0;
-    final color = _getTileColor(widget.value);
+    if (widget.value == 0) {
+      return const SizedBox.shrink();
+    }
 
     return ScaleTransition(
       scale: _scaleAnimation,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
+      child: Container(
         decoration: BoxDecoration(
-          color: isEmpty ? Colors.white.withOpacity(0.03) : color,
+          color: _getTileColor(widget.value),
           borderRadius: BorderRadius.circular(16.0),
+          boxShadow: _getDynamicGlow(widget.value),
         ),
-        child: Center(
-          child: Text(
-            isEmpty ? "" : widget.value.toString(),
-            style: TextStyle(
-              color: _getTextColor(widget.value),
-              fontSize: _getFontSize(widget.value),
-              fontWeight: FontWeight.w900,
-              fontFamily: 'JetBrains Mono',
-            ),
+        alignment: Alignment.center,
+        child: Text(
+          '${widget.value}',
+          style: TextStyle(
+            color: widget.value <= 4 ? Colors.black87 : Colors.white,
+            fontSize: _getFontSize(widget.value),
+            fontWeight: FontWeight.w900,
+            fontFamily: 'JetBrains Mono',
           ),
         ),
       ),
     );
+  }
+
+  /// 动态霓虹光晕：根据数字大小生成不同颜色的发光效果
+  List<BoxShadow> _getDynamicGlow(int value) {
+    Color glowColor;
+    double intensity;
+
+    if (value <= 16) {
+      // 暗蓝光
+      glowColor = const Color(0xFF3B82F6);
+      intensity = 8.0;
+    } else if (value <= 64) {
+      // 紫光
+      glowColor = const Color(0xFF8B5CF6);
+      intensity = 12.0;
+    } else if (value <= 256) {
+      // 粉红光
+      glowColor = const Color(0xFFEC4899);
+      intensity = 16.0;
+    } else if (value <= 1024) {
+      // 青色赛博光
+      glowColor = const Color(0xFF22D3EE);
+      intensity = 20.0;
+    } else {
+      // 金色传说光晕
+      glowColor = const Color(0xFFFFD700);
+      intensity = 24.0;
+    }
+
+    return [
+      BoxShadow(
+        color: glowColor.withOpacity(0.6),
+        blurRadius: intensity,
+        spreadRadius: 2,
+      ),
+      BoxShadow(
+        color: glowColor.withOpacity(0.3),
+        blurRadius: intensity * 1.5,
+        spreadRadius: 0,
+      ),
+    ];
   }
 
   /// 依据图一配置的赛博色彩映射表
@@ -92,11 +132,6 @@ class _TileWidgetState extends State<TileWidget>
       512 => CyberColors.tile512,
       _ => CyberColors.neonPink,
     };
-  }
-
-  Color _getTextColor(int val) {
-    if (val <= 4) return Colors.white60;
-    return Colors.white;
   }
 
   double _getFontSize(int val) {

@@ -15,7 +15,49 @@ class ChapterListScreen extends StatefulWidget {
 }
 
 class _ChapterListScreenState extends State<ChapterListScreen> {
-  bool _reversed = false; // 对应 JS window._chapterReversed
+  bool _reversed = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToCurrentChapter(ReaderProvider reader) {
+    if (!_scrollController.hasClients) return;
+
+    final chapters = reader.chapters;
+    if (chapters.isEmpty) return;
+
+    // 找到当前章节索引
+    int activeIdx = -1;
+    for (int i = chapters.length - 1; i >= 0; i--) {
+      if (reader.currentIndex >= chapters[i].lineIndex) {
+        activeIdx = i;
+        break;
+      }
+    }
+
+    if (activeIdx == -1) return;
+
+    // 计算滚动位置（每个item高度约49px）
+    final targetIndex =
+        _reversed ? (chapters.length - 1 - activeIdx) : activeIdx;
+    final itemHeight = 49.0;
+    final offset = targetIndex * itemHeight;
+
+    // 延迟滚动，确保列表已渲染
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          offset.clamp(0.0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,41 +152,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           );
         }
 
-        final currentIndex = reader.currentIndex;
-
-        return ListView.builder(
-          itemCount: chapters.length,
-          itemBuilder: (context, index) {
-            final chapter = chapters[index];
-            final isCurrentChapter = currentIndex >= chapter.lineIndex &&
-                (index == chapters.length - 1 ||
-                    currentIndex < chapters[index + 1].lineIndex);
-
-            return _buildChapterItem(
-              context,
-              chapter,
-              index,
-              reader,
-              isCurrentChapter,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildChapterItem(
-    BuildContext context,
-    dynamic chapter,
-    int index,
-    ReaderProvider reader,
-    bool isCurrentChapter,
-  ) {
-    return Consumer<ReaderProvider>(
-      builder: (context, reader, _) {
-        final chapters = reader.chapters;
-
-        // 判断当前活跃章节（对应 JS activeIdx 逻辑）
+        // 找到当前活跃章节
         int activeIdx = -1;
         for (int i = chapters.length - 1; i >= 0; i--) {
           if (reader.currentIndex >= chapters[i].lineIndex) {
@@ -156,9 +164,14 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
         final displayChapters =
             _reversed ? chapters.reversed.toList() : chapters;
 
+        // 自动滚动到当前章节
+        _scrollToCurrentChapter(reader);
+
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          controller: _scrollController,
           itemCount: displayChapters.length,
+          itemExtent: 49.0, // 固定item高度，提升性能
+          padding: const EdgeInsets.symmetric(vertical: 8),
           itemBuilder: (ctx, i) {
             final chapter = displayChapters[i];
             final int originalIdx = _reversed ? (chapters.length - 1 - i) : i;
@@ -171,7 +184,6 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
               isActive: isActive,
               isRead: isRead,
               onTap: () {
-                // 对应 JS jumpTo(c.lineIndex)
                 reader.jumpToLine(chapter.lineIndex);
                 Navigator.of(context).pop();
               },
@@ -201,7 +213,7 @@ class _ChapterItem extends StatelessWidget {
     Color dotColor = Colors.white24;
     Color textColor = Colors.white54;
     if (isActive) {
-      dotColor = CyberColors.neonPurple;
+      dotColor = CyberColors.neonPink;
       textColor = CyberColors.neonPink;
     } else if (isRead) {
       dotColor = Colors.white38;

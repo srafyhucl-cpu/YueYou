@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/material.dart';
-// 1. 顶部新增引入真实的 TTS 引擎
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../../settings/providers/settings_provider.dart';
 
 /// 阅游全息 TTS 发声引擎
 /// 职责：管理 TTS 预加载队列、播控状态机、多倍速循环逻辑
@@ -38,17 +38,83 @@ class TtsEngineService extends ChangeNotifier {
   // 2. 新增一个底层的 TTS 实例
   late FlutterTts _flutterTts;
 
-  // 3. 新增构造函数，进行底层硬件初始化
-  TtsEngineService() {
+  late SettingsProvider _settings;
+
+  TtsEngineService(SettingsProvider settings) {
+    _settings = settings;
     _initTtsHardware();
+    _listenToSettings();
+  }
+
+  void _listenToSettings() {
+    _settings.addListener(_onSettingsChanged);
+  }
+
+  void _onSettingsChanged() {
+    // 纯净的设置同步，不触发notifyListeners
+    _syncSettingsInternal(
+      storyTts: _settings.storyTts,
+      ttsRate: _settings.ttsRate,
+      voice: _settings.voice,
+      volume: _settings.ambientVol,
+    );
+  }
+
+  void _syncSettingsInternal({
+    required bool storyTts,
+    required double ttsRate,
+    required String voice,
+    required double volume,
+  }) {
+    // 同步语速（不触发notifyListeners）
+    if (_playbackRate != ttsRate) {
+      _playbackRate = ttsRate;
+      if (!_isSpeaking) {
+        double hardwareRate = 0.5 * (ttsRate / 1.0);
+        _flutterTts.setSpeechRate(hardwareRate.clamp(0.1, 1.0));
+      }
+    }
+
+    // 同步音量
+    if (_volume != volume) {
+      _volume = volume.clamp(0.0, 1.0);
+      _flutterTts.setVolume(_volume);
+    }
+
+    // 同步音色
+    if (_voice != voice) {
+      _voice = voice;
+      _applyVoiceSetting(voice);
+    }
+
+    // 同步TTS开关
+    if (!storyTts && _isEnabled) {
+      setEnabled(false);
+    } else if (storyTts && !_isEnabled) {
+      setEnabled(true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _settings.removeListener(_onSettingsChanged);
+    super.dispose();
   }
 
   Future<void> _initTtsHardware() async {
     _flutterTts = FlutterTts();
-    await _flutterTts.setLanguage("zh-CN"); // 锁定中文链路
-    // 强制开启"等待语音播报完毕才返回 Future"的极客特性，这与我们的状态机完美契合！
+    await _flutterTts.setLanguage("zh-CN");
     await _flutterTts.awaitSpeakCompletion(true);
+
+    // 从settings初始化
+    _voice = _settings.voice;
+    _volume = _settings.ambientVol;
+    _playbackRate = _settings.ttsRate;
+
     _flutterTts.setVolume(_volume.clamp(0.0, 1.0));
+    double hardwareRate = 0.5 * (_playbackRate / 1.0);
+    _flutterTts.setSpeechRate(hardwareRate.clamp(0.1, 1.0));
+
     init();
   }
 
@@ -110,21 +176,15 @@ class TtsEngineService extends ChangeNotifier {
     _setPlaybackFlags(isSpeaking: false, isBuffering: false);
   }
 
-  /// 将 SettingsProvider 变更同步进引擎
+  /// 已废弃：改为内部监听SettingsProvider
+  @Deprecated('Use internal listener instead')
   void applySettings({
     required bool storyTts,
     required double ttsRate,
     required String voice,
     required double volume,
   }) {
-    syncSpeedFromSettings(ttsRate, (0.5 * (ttsRate / 1.0)).clamp(0.1, 1.0));
-    syncVolumeFromSettings(volume);
-    syncVoiceFromSettings(voice);
-    if (!storyTts && _isEnabled) {
-      setEnabled(false);
-    } else if (storyTts && !_isEnabled) {
-      setEnabled(true);
-    }
+    // 空实现，保留接口兼容性
   }
 
   void cycleSpeed() {
@@ -194,11 +254,19 @@ class TtsEngineService extends ChangeNotifier {
       orElse: () => _availableVoices.isNotEmpty ? _availableVoices.first : {},
     );
 
-    if (matchedVoice.isNotEmpty) {
-      _flutterTts.setVoice(matchedVoice).catchError((_) {
+    if (matchedVoice.isNotEmpty &&
+        matchedVoice['name'] != null &&
+        matchedVoice['locale'] != null) {
+      // 传入完整的Map参数，包含name和locale
+      _flutterTts.setVoice({
+        'name': matchedVoice['name']!,
+        'locale': matchedVoice['locale']!,
+      }).catchError((e) {
+        debugPrint('⚠️ setVoice失败: $e，回退到setLanguage');
         _flutterTts.setLanguage('zh-CN');
       });
     } else {
+      debugPrint('⚠️ 未找到匹配音色，使用默认语言');
       _flutterTts.setLanguage('zh-CN');
     }
   }

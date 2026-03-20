@@ -136,8 +136,26 @@ class GameProvider extends ChangeNotifier {
     List<Map<String, dynamic>> mergedTiles = [];
 
     // 触发滑动音效（轻量级触觉反馈）
-    if (soundEnabled) {
-      SfxService.playMerge();
+    bool hasMerge = false;
+    for (final row in board) {
+      for (final tile in row) {
+        if (tile != null && tile.value > 2) {
+          hasMerge = true;
+          break;
+        }
+      }
+    }
+    if (soundEnabled && hasMerge) {
+      // 传入合并后的最大数值，用于分级震动
+      int maxMergedValue = 0;
+      for (final row in board) {
+        for (final tile in row) {
+          if (tile != null && tile.value > maxMergedValue) {
+            maxMergedValue = tile.value;
+          }
+        }
+      }
+      SfxService.playMerge(mergedValue: maxMergedValue);
     }
 
     // 获取移动向量 (溯源：JS L147-154)
