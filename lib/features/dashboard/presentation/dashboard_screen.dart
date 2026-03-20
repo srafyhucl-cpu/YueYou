@@ -4,84 +4,65 @@ import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:provider/provider.dart';
 import '../../game_2048/providers/game_provider.dart';
 import '../../game_2048/presentation/widgets/square_board.dart';
-import '../../reader/providers/reader_provider.dart';
 import '../../reader/presentation/widgets/teleprompter_view.dart';
-import '../../audio/services/tts_engine_service.dart';
 import '../../audio/presentation/widgets/cyber_player_console.dart';
+import 'package:yueyou/features/library/presentation/widgets/cyber_import_button.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  late final TtsEngineService _ttsEngine;
-
-  @override
-  void initState() {
-    super.initState();
-    _ttsEngine = TtsEngineService();
-  }
-
-  @override
-  void dispose() {
-    _ttsEngine.stopAll();
-    _ttsEngine.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // 注入多重 Provider 状态管理：游戏核心 + 阅读引擎 + 音频引擎
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => GameProvider()),
-        ChangeNotifierProvider.value(value: _ttsEngine),
-        ChangeNotifierProvider(create: (_) => ReaderProvider(_ttsEngine)),
-      ],
-      child: Scaffold(
-        backgroundColor: CyberColors.background,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                // 1. 顶部 Nav 导航组
-                _buildTopNavigation(),
-                const SizedBox(height: 24),
+    return Scaffold(
+      backgroundColor: CyberColors.background,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  // 1. 顶部 Nav 导航组
+                  _buildTopNavigation(),
+                  const SizedBox(height: 24),
 
-                // 2. 核心状态面板 (双子卡片式设计 - 实时分数)
-                _buildStatusPanel(),
-                const SizedBox(height: 24),
+                  // 2. 核心状态面板 (双子卡片式设计 - 实时分数)
+                  _buildStatusPanel(),
+                  const SizedBox(height: 24),
 
-                // 3. 2048 核心战斗机舱 (1:1 响应式正方形网格)
-                const Expanded(
-                  flex: 3,
-                  child: Center(
-                    child: SquareBoard(),
+                  // 3. 2048 核心战斗机舱 (1:1 响应式正方形网格)
+                  const Expanded(
+                    flex: 3,
+                    child: Center(
+                      child: SquareBoard(),
+                    ),
                   ),
-                ),
 
-                // 4. 底部动态小说提词区 (文字流式渲染)
-                const Expanded(
-                  flex: 1,
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 24.0),
-                    child: TeleprompterView(),
+                  // 4. 底部动态小说提词区 (文字流式渲染)
+                  const Expanded(
+                    flex: 1,
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 24.0),
+                      child: TeleprompterView(),
+                    ),
                   ),
-                ),
-                
-                // 5. 底部播放器操作指示 (复刻老项目 CyberPlayer)
-                const CyberPlayerConsole(),
-                const SizedBox(height: 12),
-              ],
+
+                  // 5. 底部播放器操作指示 (复刻老项目 CyberPlayer)
+                  const CyberPlayerConsole(),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
-          ),
+            // 2. 悬浮在右上角的赛博导入按钮！
+            const Positioned(
+              top: 16,
+              right: 16,
+              child: CyberImportButton(),
+            ),
+          ],
         ),
       ),
     );
@@ -110,7 +91,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+            color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -209,7 +191,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: Colors.white.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.refresh, color: Colors.white, size: 18),
+                        child: const Icon(Icons.refresh,
+                            color: Colors.white, size: 18),
                       ),
                     ),
                 ],

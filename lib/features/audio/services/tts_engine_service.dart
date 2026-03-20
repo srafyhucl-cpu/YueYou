@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/material.dart';
+// 1. 顶部新增引入真实的 TTS 引擎
+import 'package:flutter_tts/flutter_tts.dart';
 
 /// 阅游全息 TTS 发声引擎
 /// 职责：管理 TTS 预加载队列、播控状态机、多倍速循环逻辑
@@ -26,6 +28,21 @@ class TtsEngineService extends ChangeNotifier {
   int get currentSession => _currentSession;
   int get bufferedCount => _audioBufferQueue.length;
   TtsAudioItem? get currentItem => _currentItem;
+
+  // 2. 新增一个底层的 TTS 实例
+  late FlutterTts _flutterTts;
+
+  // 3. 新增构造函数，进行底层硬件初始化
+  TtsEngineService() {
+    _initTtsHardware();
+  }
+
+  Future<void> _initTtsHardware() async {
+    _flutterTts = FlutterTts();
+    await _flutterTts.setLanguage("zh-CN"); // 锁定中文链路
+    // 强制开启"等待语音播报完毕才返回 Future"的极客特性，这与我们的状态机完美契合！
+    await _flutterTts.awaitSpeakCompletion(true);
+  }
 
   Future<TtsAudioRequest?> Function(int session)? onNeedPrefetch;
   FutureOr<void> Function(TtsAudioItem item)? onItemStarted;
@@ -59,6 +76,12 @@ class TtsEngineService extends ChangeNotifier {
     final int currentIndex = _speedTiers.indexOf(_playbackRate);
     final int nextIndex = (currentIndex + 1) % _speedTiers.length;
     _playbackRate = _speedTiers[nextIndex];
+
+    // 硬件级倍速同步 (FlutterTts 的 speechRate 范围通常是 0.0 到 1.0，0.5 相当于正常语速)
+    // 这里做一个简单的映射，防止语速过快变成电报音
+    double hardwareRate = 0.5 * (_playbackRate / 1.0);
+    _flutterTts.setSpeechRate(hardwareRate.clamp(0.1, 1.0));
+
     notifyListeners();
   }
 
@@ -183,6 +206,10 @@ class TtsEngineService extends ChangeNotifier {
   void _stopCurrentPlayback({required bool requeueCurrent}) {
     _playInterruptCompleter?.complete();
     _playInterruptCompleter = null;
+
+    // 硬件级物理闭嘴！
+    _flutterTts.stop();
+
     if (requeueCurrent && _currentItem != null) {
       _audioBufferQueue.addFirst(_currentItem!);
     }
@@ -223,12 +250,10 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   Future<void> _executePhysicalPlay(TtsAudioItem item, int session) async {
-    final int totalMs = item.estimatedDuration.inMilliseconds.clamp(400, 40000);
-    int elapsed = 0;
-    const int tick = 100;
-    while (elapsed < totalMs && session == _currentSession && _isEnabled) {
-      await Future<void>.delayed(const Duration(milliseconds: tick));
-      elapsed += tick;
+    // 只要系统喇叭没有被 setEnabled(false) 拦截，就一直说话
+    if (session == _currentSession && _isEnabled) {
+      // 这句 await 会一直阻塞，直到这行字从手机喇叭里完完整整地念完！
+      await _flutterTts.speak(item.text);
     }
   }
 
