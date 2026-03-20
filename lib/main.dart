@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
+import 'features/audio/services/sfx_service.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/game_2048/providers/game_provider.dart';
 import 'features/audio/services/tts_engine_service.dart';
+import 'features/library/providers/bookshelf_provider.dart';
 import 'features/reader/providers/reader_provider.dart';
+import 'features/settings/providers/settings_provider.dart';
 
-void main() {
-  // 确保 Flutter 引擎在启动前完成所有初始化（为后续多线程/本地数据库预留）
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 启动前初始化持久化层与音效引擎
+  await StorageService.init();
+  await SfxService.init();
   runApp(const YueYouApp());
 }
 
@@ -19,24 +25,42 @@ class YueYouApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // 1号插头：2048 游戏引擎
-        ChangeNotifierProvider(create: (_) => GameProvider()),
+        // 1号：全局设置（最先启动，其它 Provider 读取设置值）
+        ChangeNotifierProvider(
+          create: (_) => SettingsProvider()..loadFromStorage(),
+        ),
 
-        // 2号插头：TTS 发声引擎（必须放在 Reader 前面）
+        // 2号：书架状态
+        ChangeNotifierProvider(
+          create: (_) => BookshelfProvider()..loadFromStorage(),
+        ),
+
+        // 3号：2048 游戏引擎（接入设置里的 soundEnabled）
+        ChangeNotifierProxyProvider<SettingsProvider, GameProvider>(
+          create: (ctx) {
+            final gp = GameProvider();
+            gp.soundEnabled = ctx.read<SettingsProvider>().sound;
+            return gp;
+          },
+          update: (ctx, settings, prev) {
+            prev?.soundEnabled = settings.sound;
+            return prev ?? GameProvider();
+          },
+        ),
+
+        // 4号：TTS 发声引擎
         ChangeNotifierProvider(create: (_) => TtsEngineService()),
 
-        // 3号插头：提词器解析引擎（使用 ProxyProvider 将 TTS 引擎注入进去！）
+        // 5号：提词器解析引擎（ProxyProvider 注入 TTS 引擎）
         ChangeNotifierProxyProvider<TtsEngineService, ReaderProvider>(
-          create: (context) => ReaderProvider(context.read<TtsEngineService>()),
-          update: (context, tts, previous) => previous ?? ReaderProvider(tts),
+          create: (ctx) => ReaderProvider(ctx.read<TtsEngineService>()),
+          update: (ctx, tts, previous) => previous ?? ReaderProvider(tts),
         ),
       ],
       child: MaterialApp(
         title: '阅游 YueYou',
-        // 摘掉右上角的 Debug 标签，保持沉浸感
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          // 全局强制使用赛博朋克深色背景
           scaffoldBackgroundColor: CyberColors.background,
           colorScheme: const ColorScheme.dark(
             primary: CyberColors.neonGreen,
@@ -44,7 +68,6 @@ class YueYouApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
-        // 直接将路由指向刚刚写好的主控台
         home: const DashboardScreen(),
       ),
     );

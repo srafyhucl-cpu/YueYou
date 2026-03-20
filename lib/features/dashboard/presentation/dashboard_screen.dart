@@ -7,11 +7,29 @@ import '../../game_2048/presentation/widgets/square_board.dart';
 import '../../reader/presentation/widgets/teleprompter_view.dart';
 import '../../audio/presentation/widgets/cyber_player_console.dart';
 import 'package:yueyou/features/library/presentation/widgets/cyber_import_button.dart';
+import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
+import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
+import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
+
+  void _openLibrary(BuildContext context) {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const LibraryScreen()));
+  }
+
+  void _openChapterList(BuildContext context) {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const ChapterListScreen()));
+  }
+
+  void _openSettings(BuildContext context) {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +44,7 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 16),
                   // 1. 顶部 Nav 导航组
-                  _buildTopNavigation(),
+                  _buildTopNavigation(context),
                   const SizedBox(height: 24),
 
                   // 2. 核心状态面板 (双子卡片式设计 - 实时分数)
@@ -69,30 +87,37 @@ class DashboardScreen extends StatelessWidget {
   }
 
   /// 构建顶部胶囊按钮组
-  Widget _buildTopNavigation() {
+  Widget _buildTopNavigation(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildNavButton("📚 图书馆", Icons.library_books),
-        _buildNavButton("📜 目录", Icons.list),
-        _buildNavButton("🌌 星图", Icons.auto_awesome),
-        _buildNavButton("⚙️ 设置", Icons.settings),
+        _buildNavButton(context, "📚 图书馆", onTap: () => _openLibrary(context)),
+        _buildNavButton(context, "📜 目录",
+            onTap: () => _openChapterList(context)),
+        _buildNavButton(context, "🌌 星图", onTap: null),
+        _buildNavButton(context, "⚙️ 设置", onTap: () => _openSettings(context)),
       ],
     );
   }
 
-  Widget _buildNavButton(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: CyberColors.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-            color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+  Widget _buildNavButton(BuildContext context, String label,
+      {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: CyberColors.cardBackground,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+              color: onTap != null ? Colors.white : Colors.white38,
+              fontSize: 12,
+              fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

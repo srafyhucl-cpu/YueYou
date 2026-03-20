@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/database/storage_service.dart';
 import '../domain/text_parser.dart';
 import '../../audio/services/tts_engine_service.dart';
+import '../../library/domain/book_model.dart';
 
 /// 阅游提词器 Provider
 /// 职责：管理 sentences 和 currentIndex，并联动 TtsEngineService 进行语音播报
@@ -10,6 +12,8 @@ class ReaderProvider with ChangeNotifier {
   int _currentIndex = 0;
   int _fetchIndex = 0;
   bool _isParsing = false;
+  String? _currentBookId;
+  List<ChapterModel> _chapters = [];
 
   ReaderProvider(this._ttsEngine) {
     _ttsEngine.onNeedPrefetch = (session) async {
@@ -56,6 +60,7 @@ class ReaderProvider with ChangeNotifier {
   int get fetchIndex => _fetchIndex;
   bool get isParsing => _isParsing;
   TtsEngineService get ttsEngine => _ttsEngine;
+  List<ChapterModel> get chapters => _chapters;
   String get currentChapterTitle => '当前章节';
 
   /// 进度引擎：当前进度百分比 (0.01 - 1.0)
@@ -71,7 +76,8 @@ class ReaderProvider with ChangeNotifier {
   }
 
   /// 核心加载方法：加载书籍并解析
-  Future<void> loadBook(String rawText, {String? bookId}) async {
+  Future<void> loadBook(String rawText,
+      {String? bookId, List<ChapterModel>? chapters}) async {
     if (_isParsing) return;
 
     _isParsing = true;
@@ -79,14 +85,27 @@ class ReaderProvider with ChangeNotifier {
 
     try {
       _sentences = await TextParser.parse(rawText);
-      _currentIndex = 0;
-      _fetchIndex = 0;
+      _currentBookId = bookId;
+      _chapters = chapters ?? [];
+
+      // 恢复之前的阅读进度（对应 JS loadBookFromShelf 传入 cursor）
+      if (bookId != null) {
+        final record = StorageService.getReadingRecord(bookId);
+        final savedCursor = (record['cursor'] as num?)?.toInt() ?? 0;
+        _currentIndex = savedCursor.clamp(
+            0, _sentences.isEmpty ? 0 : _sentences.length - 1);
+      } else {
+        _currentIndex = 0;
+      }
+      _fetchIndex = _currentIndex;
+
+      await StorageService.setCurrentNovelId(bookId);
 
       if (_ttsEngine.isEnabled) {
         _ttsEngine.refreshSession();
       }
     } catch (e) {
-      debugPrint("📖 神经数据加载异常 (ReaderProvider): $e");
+      debugPrint("� 神经数据加载异常 (ReaderProvider): $e");
     } finally {
       _isParsing = false;
       notifyListeners();
@@ -129,6 +148,9 @@ class ReaderProvider with ChangeNotifier {
     }
   }
 
+  /// 按行号跳转（对应 JS jumpTo(lineIndex)）
+  Future<void> jumpToLine(int index) => jumpTo(index);
+
   /// 跳转至指定索引进度
   Future<void> jumpTo(int index) async {
     if (index >= 0 && index < _sentences.length) {
@@ -142,8 +164,13 @@ class ReaderProvider with ChangeNotifier {
     }
   }
 
-  /// 持久化存档逻辑
+  /// 持久化存档逻辑（对应 JS ProgressManager.updateRecord）
   Future<void> _saveProgress() async {
-    debugPrint("📥 进度自动归档: Index $_currentIndex / Total ${_sentences.length}");
+    if (_currentBookId == null || _sentences.isEmpty) return;
+    await StorageService.updateReadingRecord(
+      _currentBookId!,
+      _currentIndex,
+      _sentences.length,
+    );
   }
 }

@@ -27,6 +27,7 @@ class CyberColors {
   static const Color tile8 = Color(0xFF00B2FF); // 鲜亮蓝
   static const Color tile16 = Color(0xFFFE019A); // 霓虹粉
   static const Color tile32 = Color(0xFFBF5AF2); // 紫色
+  static const Color neonPurple = Color(0xFFBF5AF2); // 霓虹紫（与 tile32 同色）
   static const Color tile64 = Color(0xFFFF2D55); // 玫红
   static const Color tile128 = Color(0xFFFF9F0A); // 橙色
   static const Color tile256 = Color(0xFFFF375F); // 亮红

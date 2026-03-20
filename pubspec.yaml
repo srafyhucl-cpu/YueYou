@@ -38,7 +38,10 @@ dependencies:
   equatable: ^2.0.8
   flutter_tts: ^3.8.5
   file_picker: ^6.1.1
-  gbk_codec: ^0.4.0
+  fast_gbk: ^1.0.0
+  shared_preferences: ^2.3.3
+  audioplayers: ^6.1.0
+  path_provider: ^2.1.5
 
 dependency_overrides:
   flutter_plugin_android_lifecycle: 2.0.22

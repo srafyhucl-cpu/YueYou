@@ -85,6 +85,13 @@ class TtsEngineService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 从设置页直接同步倍速（对应 JS updateSetting('voice'/'ttsRate') 调用链）
+  void syncSpeedFromSettings(double logicalRate, double hardwareRate) {
+    _playbackRate = logicalRate;
+    _flutterTts.setSpeechRate(hardwareRate.clamp(0.1, 1.0));
+    notifyListeners();
+  }
+
   void refreshSession() {
     _currentSession++;
     _stopCurrentPlayback(requeueCurrent: false);

@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/features/audio/services/sfx_service.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 
 /// 移动方向枚举 (映射 JS L149-152)
@@ -17,9 +20,8 @@ class GameProvider extends ChangeNotifier {
 
   // 兼容层：对齐旧版 UI 的 List<List<int>> 接口
   List<List<int>> get grid {
-    return List.generate(size, (r) => 
-      List.generate(size, (c) => board[r][c]?.value ?? 0)
-    );
+    return List.generate(
+        size, (r) => List.generate(size, (c) => board[r][c]?.value ?? 0));
   }
 
   // 游戏实时分 (溯源：JS L17)
@@ -43,8 +45,71 @@ class GameProvider extends ChangeNotifier {
   // 随机数生成器 (替换 JS Math.random)
   final Random _random = Random();
 
+  /// 是否开启音效（由 SettingsProvider 通过 main.dart 同步注入）
+  bool soundEnabled = true;
+
   GameProvider() {
-    reset();
+    _loadSavedState();
+  }
+
+  /// App 启动时从 StorageService 恢复游戏快照（对应 JS loadSavedState）
+  void _loadSavedState() {
+    bestScore = StorageService.loadBestScore();
+    maxCombo = StorageService.loadMaxCombo();
+    final saved = StorageService.loadGameState();
+    if (saved != null) {
+      try {
+        final boardRaw = saved['board_data'] as String?;
+        if (boardRaw != null) {
+          {
+            final List<dynamic> rows = List<dynamic>.from(
+                (boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null) ?? []);
+            if (rows.length == size) {
+              board = List.generate(size, (r) {
+                final row = rows[r] as List<dynamic>;
+                return List.generate(size, (c) {
+                  final cell = row[c];
+                  if (cell == null) return null;
+                  final m = cell as Map<String, dynamic>;
+                  return TileModel(
+                    id: (m['id'] as num).toInt(),
+                    value: (m['value'] as num).toInt(),
+                  );
+                });
+              });
+              score = (saved['score'] as num?)?.toInt() ?? 0;
+              combo = (saved['combo'] as num?)?.toInt() ?? 0;
+              bestScore = (saved['bestScore'] as num?)?.toInt() ?? bestScore;
+              maxCombo = (saved['maxCombo'] as num?)?.toInt() ?? maxCombo;
+              int maxId = 0;
+              for (final row in board) {
+                for (final tile in row) {
+                  if (tile != null && tile.id > maxId) maxId = tile.id;
+                }
+              }
+              _nextId = maxId + 1;
+              notifyListeners();
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('GameProvider._loadSavedState error: $e');
+      }
+    }
+    // 无存档或解析失败则新开一局
+    _initFresh();
+  }
+
+  void _initFresh() {
+    isOver = false;
+    score = 0;
+    combo = 0;
+    board = List.generate(size, (_) => List.filled(size, null));
+    addRandomTile();
+    addRandomTile();
+    updateScore();
+    notifyListeners();
   }
 
   /// 初始化/重置游戏
@@ -53,12 +118,11 @@ class GameProvider extends ChangeNotifier {
     isOver = false;
     score = 0;
     combo = 0;
-    // 初始化空棋盘
     board = List.generate(size, (_) => List.filled(size, null));
-    // 初始添加两个随机块
     addRandomTile();
     addRandomTile();
     updateScore();
+    _persistState();
     notifyListeners();
   }
 
@@ -70,14 +134,15 @@ class GameProvider extends ChangeNotifier {
     bool moved = false;
     // 记录是否有任何合并发生，用于维护 combo
     List<Map<String, dynamic>> mergedTiles = [];
-    
+
     // 获取移动向量 (溯源：JS L147-154)
     final vector = _getVector(direction);
     // 获取遍历顺序 (溯源：JS L155-161)
     final traversal = _getTraversalOrder(vector);
 
     // 记录本轮是否已经合并过的标记矩阵 (溯源：JS L46-48)
-    List<List<bool>> mergedFlags = List.generate(size, (_) => List.filled(size, false));
+    List<List<bool>> mergedFlags =
+        List.generate(size, (_) => List.filled(size, false));
 
     // 开始遍历
     for (int r in traversal['rows']!) {
@@ -95,7 +160,7 @@ class GameProvider extends ChangeNotifier {
         while (_inBounds(nextR, nextC) && board[nextR][nextC] == null) {
           board[nextR][nextC] = tile;
           board[curR][curC] = null;
-          
+
           curR = nextR;
           curC = nextC;
           nextR = curR + vector['y']!;
@@ -107,23 +172,27 @@ class GameProvider extends ChangeNotifier {
         if (_inBounds(nextR, nextC)) {
           TileModel? targetTile = board[nextR][nextC];
           // 逻辑：值相等且目标位置未在本轮合并过 (JS L65)
-          if (targetTile != null && targetTile.value == tile.value && !mergedFlags[nextR][nextC]) {
+          if (targetTile != null &&
+              targetTile.value == tile.value &&
+              !mergedFlags[nextR][nextC]) {
             // 合并操作：值 * 2 (溯源：JS L66)
-            board[nextR][nextC] = targetTile.copyWith(value: targetTile.value * 2);
+            board[nextR][nextC] =
+                targetTile.copyWith(value: targetTile.value * 2);
             board[curR][curC] = null;
-            
+
             // 标记已合并，并更新状态
             mergedFlags[nextR][nextC] = true;
-            moved = true; 
+            moved = true;
             combo++; // (溯源：JS L70)
-            
+
             // 更新最大 Combo (溯源：JS L71-74)
             if (combo > maxCombo) {
               maxCombo = combo;
             }
 
             // 存入合并列表（在 JS 里用于触发 3D 效果，此处预留）
-            mergedTiles.add({'r': nextR, 'c': nextC, 'value': board[nextR][nextC]!.value});
+            mergedTiles.add(
+                {'r': nextR, 'c': nextC, 'value': board[nextR][nextC]!.value});
           }
         }
       }
@@ -144,7 +213,12 @@ class GameProvider extends ChangeNotifier {
       if (!_movesAvailable()) {
         isOver = true;
       }
-      
+
+      // 合并音效（对应 JS: if (result.mergedTiles.length > 0 && t.sound) l.playEffect('merge')）
+      if (mergedTiles.isNotEmpty && soundEnabled) {
+        SfxService.playMerge();
+      }
+      _persistState();
       notifyListeners();
     }
   }
@@ -167,6 +241,25 @@ class GameProvider extends ChangeNotifier {
     if (score > bestScore) {
       bestScore = score;
     }
+  }
+
+  /// 持久化当前快照到 StorageService（对应 JS saveLocalState）
+  void _persistState() {
+    final boardJson = List.generate(
+        size,
+        (r) => List.generate(size, (c) {
+              final t = board[r][c];
+              if (t == null) return null;
+              return <String, dynamic>{'id': t.id, 'value': t.value};
+            }));
+    StorageService.saveGameState(
+      board: boardJson,
+      score: score,
+      combo: combo,
+      bestScore: bestScore,
+      maxCombo: maxCombo,
+      novelIndex: 0,
+    );
   }
 
   /// 在空格处添加随机块 (2 或 4)
@@ -197,10 +290,14 @@ class GameProvider extends ChangeNotifier {
   /// 移动向量映射 (溯源：JS L147-154)
   Map<String, int> _getVector(Direction dir) {
     switch (dir) {
-      case Direction.up:    return {'x': 0, 'y': -1};
-      case Direction.down:  return {'x': 0, 'y': 1};
-      case Direction.left:  return {'x': -1, 'y': 0};
-      case Direction.right: return {'x': 1, 'y': 0};
+      case Direction.up:
+        return {'x': 0, 'y': -1};
+      case Direction.down:
+        return {'x': 0, 'y': 1};
+      case Direction.left:
+        return {'x': -1, 'y': 0};
+      case Direction.right:
+        return {'x': 1, 'y': 0};
     }
   }
 
@@ -242,5 +339,4 @@ class GameProvider extends ChangeNotifier {
     }
     return false;
   }
-
 }

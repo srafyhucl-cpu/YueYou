@@ -1,12 +1,18 @@
-# 项目交接文档 (Project Handoff)
+# 阅游 Flutter 重构 - 1:1 全量进度对齐交接文档
 
-## 1. 已完成的架构 (Do Not Touch)
-- **2048 核心引擎**：`lib/features/game_2048/providers/game_provider.dart` 已实现 1:1 逻辑还原（包含全盘求和加分、连续滑动 Combo 等）。
-- **提词器解析引擎**：`lib/features/reader/domain/text_parser.dart` 已实现 Isolate 多线程标点正则切片。
-- **神经链路桥接**：2048 的有效滑动已通过 `context.read<ReaderProvider>().nextSentence()` 成功点燃提词器。
+## 🛡️ 绝对保护区 (DO NOT TOUCH)
+以下核心模块已完美实现，**绝对不能修改其基础架构和状态机逻辑**：
+1. `GameProvider` (2048 核心逻辑)
+2. `ReaderProvider` (提词器中枢)
+3. `TextParser` (Isolate 多线程切片引擎)
+4. `TtsEngineService` (基于 flutter_tts 的发声引擎)
+5. `FileImportService` (基于 file_selector 的不死解码文件导入)
 
-## 2. 当前待办战役 (Next Phase)
-我们需要开发**“TTS 全息控播与音频引擎”**。老代码中拥有一个极度复杂的 `AudioManager.js`（包含了 TTS 预加载队列、缓冲状态机、全局播控引擎）以及一个悬浮在底部的 `cyber-player` 毛玻璃 UI。
+## 🎯 你的全局重构任务 (核心业务与底层逻辑 1:1 对齐)
+我们的当前目标是：**先实现与旧版代码库 100% 的进度和功能对齐，严禁做任何偏离旧版业务逻辑的“提前优化”。**
+你需要全面扫描旧版 `www/js/` 目录，找出所有还没迁移的“底层业务/数据逻辑”以及“配套界面”，并进行完整复刻：
 
-## 3. 你的任务目标
-阅读老代码的 `AudioManager.js` 和 `style.css`，用 Flutter 的 Stream/异步队列重写为 `TtsEngineService`，并注入到当前的 `ReaderProvider` 中，最后渲染出底部的毛玻璃 `CyberPlayerConsole` 控制台。
+1. **底层数据/后端交互层 (Data & Backend)**：深度复刻旧版中所有的本地存储逻辑 (如 `LocalDB.js`)、书签/阅读历史列表的维护、用户全局配置项等。使用 Flutter 的等效方案（如 `shared_preferences` 或本地数据库）原汁原味地还原这些数据的存取流和生命周期。如果有任何网络请求逻辑，也一并迁移（使用 `http`/`dio`）。
+2. **核心业务状态流**：扫描旧代码，把遗漏的业务闭环（如看完一章后的数据结算、2048 破纪录后的数据持久化记录）用 Provider 完全接管。
+3. **物理音效引擎 (SFX)**：完全对接旧版 `AudioManager.js` 的所有触发时机，使用 `audioplayers` 还原声音反馈。
+4. **缺失的 UI 闭环**：基于底层数据的补齐，把剩下的“壳子”页（如图书馆管理列表、全局设置面板、弹窗）全部画完并连通底层。
