@@ -8,13 +8,12 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../settings/providers/settings_provider.dart';
+import '../../../core/config/tts_config.dart';
 
 /// 阅游双轨流媒体 TTS 引擎
 /// 架构：生产者/消费者双轨预加载模型
-/// 服务器：http://8.218.177.149:3000/api/v1/tts/createStream
 class TtsEngineService extends ChangeNotifier {
-  static const String _ttsServerUrl =
-      'http://8.218.177.149:3000/api/v1/tts/createStream';
+  final TtsConfig _config;
 
   // 核心状态
   late String _voice;
@@ -38,8 +37,11 @@ class TtsEngineService extends ChangeNotifier {
   final Queue<TtsAudioItem> _audioBufferQueue = Queue<TtsAudioItem>();
   int _currentPlayingIndex = 0; // 当前播放的句子索引
 
+  // 循环控制
+  bool _disposed = false;
+
   bool get isEnabled => _isEnabled;
-  bool get isPlaying => _isEnabled;
+  bool get isPlaying => _isEnabled && _isSpeaking;
   bool get isSpeaking => _isSpeaking;
   bool get isBuffering => _isBuffering;
   double get playbackRate => _playbackRate;
@@ -49,7 +51,8 @@ class TtsEngineService extends ChangeNotifier {
 
   late SettingsProvider _settings;
 
-  TtsEngineService(SettingsProvider settings) {
+  TtsEngineService(SettingsProvider settings, {TtsConfig? config})
+      : _config = config ?? TtsConfig.current {
     _settings = settings;
     _initTtsHardware();
     _listenToSettings();
@@ -98,7 +101,10 @@ class TtsEngineService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _settings.removeListener(_onSettingsChanged);
+    _playLoopActive = false;
+    _prefetchLoopActive = false;
     _audioPlayer.dispose();
     _clearPrefetchQueue();
     super.dispose();
@@ -242,140 +248,98 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 生产者轨道：预加载循环
   Future<void> _startPrefetchLoop() async {
-    if (_prefetchLoopActive) return;
+    if (_prefetchLoopActive || _disposed) return;
     _prefetchLoopActive = true;
 
-    while (true) {
-      final int sessionSnapshot = _loopSession;
+    try {
+      while (_prefetchLoopActive && !_disposed) {
+        final int sessionSnapshot = _loopSession;
 
-      // 队列已满或未启用，等待
-      if (!_isEnabled || _prefetchQueue.length >= 3) {
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-        continue;
-      }
+        // 队列已满或未启用，等待
+        if (!_isEnabled || _prefetchQueue.length >= _config.maxPrefetchQueue) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          continue;
+        }
 
-      // 请求下一句文本
-      final TtsAudioRequest? request =
-          await _requestNextSentence(sessionSnapshot);
-      if (request == null) {
-        await Future<void>.delayed(const Duration(seconds: 1));
-        continue;
-      }
+        // 请求下一句文本
+        final TtsAudioRequest? request =
+            await _requestNextSentence(sessionSnapshot);
+        if (request == null) {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          continue;
+        }
 
-      if (request.text.trim().isEmpty) {
-        continue;
-      }
+        if (request.text.trim().isEmpty) {
+          continue;
+        }
 
-      // 会话已过期，放弃
-      if (sessionSnapshot != _loopSession) {
-        continue;
-      }
+        // 会话已过期，放弃
+        if (sessionSnapshot != _loopSession || _disposed) {
+          continue;
+        }
 
-      // 下载音频文件
-      final String? filePath =
-          await _downloadTtsAudio(request, sessionSnapshot);
-      if (filePath != null && sessionSnapshot == _loopSession) {
-        _prefetchQueue.add(filePath);
-        final preview = request.text.length > 10
-            ? '${request.text.substring(0, 10)}...'
-            : request.text;
-        debugPrint('✅ 预加载完成: $preview -> $filePath');
-        notifyListeners();
+        // 下载音频文件
+        final String? filePath =
+            await _downloadTtsAudio(request, sessionSnapshot);
+        if (filePath != null && sessionSnapshot == _loopSession && !_disposed) {
+          _prefetchQueue.add(filePath);
+          final preview = request.text.length > 10
+              ? '${request.text.substring(0, 10)}...'
+              : request.text;
+          debugPrint('✅ 预加载完成: $preview -> $filePath');
+          notifyListeners();
+        }
       }
+    } catch (e) {
+      debugPrint('⚠️ 预加载循环异常: $e');
+    } finally {
+      _prefetchLoopActive = false;
     }
   }
 
   /// 消费者轨道：播放循环
   Future<void> _startPlayLoop() async {
-    if (_playLoopActive) return;
+    if (_playLoopActive || _disposed) return;
     _playLoopActive = true;
 
-    while (true) {
-      if (!_isEnabled) {
-        if (_isSpeaking || _isBuffering) {
+    try {
+      while (_playLoopActive && !_disposed) {
+        if (!_isEnabled) {
+          if (_isSpeaking || _isBuffering) {
+            _setPlaybackFlags(isSpeaking: false, isBuffering: false);
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          continue;
+        }
+
+        final int sessionAtStep = _loopSession;
+
+        // 队列为空，等待缓冲
+        if (_prefetchQueue.isEmpty) {
+          if (!_isBuffering) {
+            _setPlaybackFlags(isSpeaking: false, isBuffering: true);
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          continue;
+        }
+
+        if (_isBuffering) {
           _setPlaybackFlags(isSpeaking: false, isBuffering: false);
         }
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-        continue;
-      }
 
-      final int sessionAtStep = _loopSession;
+        // 弹出文件路径
+        final String filePath = _prefetchQueue.removeAt(0);
 
-      // 队列为空，等待缓冲
-      if (_prefetchQueue.isEmpty) {
-        if (!_isBuffering) {
-          _setPlaybackFlags(isSpeaking: false, isBuffering: true);
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-        continue;
-      }
-
-      if (_isBuffering) {
-        _setPlaybackFlags(isSpeaking: false, isBuffering: false);
-      }
-
-      // 弹出文件路径
-      final String filePath = _prefetchQueue.removeAt(0);
-
-      // 会话已过期，删除文件
-      if (sessionAtStep != _loopSession) {
-        try {
-          await File(filePath).delete();
-        } catch (_) {}
-        continue;
-      }
-
-      // 触发 onItemStarted 回调
-      if (onItemStarted != null) {
-        final item = TtsAudioItem(
-          id: DateTime.now().microsecondsSinceEpoch,
-          session: sessionAtStep,
-          lineIndex: _currentPlayingIndex,
-          text: '',
-          title: '',
-          estimatedDuration: Duration.zero,
-        );
-        _currentItem = item;
-        await onItemStarted!(item);
-      }
-
-      // 播放音频
-      _setPlaybackFlags(isSpeaking: true, isBuffering: false);
-
-      try {
-        // 使用 Completer 等待播放完成
-        final completer = Completer<void>();
-
-        // 监听播放完成
-        late StreamSubscription subscription;
-        subscription = _audioPlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-          subscription.cancel();
-        });
-
-        // 关键修复：先stop再播放，避免资源注入冲突
-        await _audioPlayer.stop();
-        await _audioPlayer.play(DeviceFileSource(filePath));
-
-        // 等待播放完成或会话过期
-        await Future.any([
-          completer.future,
-          Future.delayed(const Duration(seconds: 30)),
-        ]);
-
-        subscription.cancel();
-
-        // 删除已播放的临时文件
-        try {
-          await File(filePath).delete();
-        } catch (e) {
-          debugPrint('⚠️ 删除已播放文件失败: $e');
+        // 会话已过期，删除文件
+        if (sessionAtStep != _loopSession || _disposed) {
+          try {
+            await File(filePath).delete();
+          } catch (_) {}
+          continue;
         }
 
-        // 触发 onItemFinished 回调
-        if (onItemFinished != null && sessionAtStep == _loopSession) {
+        // 触发 onItemStarted 回调
+        if (onItemStarted != null) {
           final item = TtsAudioItem(
             id: DateTime.now().microsecondsSinceEpoch,
             session: sessionAtStep,
@@ -384,67 +348,142 @@ class TtsEngineService extends ChangeNotifier {
             title: '',
             estimatedDuration: Duration.zero,
           );
-          await onItemFinished!(item);
-          _currentPlayingIndex++; // 移动到下一句
+          _currentItem = item;
+          await onItemStarted!(item);
         }
 
-        _currentItem = null;
+        // 播放音频
+        _setPlaybackFlags(isSpeaking: true, isBuffering: false);
 
-        _setPlaybackFlags(
-            isSpeaking: false, isBuffering: _prefetchQueue.isEmpty);
-      } catch (e) {
-        debugPrint('⚠️ 播放失败: $e');
-        _setPlaybackFlags(isSpeaking: false, isBuffering: false);
-
-        // 删除失败的文件
         try {
-          await File(filePath).delete();
-        } catch (_) {}
+          // 使用 Completer 等待播放完成
+          final completer = Completer<void>();
+
+          // 监听播放完成
+          late StreamSubscription subscription;
+          subscription = _audioPlayer.onPlayerComplete.listen((_) {
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          });
+
+          try {
+            // 关键修复：先stop再播放，避免资源注入冲突
+            await _audioPlayer.stop();
+            await _audioPlayer.play(DeviceFileSource(filePath));
+
+            // 等待播放完成或会话过期
+            await Future.any([
+              completer.future,
+              Future.delayed(const Duration(seconds: 30)),
+            ]);
+          } finally {
+            // 确保订阅被取消
+            await subscription.cancel();
+          }
+
+          // 删除已播放的临时文件
+          try {
+            await File(filePath).delete();
+          } catch (e) {
+            debugPrint('⚠️ 删除已播放文件失败: $e');
+          }
+
+          // 触发 onItemFinished 回调
+          if (onItemFinished != null &&
+              sessionAtStep == _loopSession &&
+              !_disposed) {
+            final item = TtsAudioItem(
+              id: DateTime.now().microsecondsSinceEpoch,
+              session: sessionAtStep,
+              lineIndex: _currentPlayingIndex,
+              text: '',
+              title: '',
+              estimatedDuration: Duration.zero,
+            );
+            await onItemFinished!(item);
+            _currentPlayingIndex++; // 移动到下一句
+          }
+
+          _currentItem = null;
+
+          _setPlaybackFlags(
+              isSpeaking: false, isBuffering: _prefetchQueue.isEmpty);
+        } catch (e) {
+          debugPrint('⚠️ 播放失败: $e');
+          _setPlaybackFlags(isSpeaking: false, isBuffering: false);
+
+          // 删除失败的文件
+          try {
+            await File(filePath).delete();
+          } catch (_) {}
+        }
       }
+    } catch (e) {
+      debugPrint('⚠️ 播放循环异常: $e');
+    } finally {
+      _playLoopActive = false;
     }
   }
 
-  /// 下载TTS音频文件
+  /// 下载TTS音频文件（带重试机制）
   Future<String?> _downloadTtsAudio(
       TtsAudioRequest request, int session) async {
-    try {
-      // 构建请求URL
-      final uri = Uri.parse(_ttsServerUrl);
+    for (int attempt = 0; attempt < _config.maxRetries; attempt++) {
+      try {
+        // 构建请求URL
+        final uri = Uri.parse(_config.serverUrl);
 
-      // 发送HTTP POST请求（与旧代码保持一致）
-      final response = await http
-          .post(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'text': request.text,
-              'voice': _voice,
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
+        // 发送HTTP POST请求（与旧代码保持一致）
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'text': request.text,
+                'voice': _voice,
+              }),
+            )
+            .timeout(_config.requestTimeout);
 
-      if (response.statusCode != 200) {
-        debugPrint('⚠️ TTS服务器返回错误: ${response.statusCode}');
-        return null;
+        if (response.statusCode != 200) {
+          debugPrint(
+              '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})');
+          if (attempt < _config.maxRetries - 1) {
+            // 指数退避
+            final delay = _config.baseRetryDelay * (1 << attempt);
+            await Future.delayed(delay);
+            continue;
+          }
+          return null;
+        }
+
+        // 会话已过期
+        if (session != _loopSession || _disposed) {
+          return null;
+        }
+
+        // 写入临时文件
+        final tempDir = await getTemporaryDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final filePath = '${tempDir.path}/tts_$timestamp.mp3';
+        final file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+
+        return filePath;
+      } catch (e) {
+        debugPrint(
+            '⚠️ 下载TTS音频失败: $e (尝试 ${attempt + 1}/${_config.maxRetries})');
+        if (attempt < _config.maxRetries - 1) {
+          // 指数退避
+          final delay = _config.baseRetryDelay * (1 << attempt);
+          await Future.delayed(delay);
+        } else {
+          debugPrint('❌ TTS下载最终失败');
+        }
       }
-
-      // 会话已过期
-      if (session != _loopSession) {
-        return null;
-      }
-
-      // 写入临时文件
-      final tempDir = await getTemporaryDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filePath = '${tempDir.path}/tts_$timestamp.mp3';
-      final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
-
-      return filePath;
-    } catch (e) {
-      debugPrint('⚠️ 下载TTS音频失败: $e');
-      return null;
     }
+    return null;
   }
 
   void _setPlaybackFlags(

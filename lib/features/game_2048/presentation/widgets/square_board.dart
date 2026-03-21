@@ -41,6 +41,9 @@ class _SquareBoardState extends State<SquareBoard>
 
   @override
   void dispose() {
+    if (_tiltController.isAnimating) {
+      _tiltController.stop();
+    }
     _tiltController.dispose();
     super.dispose();
   }
@@ -136,8 +139,9 @@ class _SquareBoardState extends State<SquareBoard>
                   const spacing = 10.0;
                   final cellSize = (boardSize - padding * 2 - spacing * 3) / 4;
 
-                  return Consumer<GameProvider>(
-                    builder: (context, provider, _) {
+                  return Selector<GameProvider, List<List<TileModel?>>>(
+                    selector: (context, provider) => provider.board,
+                    builder: (context, board, _) {
                       return ClipRRect(
                         borderRadius: BorderRadius.circular(32.0),
                         child: BackdropFilter(
@@ -166,12 +170,11 @@ class _SquareBoardState extends State<SquareBoard>
                                 // 背景网格
                                 _buildBackgroundGrid(cellSize, spacing),
                                 // 动画方块层
-                                ...provider.board
+                                ...board
                                     .expand((row) => row)
                                     .where((tile) => tile != null)
                                     .map((tile) {
-                                  final pos =
-                                      _findTilePosition(provider.board, tile!);
+                                  final pos = _findTilePosition(board, tile!);
                                   return AnimatedPositioned(
                                     key: ValueKey(tile.id),
                                     duration: const Duration(milliseconds: 150),
