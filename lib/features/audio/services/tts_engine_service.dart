@@ -140,11 +140,19 @@ class TtsEngineService extends ChangeNotifier {
   FutureOr<void> Function(TtsAudioItem item)? onItemFinished;
 
   void play() {
-    setEnabled(true);
+    // 🔥 精准修复：直接恢复播放，不销毁队列
+    if (!_isEnabled) {
+      _isEnabled = true;
+      notifyListeners();
+    }
+    _audioPlayer.resume();
+    _syncWakeLock(true);
   }
 
   void pause() {
-    setEnabled(false);
+    // 🔥 精准修复：直接暂停，绝不清空队列
+    _audioPlayer.pause();
+    _syncWakeLock(false);
   }
 
   void setEnabled(bool enable) {

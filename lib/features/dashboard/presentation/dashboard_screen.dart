@@ -10,6 +10,7 @@ import 'package:yueyou/features/library/presentation/screens/library_screen.dart
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
 import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
 import 'package:yueyou/shared/widgets/cyber_modal.dart';
+import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
@@ -127,8 +128,19 @@ class DashboardScreen extends StatelessWidget {
                 title: "当前得分 | 连击",
                 score: provider.score,
                 combo: provider.combo,
-                showReset: false, // 移除主面板的重置按钮
-                onReset: null,
+                showReset: true, // 🔥 找回重置按钮
+                onReset: () async {
+                  final confirmed = await showCyberConfirmDialog(
+                    context: context,
+                    title: '重置棋盘',
+                    message: '确定要重置当前游戏吗？所有进度将会丢失。',
+                    confirmText: '确认重置',
+                    cancelText: '取消',
+                  );
+                  if (confirmed && context.mounted) {
+                    context.read<GameProvider>().reset();
+                  }
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -227,14 +239,12 @@ class DashboardScreen extends StatelessWidget {
                       onPressed: onReset,
                       icon: const Icon(
                         Icons.refresh,
-                        color: Colors.white,
-                        size: 18,
+                        color: CyberColors.neonCyan,
+                        size: 20,
                       ),
                       style: IconButton.styleFrom(
-                        backgroundColor:
-                            const Color(0xFF22D3EE).withOpacity(0.2),
-                        padding: const EdgeInsets.all(6),
-                        minimumSize: const Size(32, 32),
+                        backgroundColor: CyberColors.neonCyan.withOpacity(0.15),
+                        padding: const EdgeInsets.all(8),
                       ),
                     ),
                 ],

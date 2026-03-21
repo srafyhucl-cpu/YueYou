@@ -190,9 +190,22 @@ class ReaderProvider with ChangeNotifier {
   /// 按行号跳转（对应 JS jumpTo(lineIndex)）
   Future<void> jumpToLine(int index) => jumpTo(index);
 
-  /// 跳转至指定索引进度（极限性能优化版）
+  /// 跳转至指定索引进度（极限性能优化版 + 严格边界检查）
   Future<void> jumpTo(int index) async {
-    if (index >= 0 && index < _sentences.length) {
+    try {
+      // 🔥 严格边界检查，防止越界重置为0
+      if (_sentences.isEmpty) {
+        debugPrint('❌ jumpTo 失败：sentences 为空');
+        return;
+      }
+
+      if (index < 0 || index >= _sentences.length) {
+        debugPrint('❌ jumpTo 失败：index=$index 越界 (总数=${_sentences.length})');
+        return;
+      }
+
+      debugPrint('✅ jumpTo: $index (总数=${_sentences.length})');
+
       // 第一时间更新核心数据并通知UI，实现零延迟视觉反馈
       _currentIndex = index;
       _fetchIndex = index;
@@ -205,6 +218,9 @@ class ReaderProvider with ChangeNotifier {
       if (_ttsEngine.isEnabled) {
         Future.microtask(() => _ttsEngine.refreshSession());
       }
+    } catch (e, stackTrace) {
+      debugPrint('❌ jumpTo 异常: $e');
+      debugPrint('堆栈: $stackTrace');
     }
   }
 

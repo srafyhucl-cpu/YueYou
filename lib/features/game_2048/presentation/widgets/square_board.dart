@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'tile_widget.dart';
@@ -186,6 +187,74 @@ class _SquareBoardState extends State<SquareBoard>
                                     child: TileWidget(value: tile.value),
                                   );
                                 }),
+                                // 🔥 恢复 Game Over 毛玻璃遮罩
+                                if (context.read<GameProvider>().isOver)
+                                  Positioned.fill(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(24),
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                            sigmaX: 10, sigmaY: 10),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0.7),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'GAME OVER',
+                                                style: TextStyle(
+                                                  color: CyberColors.neonPink,
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: 4,
+                                                  shadows: [
+                                                    Shadow(
+                                                      color: CyberColors
+                                                          .neonPink
+                                                          .withOpacity(0.8),
+                                                      blurRadius: 20,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 24),
+                                              ElevatedButton(
+                                                onPressed: () {
+                                                  context
+                                                      .read<GameProvider>()
+                                                      .reset();
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      CyberColors.neonCyan,
+                                                  foregroundColor: Colors.black,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 32,
+                                                    vertical: 16,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                ),
+                                                child: const Text(
+                                                  'RESTART (重新连接)',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 1,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),

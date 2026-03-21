@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 
-/// 赛博 KTV 提词器 - 流光跑马灯高亮版
-/// 使用 ShaderMask 实现扫光效果，让高亮像水流一样滑过文字
+/// 赛博 KTV 提词器 - 真·跑马灯版（恒定字号）
+/// 🔥 修复：删除 FittedBox，使用固定字号 + 横向滚动
 class TeleprompterView extends StatefulWidget {
   const TeleprompterView({super.key});
 
@@ -23,7 +23,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
     super.initState();
     _scanController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000), // 基础扫光时长
+      duration: const Duration(milliseconds: 2000),
     );
     _scanAnimation = Tween<double>(begin: -1.0, end: 1.0).animate(
       CurvedAnimation(parent: _scanController, curve: Curves.linear),
@@ -37,10 +37,8 @@ class _TeleprompterViewState extends State<TeleprompterView>
   }
 
   void _startScanAnimation(String text) {
-    // 如果文本变化，重新计算动画时长
     if (text != _lastText) {
       _lastText = text;
-      // 根据文本长度动态调整扫光速度
       final duration = (text.length * 80).clamp(800, 3000).toInt();
       _scanController.duration = Duration(milliseconds: duration);
     }
@@ -81,41 +79,39 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
         final String text = reader.currentSentence ?? "";
 
-        // 当 TTS 播放时启动扫光动画
         if (reader.ttsEngine.isSpeaking && text.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _startScanAnimation(text);
           });
         }
 
-        return Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: ShaderMask(
-              shaderCallback: (bounds) {
-                return LinearGradient(
-                  colors: [
-                    // 暗色未读文字
-                    Colors.white.withOpacity(0.3),
-                    // 霓虹青色高亮
-                    CyberColors.neonCyan,
-                    // 暗色未读文字
-                    Colors.white.withOpacity(0.3),
-                  ],
-                  stops: const [-0.3, 0.0, 0.3],
-                  transform: GradientRotation(_scanAnimation.value * 3.14159),
-                ).createShader(bounds);
-              },
-              blendMode: BlendMode.srcIn,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
+        // 🔥 修复：删除 FittedBox，使用固定字号 18 + 横向滚动
+        return SizedBox(
+          height: 40, // 🔥 瘦身：限制高度
+          child: Center(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ShaderMask(
+                shaderCallback: (bounds) {
+                  return LinearGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.3),
+                      CyberColors.neonCyan,
+                      Colors.white.withOpacity(0.3),
+                    ],
+                    stops: const [-0.3, 0.0, 0.3],
+                    transform: GradientRotation(_scanAnimation.value * 3.14159),
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.srcIn,
                 child: Text(
                   text,
                   maxLines: 1,
                   overflow: TextOverflow.visible,
                   style: const TextStyle(
-                    color: Colors.white, // 这里会被 ShaderMask 覆盖
-                    fontSize: 16,
+                    color: Colors.white,
+                    fontSize: 18, // 🔥 恒定字号，绝不变化
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
                   ),
