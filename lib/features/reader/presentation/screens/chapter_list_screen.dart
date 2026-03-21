@@ -177,8 +177,13 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
               isActive: isActive,
               isRead: isRead,
               onTap: () {
-                reader.jumpToLine(chapter.lineIndex);
+                // 先关闭弹窗，避免动画冲突
                 Navigator.of(context).pop();
+
+                // 等待弹窗退场动画完成后，再执行数据突变
+                Future.delayed(const Duration(milliseconds: 250), () {
+                  reader.jumpToLine(chapter.lineIndex);
+                });
               },
             );
           },

@@ -50,8 +50,12 @@ class ReaderProvider with ChangeNotifier {
         return;
       }
       _currentIndex = (_currentIndex + 1) % _sentences.length;
-      await _saveProgress();
+
+      // 第一时间通知UI，实现零延迟视觉反馈
       notifyListeners();
+
+      // Fire-and-forget：进度存档不阻塞主线程
+      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
     };
   }
 
@@ -149,45 +153,58 @@ class ReaderProvider with ChangeNotifier {
     _ttsEngine.cycleSpeed();
   }
 
-  /// 步进逻辑 - 进入下一句
+  /// 步进逻辑 - 进入下一句（极限性能优化版）
   Future<void> nextSentence() async {
     if (_currentIndex < _sentences.length - 1) {
       _currentIndex++;
       _fetchIndex = _currentIndex;
-      await _saveProgress();
-      if (_ttsEngine.isEnabled) {
-        _ttsEngine.refreshSession();
-      }
       notifyListeners();
+
+      // Fire-and-forget：进度存档不阻塞主线程
+      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+
+      // 延后半帧执行TTS刷新
+      if (_ttsEngine.isEnabled) {
+        Future.microtask(() => _ttsEngine.refreshSession());
+      }
     }
   }
 
-  /// 步进逻辑 - 回退上一句
+  /// 步进逻辑 - 回退上一句（极限性能优化版）
   Future<void> previousSentence() async {
     if (_currentIndex > 0) {
       _currentIndex--;
       _fetchIndex = _currentIndex;
-      await _saveProgress();
-      if (_ttsEngine.isEnabled) {
-        _ttsEngine.refreshSession();
-      }
       notifyListeners();
+
+      // Fire-and-forget：进度存档不阻塞主线程
+      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+
+      // 延后半帧执行TTS刷新
+      if (_ttsEngine.isEnabled) {
+        Future.microtask(() => _ttsEngine.refreshSession());
+      }
     }
   }
 
   /// 按行号跳转（对应 JS jumpTo(lineIndex)）
   Future<void> jumpToLine(int index) => jumpTo(index);
 
-  /// 跳转至指定索引进度
+  /// 跳转至指定索引进度（极限性能优化版）
   Future<void> jumpTo(int index) async {
     if (index >= 0 && index < _sentences.length) {
+      // 第一时间更新核心数据并通知UI，实现零延迟视觉反馈
       _currentIndex = index;
       _fetchIndex = index;
-      await _saveProgress();
-      if (_ttsEngine.isEnabled) {
-        _ttsEngine.refreshSession();
-      }
       notifyListeners();
+
+      // Fire-and-forget：进度存档不阻塞主线程
+      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+
+      // 延后半帧执行TTS刷新，避免阻塞UI响应
+      if (_ttsEngine.isEnabled) {
+        Future.microtask(() => _ttsEngine.refreshSession());
+      }
     }
   }
 

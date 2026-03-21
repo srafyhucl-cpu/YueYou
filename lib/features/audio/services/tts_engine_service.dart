@@ -221,12 +221,12 @@ class TtsEngineService extends ChangeNotifier {
     _clearPrefetchQueue();
   }
 
-  /// 清空预加载队列并异步删除临时文件（不阻塞主线程）
+  /// 清空预加载队列并异步删除临时文件（极限性能优化版）
   void _clearPrefetchQueue() {
     final filesToDelete = List<String>.from(_prefetchQueue);
     _prefetchQueue.clear();
 
-    // 异步删除文件，不阻塞主线程
+    // Fire-and-forget：文件删除操作完全异步化，绝不阻塞主线程
     Future.microtask(() async {
       for (final filePath in filesToDelete) {
         try {
