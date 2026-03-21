@@ -17,8 +17,6 @@ class SquareBoard extends StatefulWidget {
 
 class _SquareBoardState extends State<SquareBoard>
     with SingleTickerProviderStateMixin {
-  Offset? _dragStart;
-  Offset? _dragUpdate;
   double _accumulatedDx = 0;
   double _accumulatedDy = 0;
   bool _hasMoved = false;
@@ -124,7 +122,6 @@ class _SquareBoardState extends State<SquareBoard>
             }
           },
           onPanEnd: (d) {
-            _dragStart = null;
             _accumulatedDx = 0;
             _accumulatedDy = 0;
             _hasMoved = false;

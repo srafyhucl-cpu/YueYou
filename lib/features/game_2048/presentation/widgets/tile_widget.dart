@@ -2,87 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 
 /// 单个 2048 数字方块
-/// 视觉重构：移除刺眼光效，使用沉稳缩放动画
-class TileWidget extends StatefulWidget {
+/// 视觉重构：移除合并放大效果，保持简洁
+class TileWidget extends StatelessWidget {
   final int value;
 
   const TileWidget({super.key, required this.value});
-
-  @override
-  State<TileWidget> createState() => _TileWidgetState();
-}
-
-class _TileWidgetState extends State<TileWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _scaleController;
-  late Animation<double> _scaleAnimation;
-  int _previousValue = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _previousValue = widget.value;
-    _scaleController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
-    );
-  }
-
-  @override
-  void didUpdateWidget(TileWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // 检测合并：值变大且不是空格，触发起泡动画
-    if (widget.value != _previousValue &&
-        widget.value > _previousValue &&
-        widget.value > 0) {
-      _scaleController.forward().then((_) => _scaleController.reverse());
-    }
-    _previousValue = widget.value;
-  }
-
-  @override
-  void dispose() {
-    _scaleController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (widget.value == 0) {
+    if (value == 0) {
       return const SizedBox.shrink();
     }
 
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: _getTileGradient(widget.value),
-          borderRadius: BorderRadius.circular(14.0),
-          boxShadow: _getDynamicGlow(widget.value),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.05),
-            width: 1,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: _getTileGradient(value),
+        borderRadius: BorderRadius.circular(14.0),
+        boxShadow: _getDynamicGlow(value),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.05),
+          width: 1,
         ),
-        alignment: Alignment.center,
-        child: Text(
-          '${widget.value}',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: _getFontSize(widget.value),
-            fontWeight: FontWeight.w900,
-            fontFamily: 'JetBrains Mono',
-            shadows: const [
-              Shadow(
-                color: Colors.black54,
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '$value',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: _getFontSize(value),
+          fontWeight: FontWeight.w900,
+          fontFamily: 'JetBrains Mono',
+          shadows: const [
+            Shadow(
+              color: Colors.black54,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
       ),
     );

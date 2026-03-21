@@ -40,7 +40,7 @@ dependencies:
   file_picker: ^6.1.1
   fast_gbk: ^1.0.0
   shared_preferences: ^2.3.3
-  audioplayers: ^6.1.0
+  audioplayers: ^6.4.0
   path_provider: ^2.1.5
   http: ^1.6.0
   wakelock_plus: ^1.4.0

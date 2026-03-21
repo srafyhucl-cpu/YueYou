@@ -58,28 +58,45 @@ class DashboardScreen extends StatelessWidget {
       body: SafeArea(
         child: Stack(
           children: [
+            // 背景渐变效果
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.topCenter,
+                    radius: 1.5,
+                    colors: [
+                      const Color(0xFF22D3EE).withOpacity(0.03),
+                      CyberColors.background,
+                      const Color(0xFF8B5CF6).withOpacity(0.02),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // 主内容
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 children: [
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   // 1. 顶部导航
                   _buildTopNavigation(context),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   // 2. 状态面板
                   _buildStatusPanel(),
-                  const SizedBox(height: 16),
-                  // 空白区域：将下方组件全部向下挤压
-                  const Expanded(child: SizedBox()),
+                  const SizedBox(height: 20),
                   // 棋盘（紧凑，不拉伸）
                   const SquareBoard(),
                   const SizedBox(height: 16),
+                  // 空白区域：将下方组件向下挤压
+                  const Expanded(child: SizedBox()),
                   // 提词器（紧凑，不抢戏）
                   const TeleprompterView(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   // 灵动岛胶囊
                   const CyberPlayerConsole(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -149,14 +166,31 @@ class DashboardScreen extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          padding: const EdgeInsets.all(16),
-          height: 90,
+          padding: const EdgeInsets.all(14),
+          height: 85,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.08),
+                Colors.white.withOpacity(0.03),
+              ],
+            ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(
+              color: const Color(0xFF22D3EE).withOpacity(0.2),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF22D3EE).withOpacity(0.1),
+                blurRadius: 12,
+                spreadRadius: 0,
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -164,13 +198,14 @@ class DashboardScreen extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white38,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                style: TextStyle(
+                  color: const Color(0xFF22D3EE).withOpacity(0.6),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -180,12 +215,13 @@ class DashboardScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _buildAnimatedCounter(score),
-                        const Text(
+                        Text(
                           " | ",
                           style: TextStyle(
-                            color: Colors.white24,
-                            fontSize: 18,
+                            color: Colors.white.withOpacity(0.2),
+                            fontSize: 16,
                             fontFamily: 'JetBrains Mono',
+                            fontWeight: FontWeight.w300,
                           ),
                         ),
                         _buildAnimatedCounter(combo, isCombo: true),
@@ -196,13 +232,22 @@ class DashboardScreen extends StatelessWidget {
                     GestureDetector(
                       onTap: onReset,
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFF22D3EE).withOpacity(0.2),
+                              const Color(0xFF8B5CF6).withOpacity(0.2),
+                            ],
+                          ),
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFF22D3EE).withOpacity(0.4),
+                            width: 1,
+                          ),
                         ),
                         child: const Icon(Icons.refresh,
-                            color: Colors.white, size: 18),
+                            color: Colors.white, size: 16),
                       ),
                     ),
                 ],
@@ -217,26 +262,26 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildAnimatedCounter(int value, {bool isCombo = false}) {
     return TweenAnimationBuilder<int>(
       tween: IntTween(begin: 0, end: value),
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
       builder: (context, animatedValue, child) {
         return Text(
           "$animatedValue",
           style: TextStyle(
-            color: isCombo ? CyberColors.neonPink : Colors.white,
-            fontSize: 20,
+            color: isCombo ? CyberColors.neonPink : const Color(0xFF22D3EE),
+            fontSize: 22,
             fontFamily: 'JetBrains Mono',
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w900,
             shadows: [
               if (isCombo)
                 Shadow(
-                  color: CyberColors.pinkGlow.withOpacity(0.5),
-                  blurRadius: 8,
+                  color: CyberColors.pinkGlow.withOpacity(0.6),
+                  blurRadius: 12,
                 )
               else
                 Shadow(
-                  color: Colors.white.withOpacity(0.3),
-                  blurRadius: 4,
+                  color: const Color(0xFF22D3EE).withOpacity(0.5),
+                  blurRadius: 8,
                 ),
             ],
           ),
