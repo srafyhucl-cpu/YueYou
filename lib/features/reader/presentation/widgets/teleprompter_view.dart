@@ -100,56 +100,61 @@ class _TeleprompterViewState extends State<TeleprompterView>
           });
         }
 
+        // 🔥 基础文字组件（恒定字号 18，不可变）
+        final textWidget = Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.visible,
+          style: TextStyle(
+            color: CyberColors.neonCyan.withOpacity(0.85),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        );
+
+        // 未播放时：直接显示亮色文字，无需 ShaderMask
+        final bool isAnimating =
+            reader.ttsEngine.isSpeaking && _ktvController.isAnimating;
+
         return SizedBox(
           height: 40,
-          child: AnimatedBuilder(
-            animation: _ktvController,
-            builder: (context, child) {
-              // 扫光进度 0.0 -> 1.0
-              final double sweep = _ktvController.value;
-
-              return Center(
-                child: SingleChildScrollView(
-                  controller: _scrollCtrl,
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: ShaderMask(
-                    shaderCallback: (bounds) {
-                      // 🔥 KTV 级逐字高亮：霓虹青色从左扫到右
-                      final double pos = sweep;
-                      return LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          CyberColors.neonCyan,
-                          CyberColors.neonCyan,
-                          Colors.white.withOpacity(0.25),
-                          Colors.white.withOpacity(0.25),
-                        ],
-                        stops: [
-                          0.0,
-                          (pos - 0.01).clamp(0.0, 1.0),
-                          pos.clamp(0.0, 1.0),
-                          1.0,
-                        ],
-                      ).createShader(bounds);
-                    },
-                    blendMode: BlendMode.srcIn,
-                    child: child!,
-                  ),
-                ),
-              );
-            },
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.visible,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
-              ),
+          child: Center(
+            child: SingleChildScrollView(
+              controller: _scrollCtrl,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: isAnimating
+                  ? AnimatedBuilder(
+                      animation: _ktvController,
+                      builder: (context, child) {
+                        final double pos = _ktvController.value;
+                        return ShaderMask(
+                          shaderCallback: (bounds) {
+                            return LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                CyberColors.neonCyan,
+                                CyberColors.neonCyan,
+                                Colors.white.withOpacity(0.35),
+                                Colors.white.withOpacity(0.35),
+                              ],
+                              stops: [
+                                0.0,
+                                (pos - 0.02).clamp(0.0, 1.0),
+                                pos.clamp(0.0, 1.0),
+                                1.0,
+                              ],
+                            ).createShader(bounds);
+                          },
+                          blendMode: BlendMode.srcIn,
+                          child: child!,
+                        );
+                      },
+                      child: textWidget,
+                    )
+                  : textWidget,
             ),
           ),
         );

@@ -249,8 +249,10 @@ class ReaderProvider with ChangeNotifier {
     // Fire-and-forget 存档
     _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
 
-    // 🔥 安全重启 TTS 流：彻底切断“弹回第一章”的死循环
-    Future.microtask(() => _ttsEngine.refreshSession());
+    // 🔥 安全重启 TTS 流：仅在启用时才重启，避免无限后台循环
+    if (_ttsEngine.isEnabled) {
+      Future.microtask(() => _ttsEngine.refreshSession());
+    }
   }
 
   /// 持久化存档逻辑（对应 JS ProgressManager.updateRecord）
