@@ -15,66 +15,74 @@ class ReaderProvider with ChangeNotifier {
   String? _currentBookId;
   List<ChapterModel> _chapters = [];
 
-  ReaderProvider(this._ttsEngine) {
-    _ttsEngine.onNeedPrefetch = (session) async {
-      if (_sentences.isEmpty) {
-        return null;
-      }
-      if (_fetchIndex >= _sentences.length) {
-        _fetchIndex = 0;
-      }
+  // 🔥 章节标题过滤正则（统一复用）
+  static final RegExp _chapterRegex = RegExp(
+    r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
+    caseSensitive: false,
+  );
 
-      // 🔥 智能跳过章节标题和空文本，找到下一个有效句子
+  /// 判断是否为章节标题或空行
+  bool _isSkippable(String text) {
+    if (text.isEmpty) return true;
+    return text.length < 50 && _chapterRegex.hasMatch(text);
+  }
+
+  ReaderProvider(this._ttsEngine) {
+    // 生产者：为 TTS 引擎提供下一句有效文本
+    _ttsEngine.onNeedPrefetch = (session) async {
+      if (_sentences.isEmpty) return null;
+      if (_fetchIndex >= _sentences.length) _fetchIndex = 0;
+
       int attempts = 0;
       while (attempts < _sentences.length) {
         final int lineIndex = _fetchIndex;
         final String text = _sentences[lineIndex].trim();
         _fetchIndex = (_fetchIndex + 1) % _sentences.length;
 
-        // 过滤空文本
-        if (text.isEmpty) {
+        if (_isSkippable(text)) {
           attempts++;
           continue;
         }
 
-        // 过滤章节标题
-        final isChapterTitle = text.length < 50 &&
-            RegExp(r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
-                    caseSensitive: false)
-                .hasMatch(text);
-
-        if (isChapterTitle) {
-          attempts++;
-          continue;
-        }
-
-        // 找到有效句子，返回
         return TtsAudioRequest(
           lineIndex: lineIndex,
           text: text,
           title: currentChapterTitle,
         );
       }
-
-      // 所有句子都无效，返回 null
       return null;
     };
+
+    // 🔥 onItemStarted：播放开始时，用真实 lineIndex 同步 UI
     _ttsEngine.onItemStarted = (item) {
       if (_currentIndex != item.lineIndex) {
         _currentIndex = item.lineIndex;
         notifyListeners();
       }
     };
-    _ttsEngine.onItemFinished = (item) async {
-      if (_sentences.isEmpty) {
-        return;
-      }
-      _currentIndex = (_currentIndex + 1) % _sentences.length;
 
-      // 第一时间通知UI，实现零延迟视觉反馈
+    // 🔥 onItemFinished：播放完成时，基于真实行号推进到下一个有效句子
+    _ttsEngine.onItemFinished = (item) async {
+      if (_sentences.isEmpty) return;
+
+      // 从当前播放完成的真实行号开始，找下一个有效句子
+      int nextIdx = item.lineIndex + 1;
+      int attempts = 0;
+      while (attempts < _sentences.length && nextIdx < _sentences.length) {
+        final text = _sentences[nextIdx].trim();
+        if (!_isSkippable(text)) break;
+        nextIdx++;
+        attempts++;
+      }
+
+      if (nextIdx >= _sentences.length) {
+        nextIdx = _sentences.length - 1;
+      }
+
+      _currentIndex = nextIdx;
+      _fetchIndex = nextIdx;
       notifyListeners();
 
-      // Fire-and-forget：进度存档不阻塞主线程
       _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
     };
   }
@@ -210,54 +218,39 @@ class ReaderProvider with ChangeNotifier {
   /// 按行号跳转（对应 JS jumpTo(lineIndex)）
   Future<void> jumpToLine(int index) => jumpTo(index);
 
-  /// 跳转至指定索引进度（极限性能优化版 + 严格边界检查）
+  /// 🔥 切章核心：严格边界检查 + 智能跳过标题 + 同步UI + 安全重启TTS
   Future<void> jumpTo(int index) async {
-    try {
-      // 🔥 严格边界检查，防止越界重置为0
-      if (_sentences.isEmpty) {
-        debugPrint('❌ jumpTo 失败：sentences 为空');
-        return;
-      }
-
-      if (index < 0 || index >= _sentences.length) {
-        debugPrint('❌ jumpTo 失败：index=$index 越界 (总数=${_sentences.length})');
-        return;
-      }
-
-      // 🔥 智能跳过章节标题行，避免 TTS 400 错误
-      int targetIndex = index;
-      final String text = _sentences[targetIndex].trim();
-
-      // 检测是否为章节标题（长度 < 50 且包含章节关键词）
-      final isChapterTitle = text.length < 50 &&
-          RegExp(r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
-                  caseSensitive: false)
-              .hasMatch(text);
-
-      if (isChapterTitle && targetIndex + 1 < _sentences.length) {
-        // 跳过章节标题，从下一句开始
-        targetIndex = targetIndex + 1;
-        debugPrint('✅ jumpTo: 检测到章节标题，跳过到 $targetIndex');
-      }
-
-      debugPrint('✅ jumpTo: $targetIndex (总数=${_sentences.length})');
-
-      // 第一时间更新核心数据并通知UI，实现零延迟视觉反馈
-      _currentIndex = targetIndex;
-      _fetchIndex = targetIndex;
-      notifyListeners();
-
-      // Fire-and-forget：进度存档不阻塞主线程
-      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
-
-      // 延后半帧执行TTS刷新，避免阻塞UI响应
-      if (_ttsEngine.isEnabled) {
-        Future.microtask(() => _ttsEngine.refreshSession());
-      }
-    } catch (e, stackTrace) {
-      debugPrint('❌ jumpTo 异常: $e');
-      debugPrint('堆栈: $stackTrace');
+    // 严格边界检查
+    if (_sentences.isEmpty) return;
+    if (index < 0 || index >= _sentences.length) {
+      debugPrint('❌ jumpTo 拒绝: index=$index 越界 (0..${_sentences.length - 1})');
+      return;
     }
+
+    // 智能跳过章节标题和空行，找到第一个有效句子
+    int targetIndex = index;
+    int attempts = 0;
+    while (attempts < 20 && targetIndex < _sentences.length) {
+      if (!_isSkippable(_sentences[targetIndex].trim())) break;
+      targetIndex++;
+      attempts++;
+    }
+    if (targetIndex >= _sentences.length) {
+      targetIndex = index; // fallback
+    }
+
+    debugPrint('✅ jumpTo: $index -> $targetIndex (总数=${_sentences.length})');
+
+    // 🔥 第一时间同步更新，让所有 UI 瞬间响应
+    _currentIndex = targetIndex;
+    _fetchIndex = targetIndex;
+    notifyListeners();
+
+    // Fire-and-forget 存档
+    _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+
+    // 🔥 安全重启 TTS 流：彻底切断“弹回第一章”的死循环
+    Future.microtask(() => _ttsEngine.refreshSession());
   }
 
   /// 持久化存档逻辑（对应 JS ProgressManager.updateRecord）

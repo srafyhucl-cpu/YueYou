@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -26,18 +25,17 @@ class TtsEngineService extends ChangeNotifier {
 
   // 双轨流媒体核心
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final List<String> _prefetchQueue = []; // 本地临时MP3文件路径队列
-  int _loopSession = 0; // 会话锁
+  int _loopSession = 0; // 会话锁 — 切章时同步递增
   bool _wakeLockHeld = false;
 
-  // 兼容层
+  // 🔥 预加载队列：文件路径 + 真实行号绑定，彻底消灭 _currentPlayingIndex
+  final List<_PrefetchedAudio> _prefetchedItems = [];
+
+  // 循环控制
   bool _playLoopActive = false;
   bool _prefetchLoopActive = false;
   TtsAudioItem? _currentItem;
-  final Queue<TtsAudioItem> _audioBufferQueue = Queue<TtsAudioItem>();
-  int _currentPlayingIndex = 0; // 当前播放的句子索引
 
-  // 循环控制
   bool _disposed = false;
 
   bool get isEnabled => _isEnabled;
@@ -46,7 +44,7 @@ class TtsEngineService extends ChangeNotifier {
   bool get isBuffering => _isBuffering;
   double get playbackRate => _playbackRate;
   int get currentSession => _loopSession;
-  int get bufferedCount => _prefetchQueue.length;
+  int get bufferedCount => _prefetchedItems.length;
   TtsAudioItem? get currentItem => _currentItem;
 
   late SettingsProvider _settings;
@@ -160,7 +158,7 @@ class TtsEngineService extends ChangeNotifier {
     _isEnabled = enable;
     _syncWakeLock(_isEnabled && _isSpeaking);
     if (enable) {
-      if (_prefetchQueue.isEmpty) {
+      if (_prefetchedItems.isEmpty) {
         _setPlaybackFlags(isSpeaking: false, isBuffering: true);
       }
       _heartbeat();
@@ -206,14 +204,13 @@ class TtsEngineService extends ChangeNotifier {
     refreshSession();
   }
 
+  /// 🔥 切章核心：同步递增 session，立即停播，清空队列，重启循环
   void refreshSession() {
     _loopSession++;
+    debugPrint('🔄 refreshSession: session=$_loopSession');
     _audioPlayer.stop();
-    _audioBufferQueue.clear();
     _currentItem = null;
-    _currentPlayingIndex = 0;
     _setPlaybackFlags(isSpeaking: false, isBuffering: false);
-    // 关键修复：异步清理文件，不阻塞主线程
     _clearPrefetchQueue();
     _heartbeat();
   }
@@ -221,20 +218,17 @@ class TtsEngineService extends ChangeNotifier {
   void stopAll() {
     _loopSession++;
     _audioPlayer.stop();
-    _audioBufferQueue.clear();
     _currentItem = null;
-    _currentPlayingIndex = 0;
     _setPlaybackFlags(isSpeaking: false, isBuffering: false);
-    // 异步清理文件
     _clearPrefetchQueue();
   }
 
-  /// 清空预加载队列并异步删除临时文件（极限性能优化版）
+  /// 清空预加载队列并异步删除临时文件
   void _clearPrefetchQueue() {
-    final filesToDelete = List<String>.from(_prefetchQueue);
-    _prefetchQueue.clear();
+    final filesToDelete = _prefetchedItems.map((e) => e.filePath).toList();
+    _prefetchedItems.clear();
 
-    // Fire-and-forget：文件删除操作完全异步化，绝不阻塞主线程
+    // Fire-and-forget：文件删除完全异步化
     Future.microtask(() async {
       for (final filePath in filesToDelete) {
         try {
@@ -264,7 +258,8 @@ class TtsEngineService extends ChangeNotifier {
         final int sessionSnapshot = _loopSession;
 
         // 队列已满或未启用，等待
-        if (!_isEnabled || _prefetchQueue.length >= _config.maxPrefetchQueue) {
+        if (!_isEnabled ||
+            _prefetchedItems.length >= _config.maxPrefetchQueue) {
           await Future<void>.delayed(const Duration(milliseconds: 500));
           continue;
         }
@@ -277,34 +272,28 @@ class TtsEngineService extends ChangeNotifier {
           continue;
         }
 
-        // 🚨 TTS 容错：拦截空字符串，防止 400 崩溃
-        if (request.text.trim().isEmpty) {
-          debugPrint('⚠️ 跳过空文本，防止 TTS 400 错误');
-          // 通知 reader 跳到下一句，避免死循环
-          if (onItemFinished != null) {
-            final skipItem = TtsAudioItem(
-              id: DateTime.now().microsecondsSinceEpoch,
-              session: sessionSnapshot,
-              lineIndex: request.lineIndex,
-              text: '',
-              title: '',
-              estimatedDuration: Duration.zero,
-            );
-            await onItemFinished!(skipItem);
-          }
+        // � 会话锁检查：异步等待后必须重新验证
+        if (sessionSnapshot != _loopSession || _disposed) {
           continue;
         }
 
-        // 会话已过期，放弃
-        if (sessionSnapshot != _loopSession || _disposed) {
+        // TTS 容错：拦截空字符串
+        if (request.text.trim().isEmpty) {
           continue;
         }
 
         // 下载音频文件
         final String? filePath =
             await _downloadTtsAudio(request, sessionSnapshot);
+
+        // 🔥 下载完成后再次检查会话锁
         if (filePath != null && sessionSnapshot == _loopSession && !_disposed) {
-          _prefetchQueue.add(filePath);
+          _prefetchedItems.add(_PrefetchedAudio(
+            filePath: filePath,
+            lineIndex: request.lineIndex,
+            text: request.text,
+            title: request.title,
+          ));
           final preview = request.text.length > 10
               ? '${request.text.substring(0, 10)}...'
               : request.text;
@@ -337,7 +326,7 @@ class TtsEngineService extends ChangeNotifier {
         final int sessionAtStep = _loopSession;
 
         // 队列为空，等待缓冲
-        if (_prefetchQueue.isEmpty) {
+        if (_prefetchedItems.isEmpty) {
           if (!_isBuffering) {
             _setPlaybackFlags(isSpeaking: false, isBuffering: true);
           }
@@ -349,8 +338,10 @@ class TtsEngineService extends ChangeNotifier {
           _setPlaybackFlags(isSpeaking: false, isBuffering: false);
         }
 
-        // 弹出文件路径
-        final String filePath = _prefetchQueue.removeAt(0);
+        // 🔥 弹出队列头部，携带真实 lineIndex
+        final _PrefetchedAudio prefetched = _prefetchedItems.removeAt(0);
+        final String filePath = prefetched.filePath;
+        final int realLineIndex = prefetched.lineIndex;
 
         // 会话已过期，删除文件
         if (sessionAtStep != _loopSession || _disposed) {
@@ -360,82 +351,67 @@ class TtsEngineService extends ChangeNotifier {
           continue;
         }
 
-        // 触发 onItemStarted 回调
+        // 🔥 触发 onItemStarted 回调，携带真实行号
+        final startItem = TtsAudioItem(
+          id: DateTime.now().microsecondsSinceEpoch,
+          session: sessionAtStep,
+          lineIndex: realLineIndex,
+          text: prefetched.text,
+          title: prefetched.title,
+          estimatedDuration: Duration.zero,
+        );
+        _currentItem = startItem;
         if (onItemStarted != null) {
-          final item = TtsAudioItem(
-            id: DateTime.now().microsecondsSinceEpoch,
-            session: sessionAtStep,
-            lineIndex: _currentPlayingIndex,
-            text: '',
-            title: '',
-            estimatedDuration: Duration.zero,
-          );
-          _currentItem = item;
-          await onItemStarted!(item);
+          await onItemStarted!(startItem);
         }
 
         // 播放音频
         _setPlaybackFlags(isSpeaking: true, isBuffering: false);
 
         try {
-          // 使用 Completer 等待播放完成
           final completer = Completer<void>();
-
-          // 监听播放完成
           late StreamSubscription subscription;
           subscription = _audioPlayer.onPlayerComplete.listen((_) {
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
+            if (!completer.isCompleted) completer.complete();
           });
 
           try {
-            // 关键修复：先stop再播放，避免资源注入冲突
             await _audioPlayer.stop();
             await _audioPlayer.play(DeviceFileSource(filePath));
-
-            // 等待播放完成或会话过期
             await Future.any([
               completer.future,
               Future.delayed(const Duration(seconds: 30)),
             ]);
           } finally {
-            // 确保订阅被取消
             await subscription.cancel();
           }
 
-          // 删除已播放的临时文件
+          // 删除已播放文件
           try {
             await File(filePath).delete();
-          } catch (e) {
-            debugPrint('⚠️ 删除已播放文件失败: $e');
-          }
+          } catch (_) {}
 
-          // 触发 onItemFinished 回调
+          // 🔥 触发 onItemFinished 回调，携带真实行号
           if (onItemFinished != null &&
               sessionAtStep == _loopSession &&
               !_disposed) {
-            final item = TtsAudioItem(
+            final finishItem = TtsAudioItem(
               id: DateTime.now().microsecondsSinceEpoch,
               session: sessionAtStep,
-              lineIndex: _currentPlayingIndex,
-              text: '',
-              title: '',
+              lineIndex: realLineIndex,
+              text: prefetched.text,
+              title: prefetched.title,
               estimatedDuration: Duration.zero,
             );
-            await onItemFinished!(item);
-            _currentPlayingIndex++; // 移动到下一句
+            await onItemFinished!(finishItem);
           }
 
           _currentItem = null;
-
           _setPlaybackFlags(
-              isSpeaking: false, isBuffering: _prefetchQueue.isEmpty);
+              isSpeaking: false, isBuffering: _prefetchedItems.isEmpty);
         } catch (e) {
           debugPrint('⚠️ 播放失败: $e');
           _setPlaybackFlags(isSpeaking: false, isBuffering: false);
-
-          // 删除失败的文件
           try {
             await File(filePath).delete();
           } catch (_) {}
@@ -569,6 +545,21 @@ class TtsAudioRequest {
   final String title;
 
   TtsAudioRequest({
+    required this.lineIndex,
+    required this.text,
+    required this.title,
+  });
+}
+
+/// 预加载音频项：绑定文件路径与真实行号
+class _PrefetchedAudio {
+  final String filePath;
+  final int lineIndex;
+  final String text;
+  final String title;
+
+  const _PrefetchedAudio({
+    required this.filePath,
     required this.lineIndex,
     required this.text,
     required this.title,

@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 
-/// 赛博 KTV 提词器 - 真·跑马灯版（恒定字号）
-/// 🔥 修复：删除 FittedBox，使用固定字号 + 横向滚动
+/// 🔥 赛博 KTV 提词器 - 逐字扫光跑马灯
+/// 架构：AnimationController 驱动 ShaderMask 的 gradient stops
+/// 时长估算：文字长度 * (1000 / (语速 * 5)) 毫秒
+/// 强制 maxLines:1 + fontSize:18 恒定 + 横向滚动
 class TeleprompterView extends StatefulWidget {
   const TeleprompterView({super.key});
 
@@ -14,37 +16,41 @@ class TeleprompterView extends StatefulWidget {
 
 class _TeleprompterViewState extends State<TeleprompterView>
     with SingleTickerProviderStateMixin {
-  late AnimationController _scanController;
-  late Animation<double> _scanAnimation;
-  String _lastText = '';
+  late AnimationController _ktvController;
+  String _prevText = '';
+  final ScrollController _scrollCtrl = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _scanController = AnimationController(
+    _ktvController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
-    );
-    _scanAnimation = Tween<double>(begin: -1.0, end: 1.0).animate(
-      CurvedAnimation(parent: _scanController, curve: Curves.linear),
     );
   }
 
   @override
   void dispose() {
-    _scanController.dispose();
+    _ktvController.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
-  void _startScanAnimation(String text) {
-    if (text != _lastText) {
-      _lastText = text;
-      final duration = (text.length * 80).clamp(800, 3000).toInt();
-      _scanController.duration = Duration(milliseconds: duration);
-    }
+  /// 当句子变化时，重新计算扫光时长并启动动画
+  void _onSentenceChanged(String text, double playbackRate) {
+    if (text == _prevText) return;
+    _prevText = text;
 
-    _scanController.reset();
-    _scanController.forward();
+    // 时长 = 文字长度 * (1000 / (语速 * 5)) 毫秒
+    final speed = playbackRate.clamp(0.5, 3.0);
+    final ms = (text.length * (1000 / (speed * 5))).round().clamp(600, 8000);
+    _ktvController.duration = Duration(milliseconds: ms);
+    _ktvController.forward(from: 0.0);
+
+    // 自动滚动到起点
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.jumpTo(0);
+    }
   }
 
   @override
@@ -52,26 +58,32 @@ class _TeleprompterViewState extends State<TeleprompterView>
     return Consumer<ReaderProvider>(
       builder: (context, reader, _) {
         if (reader.isParsing) {
-          return const Center(
-            child: Text(
-              "正在连接神经数据链路...",
-              style: TextStyle(
-                color: Colors.white30,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+          return const SizedBox(
+            height: 40,
+            child: Center(
+              child: Text(
+                "正在连接神经数据链路...",
+                style: TextStyle(
+                  color: Colors.white30,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           );
         }
 
         if (reader.sentences.isEmpty) {
-          return Center(
-            child: Text(
-              "等待数据流接入 [ _ ]",
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.3),
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+          return SizedBox(
+            height: 40,
+            child: Center(
+              child: Text(
+                "等待数据流接入 [ _ ]",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.3),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           );
@@ -79,43 +91,64 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
         final String text = reader.currentSentence ?? "";
 
+        // 当 TTS 正在播放且句子变化时，启动 KTV 扫光
         if (reader.ttsEngine.isSpeaking && text.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _startScanAnimation(text);
+            if (mounted) {
+              _onSentenceChanged(text, reader.ttsEngine.playbackRate);
+            }
           });
         }
 
-        // 🔥 修复：删除 FittedBox，使用固定字号 18 + 横向滚动
         return SizedBox(
-          height: 40, // 🔥 瘦身：限制高度
-          child: Center(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ShaderMask(
-                shaderCallback: (bounds) {
-                  return LinearGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.3),
-                      CyberColors.neonCyan,
-                      Colors.white.withOpacity(0.3),
-                    ],
-                    stops: const [-0.3, 0.0, 0.3],
-                    transform: GradientRotation(_scanAnimation.value * 3.14159),
-                  ).createShader(bounds);
-                },
-                blendMode: BlendMode.srcIn,
-                child: Text(
-                  text,
-                  maxLines: 1,
-                  overflow: TextOverflow.visible,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18, // 🔥 恒定字号，绝不变化
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+          height: 40,
+          child: AnimatedBuilder(
+            animation: _ktvController,
+            builder: (context, child) {
+              // 扫光进度 0.0 -> 1.0
+              final double sweep = _ktvController.value;
+
+              return Center(
+                child: SingleChildScrollView(
+                  controller: _scrollCtrl,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: ShaderMask(
+                    shaderCallback: (bounds) {
+                      // 🔥 KTV 级逐字高亮：霓虹青色从左扫到右
+                      final double pos = sweep;
+                      return LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          CyberColors.neonCyan,
+                          CyberColors.neonCyan,
+                          Colors.white.withOpacity(0.25),
+                          Colors.white.withOpacity(0.25),
+                        ],
+                        stops: [
+                          0.0,
+                          (pos - 0.01).clamp(0.0, 1.0),
+                          pos.clamp(0.0, 1.0),
+                          1.0,
+                        ],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.srcIn,
+                    child: child!,
                   ),
                 ),
+              );
+            },
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
               ),
             ),
           ),
