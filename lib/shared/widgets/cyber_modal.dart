@@ -28,7 +28,7 @@ Future<T?> showCyberModal<T>({
                 opacity: animation,
                 child: Container(
                   margin:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 64),
                   constraints: BoxConstraints(
                     maxWidth: 500,
                     maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -60,7 +60,10 @@ Future<T?> showCyberModal<T>({
                         decoration: const BoxDecoration(
                           color: Color(0xE60A0A0F),
                         ),
-                        child: child,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: child, // 🚨 极其重要：双重防溢出保护
+                        ),
                       ),
                     ),
                   ),

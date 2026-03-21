@@ -88,7 +88,12 @@ class FileImportService {
       final List<ChapterModel> chapters = [];
       for (int i = 0; i < lines.length; i++) {
         if (lines[i].length < 50 && chapterRegex.hasMatch(lines[i])) {
-          chapters.add(ChapterModel(title: lines[i].trim(), lineIndex: i));
+          // 🧹 无用章节名净化：移除垃圾前缀词
+          String cleanTitle = lines[i].trim();
+          cleanTitle = cleanTitle
+              .replaceAll(RegExp(r'^(正文|VIP卷|默认卷|卷[一二三四五六七八九十]+)\s*'), '')
+              .trim();
+          chapters.add(ChapterModel(title: cleanTitle, lineIndex: i));
         }
       }
 

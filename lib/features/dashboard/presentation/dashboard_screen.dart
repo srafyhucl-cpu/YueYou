@@ -10,7 +10,6 @@ import 'package:yueyou/features/library/presentation/screens/library_screen.dart
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
 import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
 import 'package:yueyou/shared/widgets/cyber_modal.dart';
-import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
@@ -36,19 +35,6 @@ class DashboardScreen extends StatelessWidget {
       context: context,
       child: const SettingsScreen(),
     );
-  }
-
-  Future<void> _handleReset(BuildContext context) async {
-    final confirmed = await showCyberConfirmDialog(
-      context: context,
-      title: '重置棋盘',
-      message: '确定要重置当前游戏吗？所有进度将会丢失。',
-      confirmText: '确认重置',
-      cancelText: '取消',
-    );
-    if (confirmed && context.mounted) {
-      context.read<GameProvider>().reset();
-    }
   }
 
   @override
@@ -85,12 +71,15 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   // 2. 状态面板
                   _buildStatusPanel(),
-                  const SizedBox(height: 20),
-                  // 棋盘（紧凑，不拉伸）
-                  const SquareBoard(),
                   const SizedBox(height: 16),
-                  // 空白区域：将下方组件向下挤压
-                  const Expanded(child: SizedBox()),
+                  // 棋盘（垂直居中偏上，人体工学优化）
+                  const Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: SquareBoard(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   // 提词器（紧凑，不抢戏）
                   const TeleprompterView(),
                   const SizedBox(height: 12),
@@ -106,14 +95,16 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  /// 构建顶部胶囊按钮组
+  /// 构建顶部胶囊按钮组（紧凑排列，增强玻璃拟物感）
   Widget _buildTopNavigation(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _buildNavButton(context, "📚 图书馆", onTap: () => _openLibrary(context)),
+        const SizedBox(width: 12),
         _buildNavButton(context, "📜 目录",
             onTap: () => _openChapterList(context)),
+        const SizedBox(width: 12),
         _buildNavButton(context, "⚙️ 设置", onTap: () => _openSettings(context)),
       ],
     );
@@ -136,8 +127,8 @@ class DashboardScreen extends StatelessWidget {
                 title: "当前得分 | 连击",
                 score: provider.score,
                 combo: provider.combo,
-                showReset: true,
-                onReset: () => _handleReset(context),
+                showReset: false, // 移除主面板的重置按钮
+                onReset: null,
               ),
             ),
             const SizedBox(width: 12),
@@ -211,43 +202,39 @@ class DashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildAnimatedCounter(score),
-                        Text(
-                          " | ",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.2),
-                            fontSize: 16,
-                            fontFamily: 'JetBrains Mono',
-                            fontWeight: FontWeight.w300,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildAnimatedCounter(score),
+                          Text(
+                            " | ",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.2),
+                              fontSize: 16,
+                              fontFamily: 'JetBrains Mono',
+                              fontWeight: FontWeight.w300,
+                            ),
                           ),
-                        ),
-                        _buildAnimatedCounter(combo, isCombo: true),
-                      ],
+                          _buildAnimatedCounter(combo, isCombo: true),
+                        ],
+                      ),
                     ),
                   ),
                   if (showReset)
-                    GestureDetector(
-                      onTap: onReset,
-                      child: Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF22D3EE).withOpacity(0.2),
-                              const Color(0xFF8B5CF6).withOpacity(0.2),
-                            ],
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF22D3EE).withOpacity(0.4),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Icon(Icons.refresh,
-                            color: Colors.white, size: 16),
+                    IconButton(
+                      onPressed: onReset,
+                      icon: const Icon(
+                        Icons.refresh,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor:
+                            const Color(0xFF22D3EE).withOpacity(0.2),
+                        padding: const EdgeInsets.all(6),
+                        minimumSize: const Size(32, 32),
                       ),
                     ),
                 ],
@@ -315,30 +302,30 @@ class _NavButtonState extends State<_NavButton> {
         scale: _isPressed ? 0.95 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF22D3EE).withOpacity(0.15),
-                const Color(0xFF8B5CF6).withOpacity(0.15),
+                const Color(0xFF22D3EE).withOpacity(0.25),
+                const Color(0xFF8B5CF6).withOpacity(0.25),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF22D3EE).withOpacity(0.4),
+              color: const Color(0xFF22D3EE).withOpacity(0.5),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF22D3EE).withOpacity(0.25),
-                blurRadius: 12,
+                color: const Color(0xFF22D3EE).withOpacity(0.3),
+                blurRadius: 16,
                 spreadRadius: 1,
               ),
               BoxShadow(
-                color: const Color(0xFF8B5CF6).withOpacity(0.15),
-                blurRadius: 8,
+                color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                blurRadius: 12,
                 spreadRadius: 0,
               ),
             ],
@@ -347,9 +334,9 @@ class _NavButtonState extends State<_NavButton> {
             widget.label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+              letterSpacing: 0.5,
             ),
           ),
         ),

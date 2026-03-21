@@ -269,7 +269,21 @@ class TtsEngineService extends ChangeNotifier {
           continue;
         }
 
+        // 🚨 TTS 容错：拦截空字符串，防止 400 崩溃
         if (request.text.trim().isEmpty) {
+          debugPrint('⚠️ 跳过空文本，防止 TTS 400 错误');
+          // 通知 reader 跳到下一句，避免死循环
+          if (onItemFinished != null) {
+            final skipItem = TtsAudioItem(
+              id: DateTime.now().microsecondsSinceEpoch,
+              session: sessionSnapshot,
+              lineIndex: request.lineIndex,
+              text: '',
+              title: '',
+              estimatedDuration: Duration.zero,
+            );
+            await onItemFinished!(skipItem);
+          }
           continue;
         }
 
@@ -449,6 +463,13 @@ class TtsEngineService extends ChangeNotifier {
         if (response.statusCode != 200) {
           debugPrint(
               '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})');
+
+          // 🚨 TTS 容错：400 错误直接跳过，不重试避免死循环
+          if (response.statusCode == 400) {
+            debugPrint('❌ TTS 400 错误，直接跳过当前句');
+            return null;
+          }
+
           if (attempt < _config.maxRetries - 1) {
             // 指数退避
             final delay = _config.baseRetryDelay * (1 << attempt);
