@@ -23,39 +23,41 @@ class ReaderProvider with ChangeNotifier {
       if (_fetchIndex >= _sentences.length) {
         _fetchIndex = 0;
       }
-      final int lineIndex = _fetchIndex;
-      final String text = _sentences[lineIndex].trim();
-      _fetchIndex = (_fetchIndex + 1) % _sentences.length;
 
-      // 🔥 过滤空文本
-      if (text.isEmpty) {
+      // 🔥 智能跳过章节标题和空文本，找到下一个有效句子
+      int attempts = 0;
+      while (attempts < _sentences.length) {
+        final int lineIndex = _fetchIndex;
+        final String text = _sentences[lineIndex].trim();
+        _fetchIndex = (_fetchIndex + 1) % _sentences.length;
+
+        // 过滤空文本
+        if (text.isEmpty) {
+          attempts++;
+          continue;
+        }
+
+        // 过滤章节标题
+        final isChapterTitle = text.length < 50 &&
+            RegExp(r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
+                    caseSensitive: false)
+                .hasMatch(text);
+
+        if (isChapterTitle) {
+          attempts++;
+          continue;
+        }
+
+        // 找到有效句子，返回
         return TtsAudioRequest(
           lineIndex: lineIndex,
-          text: '',
+          text: text,
           title: currentChapterTitle,
         );
       }
 
-      // 🔥 过滤章节标题，避免 TTS 400 错误
-      final isChapterTitle = text.length < 50 &&
-          RegExp(r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
-                  caseSensitive: false)
-              .hasMatch(text);
-
-      if (isChapterTitle) {
-        // 跳过章节标题，返回空请求
-        return TtsAudioRequest(
-          lineIndex: lineIndex,
-          text: '',
-          title: currentChapterTitle,
-        );
-      }
-
-      return TtsAudioRequest(
-        lineIndex: lineIndex,
-        text: text,
-        title: currentChapterTitle,
-      );
+      // 所有句子都无效，返回 null
+      return null;
     };
     _ttsEngine.onItemStarted = (item) {
       if (_currentIndex != item.lineIndex) {
