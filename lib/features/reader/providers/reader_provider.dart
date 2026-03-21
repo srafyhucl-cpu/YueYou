@@ -26,6 +26,8 @@ class ReaderProvider with ChangeNotifier {
       final int lineIndex = _fetchIndex;
       final String text = _sentences[lineIndex].trim();
       _fetchIndex = (_fetchIndex + 1) % _sentences.length;
+
+      // 🔥 过滤空文本
       if (text.isEmpty) {
         return TtsAudioRequest(
           lineIndex: lineIndex,
@@ -33,6 +35,22 @@ class ReaderProvider with ChangeNotifier {
           title: currentChapterTitle,
         );
       }
+
+      // 🔥 过滤章节标题，避免 TTS 400 错误
+      final isChapterTitle = text.length < 50 &&
+          RegExp(r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
+                  caseSensitive: false)
+              .hasMatch(text);
+
+      if (isChapterTitle) {
+        // 跳过章节标题，返回空请求
+        return TtsAudioRequest(
+          lineIndex: lineIndex,
+          text: '',
+          title: currentChapterTitle,
+        );
+      }
+
       return TtsAudioRequest(
         lineIndex: lineIndex,
         text: text,
