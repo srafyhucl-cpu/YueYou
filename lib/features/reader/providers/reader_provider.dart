@@ -204,11 +204,27 @@ class ReaderProvider with ChangeNotifier {
         return;
       }
 
-      debugPrint('✅ jumpTo: $index (总数=${_sentences.length})');
+      // 🔥 智能跳过章节标题行，避免 TTS 400 错误
+      int targetIndex = index;
+      final String text = _sentences[targetIndex].trim();
+
+      // 检测是否为章节标题（长度 < 50 且包含章节关键词）
+      final isChapterTitle = text.length < 50 &&
+          RegExp(r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
+                  caseSensitive: false)
+              .hasMatch(text);
+
+      if (isChapterTitle && targetIndex + 1 < _sentences.length) {
+        // 跳过章节标题，从下一句开始
+        targetIndex = targetIndex + 1;
+        debugPrint('✅ jumpTo: 检测到章节标题，跳过到 $targetIndex');
+      }
+
+      debugPrint('✅ jumpTo: $targetIndex (总数=${_sentences.length})');
 
       // 第一时间更新核心数据并通知UI，实现零延迟视觉反馈
-      _currentIndex = index;
-      _fetchIndex = index;
+      _currentIndex = targetIndex;
+      _fetchIndex = targetIndex;
       notifyListeners();
 
       // Fire-and-forget：进度存档不阻塞主线程
