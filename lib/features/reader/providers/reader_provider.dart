@@ -36,10 +36,28 @@ class ReaderProvider with ChangeNotifier {
       int attempts = 0;
       while (attempts < _sentences.length) {
         final int lineIndex = _fetchIndex;
-        final String text = _sentences[lineIndex].trim();
+        String text = _sentences[lineIndex].trim();
         _fetchIndex = (_fetchIndex + 1) % _sentences.length;
 
         if (_isSkippable(text)) {
+          attempts++;
+          continue;
+        }
+
+        // 🔥 TTS API 要求至少 5 字符，自动合并短句
+        while (text.length < 5 && _fetchIndex < _sentences.length) {
+          final nextText = _sentences[_fetchIndex].trim();
+          if (_isSkippable(nextText)) {
+            _fetchIndex++;
+            continue;
+          }
+          text = text + nextText;
+          _fetchIndex++;
+          if (text.length >= 5) break;
+        }
+
+        // 如果合并后仍然太短，跳过
+        if (text.length < 5) {
           attempts++;
           continue;
         }

@@ -287,8 +287,10 @@ class TtsEngineService extends ChangeNotifier {
           continue;
         }
 
-        // TTS 容错：拦截空字符串
-        if (request.text.trim().isEmpty) {
+        // TTS 容错：拦截空字符串和短句（API要求至少5字符）
+        final trimmedText = request.text.trim();
+        if (trimmedText.isEmpty || trimmedText.length < 5) {
+          debugPrint('⚠️ 文本太短 (<5字符)，跳过: $trimmedText');
           continue;
         }
 
@@ -466,12 +468,13 @@ class TtsEngineService extends ChangeNotifier {
             .timeout(_config.requestTimeout);
 
         if (response.statusCode != 200) {
+          final errorBody = response.body;
           debugPrint(
-              '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})');
+              '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})\n响应: $errorBody');
 
           // 🚨 TTS 容错：400 错误直接跳过，不重试避免死循环
           if (response.statusCode == 400) {
-            debugPrint('❌ TTS 400 错误，直接跳过当前句');
+            debugPrint('❌ TTS 400 错误，直接跳过当前句: ${request.text}');
             return null;
           }
 
