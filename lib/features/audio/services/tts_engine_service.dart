@@ -156,11 +156,13 @@ class TtsEngineService extends ChangeNotifier {
   void setEnabled(bool enable) {
     if (_isEnabled == enable) return;
     _isEnabled = enable;
+    debugPrint('🎵 TTS setEnabled: $enable (session=$_loopSession)');
     _syncWakeLock(_isEnabled && _isSpeaking);
     if (enable) {
       if (_prefetchedItems.isEmpty) {
         _setPlaybackFlags(isSpeaking: false, isBuffering: true);
       }
+      debugPrint('🚀 启动双轨循环...');
       _heartbeat();
       return;
     }
@@ -250,8 +252,12 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 生产者轨道：预加载循环
   Future<void> _startPrefetchLoop() async {
-    if (_prefetchLoopActive || _disposed) return;
+    if (_prefetchLoopActive || _disposed) {
+      debugPrint('⏭️ 预加载循环已在运行或已销毁，跳过');
+      return;
+    }
     _prefetchLoopActive = true;
+    debugPrint('🔄 预加载循环启动 (session=$_loopSession)');
 
     try {
       while (_prefetchLoopActive && !_disposed) {
@@ -265,12 +271,16 @@ class TtsEngineService extends ChangeNotifier {
         }
 
         // 请求下一句文本
+        debugPrint('📡 请求下一句文本 (session=$sessionSnapshot)...');
         final TtsAudioRequest? request =
             await _requestNextSentence(sessionSnapshot);
         if (request == null) {
+          debugPrint('⚠️ onNeedPrefetch 返回 null，等待1秒...');
           await Future<void>.delayed(const Duration(seconds: 1));
           continue;
         }
+        debugPrint(
+            '✅ 获取文本: ${request.text.substring(0, request.text.length > 20 ? 20 : request.text.length)}...');
 
         // � 会话锁检查：异步等待后必须重新验证
         if (sessionSnapshot != _loopSession || _disposed) {
@@ -283,8 +293,12 @@ class TtsEngineService extends ChangeNotifier {
         }
 
         // 下载音频文件
+        debugPrint('⬇️ 开始下载音频: ${request.text.substring(0, 10)}...');
         final String? filePath =
             await _downloadTtsAudio(request, sessionSnapshot);
+        if (filePath == null) {
+          debugPrint('❌ 音频下载失败');
+        }
 
         // 🔥 下载完成后再次检查会话锁
         if (filePath != null && sessionSnapshot == _loopSession && !_disposed) {
@@ -310,8 +324,12 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 消费者轨道：播放循环
   Future<void> _startPlayLoop() async {
-    if (_playLoopActive || _disposed) return;
+    if (_playLoopActive || _disposed) {
+      debugPrint('⏭️ 播放循环已在运行或已销毁，跳过');
+      return;
+    }
     _playLoopActive = true;
+    debugPrint('▶️ 播放循环启动 (session=$_loopSession)');
 
     try {
       while (_playLoopActive && !_disposed) {
@@ -328,11 +346,13 @@ class TtsEngineService extends ChangeNotifier {
         // 队列为空，等待缓冲
         if (_prefetchedItems.isEmpty) {
           if (!_isBuffering) {
+            debugPrint('⏳ 队列为空，进入缓冲状态...');
             _setPlaybackFlags(isSpeaking: false, isBuffering: true);
           }
           await Future<void>.delayed(const Duration(milliseconds: 200));
           continue;
         }
+        debugPrint('🎬 队列有 ${_prefetchedItems.length} 个音频，准备播放...');
 
         if (_isBuffering) {
           _setPlaybackFlags(isSpeaking: false, isBuffering: false);
@@ -376,8 +396,9 @@ class TtsEngineService extends ChangeNotifier {
           });
 
           try {
-            await _audioPlayer.stop();
+            debugPrint('🔊 开始播放: $filePath');
             await _audioPlayer.play(DeviceFileSource(filePath));
+            debugPrint('✅ AudioPlayer.play() 调用成功');
             await Future.any([
               completer.future,
               Future.delayed(const Duration(seconds: 30)),
