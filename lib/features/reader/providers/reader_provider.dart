@@ -28,40 +28,46 @@ class ReaderProvider with ChangeNotifier {
   }
 
   ReaderProvider(this._ttsEngine) {
-    // 生产者：为 TTS 引擎提供下一句有效文本
+    // 生产者：为 TTS 引擎提供下一句有效文本（不移动游标，由成功回调移动）
     _ttsEngine.onNeedPrefetch = (session) async {
       if (_sentences.isEmpty) return null;
       if (_fetchIndex >= _sentences.length) _fetchIndex = 0;
 
+      // 🔥 关键修复：使用临时游标查找，不修改 _fetchIndex
+      int tempCursor = _fetchIndex;
       int attempts = 0;
+
       while (attempts < _sentences.length) {
-        final int lineIndex = _fetchIndex;
+        final int lineIndex = tempCursor;
         String text = _sentences[lineIndex].trim();
-        _fetchIndex = (_fetchIndex + 1) % _sentences.length;
 
         if (_isSkippable(text)) {
+          tempCursor = (tempCursor + 1) % _sentences.length;
           attempts++;
           continue;
         }
 
         // 🔥 TTS API 要求至少 5 字符，自动合并短句
-        while (text.length < 5 && _fetchIndex < _sentences.length) {
-          final nextText = _sentences[_fetchIndex].trim();
+        int mergeIndex = tempCursor + 1;
+        while (text.length < 5 && mergeIndex < _sentences.length) {
+          final nextText = _sentences[mergeIndex].trim();
           if (_isSkippable(nextText)) {
-            _fetchIndex++;
+            mergeIndex++;
             continue;
           }
           text = text + nextText;
-          _fetchIndex++;
+          mergeIndex++;
           if (text.length >= 5) break;
         }
 
         // 如果合并后仍然太短，跳过
         if (text.length < 5) {
+          tempCursor = (tempCursor + 1) % _sentences.length;
           attempts++;
           continue;
         }
 
+        // 🔥 返回文本，但不移动 _fetchIndex（等待成功回调）
         return TtsAudioRequest(
           lineIndex: lineIndex,
           text: text,
@@ -69,6 +75,12 @@ class ReaderProvider with ChangeNotifier {
         );
       }
       return null;
+    };
+
+    // 🔥 新增：下载成功后才移动游标（模仿老代码）
+    _ttsEngine.onPrefetchSuccess = (lineIndex) {
+      // 移动到下一个位置
+      _fetchIndex = (lineIndex + 1) % _sentences.length;
     };
 
     // 🔥 onItemStarted：播放开始时，用真实 lineIndex 同步 UI

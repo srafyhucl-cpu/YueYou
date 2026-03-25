@@ -38,6 +38,9 @@ class TtsEngineService extends ChangeNotifier {
 
   bool _disposed = false;
 
+  // 🔥 回调：预加载成功后通知 Provider 移动游标（模仿老代码逻辑）
+  void Function(int lineIndex)? onPrefetchSuccess;
+
   bool get isEnabled => _isEnabled;
   bool get isPlaying => _isEnabled && _isSpeaking;
   bool get isSpeaking => _isSpeaking;
@@ -326,6 +329,12 @@ class TtsEngineService extends ChangeNotifier {
               ? '${request.text.substring(0, 10)}...'
               : request.text;
           debugPrint('✅ 预加载完成: $preview -> $filePath');
+
+          // 🔥 通知 Provider 移动游标（只有成功后才移动，模仿老代码）
+          if (onPrefetchSuccess != null) {
+            onPrefetchSuccess!(request.lineIndex);
+          }
+
           notifyListeners();
         }
       }

@@ -8,10 +8,10 @@ class TtsConfig {
 
   const TtsConfig({
     required this.serverUrl,
-    this.requestTimeout = const Duration(seconds: 10),
-    this.maxRetries = 3,
-    this.baseRetryDelay = const Duration(seconds: 1),
-    this.maxPrefetchQueue = 3,
+    this.requestTimeout = const Duration(seconds: 8),
+    this.maxRetries = 2,
+    this.baseRetryDelay = const Duration(milliseconds: 800),
+    this.maxPrefetchQueue = 6,
   });
 
   /// 开发环境配置
