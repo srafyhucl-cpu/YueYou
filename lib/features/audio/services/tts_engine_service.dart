@@ -214,7 +214,14 @@ class TtsEngineService extends ChangeNotifier {
     _currentItem = null;
     _setPlaybackFlags(isSpeaking: false, isBuffering: false);
     _clearPrefetchQueue();
-    _heartbeat();
+
+    // 🔥 重置循环标志位，允许重新启动
+    _playLoopActive = false;
+    _prefetchLoopActive = false;
+
+    if (_isEnabled) {
+      _heartbeat();
+    }
   }
 
   void stopAll() {
@@ -279,8 +286,10 @@ class TtsEngineService extends ChangeNotifier {
           await Future<void>.delayed(const Duration(seconds: 1));
           continue;
         }
-        debugPrint(
-            '✅ 获取文本: ${request.text.substring(0, request.text.length > 20 ? 20 : request.text.length)}...');
+        final textPreview = request.text.length > 20
+            ? '${request.text.substring(0, 20)}...'
+            : request.text;
+        debugPrint('✅ 获取文本: $textPreview');
 
         // � 会话锁检查：异步等待后必须重新验证
         if (sessionSnapshot != _loopSession || _disposed) {
@@ -295,7 +304,10 @@ class TtsEngineService extends ChangeNotifier {
         }
 
         // 下载音频文件
-        debugPrint('⬇️ 开始下载音频: ${request.text.substring(0, 10)}...');
+        final downloadPreview = request.text.length > 10
+            ? '${request.text.substring(0, 10)}...'
+            : request.text;
+        debugPrint('⬇️ 开始下载音频: $downloadPreview');
         final String? filePath =
             await _downloadTtsAudio(request, sessionSnapshot);
         if (filePath == null) {
