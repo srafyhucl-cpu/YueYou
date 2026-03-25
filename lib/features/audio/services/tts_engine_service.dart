@@ -315,10 +315,13 @@ class TtsEngineService extends ChangeNotifier {
             await _downloadTtsAudio(request, sessionSnapshot);
         if (filePath == null) {
           debugPrint('❌ 音频下载失败');
+          // 🔥 失败后等待3秒，让服务器端任务过期释放
+          await Future<void>.delayed(const Duration(seconds: 3));
+          continue; // 重试同一句
         }
 
         // 🔥 下载完成后再次检查会话锁
-        if (filePath != null && sessionSnapshot == _loopSession && !_disposed) {
+        if (sessionSnapshot == _loopSession && !_disposed) {
           _prefetchedItems.add(_PrefetchedAudio(
             filePath: filePath,
             lineIndex: request.lineIndex,
