@@ -466,8 +466,8 @@ class TtsEngineService extends ChangeNotifier {
               completer.future,
               Future.doWhile(() async {
                 await Future.delayed(const Duration(milliseconds: 500));
-                // 如果超过2秒进度没动，且还在speaking状态，判定为卡死
-                if (DateTime.now().difference(lastPosTime).inSeconds > 2 &&
+                // 如果超过5秒进度没动，且还在speaking状态，判定为卡死
+                if (DateTime.now().difference(lastPosTime).inSeconds > 5 &&
                     _isSpeaking) {
                   debugPrint('🚨 检测到音频流卡死，强制跳过');
                   return false;
@@ -526,17 +526,13 @@ class TtsEngineService extends ChangeNotifier {
         // 构建请求URL
         final uri = Uri.parse(_config.serverUrl);
 
-        // 🔥 添加时间戳后缀，绕过服务器任务去重机制
-        final uniqueText =
-            '${request.text}#${DateTime.now().millisecondsSinceEpoch}';
-
         // 发送HTTP POST请求
         final response = await http
             .post(
               uri,
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({
-                'text': uniqueText,
+                'text': request.text,
                 'voice': _voice,
               }),
             )
