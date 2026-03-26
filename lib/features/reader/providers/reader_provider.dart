@@ -91,7 +91,7 @@ class ReaderProvider with ChangeNotifier {
       }
     };
 
-    // 🔥 onItemFinished：播放完成时，基于真实行号推进到下一个有效句子
+    // 🔥 onItemFinished：播放完成时，只更新 _currentIndex（UI显示），不修改 _fetchIndex（预加载游标）
     _ttsEngine.onItemFinished = (item) async {
       if (_sentences.isEmpty) return;
 
@@ -109,8 +109,8 @@ class ReaderProvider with ChangeNotifier {
         nextIdx = _sentences.length - 1;
       }
 
+      // 🔥 只更新 _currentIndex，不修改 _fetchIndex（避免干扰预加载循环）
       _currentIndex = nextIdx;
-      _fetchIndex = nextIdx;
       notifyListeners();
 
       _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
