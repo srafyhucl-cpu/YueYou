@@ -269,6 +269,8 @@ class TtsEngineService extends ChangeNotifier {
     _prefetchLoopActive = true;
     debugPrint('🔄 预加载循环启动 (session=$_loopSession)');
 
+    int consecutiveFailures = 0; // 🔥 连续失败计数器
+
     try {
       while (_prefetchLoopActive && !_disposed) {
         final int sessionSnapshot = _loopSession;
@@ -294,7 +296,7 @@ class TtsEngineService extends ChangeNotifier {
             : request.text;
         debugPrint('✅ 获取文本: $textPreview');
 
-        // � 会话锁检查：异步等待后必须重新验证
+        // 🔥 会话锁检查：异步等待后必须重新验证
         if (sessionSnapshot != _loopSession || _disposed) {
           continue;
         }
@@ -314,11 +316,27 @@ class TtsEngineService extends ChangeNotifier {
         final String? filePath =
             await _downloadTtsAudio(request, sessionSnapshot);
         if (filePath == null) {
-          debugPrint('❌ 音频下载失败');
-          // 🔥 失败后等待3秒，让服务器端任务过期释放
+          consecutiveFailures++;
+          debugPrint('❌ 音频下载失败 (连续失败: $consecutiveFailures)');
+
+          // 🔥 连续失败3次后跳过这一句，尝试下一句
+          if (consecutiveFailures >= 3) {
+            debugPrint('⚠️ 连续失败3次，跳过当前句子');
+            if (onPrefetchSuccess != null) {
+              onPrefetchSuccess!(request.lineIndex); // 移动游标到下一句
+            }
+            consecutiveFailures = 0; // 重置计数器
+            await Future<void>.delayed(const Duration(seconds: 2));
+            continue;
+          }
+
+          // 失败后等待3秒再重试
           await Future<void>.delayed(const Duration(seconds: 3));
           continue; // 重试同一句
         }
+
+        // 🔥 成功后重置失败计数器
+        consecutiveFailures = 0;
 
         // 🔥 下载完成后再次检查会话锁
         if (sessionSnapshot == _loopSession && !_disposed) {
