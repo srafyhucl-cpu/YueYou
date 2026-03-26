@@ -319,7 +319,7 @@ class TtsEngineService extends ChangeNotifier {
           consecutiveFailures++;
           debugPrint('❌ 音频下载失败 (连续失败: $consecutiveFailures)');
 
-          // 🔥 连续失败3次后跳过这一句，尝试下一句
+          // 🔥 失败后等待3秒再重试（让服务器任务队列释放）
           if (consecutiveFailures >= 3) {
             debugPrint('⚠️ 连续失败3次，跳过当前句子');
             if (onPrefetchSuccess != null) {
@@ -330,7 +330,7 @@ class TtsEngineService extends ChangeNotifier {
             continue;
           }
 
-          // 失败后等待3秒再重试
+          // 🔥 失败后等待3秒再重试（让服务器任务队列释放）
           await Future<void>.delayed(const Duration(seconds: 3));
           continue; // 重试同一句
         }
@@ -429,26 +429,57 @@ class TtsEngineService extends ChangeNotifier {
           await onItemStarted!(startItem);
         }
 
-        // 播放音频
+        // 🔥 播放音频（优化：setSource预热 + 卡死检测）
         _setPlaybackFlags(isSpeaking: true, isBuffering: false);
 
         try {
           final completer = Completer<void>();
-          late StreamSubscription subscription;
-          subscription = _audioPlayer.onPlayerComplete.listen((_) {
+          late StreamSubscription completeSubscription;
+          late StreamSubscription positionSubscription;
+
+          completeSubscription = _audioPlayer.onPlayerComplete.listen((_) {
             if (!completer.isCompleted) completer.complete();
           });
 
+          // 🔥 监控播放进度，防止卡死
+          DateTime lastPosTime = DateTime.now();
+          Duration lastPos = Duration.zero;
+          positionSubscription = _audioPlayer.onPositionChanged.listen((p) {
+            if (p > lastPos) {
+              lastPos = p;
+              lastPosTime = DateTime.now();
+            }
+          });
+
           try {
-            debugPrint('🔊 开始播放: $filePath');
-            await _audioPlayer.play(DeviceFileSource(filePath));
-            debugPrint('✅ AudioPlayer.play() 调用成功');
+            debugPrint('🔊 准备播放: $filePath');
+            // 🔥 使用 setSource 预热，避免冷启动延迟
+            await _audioPlayer.setSource(DeviceFileSource(filePath));
+            await _audioPlayer.resume(); // resume 比 play 快几十毫秒
+
+            // 🔥 延迟50ms重新同步倍速，确保生效（某些安卓机型需要）
+            await Future.delayed(const Duration(milliseconds: 50));
+            await _audioPlayer.setPlaybackRate(_playbackRate);
+
+            debugPrint('✅ AudioPlayer 已启动，倍速: $_playbackRate');
+
+            // 🔥 改良的等待逻辑：监听完成 + 卡死检测
             await Future.any([
               completer.future,
-              Future.delayed(const Duration(seconds: 30)),
+              Future.doWhile(() async {
+                await Future.delayed(const Duration(milliseconds: 500));
+                // 如果超过2秒进度没动，且还在speaking状态，判定为卡死
+                if (DateTime.now().difference(lastPosTime).inSeconds > 2 &&
+                    _isSpeaking) {
+                  debugPrint('🚨 检测到音频流卡死，强制跳过');
+                  return false;
+                }
+                return _isSpeaking; // 继续等待
+              }),
             ]);
           } finally {
-            await subscription.cancel();
+            await completeSubscription.cancel();
+            await positionSubscription.cancel();
           }
 
           // 删除已播放文件
