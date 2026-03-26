@@ -526,13 +526,17 @@ class TtsEngineService extends ChangeNotifier {
         // 构建请求URL
         final uri = Uri.parse(_config.serverUrl);
 
-        // 发送HTTP POST请求（与旧代码保持一致）
+        // 🔥 添加时间戳后缀，绕过服务器任务去重机制
+        final uniqueText =
+            '${request.text}#${DateTime.now().millisecondsSinceEpoch}';
+
+        // 发送HTTP POST请求
         final response = await http
             .post(
               uri,
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({
-                'text': request.text,
+                'text': uniqueText,
                 'voice': _voice,
               }),
             )
