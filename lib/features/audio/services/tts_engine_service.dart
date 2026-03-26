@@ -319,15 +319,12 @@ class TtsEngineService extends ChangeNotifier {
           consecutiveFailures++;
           debugPrint('❌ 音频下载失败 (连续失败: $consecutiveFailures)');
 
-          // 🔥 失败后等待3秒再重试（让服务器任务队列释放）
-          if (consecutiveFailures >= 3) {
-            debugPrint('⚠️ 连续失败3次，跳过当前句子');
-            if (onPrefetchSuccess != null) {
-              onPrefetchSuccess!(request.lineIndex); // 移动游标到下一句
-            }
-            consecutiveFailures = 0; // 重置计数器
-            await Future<void>.delayed(const Duration(seconds: 2));
-            continue;
+          // 🔥 连续失败5次 → 服务器任务队列已满，暂停10秒让所有任务过期
+          if (consecutiveFailures >= 5) {
+            debugPrint('🚨 服务器任务队列已满，暂停预加载10秒...');
+            consecutiveFailures = 0;
+            await Future<void>.delayed(const Duration(seconds: 10));
+            continue; // 不跳过，等待后重试同一句
           }
 
           // 🔥 失败后等待3秒再重试（让服务器任务队列释放）
