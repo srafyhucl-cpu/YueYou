@@ -427,26 +427,15 @@ class TtsEngineService extends ChangeNotifier {
           await onItemStarted!(startItem);
         }
 
-        // 🔥 播放音频（优化：setSource预热 + 卡死检测）
+        // 🔥 播放音频（优化：setSource预热）
         _setPlaybackFlags(isSpeaking: true, isBuffering: false);
 
         try {
           final completer = Completer<void>();
           late StreamSubscription completeSubscription;
-          late StreamSubscription positionSubscription;
 
           completeSubscription = _audioPlayer.onPlayerComplete.listen((_) {
             if (!completer.isCompleted) completer.complete();
-          });
-
-          // 🔥 监控播放进度，防止卡死
-          DateTime lastPosTime = DateTime.now();
-          Duration lastPos = Duration.zero;
-          positionSubscription = _audioPlayer.onPositionChanged.listen((p) {
-            if (p > lastPos) {
-              lastPos = p;
-              lastPosTime = DateTime.now();
-            }
           });
 
           try {
@@ -461,23 +450,10 @@ class TtsEngineService extends ChangeNotifier {
 
             debugPrint('✅ AudioPlayer 已启动，倍速: $_playbackRate');
 
-            // 🔥 改良的等待逻辑：监听完成 + 卡死检测
-            await Future.any([
-              completer.future,
-              Future.doWhile(() async {
-                await Future.delayed(const Duration(milliseconds: 500));
-                // 如果超过5秒进度没动，且还在speaking状态，判定为卡死
-                if (DateTime.now().difference(lastPosTime).inSeconds > 5 &&
-                    _isSpeaking) {
-                  debugPrint('🚨 检测到音频流卡死，强制跳过');
-                  return false;
-                }
-                return _isSpeaking; // 继续等待
-              }),
-            ]);
+            // 等待播放完成
+            await completer.future;
           } finally {
             await completeSubscription.cancel();
-            await positionSubscription.cancel();
           }
 
           // 删除已播放文件
