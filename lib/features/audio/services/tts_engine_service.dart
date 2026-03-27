@@ -34,12 +34,10 @@ class TtsEngineService extends ChangeNotifier {
   // 循环控制
   bool _playLoopActive = false;
   bool _prefetchLoopActive = false;
+  bool _startingLoops = false; // 🔥 启动锁：防止 _heartbeat 并发重复启动
   TtsAudioItem? _currentItem;
 
   bool _disposed = false;
-
-  // 🔥 回调：预加载成功后通知 Provider 移动游标（模仿老代码逻辑）
-  void Function(int lineIndex)? onPrefetchSuccess;
 
   bool get isEnabled => _isEnabled;
   bool get isPlaying => _isEnabled && _isSpeaking;
@@ -256,8 +254,14 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   void _heartbeat() {
+    // 🔥 原子启动：防止并发调用导致重复启动循环
+    if (_startingLoops) return;
+    _startingLoops = true;
+
     _startPlayLoop();
     _startPrefetchLoop();
+
+    _startingLoops = false;
   }
 
   /// 生产者轨道：预加载循环
@@ -348,12 +352,6 @@ class TtsEngineService extends ChangeNotifier {
               ? '${request.text.substring(0, 10)}...'
               : request.text;
           debugPrint('✅ 预加载完成: $preview -> $filePath');
-
-          // 🔥 通知 Provider 移动游标（只有成功后才移动，模仿老代码）
-          if (onPrefetchSuccess != null) {
-            onPrefetchSuccess!(request.lineIndex);
-          }
-
           notifyListeners();
         }
       }
@@ -431,6 +429,23 @@ class TtsEngineService extends ChangeNotifier {
         _setPlaybackFlags(isSpeaking: true, isBuffering: false);
 
         try {
+          // 🔥 文件存在性检查：防止文件未完全写入
+          final file = File(filePath);
+          if (!await file.exists()) {
+            debugPrint('❌ 音频文件不存在: $filePath');
+            continue; // 跳过此条，继续下一条
+          }
+
+          // 🔥 文件大小检查：防止空文件或损坏文件
+          final fileSize = await file.length();
+          if (fileSize < 1024) {
+            debugPrint('❌ 音频文件太小 (<1KB): $filePath, size: $fileSize');
+            try {
+              await file.delete();
+            } catch (_) {}
+            continue;
+          }
+
           final completer = Completer<void>();
           late StreamSubscription completeSubscription;
 
@@ -439,9 +454,17 @@ class TtsEngineService extends ChangeNotifier {
           });
 
           try {
-            debugPrint('🔊 准备播放: $filePath');
-            // 🔥 使用 setSource 预热，避免冷启动延迟
-            await _audioPlayer.setSource(DeviceFileSource(filePath));
+            debugPrint('🔊 准备播放: $filePath (size: ${fileSize}B)');
+
+            // 🔥 超时保护：防止 setSource 卡死
+            await _audioPlayer.setSource(DeviceFileSource(filePath)).timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                debugPrint('❌ setSource 超时，跳过此条');
+                throw TimeoutException('setSource timeout');
+              },
+            );
+
             await _audioPlayer.resume(); // resume 比 play 快几十毫秒
 
             // 🔥 延迟50ms重新同步倍速，确保生效（某些安卓机型需要）
@@ -450,8 +473,16 @@ class TtsEngineService extends ChangeNotifier {
 
             debugPrint('✅ AudioPlayer 已启动，倍速: $_playbackRate');
 
-            // 等待播放完成
-            await completer.future;
+            // 🔥 播放超时保护：防止无限等待
+            await completer.future.timeout(
+              const Duration(seconds: 30),
+              onTimeout: () {
+                debugPrint('❌ 播放超时，强制结束');
+              },
+            );
+          } on TimeoutException catch (e) {
+            debugPrint('⚠️ 播放超时: $e');
+            // 超时后继续下一条，不卡死
           } finally {
             await completeSubscription.cancel();
           }
@@ -479,12 +510,21 @@ class TtsEngineService extends ChangeNotifier {
           _currentItem = null;
           _setPlaybackFlags(
               isSpeaking: false, isBuffering: _prefetchedItems.isEmpty);
-        } catch (e) {
-          debugPrint('⚠️ 播放失败: $e');
+        } catch (e, stackTrace) {
+          debugPrint('❌ AudioPlayer 异常: $e');
+          debugPrint('❌ StackTrace: $stackTrace');
+
+          // 🔥 尝试重置 AudioPlayer，防止状态异常
+          try {
+            await _audioPlayer.stop();
+            await Future.delayed(const Duration(milliseconds: 100));
+          } catch (_) {}
+
           _setPlaybackFlags(isSpeaking: false, isBuffering: false);
           try {
             await File(filePath).delete();
           } catch (_) {}
+          // 播放失败不中断整个循环，继续下一条
         }
       }
     } catch (e) {
@@ -560,6 +600,147 @@ class TtsEngineService extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  /// 🛠️ TTS 连接测试工具
+  /// 返回详细的诊断信息，帮助排查问题
+  Future<Map<String, dynamic>> testConnection() async {
+    final result = <String, dynamic>{
+      'success': false,
+      'serverUrl': _config.serverUrl,
+      'timestamp': DateTime.now().toIso8601String(),
+      'steps': <Map<String, dynamic>>[],
+    };
+
+    try {
+      // 步骤 1：检查服务器地址格式
+      result['steps'].add({
+        'step': 1,
+        'name': '检查服务器地址',
+        'status': 'success',
+        'message': '服务器地址: ${_config.serverUrl}',
+      });
+
+      // 步骤 2：发送测试请求
+      final uri = Uri.parse(_config.serverUrl);
+      result['steps'].add({
+        'step': 2,
+        'name': '解析 URL',
+        'status': 'success',
+        'message': 'Host: ${uri.host}, Port: ${uri.port}, Path: ${uri.path}',
+      });
+
+      // 步骤 3：发送 HTTP 请求
+      final testText = '测试文本一二三四五';
+      debugPrint('📡 发送 TTS 测试请求: $testText');
+
+      final response = await http
+          .post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'text': testText,
+          'voice': _voice,
+        }),
+      )
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('请求超时 (10秒)');
+        },
+      );
+
+      result['statusCode'] = response.statusCode;
+      result['responseSize'] = response.bodyBytes.length;
+
+      if (response.statusCode == 200) {
+        result['steps'].add({
+          'step': 3,
+          'name': 'HTTP 请求',
+          'status': 'success',
+          'message':
+              '状态码: ${response.statusCode}, 响应大小: ${response.bodyBytes.length} 字节',
+        });
+
+        // 步骤 4：验证音频文件
+        if (response.bodyBytes.length < 1024) {
+          result['steps'].add({
+            'step': 4,
+            'name': '验证音频文件',
+            'status': 'warning',
+            'message': '警告：音频文件太小 (<1KB)，可能是错误响应',
+          });
+        } else {
+          result['steps'].add({
+            'step': 4,
+            'name': '验证音频文件',
+            'status': 'success',
+            'message': '音频文件大小正常: ${response.bodyBytes.length} 字节',
+          });
+        }
+
+        // 步骤 5：尝试写入文件
+        try {
+          final tempDir = await getTemporaryDirectory();
+          final testFile = File('${tempDir.path}/tts_test.mp3');
+          await testFile.writeAsBytes(response.bodyBytes);
+
+          result['steps'].add({
+            'step': 5,
+            'name': '写入文件',
+            'status': 'success',
+            'message': '成功写入: ${testFile.path}',
+          });
+
+          // 清理测试文件
+          await testFile.delete();
+        } catch (e) {
+          result['steps'].add({
+            'step': 5,
+            'name': '写入文件',
+            'status': 'error',
+            'message': '写入文件失败: $e',
+          });
+        }
+
+        result['success'] = true;
+        result['message'] = 'TTS 服务器连接成功！';
+      } else {
+        result['steps'].add({
+          'step': 3,
+          'name': 'HTTP 请求',
+          'status': 'error',
+          'message': '服务器返回错误: ${response.statusCode}\n响应: ${response.body}',
+        });
+        result['message'] = '服务器返回错误: ${response.statusCode}';
+      }
+    } on TimeoutException catch (e) {
+      result['steps'].add({
+        'step': 3,
+        'name': 'HTTP 请求',
+        'status': 'error',
+        'message': '请求超时: $e',
+      });
+      result['message'] = '请求超时，请检查网络连接或服务器状态';
+    } on SocketException catch (e) {
+      result['steps'].add({
+        'step': 3,
+        'name': 'HTTP 请求',
+        'status': 'error',
+        'message': '网络错误: $e',
+      });
+      result['message'] = '无法连接到服务器，请检查：\n1. 服务器是否启动\n2. 防火墙设置\n3. 网络连接';
+    } catch (e) {
+      result['steps'].add({
+        'step': 3,
+        'name': 'HTTP 请求',
+        'status': 'error',
+        'message': '未知错误: $e',
+      });
+      result['message'] = '测试失败: $e';
+    }
+
+    return result;
   }
 
   void _setPlaybackFlags(

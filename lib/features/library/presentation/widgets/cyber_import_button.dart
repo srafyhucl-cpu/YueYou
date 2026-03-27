@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/library/services/file_import_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
@@ -16,9 +17,12 @@ class CyberImportButton extends StatelessWidget {
       builder: (context, reader, child) {
         final bool isBusy = reader.isParsing;
         return ClipRRect(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            filter: ImageFilter.blur(
+              sigmaX: CyberDimensions.blurMedium,
+              sigmaY: CyberDimensions.blurMedium,
+            ),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
@@ -62,13 +66,14 @@ class CyberImportButton extends StatelessWidget {
                           );
                         }
                       },
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusL),
                     color: const Color(0xCC13141E),
                     border: Border.all(
                       color:

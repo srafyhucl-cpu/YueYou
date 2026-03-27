@@ -23,6 +23,29 @@ class CyberColors {
   // 提词器未读文字的暗色
   static const Color textDim = Color(0xFF4A5568);
 
+  // 毛玻璃深底色（灵动岛 / 顶部工具栏 / 弹窗共用）
+  static const Color glassDark = Color(0xD90A0A0F);
+
+  // 播放按钮渐变粉（CyberPlayerConsole 播放按钮起始色）
+  static const Color hotPink = Color(0xFFEC4899);
+
+  // 章节列表 / 弹窗背景
+  static const Color panelBackground = Color(0xFF0D0E18);
+
+  // 白色语义化透明度
+  static const Color whiteHigh = Color(0xD9FFFFFF); // 85%
+  static const Color whiteMedium = Color(0x99FFFFFF); // 60%
+  static const Color whiteDim = Color(0x8AFFFFFF); // 54%
+  static const Color whiteMuted = Color(0x61FFFFFF); // 38%
+  static const Color whiteSubtle = Color(0x3DFFFFFF); // 24%
+  static const Color whiteFaint = Color(0x14FFFFFF); // 8%
+  static const Color whiteBorder = Color(0x1AFFFFFF); // 10%
+
+  // 黑色语义化透明度（阴影 / 遮罩 / overlay）
+  static const Color blackOverlay = Color(0xB3000000); // 70%
+  static const Color blackShadow = Color(0x80000000); // 50%
+  static const Color blackDim = Color(0x8A000000); // 54%
+
   // 柔和的发光阴影色
   static const Color glowShadow = Color(0x8800FF41);
   static const Color pinkGlow = Color(0x88FE019A);

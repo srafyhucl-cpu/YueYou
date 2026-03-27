@@ -1,7 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:provider/provider.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import '../../game_2048/providers/game_provider.dart';
 import '../../game_2048/presentation/widgets/square_board.dart';
 import '../../reader/presentation/widgets/teleprompter_view.dart';
@@ -53,9 +54,9 @@ class DashboardScreen extends StatelessWidget {
                     center: Alignment.topCenter,
                     radius: 1.5,
                     colors: [
-                      const Color(0xFF22D3EE).withOpacity(0.03),
+                      CyberColors.neonCyan.withOpacity(0.03),
                       CyberColors.background,
-                      const Color(0xFF8B5CF6).withOpacity(0.02),
+                      CyberColors.neonPurple.withOpacity(0.02),
                     ],
                   ),
                 ),
@@ -96,24 +97,55 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  /// 构建顶部胶囊按钮组（紧凑排列，增强玻璃拟物感）
+  /// 构建顶部玻璃工具栏（全宽毛玻璃条，三个 icon+文字 等分排列，与灵动岛视觉统一）
   Widget _buildTopNavigation(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildNavButton(context, "📚 图书馆", onTap: () => _openLibrary(context)),
-        const SizedBox(width: 12),
-        _buildNavButton(context, "📜 目录",
-            onTap: () => _openChapterList(context)),
-        const SizedBox(width: 12),
-        _buildNavButton(context, "⚙️ 设置", onTap: () => _openSettings(context)),
-      ],
-    );
-  }
+    final items = [
+      _SegItem(
+          icon: Icons.menu_book_rounded,
+          label: '书架',
+          onTap: () => _openLibrary(context)),
+      _SegItem(
+          icon: Icons.list_rounded,
+          label: '目录',
+          onTap: () => _openChapterList(context)),
+      _SegItem(
+          icon: Icons.tune_rounded,
+          label: '设置',
+          onTap: () => _openSettings(context)),
+    ];
 
-  Widget _buildNavButton(BuildContext context, String label,
-      {VoidCallback? onTap}) {
-    return _NavButton(label: label, onTap: onTap);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: CyberDimensions.blurMedium,
+          sigmaY: CyberDimensions.blurMedium,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: CyberColors.glassDark,
+            borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+            border: Border.all(
+              color: CyberColors.whiteBorder,
+              width: CyberDimensions.borderNormal,
+            ),
+          ),
+          child: Row(
+            children: [
+              for (int i = 0; i < items.length; i++) ...[
+                if (i > 0)
+                  Container(
+                    width: 1,
+                    height: 22,
+                    color: CyberColors.whiteFaint,
+                  ),
+                Expanded(child: _SegButton(item: items[i])),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// 构建仿旧版状态卡片组
@@ -167,29 +199,32 @@ class DashboardScreen extends StatelessWidget {
     VoidCallback? onReset,
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(
+          sigmaX: CyberDimensions.blurStrong,
+          sigmaY: CyberDimensions.blurStrong,
+        ),
         child: Container(
-          padding: const EdgeInsets.all(14),
-          height: 85,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          constraints: const BoxConstraints(minHeight: 85),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.08),
-                Colors.white.withOpacity(0.03),
+                CyberColors.whiteFaint,
+                CyberColors.whiteFaint.withOpacity(0.03),
               ],
             ),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
             border: Border.all(
-              color: const Color(0xFF22D3EE).withOpacity(0.2),
-              width: 1.5,
+              color: CyberColors.neonCyan.withOpacity(0.2),
+              width: CyberDimensions.borderThick,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF22D3EE).withOpacity(0.1),
+                color: CyberColors.neonCyan.withOpacity(0.1),
                 blurRadius: 12,
                 spreadRadius: 0,
               ),
@@ -202,7 +237,7 @@ class DashboardScreen extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  color: const Color(0xFF22D3EE).withOpacity(0.6),
+                  color: CyberColors.neonCyan.withOpacity(0.6),
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
@@ -220,10 +255,10 @@ class DashboardScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _buildAnimatedCounter(score),
-                          Text(
+                          const Text(
                             " | ",
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.2),
+                              color: CyberColors.whiteSubtle,
                               fontSize: 16,
                               fontFamily: 'JetBrains Mono',
                               fontWeight: FontWeight.w300,
@@ -265,7 +300,7 @@ class DashboardScreen extends StatelessWidget {
         return Text(
           "$animatedValue",
           style: TextStyle(
-            color: isCombo ? CyberColors.neonPink : const Color(0xFF22D3EE),
+            color: isCombo ? CyberColors.neonPink : CyberColors.neonCyan,
             fontSize: 22,
             fontFamily: 'JetBrains Mono',
             fontWeight: FontWeight.w900,
@@ -277,7 +312,7 @@ class DashboardScreen extends StatelessWidget {
                 )
               else
                 Shadow(
-                  color: const Color(0xFF22D3EE).withOpacity(0.5),
+                  color: CyberColors.neonCyan.withOpacity(0.5),
                   blurRadius: 8,
                 ),
             ],
@@ -288,17 +323,23 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class _NavButton extends StatefulWidget {
+class _SegItem {
+  final IconData icon;
   final String label;
-  final VoidCallback? onTap;
-
-  const _NavButton({required this.label, this.onTap});
-
-  @override
-  State<_NavButton> createState() => _NavButtonState();
+  final VoidCallback onTap;
+  const _SegItem(
+      {required this.icon, required this.label, required this.onTap});
 }
 
-class _NavButtonState extends State<_NavButton> {
+class _SegButton extends StatefulWidget {
+  final _SegItem item;
+  const _SegButton({required this.item});
+
+  @override
+  State<_SegButton> createState() => _SegButtonState();
+}
+
+class _SegButtonState extends State<_SegButton> {
   bool _isPressed = false;
 
   @override
@@ -307,48 +348,35 @@ class _NavButtonState extends State<_NavButton> {
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF22D3EE).withOpacity(0.25),
-                const Color(0xFF8B5CF6).withOpacity(0.25),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      onTap: widget.item.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: _isPressed
+              ? CyberColors.neonCyan.withOpacity(0.12)
+              : Colors.transparent,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              widget.item.icon,
+              color: CyberColors.neonCyan.withOpacity(0.8),
+              size: 18,
             ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFF22D3EE).withOpacity(0.5),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF22D3EE).withOpacity(0.3),
-                blurRadius: 16,
-                spreadRadius: 1,
+            const SizedBox(width: 6),
+            Text(
+              widget.item.label,
+              style: const TextStyle(
+                color: CyberColors.whiteHigh,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
-              BoxShadow(
-                color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                blurRadius: 12,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: Text(
-            widget.label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
             ),
-          ),
+          ],
         ),
       ),
     );

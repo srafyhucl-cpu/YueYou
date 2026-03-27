@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/library/presentation/widgets/cyber_import_button.dart';
@@ -15,7 +16,7 @@ class LibraryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0E18),
+      backgroundColor: CyberColors.panelBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -48,7 +49,7 @@ class LibraryScreen extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           height: 56,
-          color: const Color(0xCC0D0E18),
+          color: CyberColors.panelBackground.withOpacity(0.8),
           child: Row(
             children: [
               const SizedBox(width: 16),
@@ -63,7 +64,7 @@ class LibraryScreen extends StatelessWidget {
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.white70),
+                icon: const Icon(Icons.close, color: CyberColors.whiteDim),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
@@ -78,12 +79,14 @@ class LibraryScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.auto_stories_outlined, size: 64, color: Colors.white24),
+          Icon(Icons.auto_stories_outlined,
+              size: 64, color: CyberColors.whiteSubtle),
           SizedBox(height: 16),
           Text(
             '当前书架为空\n请导入 TXT 本地小说',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white38, fontSize: 14, height: 1.8),
+            style: TextStyle(
+                color: CyberColors.whiteMuted, fontSize: 14, height: 1.8),
           ),
         ],
       ),
@@ -123,7 +126,7 @@ class _BookCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 14),
         height: 110,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -147,10 +150,10 @@ class _BookCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   book.coverChar,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 72,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white.withOpacity(0.12),
+                    color: CyberColors.whiteFaint,
                     height: 1,
                   ),
                 ),
@@ -159,11 +162,11 @@ class _BookCard extends StatelessWidget {
             // 信息 overlay
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
                   child: Container(
-                    color: Colors.black.withOpacity(0.25),
+                    color: CyberColors.background.withOpacity(0.25),
                     padding: const EdgeInsets.all(14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,14 +188,14 @@ class _BookCard extends StatelessWidget {
                             Text(
                               '已读 ${percent.toStringAsFixed(1)}%',
                               style: const TextStyle(
-                                  color: Colors.white70, fontSize: 12),
+                                  color: CyberColors.whiteDim, fontSize: 12),
                             ),
                             const SizedBox(height: 4),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(2),
                               child: LinearProgressIndicator(
                                 value: percent / 100,
-                                backgroundColor: Colors.white24,
+                                backgroundColor: CyberColors.whiteSubtle,
                                 valueColor:
                                     const AlwaysStoppedAnimation(Colors.white),
                                 minHeight: 4,
@@ -216,12 +219,15 @@ class _BookCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white24, width: 0.8),
+                    color: CyberColors.background.withOpacity(0.45),
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusS),
+                    border:
+                        Border.all(color: CyberColors.whiteSubtle, width: 0.8),
                   ),
                   child: const Text('删',
-                      style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      style:
+                          TextStyle(color: CyberColors.whiteDim, fontSize: 12)),
                 ),
               ),
             ),
@@ -261,17 +267,18 @@ class _BookCard extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1B28),
+        backgroundColor: CyberColors.surface,
         title:
             const Text('初始化抹除？', style: TextStyle(color: CyberColors.neonPink)),
         content: const Text(
           '此操作将永久移除该档案及其所有阅读进度，确认执行？',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: CyberColors.whiteDim),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消', style: TextStyle(color: Colors.white54)),
+            child:
+                const Text('取消', style: TextStyle(color: CyberColors.whiteDim)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),

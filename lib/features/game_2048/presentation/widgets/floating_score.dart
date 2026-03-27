@@ -92,7 +92,7 @@ class _FloatingScoreState extends State<FloatingScore>
                   fontFamily: 'JetBrains Mono',
                   shadows: [
                     Shadow(
-                      color: Colors.black54,
+                      color: CyberColors.blackDim,
                       blurRadius: 4,
                     ),
                   ],

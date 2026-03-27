@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
@@ -15,7 +16,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0E18),
+      backgroundColor: CyberColors.panelBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -38,7 +39,7 @@ class SettingsScreen extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           height: 56,
-          color: const Color(0xCC0D0E18),
+          color: CyberColors.panelBackground.withOpacity(0.8),
           child: Row(
             children: [
               const SizedBox(width: 16),
@@ -53,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.white70),
+                icon: const Icon(Icons.close, color: CyberColors.whiteDim),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
@@ -105,12 +106,14 @@ class SettingsScreen extends StatelessWidget {
           child: Text(
             '💡 若音色无感情，请前往手机系统设置 -> 文本转语音 (TTS) 中切换系统高音质发音人',
             style: TextStyle(
-              color: Color(0xFF8B5CF6),
+              color: CyberColors.neonPurple,
               fontSize: 11,
               height: 1.5,
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        _TtsTestButton(),
         const SizedBox(height: 12),
         const _SectionTitle(title: '省电管理'),
         _IdleTimeoutSelector(settings: settings),
@@ -149,7 +152,7 @@ class _LabelRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(label,
-          style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          style: const TextStyle(color: CyberColors.whiteDim, fontSize: 14)),
     );
   }
 }
@@ -171,20 +174,24 @@ class _ToggleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1B28),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
+        color: CyberColors.surface,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+        border: Border.all(
+          color: CyberColors.whiteFaint,
+          width: CyberDimensions.borderNormal,
+        ),
       ),
       child: SwitchListTile(
         title: Text(label,
             style: const TextStyle(color: Colors.white, fontSize: 14)),
         subtitle: Text(subtitle,
-            style: const TextStyle(color: Colors.white38, fontSize: 12)),
+            style:
+                const TextStyle(color: CyberColors.whiteMuted, fontSize: 12)),
         value: value,
         onChanged: onChanged,
         activeColor: CyberColors.neonGreen,
-        inactiveThumbColor: Colors.white38,
-        inactiveTrackColor: Colors.white12,
+        inactiveThumbColor: CyberColors.whiteMuted,
+        inactiveTrackColor: CyberColors.whiteFaint,
       ),
     );
   }
@@ -216,17 +223,18 @@ class _SpeedSelector extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected
                   ? CyberColors.neonPink.withOpacity(0.18)
-                  : const Color(0xFF1A1B28),
-              borderRadius: BorderRadius.circular(20),
+                  : CyberColors.surface,
+              borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
               border: Border.all(
-                color: selected ? CyberColors.neonPink : Colors.white24,
+                color:
+                    selected ? CyberColors.neonPink : CyberColors.whiteSubtle,
                 width: selected ? 1.4 : 0.8,
               ),
             ),
             child: Text(
               '${s.toStringAsFixed(1)}x',
               style: TextStyle(
-                color: selected ? CyberColors.neonPink : Colors.white54,
+                color: selected ? CyberColors.neonPink : CyberColors.whiteDim,
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
               ),
@@ -257,23 +265,27 @@ class _VoiceSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1B28),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
+        color: CyberColors.surface,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+        border: Border.all(
+          color: CyberColors.whiteFaint,
+          width: CyberDimensions.borderNormal,
+        ),
       ),
       child: DropdownButton<String>(
         value: _voices.containsKey(settings.voice) ? settings.voice : null,
         hint: Text(settings.voice,
-            style: const TextStyle(color: Colors.white54, fontSize: 13)),
+            style: const TextStyle(color: CyberColors.whiteDim, fontSize: 13)),
         isExpanded: true,
-        dropdownColor: const Color(0xFF1A1B28),
+        dropdownColor: CyberColors.surface,
         underline: const SizedBox.shrink(),
-        icon: const Icon(Icons.expand_more, color: Colors.white38),
+        icon: const Icon(Icons.expand_more, color: CyberColors.whiteMuted),
         items: _voices.entries.map((e) {
           return DropdownMenuItem(
             value: e.key,
             child: Text(e.value,
-                style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                style:
+                    const TextStyle(color: CyberColors.whiteDim, fontSize: 13)),
           );
         }).toList(),
         onChanged: (v) async {
@@ -290,6 +302,293 @@ class _VoiceSelector extends StatelessWidget {
 }
 
 /// 空闲超时选择器（对应 JS idle-timeout 0-5 分钟）
+/// TTS 连接测试按钮
+class _TtsTestButton extends StatelessWidget {
+  const _TtsTestButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CyberColors.surface,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+        border: Border.all(
+          color: CyberColors.neonCyan.withOpacity(0.3),
+          width: CyberDimensions.borderNormal,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _testTtsConnection(context),
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.wifi_tethering,
+                  color: CyberColors.neonCyan,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '测试 TTS 连接',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        '诊断 TTS 服务器连接问题',
+                        style: TextStyle(
+                          color: CyberColors.whiteMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: CyberColors.whiteMuted,
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _testTtsConnection(BuildContext context) async {
+    final tts = context.read<TtsEngineService>();
+
+    // 显示加载对话框
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: CyberColors.neonCyan),
+      ),
+    );
+
+    try {
+      // 执行测试
+      final result = await tts.testConnection();
+
+      // 关闭加载对话框
+      if (context.mounted) Navigator.of(context).pop();
+
+      // 显示测试结果
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => _TtsTestResultDialog(result: result),
+        );
+      }
+    } catch (e) {
+      // 关闭加载对话框
+      if (context.mounted) Navigator.of(context).pop();
+
+      // 显示错误
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('测试失败: $e'),
+            backgroundColor: CyberColors.neonPink,
+          ),
+        );
+      }
+    }
+  }
+}
+
+/// TTS 测试结果对话框
+class _TtsTestResultDialog extends StatelessWidget {
+  final Map<String, dynamic> result;
+
+  const _TtsTestResultDialog({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final success = result['success'] as bool;
+    final steps = result['steps'] as List<Map<String, dynamic>>;
+
+    return Dialog(
+      backgroundColor: CyberColors.panelBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+        side: BorderSide(
+          color: success ? CyberColors.neonGreen : CyberColors.neonPink,
+          width: 2,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 标题
+            Row(
+              children: [
+                Icon(
+                  success ? Icons.check_circle : Icons.error,
+                  color: success ? CyberColors.neonGreen : CyberColors.neonPink,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    success ? 'TTS 连接成功' : 'TTS 连接失败',
+                    style: TextStyle(
+                      color: success
+                          ? CyberColors.neonGreen
+                          : CyberColors.neonPink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // 服务器地址
+            Text(
+              '服务器: ${result['serverUrl']}',
+              style: const TextStyle(
+                color: CyberColors.whiteDim,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 测试步骤
+            ...steps.map((step) => _buildStepItem(step)),
+            const SizedBox(height: 16),
+            // 总结信息
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: success
+                    ? CyberColors.neonGreen.withOpacity(0.1)
+                    : CyberColors.neonPink.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+                border: Border.all(
+                  color: success ? CyberColors.neonGreen : CyberColors.neonPink,
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                result['message'] as String,
+                style: TextStyle(
+                  color: success ? CyberColors.neonGreen : CyberColors.neonPink,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 关闭按钮
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CyberColors.neonCyan,
+                  foregroundColor: CyberColors.background,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusS),
+                  ),
+                ),
+                child: const Text(
+                  '关闭',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepItem(Map<String, dynamic> step) {
+    final status = step['status'] as String;
+    final stepNumber = step['step'] as int;
+    final name = step['name'] as String;
+    final message = step['message'] as String;
+
+    Color statusColor;
+    IconData statusIcon;
+
+    switch (status) {
+      case 'success':
+        statusColor = CyberColors.neonGreen;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'warning':
+        statusColor = CyberColors.neonPurple;
+        statusIcon = Icons.warning;
+        break;
+      case 'error':
+        statusColor = CyberColors.neonPink;
+        statusIcon = Icons.error;
+        break;
+      default:
+        statusColor = CyberColors.whiteDim;
+        statusIcon = Icons.info;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(statusIcon, color: statusColor, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$stepNumber. $name',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: TextStyle(
+                    color: statusColor.withOpacity(0.8),
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _IdleTimeoutSelector extends StatelessWidget {
   final SettingsProvider settings;
   const _IdleTimeoutSelector({required this.settings});
@@ -298,9 +597,12 @@ class _IdleTimeoutSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1B28),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
+        color: CyberColors.surface,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+        border: Border.all(
+          color: CyberColors.whiteFaint,
+          width: CyberDimensions.borderNormal,
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -313,25 +615,27 @@ class _IdleTimeoutSelector extends StatelessWidget {
                     style: TextStyle(color: Colors.white, fontSize: 14)),
                 SizedBox(height: 2),
                 Text('长时间无操作后自动停止播报',
-                    style: TextStyle(color: Colors.white38, fontSize: 12)),
+                    style:
+                        TextStyle(color: CyberColors.whiteMuted, fontSize: 12)),
               ],
             ),
           ),
           DropdownButton<int>(
             value: settings.idleTimeout,
-            dropdownColor: const Color(0xFF1A1B28),
+            dropdownColor: CyberColors.surface,
             underline: const SizedBox.shrink(),
-            icon: const Icon(Icons.expand_more, color: Colors.white38),
+            icon: const Icon(Icons.expand_more, color: CyberColors.whiteMuted),
             items: [
               const DropdownMenuItem(
                   value: 0,
                   child: Text('永不',
-                      style: TextStyle(color: Colors.white70, fontSize: 13))),
+                      style: TextStyle(
+                          color: CyberColors.whiteDim, fontSize: 13))),
               ...List.generate(5, (i) => i + 1).map((m) => DropdownMenuItem(
                     value: m,
                     child: Text('$m 分钟',
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 13)),
+                            color: CyberColors.whiteDim, fontSize: 13)),
                   )),
             ],
             onChanged: (v) {

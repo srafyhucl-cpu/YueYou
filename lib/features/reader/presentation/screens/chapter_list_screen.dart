@@ -55,7 +55,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0E18),
+      backgroundColor: CyberColors.panelBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -74,7 +74,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           height: 56,
-          color: const Color(0xCC0D0E18),
+          color: CyberColors.panelBackground.withOpacity(0.8),
           child: Row(
             children: [
               const SizedBox(width: 16),
@@ -94,15 +94,16 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
                 icon: Icon(
                   _reversed ? Icons.arrow_upward : Icons.arrow_downward,
                   size: 16,
-                  color: Colors.white54,
+                  color: CyberColors.whiteDim,
                 ),
                 label: Text(
                   _reversed ? '倒序' : '正序',
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  style: const TextStyle(
+                      color: CyberColors.whiteDim, fontSize: 13),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.white70),
+                icon: const Icon(Icons.close, color: CyberColors.whiteDim),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
@@ -122,10 +123,10 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
             totalLines > 0 ? ((cursor / totalLines) * 100).floor() : 0;
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0x220D0E18),
+          color: CyberColors.panelBackground.withOpacity(0.13),
           child: Text(
             '共 $total 章 | 阅读进度 $percent%',
-            style: const TextStyle(color: Colors.white38, fontSize: 12),
+            style: const TextStyle(color: CyberColors.whiteMuted, fontSize: 12),
           ),
         );
       },
@@ -140,7 +141,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           return const Center(
             child: Text(
               '暂无目录数据',
-              style: TextStyle(color: Colors.white38, fontSize: 14),
+              style: TextStyle(color: CyberColors.whiteMuted, fontSize: 14),
             ),
           );
         }
@@ -208,14 +209,14 @@ class _ChapterItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color dotColor = Colors.white24;
-    Color textColor = Colors.white54;
+    Color dotColor = CyberColors.whiteSubtle;
+    Color textColor = CyberColors.whiteDim;
     if (isActive) {
       dotColor = CyberColors.neonPink;
       textColor = CyberColors.neonPink;
     } else if (isRead) {
-      dotColor = Colors.white38;
-      textColor = Colors.white38;
+      dotColor = CyberColors.whiteMuted;
+      textColor = CyberColors.whiteMuted;
     }
 
     return InkWell(
@@ -224,7 +225,7 @@ class _ChapterItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+            bottom: BorderSide(color: CyberColors.whiteFaint.withOpacity(0.4)),
           ),
           color: isActive
               ? CyberColors.neonPink.withOpacity(0.1)

@@ -58,13 +58,13 @@ class _TeleprompterViewState extends State<TeleprompterView>
     return Consumer<ReaderProvider>(
       builder: (context, reader, _) {
         if (reader.isParsing) {
-          return const SizedBox(
+          return SizedBox(
             height: 40,
             child: Center(
               child: Text(
                 "正在连接神经数据链路...",
                 style: TextStyle(
-                  color: Colors.white30,
+                  color: CyberColors.whiteMuted.withOpacity(0.5),
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -80,7 +80,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
               child: Text(
                 "等待数据流接入 [ _ ]",
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.3),
+                  color: CyberColors.whiteMuted.withOpacity(0.5),
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -134,11 +134,11 @@ class _TeleprompterViewState extends State<TeleprompterView>
                             return LinearGradient(
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
-                              colors: [
+                              colors: const [
                                 CyberColors.neonCyan,
                                 CyberColors.neonCyan,
-                                Colors.white.withOpacity(0.35),
-                                Colors.white.withOpacity(0.35),
+                                CyberColors.whiteMuted,
+                                CyberColors.whiteMuted,
                               ],
                               stops: [
                                 0.0,

@@ -15,59 +15,93 @@ class ReaderProvider with ChangeNotifier {
   String? _currentBookId;
   List<ChapterModel> _chapters = [];
 
-  // 🔥 章节标题过滤正则（统一复用）
+  // 🔥 章节标题正则（与 file_import_service 同步）
   static final RegExp _chapterRegex = RegExp(
-    r'第.{1,10}[章回节卷集部篇]|Chapter\s*\d+|引子|序言|楔子',
+    r'^\s*(?:(?:正文|卷[0-9零一二三四五六七八九十百千两\s]+|.{0,4})\s*第?\s*[0-9零一二三四五六七八九十百千两]+\s*[章回节卷集部篇]|Chapter\s*[0-9]+|引子|序言|楔子|前言|内容简介|致读者)',
     caseSensitive: false,
   );
 
-  /// 判断是否为章节标题或空行
-  bool _isSkippable(String text) {
+  // 🔥 噪音词正则：独立出现的「正文」「VIP卷」「默认卷」等无意义行
+  static final RegExp _noiseRegex = RegExp(
+    r'^\s*(正文|正\s*文|正文卷|VIP卷|默认卷|上架感言|作品相关|\*{3,}|\-{3,}|={3,})\s*$',
+    caseSensitive: false,
+  );
+
+  // 🔥 标题清洗正则：移除标题中的垃圾前缀词
+  static final RegExp _titleGarbageRegex = RegExp(r'(正文|VIP卷|默认卷)');
+
+  /// 清洗章节标题：移除「正文」「VIP卷」等垃圾前缀
+  static String cleanChapterTitle(String raw) {
+    return raw.replaceAll(_titleGarbageRegex, '').trim();
+  }
+
+  /// 噪音/空行判定（TTS 和游标均应跳过，绝不朗读）
+  bool _isNoise(String text) {
     if (text.isEmpty) return true;
-    return text.length < 50 && _chapterRegex.hasMatch(text);
+    if (_noiseRegex.hasMatch(text)) return true;
+    return false;
+  }
+
+  /// 章节标题判定（TTS 应朗读，但需要清洗）
+  bool _isChapterTitle(String text) {
+    return text.isNotEmpty && text.length < 50 && _chapterRegex.hasMatch(text);
   }
 
   ReaderProvider(this._ttsEngine) {
-    // 生产者：为 TTS 引擎提供下一句有效文本（不移动游标，由成功回调移动）
+    // 生产者：为 TTS 引擎提供下一句有效文本
+    // 🔥 重写核心：_fetchIndex 在此处立即推进，跳过所有已消耗行（含合并短句）
     _ttsEngine.onNeedPrefetch = (session) async {
       if (_sentences.isEmpty) return null;
       if (_fetchIndex >= _sentences.length) _fetchIndex = 0;
 
-      // 🔥 关键修复：使用临时游标查找，不修改 _fetchIndex
-      int tempCursor = _fetchIndex;
-      int attempts = 0;
+      int cursor = _fetchIndex;
+      int scanned = 0;
 
-      while (attempts < _sentences.length) {
-        final int lineIndex = tempCursor;
+      while (scanned < _sentences.length) {
+        final int lineIndex = cursor;
         String text = _sentences[lineIndex].trim();
 
-        if (_isSkippable(text)) {
-          tempCursor = (tempCursor + 1) % _sentences.length;
-          attempts++;
+        // 跳过噪音词和空行（始终不读）
+        if (_isNoise(text)) {
+          cursor = (cursor + 1) % _sentences.length;
+          scanned++;
           continue;
         }
 
-        // 🔥 TTS API 要求至少 5 字符，自动合并短句
-        int mergeIndex = tempCursor + 1;
-        while (text.length < 5 && mergeIndex < _sentences.length) {
-          final nextText = _sentences[mergeIndex].trim();
-          if (_isSkippable(nextText)) {
-            mergeIndex++;
+        // 🔥 章节标题 → 清洗后朗读（如「正文 第一章 新的开始」→「第一章 新的开始」）
+        if (_isChapterTitle(text)) {
+          text = cleanChapterTitle(text);
+          if (text.isEmpty) {
+            cursor = (cursor + 1) % _sentences.length;
+            scanned++;
             continue;
           }
+        }
+
+        // TTS API 要求至少 5 字符，向后合并短句
+        int consumed = cursor + 1; // consumed 指向「下一个未消耗行」
+        while (text.length < 5 && consumed < _sentences.length) {
+          final nextText = _sentences[consumed].trim();
+          consumed++;
+          if (_isNoise(nextText)) continue;
+          // 合并时遇到下一个章节标题则停止，不跨章合并
+          if (_isChapterTitle(nextText)) break;
           text = text + nextText;
-          mergeIndex++;
           if (text.length >= 5) break;
         }
 
-        // 如果合并后仍然太短，跳过
+        // 合并后仍然太短 → 跳过整段
         if (text.length < 5) {
-          tempCursor = (tempCursor + 1) % _sentences.length;
-          attempts++;
+          cursor = consumed % _sentences.length;
+          scanned += (consumed - lineIndex);
           continue;
         }
 
-        // 🔥 返回文本，但不移动 _fetchIndex（等待成功回调）
+        // 🔥 立即推进 _fetchIndex 到所有已消耗行之后，杜绝重复
+        _fetchIndex = consumed < _sentences.length
+            ? consumed
+            : consumed % _sentences.length;
+
         return TtsAudioRequest(
           lineIndex: lineIndex,
           text: text,
@@ -75,12 +109,6 @@ class ReaderProvider with ChangeNotifier {
         );
       }
       return null;
-    };
-
-    // 🔥 新增：下载成功后才移动游标（模仿老代码）
-    _ttsEngine.onPrefetchSuccess = (lineIndex) {
-      // 移动到下一个位置
-      _fetchIndex = (lineIndex + 1) % _sentences.length;
     };
 
     // 🔥 onItemStarted：播放开始时，用真实 lineIndex 同步 UI
@@ -95,12 +123,12 @@ class ReaderProvider with ChangeNotifier {
     _ttsEngine.onItemFinished = (item) async {
       if (_sentences.isEmpty) return;
 
-      // 从当前播放完成的真实行号开始，找下一个有效句子
+      // 从当前播放完成的真实行号开始，找下一个有效句子（噪音跳过，章节标题保留）
       int nextIdx = item.lineIndex + 1;
       int attempts = 0;
       while (attempts < _sentences.length && nextIdx < _sentences.length) {
         final text = _sentences[nextIdx].trim();
-        if (!_isSkippable(text)) break;
+        if (!_isNoise(text)) break;
         nextIdx++;
         attempts++;
       }
@@ -138,7 +166,8 @@ class ReaderProvider with ChangeNotifier {
       }
     }
 
-    return currentChapter?.title ?? _chapters.first.title;
+    final raw = currentChapter?.title ?? _chapters.first.title;
+    return cleanChapterTitle(raw);
   }
 
   /// 进度引擎：当前进度百分比 (0.01 - 1.0)
@@ -165,9 +194,23 @@ class ReaderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _sentences = await TextParser.parse(rawText);
+      final parseResult = await TextParser.parse(rawText);
+      _sentences = parseResult.sentences;
       _currentBookId = bookId;
-      _chapters = chapters ?? [];
+
+      // 🔥 构建原始行号 → sentences 索引的映射（取每个原始行产生的第一个 sentence）
+      final Map<int, int> rawLineToSentIdx = {};
+      for (int i = 0; i < parseResult.rawLineOrigins.length; i++) {
+        rawLineToSentIdx.putIfAbsent(parseResult.rawLineOrigins[i], () => i);
+      }
+
+      // 🔥 重建 chapter.lineIndex：从原始行号映射到 sentences 索引 + 清洗标题
+      final rawChapters = chapters ?? <ChapterModel>[];
+      _chapters = rawChapters.map((c) {
+        final cleaned = cleanChapterTitle(c.title);
+        final mappedIdx = rawLineToSentIdx[c.lineIndex] ?? c.lineIndex;
+        return ChapterModel(title: cleaned, lineIndex: mappedIdx);
+      }).toList();
 
       // 恢复之前的阅读进度（对应 JS loadBookFromShelf 传入 cursor）
       int targetIndex = 0;
@@ -257,11 +300,11 @@ class ReaderProvider with ChangeNotifier {
       return;
     }
 
-    // 智能跳过章节标题和空行，找到第一个有效句子
+    // 智能跳过噪音和空行，保留章节标题（让 TTS 从标题开始朗读）
     int targetIndex = index;
     int attempts = 0;
     while (attempts < 20 && targetIndex < _sentences.length) {
-      if (!_isSkippable(_sentences[targetIndex].trim())) break;
+      if (!_isNoise(_sentences[targetIndex].trim())) break;
       targetIndex++;
       attempts++;
     }

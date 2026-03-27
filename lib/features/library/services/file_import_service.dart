@@ -85,13 +85,24 @@ class FileImportService {
         r'^\s*(?:(?:正文|卷[0-9零一二三四五六七八九十百千两\s]+|.{0,4})\s*第?\s*[0-9零一二三四五六七八九十百千两]+\s*[章回节卷集部篇]|Chapter\s*[0-9]+|引子|序言|楔子|前言|内容简介|致读者)',
         caseSensitive: false,
       );
+      // 🔥 噪音词正则：独立出现的「正文」「VIP卷」等无意义行不应作为章节
+      final RegExp noiseRegex = RegExp(
+        r'^\s*(正文|正\s*文|正文卷|VIP卷|默认卷|上架感言|作品相关|\*{3,}|\-{3,}|={3,})\s*$',
+        caseSensitive: false,
+      );
+      final RegExp garbageRegex = RegExp(r'(正文|VIP卷|默认卷)');
+
       final List<ChapterModel> chapters = [];
       for (int i = 0; i < lines.length; i++) {
-        if (lines[i].length < 50 && chapterRegex.hasMatch(lines[i])) {
+        final line = lines[i];
+        // 跳过独立噪音词（不作为章节）
+        if (noiseRegex.hasMatch(line)) continue;
+        if (line.length < 50 && chapterRegex.hasMatch(line)) {
           // 🧹 无用章节名净化：移除垃圾前缀词（全局匹配）
-          String cleanTitle = lines[i].trim();
-          cleanTitle =
-              cleanTitle.replaceAll(RegExp(r'(正文|VIP卷|默认卷)'), '').trim();
+          String cleanTitle = line.trim();
+          cleanTitle = cleanTitle.replaceAll(garbageRegex, '').trim();
+          // 清洗后为空则跳过
+          if (cleanTitle.isEmpty) continue;
           chapters.add(ChapterModel(title: cleanTitle, lineIndex: i));
         }
       }

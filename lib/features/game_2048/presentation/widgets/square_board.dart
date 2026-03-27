@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
+import 'package:yueyou/core/theme/cyber_shadows.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'tile_widget.dart';
@@ -144,26 +146,25 @@ class _SquareBoardState extends State<SquareBoard>
                     selector: (context, provider) => provider.board,
                     builder: (context, board, _) {
                       return ClipRRect(
-                        borderRadius: BorderRadius.circular(32.0),
+                        borderRadius:
+                            BorderRadius.circular(CyberDimensions.radiusXL),
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          filter: ImageFilter.blur(
+                            sigmaX: CyberDimensions.blurStrong,
+                            sigmaY: CyberDimensions.blurStrong,
+                          ),
                           child: Container(
                             clipBehavior: Clip.none,
                             padding: const EdgeInsets.all(padding),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.04),
-                              borderRadius: BorderRadius.circular(32.0),
+                              color: CyberColors.background.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(
+                                  CyberDimensions.radiusXL),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.12),
-                                width: 1,
+                                color: CyberColors.neonCyan.withOpacity(0.3),
+                                width: CyberDimensions.borderThick,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.5),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
-                                )
-                              ],
+                              boxShadow: CyberShadows.elevated,
                             ),
                             child: Stack(
                               clipBehavior: Clip.none,
@@ -191,12 +192,15 @@ class _SquareBoardState extends State<SquareBoard>
                                 if (context.read<GameProvider>().isOver)
                                   Positioned.fill(
                                     child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(24),
+                                      borderRadius: BorderRadius.circular(
+                                          CyberDimensions.radiusL),
                                       child: BackdropFilter(
                                         filter: ImageFilter.blur(
-                                            sigmaX: 10, sigmaY: 10),
+                                          sigmaX: CyberDimensions.blurLight,
+                                          sigmaY: CyberDimensions.blurLight,
+                                        ),
                                         child: Container(
-                                          color: Colors.black.withOpacity(0.7),
+                                          color: CyberColors.blackOverlay,
                                           child: Column(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
@@ -228,7 +232,8 @@ class _SquareBoardState extends State<SquareBoard>
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor:
                                                       CyberColors.neonCyan,
-                                                  foregroundColor: Colors.black,
+                                                  foregroundColor:
+                                                      CyberColors.background,
                                                   padding: const EdgeInsets
                                                       .symmetric(
                                                     horizontal: 32,
@@ -237,7 +242,8 @@ class _SquareBoardState extends State<SquareBoard>
                                                   shape: RoundedRectangleBorder(
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                            12),
+                                                            CyberDimensions
+                                                                .radiusS),
                                                   ),
                                                 ),
                                                 child: const Text(
@@ -283,8 +289,12 @@ class _SquareBoardState extends State<SquareBoard>
       itemBuilder: (context, index) {
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03),
-            borderRadius: BorderRadius.circular(16.0),
+            color: CyberColors.background.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
+            border: Border.all(
+              color: CyberColors.neonCyan.withOpacity(0.08),
+              width: CyberDimensions.borderThin,
+            ),
           ),
         );
       },

@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
@@ -36,23 +38,28 @@ class CyberPlayerConsole extends StatelessWidget {
                 child: CustomPaint(
                   painter: NeonProgressPainter(
                     progress: reader.progress,
-                    color: const Color(0xFF22D3EE),
+                    color: CyberColors.neonCyan,
                     strokeWidth: 2.5,
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusL),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                      filter: ImageFilter.blur(
+                        sigmaX: CyberDimensions.blurMedium,
+                        sigmaY: CyberDimensions.blurMedium,
+                      ),
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xD90A0A0F),
-                          borderRadius: BorderRadius.circular(24),
+                          color: CyberColors.glassDark,
+                          borderRadius:
+                              BorderRadius.circular(CyberDimensions.radiusL),
                           border: Border.all(
-                            color: const Color.fromRGBO(255, 255, 255, 0.1),
-                            width: 1,
+                            color: CyberColors.whiteBorder,
+                            width: CyberDimensions.borderNormal,
                           ),
                           boxShadow: const [
                             BoxShadow(
@@ -66,7 +73,7 @@ class CyberPlayerConsole extends StatelessWidget {
                           children: [
                             VoiceWaveform(
                               isActive: ttsEngine.isSpeaking,
-                              color: const Color(0xFF22D3EE),
+                              color: CyberColors.neonCyan,
                             ),
                             const SizedBox(width: 8),
                             _buildPlayButton(reader, ttsEngine),
@@ -80,8 +87,8 @@ class CyberPlayerConsole extends StatelessWidget {
                                     '《$novelTitle》',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.6),
+                                    style: const TextStyle(
+                                      color: CyberColors.whiteMedium,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w500,
                                       height: 1.2,
@@ -131,13 +138,13 @@ class CyberPlayerConsole extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+            colors: [CyberColors.hotPink, CyberColors.neonPurple],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFEC4899).withOpacity(0.3),
+              color: CyberColors.hotPink.withOpacity(0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )
@@ -171,17 +178,17 @@ class CyberPlayerConsole extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color.fromRGBO(255, 255, 255, 0.1),
-          borderRadius: BorderRadius.circular(20),
+          color: CyberColors.whiteBorder,
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
           border: Border.all(
-            color: const Color.fromRGBO(255, 255, 255, 0.12),
-            width: 1,
+            color: CyberColors.whiteBorder,
+            width: CyberDimensions.borderNormal,
           ),
         ),
         child: Text(
           '${ttsEngine.playbackRate.toStringAsFixed(1)}x',
           style: const TextStyle(
-            color: Color(0xFF22D3EE),
+            color: CyberColors.neonCyan,
             fontSize: 12,
             fontWeight: FontWeight.w900,
             fontFamily: 'JetBrains Mono',
