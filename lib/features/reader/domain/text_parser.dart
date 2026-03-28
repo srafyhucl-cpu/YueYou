@@ -41,7 +41,14 @@ class TextParser {
       final segments = line.split(splitReg);
       for (var segment in segments) {
         final clean = segment.trim();
-        if (clean.isEmpty) continue;
+        if (clean.isEmpty) {
+          continue;
+        }
+
+        // 过滤纯标点/引号/括号句（无汉字、字母、数字），如切分后残留的 "、」、》等
+        if (!RegExp(r'[\u4e00-\u9fff\u3400-\u4dbf\w]').hasMatch(clean)) {
+          continue;
+        }
 
         // 3. 防溢出机制：如果切分后某一句仍然超过 50 个字符（极长无标点句），必须在空格或逗号处进行强制二次截断
         if (clean.length > 50) {

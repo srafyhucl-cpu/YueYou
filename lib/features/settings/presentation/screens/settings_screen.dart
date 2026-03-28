@@ -113,7 +113,7 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        _TtsTestButton(),
+        const _TtsTestButton(),
         const SizedBox(height: 12),
         const _SectionTitle(title: '省电管理'),
         _IdleTimeoutSelector(settings: settings),
@@ -322,17 +322,17 @@ class _TtsTestButton extends StatelessWidget {
         child: InkWell(
           onTap: () => _testTtsConnection(context),
           borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.wifi_tethering,
                   color: CyberColors.neonCyan,
                   size: 20,
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
+                SizedBox(width: 12),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -355,7 +355,7 @@ class _TtsTestButton extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.arrow_forward_ios,
                   color: CyberColors.whiteMuted,
                   size: 16,

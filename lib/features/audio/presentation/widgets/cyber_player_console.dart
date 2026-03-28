@@ -13,8 +13,40 @@ import 'neon_progress_painter.dart';
 
 /// 阅游赛博控播台 (CyberPlayerConsole)
 /// 1:1 复刻 style.css 中的 .cyber-player 与 .bottom-controls 视觉设定
-class CyberPlayerConsole extends StatelessWidget {
+class CyberPlayerConsole extends StatefulWidget {
   const CyberPlayerConsole({super.key});
+
+  @override
+  State<CyberPlayerConsole> createState() => _CyberPlayerConsoleState();
+}
+
+class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _breathController;
+  late Animation<double> _breathAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    // 呼吸动画：2 秒一个周期，无限循环
+    _breathController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat();
+
+    _breathAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _breathController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _breathController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +67,19 @@ class CyberPlayerConsole extends StatelessWidget {
                   );
                 },
                 behavior: HitTestBehavior.opaque,
-                child: CustomPaint(
-                  painter: NeonProgressPainter(
-                    progress: reader.progress,
-                    color: CyberColors.neonCyan,
-                    strokeWidth: 2.5,
-                  ),
+                child: AnimatedBuilder(
+                  animation: _breathAnimation,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      painter: NeonProgressPainter(
+                        progress: reader.progress,
+                        color: CyberColors.neonCyan,
+                        strokeWidth: 2.5,
+                        animationValue: _breathAnimation.value,
+                      ),
+                      child: child,
+                    );
+                  },
                   child: ClipRRect(
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusL),

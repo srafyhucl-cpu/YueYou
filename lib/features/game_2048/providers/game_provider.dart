@@ -42,11 +42,23 @@ class GameProvider extends ChangeNotifier {
   // 游戏是否结束 (溯源：JS L20)
   bool isOver = false;
 
+  // 是否显示 Game Over 弹窗（独立于 isOver）
+  bool showGameOverDialog = false;
+
   // 随机数生成器 (替换 JS Math.random)
   final Random _random = Random();
 
   /// 是否开启音效（由 SettingsProvider 通过 main.dart 同步注入）
   bool soundEnabled = true;
+
+  /// 上一次滑动方向（供吉祥物眼球跟随使用）
+  Direction? lastMoveDirection;
+
+  /// 本次移动中合并产生的最大値（0=无合并，供吉祥物欢呼判断）
+  int lastMergedValue = 0;
+
+  /// 本次有有效滑动但无任何合并（供吉祥物惋惜/生气表情）
+  bool lastMoveNoMerge = false;
 
   GameProvider() {
     _loadSavedState();
@@ -103,6 +115,7 @@ class GameProvider extends ChangeNotifier {
 
   void _initFresh() {
     isOver = false;
+    showGameOverDialog = false;
     score = 0;
     combo = 0;
     board = List.generate(size, (_) => List.filled(size, null));
@@ -116,6 +129,7 @@ class GameProvider extends ChangeNotifier {
   /// 溯源：映射 JS L15-26 (reset)
   void reset() {
     isOver = false;
+    showGameOverDialog = false;
     score = 0;
     combo = 0;
     board = List.generate(size, (_) => List.filled(size, null));
@@ -126,10 +140,25 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 关闭 Game Over 弹窗，但保留失败状态（用于截图分享）
+  void dismissGameOver() {
+    showGameOverDialog = false;
+    notifyListeners();
+  }
+
   /// 执行移动逻辑 (核心迁移逻辑)
   /// 溯源：映射 JS L32-112 (move)
   void move(Direction direction) {
-    if (isOver) return;
+    lastMoveDirection = direction;
+    lastMergedValue = 0;
+    lastMoveNoMerge = false;
+    if (isOver) {
+      if (!showGameOverDialog) {
+        showGameOverDialog = true;
+        notifyListeners();
+      }
+      return;
+    }
 
     bool moved = false;
     // 记录是否有任何合并发生，用于维护 combo
@@ -225,6 +254,12 @@ class GameProvider extends ChangeNotifier {
       // 没有任何合并时 combo 归零 (溯源：JS L87)
       if (mergedTiles.isEmpty) {
         combo = 0;
+        lastMoveNoMerge = true; // 有效滑动但无合并
+      } else {
+        // 记录本次合并的最大値，供吉祥物欢呼动画使用
+        lastMergedValue = mergedTiles
+            .map((e) => e['value'] as int)
+            .reduce((a, b) => a > b ? a : b);
       }
 
       // 添加新的随机块 (溯源：JS L89)
@@ -234,7 +269,7 @@ class GameProvider extends ChangeNotifier {
 
       // 判断是否无路可走 (溯源：JS L91)
       if (!_movesAvailable()) {
-        isOver = true;
+        _markGameOver();
       }
 
       // 合并音效（对应 JS: if (result.mergedTiles.length > 0 && t.sound) l.playEffect('merge')）
@@ -243,7 +278,20 @@ class GameProvider extends ChangeNotifier {
       }
       _persistState();
       notifyListeners();
+      return;
     }
+
+    // 即使没有发生位移，也可能已经进入无路可走状态
+    if (!_movesAvailable()) {
+      _markGameOver();
+      _persistState();
+      notifyListeners();
+    }
+  }
+
+  void _markGameOver() {
+    isOver = true;
+    showGameOverDialog = true;
   }
 
   /// 全盘得分计算逻辑

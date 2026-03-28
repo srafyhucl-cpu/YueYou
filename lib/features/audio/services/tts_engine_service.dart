@@ -631,7 +631,7 @@ class TtsEngineService extends ChangeNotifier {
       });
 
       // 步骤 3：发送 HTTP 请求
-      final testText = '测试文本一二三四五';
+      const testText = '测试文本一二三四五';
       debugPrint('📡 发送 TTS 测试请求: $testText');
 
       final response = await http

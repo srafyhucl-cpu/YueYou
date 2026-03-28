@@ -1,12 +1,14 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
+import 'package:yueyou/core/theme/cyber_shadows.dart';
 
-/// 🔥 赛博 KTV 提词器 - 逐字扫光跑马灯
-/// 架构：AnimationController 驱动 ShaderMask 的 gradient stops
-/// 时长估算：文字长度 * (1000 / (语速 * 5)) 毫秒
-/// 强制 maxLines:1 + fontSize:18 恒定 + 横向滚动
+/// 🔥 赛博 KTV 提词器 - 音乐播放器居中滚动风格
+/// 架构：AnimationController 驱动逐字进度，TextPainter 计算已读宽度
+/// 当前字始终居中，已读=亮青色，未读=暗色，两端渐隐遮罩
 class TeleprompterView extends StatefulWidget {
   const TeleprompterView({super.key});
 
@@ -18,7 +20,34 @@ class _TeleprompterViewState extends State<TeleprompterView>
     with SingleTickerProviderStateMixin {
   late AnimationController _ktvController;
   String _prevText = '';
+  bool _prevIsPlaying = false;
+  double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
+
+  static const double _fontSize = 18;
+  static const double _containerHeight = 46;
+
+  static final TextStyle _readStyle = TextStyle(
+    color: CyberColors.neonCyan,
+    fontSize: _fontSize,
+    fontWeight: FontWeight.w800,
+    letterSpacing: 0.5,
+    height: 1.0,
+    shadows: [
+      Shadow(
+        color: Color.fromRGBO(0, 243, 255, 0.5),
+        blurRadius: 8,
+      ),
+    ],
+  );
+
+  static final TextStyle _unreadStyle = TextStyle(
+    color: CyberColors.whiteMuted,
+    fontSize: _fontSize,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.5,
+    height: 1.0,
+  );
 
   @override
   void initState() {
@@ -36,21 +65,20 @@ class _TeleprompterViewState extends State<TeleprompterView>
     super.dispose();
   }
 
-  /// 当句子变化时，重新计算扫光时长并启动动画
   void _onSentenceChanged(String text, double playbackRate) {
     if (text == _prevText) return;
     _prevText = text;
-
-    // 时长 = 文字长度 * (1000 / (语速 * 5)) 毫秒
+    // 新句子：预计算文字总宽度（只做一次，后续用线性插值）
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: _readStyle),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: double.infinity);
+    _totalTextWidth = tp.width;
     final speed = playbackRate.clamp(0.5, 3.0);
-    final ms = (text.length * (1000 / (speed * 5))).round().clamp(600, 8000);
+    // 中文 TTS 约 3.5 字/秒（~286ms/字），比之前 5字/秒更贴近实际语速
+    final ms = (text.length * (1000 / (speed * 3.5))).round().clamp(800, 10000);
     _ktvController.duration = Duration(milliseconds: ms);
     _ktvController.forward(from: 0.0);
-
-    // 自动滚动到起点
-    if (_scrollCtrl.hasClients) {
-      _scrollCtrl.jumpTo(0);
-    }
   }
 
   @override
@@ -58,107 +86,203 @@ class _TeleprompterViewState extends State<TeleprompterView>
     return Consumer<ReaderProvider>(
       builder: (context, reader, _) {
         if (reader.isParsing) {
-          return SizedBox(
-            height: 40,
-            child: Center(
-              child: Text(
-                "正在连接神经数据链路...",
-                style: TextStyle(
-                  color: CyberColors.whiteMuted.withOpacity(0.5),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          );
+          return _buildPlaceholder('正在连接神经数据链路...');
         }
-
         if (reader.sentences.isEmpty) {
-          return SizedBox(
-            height: 40,
-            child: Center(
-              child: Text(
-                "等待数据流接入 [ _ ]",
-                style: TextStyle(
-                  color: CyberColors.whiteMuted.withOpacity(0.5),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          );
+          return _buildPlaceholder('等待数据流接入 [ _ ]');
         }
 
-        final String text = reader.currentSentence ?? "";
+        final String text = reader.currentSentence ?? '';
+        final bool isPlaying = reader.ttsEngine.isSpeaking;
 
-        // 当 TTS 正在播放且句子变化时，启动 KTV 扫光
-        if (reader.ttsEngine.isSpeaking && text.isNotEmpty) {
+        if (isPlaying && text.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
+            if (!mounted) return;
+            if (text != _prevText) {
               _onSentenceChanged(text, reader.ttsEngine.playbackRate);
+            } else if (!_ktvController.isAnimating) {
+              _ktvController.forward();
             }
+            _prevIsPlaying = true;
+          });
+        } else if (!isPlaying && _prevIsPlaying) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _ktvController.stop();
+            _prevIsPlaying = false;
           });
         }
 
-        // 🔥 基础文字组件（恒定字号 18，不可变）
-        final textWidget = Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.visible,
-          style: TextStyle(
-            color: CyberColors.neonCyan.withOpacity(0.85),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
-        );
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final halfWidth = constraints.maxWidth / 2;
 
-        // 未播放时：直接显示亮色文字，无需 ShaderMask
-        final bool isAnimating =
-            reader.ttsEngine.isSpeaking && _ktvController.isAnimating;
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: CyberDimensions.blurMedium,
+                  sigmaY: CyberDimensions.blurMedium,
+                ),
+                child: Container(
+                  height: _containerHeight,
+                  decoration: BoxDecoration(
+                    color: CyberColors.glassDark,
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusL),
+                    border: Border.all(
+                      color: CyberColors.neonCyan.withOpacity(0.3),
+                      width: CyberDimensions.borderNormal,
+                    ),
+                    boxShadow: CyberShadows.floating,
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _ktvController,
+                        builder: (context, _) {
+                          final pos = isPlaying ? _ktvController.value : 0.0;
+                          final charIndex =
+                              (pos * text.length).floor().clamp(0, text.length);
 
-        return SizedBox(
-          height: 40,
-          child: Center(
-            child: SingleChildScrollView(
-              controller: _scrollCtrl,
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: isAnimating
-                  ? AnimatedBuilder(
-                      animation: _ktvController,
-                      builder: (context, child) {
-                        final double pos = _ktvController.value;
-                        return ShaderMask(
-                          shaderCallback: (bounds) {
-                            return LinearGradient(
+                          // 帧后滚动：线性插值到预计算总宽度，无逐帧 TextPainter
+                          WidgetsBinding.instance.addPostFrameCallback((__) {
+                            if (!mounted ||
+                                !_scrollCtrl.hasClients ||
+                                _totalTextWidth <= 0) return;
+                            final target = (pos * _totalTextWidth).clamp(
+                                0.0, _scrollCtrl.position.maxScrollExtent);
+                            _scrollCtrl.jumpTo(target);
+                          });
+
+                          return SingleChildScrollView(
+                            controller: _scrollCtrl,
+                            scrollDirection: Axis.horizontal,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding:
+                                EdgeInsets.symmetric(horizontal: halfWidth),
+                            child: Center(
+                              child: RichText(
+                                text: TextSpan(
+                                  children: [
+                                    // 已读：亮青色 + 发光
+                                    TextSpan(
+                                      text: text.substring(0, charIndex),
+                                      style: _readStyle,
+                                    ),
+                                    // 未读：暗色
+                                    TextSpan(
+                                      text: text.substring(charIndex),
+                                      style: _unreadStyle.copyWith(
+                                        color: CyberColors.whiteMuted
+                                            .withOpacity(
+                                                isPlaying ? 0.4 : 0.65),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // ── 中心读取位置指示线（仅播放时显示）────────
+                      if (isPlaying)
+                        Positioned(
+                          left: halfWidth - 1,
+                          top: 8,
+                          bottom: 8,
+                          child: Container(
+                            width: 2,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(1),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  CyberColors.neonCyan.withOpacity(0.0),
+                                  CyberColors.neonCyan,
+                                  CyberColors.neonCyan,
+                                  CyberColors.neonCyan.withOpacity(0.0),
+                                ],
+                                stops: const [0.0, 0.25, 0.75, 1.0],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: CyberColors.neonCyan.withOpacity(0.7),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // ── 左端渐隐遮罩（防文字溢出可见）────────────
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 40,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
-                              colors: const [
-                                CyberColors.neonCyan,
-                                CyberColors.neonCyan,
-                                CyberColors.whiteMuted,
-                                CyberColors.whiteMuted,
+                              colors: [
+                                CyberColors.glassDark,
+                                CyberColors.glassDark.withOpacity(0),
                               ],
-                              stops: [
-                                0.0,
-                                (pos - 0.02).clamp(0.0, 1.0),
-                                pos.clamp(0.0, 1.0),
-                                1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // ── 右端渐隐遮罩 ──────────────────────────────
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 40,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerRight,
+                              end: Alignment.centerLeft,
+                              colors: [
+                                CyberColors.glassDark,
+                                CyberColors.glassDark.withOpacity(0),
                               ],
-                            ).createShader(bounds);
-                          },
-                          blendMode: BlendMode.srcIn,
-                          child: child!,
-                        );
-                      },
-                      child: textWidget,
-                    )
-                  : textWidget,
-            ),
-          ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _buildPlaceholder(String msg) {
+    return SizedBox(
+      height: _containerHeight,
+      child: Center(
+        child: Text(
+          msg,
+          style: TextStyle(
+            color: CyberColors.whiteMuted.withOpacity(0.5),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

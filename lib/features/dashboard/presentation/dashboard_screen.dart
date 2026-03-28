@@ -5,6 +5,7 @@ import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import '../../game_2048/providers/game_provider.dart';
 import '../../game_2048/presentation/widgets/square_board.dart';
+import '../../game_2048/presentation/widgets/board_mascot.dart';
 import '../../reader/presentation/widgets/teleprompter_view.dart';
 import '../../audio/presentation/widgets/cyber_player_console.dart';
 import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
@@ -67,25 +68,46 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 children: [
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   // 1. 顶部导航
                   _buildTopNavigation(context),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   // 2. 状态面板
                   _buildStatusPanel(),
-                  const SizedBox(height: 16),
-                  // 棋盘（垂直居中偏上，人体工学优化）
-                  const Expanded(
+                  // 76px 缓冲区：留出 XIAOYO 向上溢出的视觉空间，不与计分板重叠
+                  const SizedBox(height: 76),
+                  // 棋盘 + XIAOYO 爬墙头（LayoutBuilder 精确算出爪子位置）
+                  Expanded(
                     flex: 2,
-                    child: Center(
-                      child: SquareBoard(),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final w = constraints.maxWidth;
+                        final h = constraints.maxHeight;
+                        // 棋盘是 AspectRatio 1:1，尺寸 = 较短边
+                        final boardSz = w < h ? w : h;
+                        final boardTop = (h - boardSz) / 2;
+                        // 爪底 ≈ widget 高 84px 的 73px 处，让爪子紧扣棋盘上边框
+                        final mascotTop = boardTop - 73.0;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Center(child: SquareBoard()),
+                            Positioned(
+                              top: mascotTop,
+                              left: 0,
+                              right: 0,
+                              child: const Center(child: BoardMascot()),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  // 提词器（紧凑，不抢戏）
+                  const SizedBox(height: 16),
+                  // 提词器（带边框容器）
                   const TeleprompterView(),
-                  const SizedBox(height: 12),
-                  // 灵动岛胶囊
+                  const SizedBox(height: 1),
+                  // 灵动岛胶囊（内部有 Padding(top:15)，总视觉间距 = 1 + 15 = 16px）
                   const CyberPlayerConsole(),
                   const SizedBox(height: 16),
                 ],
