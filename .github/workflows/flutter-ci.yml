@@ -30,11 +30,23 @@ jobs:
         run: flutter test --coverage
 
       - name: 生成覆盖率报告摘要
-        uses: vitorocruz/dart-coverage-assistant@v1
+        uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          generate-badges: true
-          enforce-threshold: false
-          report-title: "阅游 (YueYou) 测试覆盖率报告"
+          filename: coverage/lcov.info
+          badge: true
+          fail_below_min: false
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '50 75'
+
+      - name: 发布覆盖率评论
+        uses: thollander/actions-comment-pull-request@v2
+        if: github.event_name == 'pull_request'
+        with:
+          filePath: code-coverage-results.md
 
       - name: 上传覆盖率产物
         uses: actions/upload-artifact@v4
