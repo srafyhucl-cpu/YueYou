@@ -85,7 +85,7 @@ void main() {
     });
 
     test('空行不产生空句', () async {
-      final raw = '有效句子。\n\n\n另一句。';
+      const raw = '有效句子。\n\n\n另一句。';
       final result = await TextParser.parse(raw);
       for (final s in result.sentences) {
         expect(s.trim(), isNotEmpty);
@@ -118,7 +118,7 @@ void main() {
 
     test('含逗号的长句优先从逗号处截断', () async {
       // 50字符阈值内有逗号（在 70% 位置之后），应从逗号截断
-      final text = 'ABCDEFGHIJKLMNOPQRSTUVWXYZABCDE，剩余部分FGHIJKLMNOP。';
+      const text = 'ABCDEFGHIJKLMNOPQRSTUVWXYZABCDE，剩余部分FGHIJKLMNOP。';
       final result = await TextParser.parse(text);
       expect(result.sentences, isNotEmpty);
       // 截断结果的拼接应包含原文所有内容（无字符丢失）

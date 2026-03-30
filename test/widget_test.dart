@@ -4,12 +4,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/game_2048/presentation/widgets/square_board.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/core/config/tts_config.dart';
 
 void main() {
   testWidgets('2048 棋盘加载测试', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    StorageService.resetForTesting();
+    await StorageService.init();
+
     // 构建简化的测试环境
     await tester.pumpWidget(
       ChangeNotifierProvider(

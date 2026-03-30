@@ -23,6 +23,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
   bool _prevIsPlaying = false;
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
+  ReaderProvider? _reader;
 
   static const double _fontSize = 18;
   static const double _containerHeight = 46;
@@ -59,6 +60,49 @@ class _TeleprompterViewState extends State<TeleprompterView>
     _ktvController.addListener(_syncScroll);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reader = context.read<ReaderProvider>();
+    if (!identical(_reader, reader)) {
+      _reader?.removeListener(_onReaderChanged);
+      _reader = reader;
+      _reader?.addListener(_onReaderChanged);
+      _onReaderChanged();
+    }
+  }
+
+  void _onReaderChanged() {
+    final reader = _reader;
+    if (!mounted || reader == null) return;
+
+    if (reader.isParsing || reader.sentences.isEmpty) {
+      if (_prevIsPlaying) {
+        _ktvController.stop();
+        _prevIsPlaying = false;
+      }
+      return;
+    }
+
+    final String text = reader.currentSentence ?? '';
+    final bool isPlaying = reader.ttsEngine.isSpeaking;
+
+    if (isPlaying && text.isNotEmpty) {
+      if (text != _prevText) {
+        _onSentenceChanged(text, reader.ttsEngine.playbackRate);
+      } else if (!_ktvController.isAnimating) {
+        _ktvController.forward();
+      }
+      _prevIsPlaying = true;
+      return;
+    }
+
+    if (!isPlaying && _prevIsPlaying) {
+      _ktvController.stop();
+      _prevIsPlaying = false;
+    }
+  }
+
   void _syncScroll() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollCtrl.hasClients || _totalTextWidth <= 0) return;
@@ -71,6 +115,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
   @override
   void dispose() {
+    _reader?.removeListener(_onReaderChanged);
     _ktvController.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -105,24 +150,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
         final String text = reader.currentSentence ?? '';
         final bool isPlaying = reader.ttsEngine.isSpeaking;
-
-        if (isPlaying && text.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            if (text != _prevText) {
-              _onSentenceChanged(text, reader.ttsEngine.playbackRate);
-            } else if (!_ktvController.isAnimating) {
-              _ktvController.forward();
-            }
-            _prevIsPlaying = true;
-          });
-        } else if (!isPlaying && _prevIsPlaying) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            _ktvController.stop();
-            _prevIsPlaying = false;
-          });
-        }
 
         return LayoutBuilder(
           builder: (context, constraints) {

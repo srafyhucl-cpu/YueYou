@@ -106,7 +106,7 @@ void main() {
     test('向左移动：孤立方块移到最左列', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][3] = TileModel(id: 1, value: 2);
+      p.board[0][3] = const TileModel(id: 1, value: 2);
       p.move(Direction.left);
 
       // 方块必须到达第 0 列，且值保持 2；addRandomTile 后总共 2 块
@@ -117,7 +117,7 @@ void main() {
     test('向右移动：孤立方块移到最右列', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 2);
+      p.board[0][0] = const TileModel(id: 1, value: 2);
       p.move(Direction.right);
 
       expect(p.board[0][3]?.value, 2);
@@ -127,7 +127,7 @@ void main() {
     test('向上移动：孤立方块移到最顶行', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[3][0] = TileModel(id: 1, value: 2);
+      p.board[3][0] = const TileModel(id: 1, value: 2);
       p.move(Direction.up);
 
       expect(p.board[0][0]?.value, 2);
@@ -137,7 +137,7 @@ void main() {
     test('向下移动：孤立方块移到最底行', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 2);
+      p.board[0][0] = const TileModel(id: 1, value: 2);
       p.move(Direction.down);
 
       expect(p.board[3][0]?.value, 2);
@@ -147,7 +147,7 @@ void main() {
     test('有效移动后新增一个随机方块', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][3] = TileModel(id: 1, value: 2); // 向左有移动空间
+      p.board[0][3] = const TileModel(id: 1, value: 2); // 向左有移动空间
       final before = _tileCount(p);
       p.move(Direction.left);
       expect(_tileCount(p), before + 1);
@@ -157,10 +157,10 @@ void main() {
       final p = _newProvider();
       // 满行且全为不同值，向左均无法移动
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 2);
-      p.board[0][1] = TileModel(id: 2, value: 4);
-      p.board[0][2] = TileModel(id: 3, value: 8);
-      p.board[0][3] = TileModel(id: 4, value: 16);
+      p.board[0][0] = const TileModel(id: 1, value: 2);
+      p.board[0][1] = const TileModel(id: 2, value: 4);
+      p.board[0][2] = const TileModel(id: 3, value: 8);
+      p.board[0][3] = const TileModel(id: 4, value: 16);
       final before = _tileCount(p);
       p.move(Direction.left); // 已贴左，无合并，不会移动
       expect(_tileCount(p), before);
@@ -173,8 +173,8 @@ void main() {
     test('相同值相邻方块向左合并，结果值翻倍', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 2);
-      p.board[0][1] = TileModel(id: 2, value: 2);
+      p.board[0][0] = const TileModel(id: 1, value: 2);
+      p.board[0][1] = const TileModel(id: 2, value: 2);
       p.move(Direction.left);
 
       expect(p.board[0][0]?.value, 4);
@@ -184,8 +184,8 @@ void main() {
     test('合并后 combo 递增', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 4);
-      p.board[0][1] = TileModel(id: 2, value: 4);
+      p.board[0][0] = const TileModel(id: 1, value: 4);
+      p.board[0][1] = const TileModel(id: 2, value: 4);
       final comboBefore = p.combo;
       p.move(Direction.left);
       expect(p.combo, greaterThan(comboBefore));
@@ -194,8 +194,8 @@ void main() {
     test('有效移动但无合并时 combo 归零', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 2);
-      p.board[0][2] = TileModel(id: 2, value: 4); // 不同值，不合并
+      p.board[0][0] = const TileModel(id: 1, value: 2);
+      p.board[0][2] = const TileModel(id: 2, value: 4); // 不同值，不合并
       p.combo = 5; // 人为设置
       p.move(Direction.left);
       expect(p.combo, 0);
@@ -204,8 +204,8 @@ void main() {
     test('合并后 lastMergedValue 记录本次最大合并值', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 64);
-      p.board[0][1] = TileModel(id: 2, value: 64); // 合并后 = 128
+      p.board[0][0] = const TileModel(id: 1, value: 64);
+      p.board[0][1] = const TileModel(id: 2, value: 64); // 合并后 = 128
       p.move(Direction.left);
       expect(p.lastMergedValue, 128);
     });
@@ -213,10 +213,10 @@ void main() {
     test('每个方块在同一次移动中只能合并一次（4+4+4+4 → 8+8，而非 16）', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 4);
-      p.board[0][1] = TileModel(id: 2, value: 4);
-      p.board[0][2] = TileModel(id: 3, value: 4);
-      p.board[0][3] = TileModel(id: 4, value: 4);
+      p.board[0][0] = const TileModel(id: 1, value: 4);
+      p.board[0][1] = const TileModel(id: 2, value: 4);
+      p.board[0][2] = const TileModel(id: 3, value: 4);
+      p.board[0][3] = const TileModel(id: 4, value: 4);
       p.move(Direction.left);
 
       // 期望：[8, 8, null, null+新随机块]
@@ -227,8 +227,8 @@ void main() {
     test('不同值相邻方块不合并', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 2);
-      p.board[0][1] = TileModel(id: 2, value: 4);
+      p.board[0][0] = const TileModel(id: 1, value: 2);
+      p.board[0][1] = const TileModel(id: 2, value: 4);
       p.move(Direction.left);
 
       // 2 和 4 不合并，均保留原值
@@ -243,8 +243,8 @@ void main() {
     test('move 后分数等于棋盘所有方块之和', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 2);
-      p.board[0][2] = TileModel(id: 2, value: 4);
+      p.board[0][0] = const TileModel(id: 1, value: 2);
+      p.board[0][2] = const TileModel(id: 2, value: 4);
       p.move(Direction.left);
       expect(p.score, _boardSum(p));
     });
@@ -252,8 +252,8 @@ void main() {
     test('合并后分数依然等于棋盘求和（而非累加合并值）', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 8);
-      p.board[0][1] = TileModel(id: 2, value: 8); // 合并后 = 16
+      p.board[0][0] = const TileModel(id: 1, value: 8);
+      p.board[0][1] = const TileModel(id: 2, value: 8); // 合并后 = 16
       p.move(Direction.left);
       // 全盘求和：16（合并块）+ 新随机 2 或 4
       expect(p.score, _boardSum(p));
@@ -262,8 +262,8 @@ void main() {
     test('bestScore 在分数超越时更新', () {
       final p = _newProvider();
       p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = TileModel(id: 1, value: 512);
-      p.board[0][1] = TileModel(id: 2, value: 512); // 合并后 1024
+      p.board[0][0] = const TileModel(id: 1, value: 512);
+      p.board[0][1] = const TileModel(id: 2, value: 512); // 合并后 1024
       p.move(Direction.left);
       expect(p.bestScore, greaterThanOrEqualTo(p.score));
     });

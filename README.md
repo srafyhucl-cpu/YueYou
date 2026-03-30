@@ -2,6 +2,8 @@
 
 **赛博朋克风格的沉浸式小说听读器 + 2048 游戏**
 
+[![Flutter CI](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml)
+
 基于 Flutter 构建的高性能跨平台应用，融合 KTV 提词器听书与益智游戏于一体。
 
 ---
@@ -116,6 +118,36 @@ flutter build apk --release \
 ```bash
 flutter analyze
 ```
+
+---
+
+## ✅ 测试与覆盖率
+
+### 运行单元测试
+```bash
+flutter test
+```
+
+### 生成覆盖率报告
+```bash
+flutter test --coverage
+```
+生成的覆盖率文件位于 `coverage/lcov.info`。如需查看 HTML 报告，可使用 lcov 的 `genhtml` 工具在本地生成：
+```bash
+genhtml coverage/lcov.info -o coverage/html
+# 打开 coverage/html/index.html 查看报告
+```
+
+### CI 集成
+- 仓库已配置 GitHub Actions 工作流 `.github/workflows/flutter-ci.yml`
+- 在 Push / PR 时自动执行：
+  - `flutter analyze`
+  - `flutter test --coverage`
+- 产出物：覆盖率文件 `coverage/lcov.info` 将作为 Artifact 上传
+
+### 测试约定
+- 所有持久化相关测试使用 `SharedPreferences.setMockInitialValues({})` 与 `StorageService.resetForTesting()` 保证隔离
+- 依赖 `audioplayers` 的 Provider/Widget 测试，通过 `MethodChannel` mock 避免 `MissingPluginException`
 
 ---
 
