@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 
 /// 漂浮加分特效组件
 /// 当产生合并得分时，显示 +Score 的赛博字体，带有向上漂浮并淡出的动画
@@ -89,7 +90,7 @@ class _FloatingScoreState extends State<FloatingScore>
                   color: CyberColors.whiteHigh,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: CyberTextStyles.monoFont,
                   shadows: [
                     Shadow(
                       color: CyberColors.blackDim,

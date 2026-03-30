@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
@@ -230,7 +231,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
             color: CyberColors.neonCyan,
             fontSize: 12,
             fontWeight: FontWeight.w900,
-            fontFamily: 'JetBrains Mono',
+            fontFamily: CyberTextStyles.monoFont,
           ),
         ),
       ),

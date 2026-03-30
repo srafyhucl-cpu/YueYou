@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'cyber_colors.dart';
 
 class CyberTextStyles {
+  static const String monoFont = 'JetBrains Mono';
   // 提词器正在阅读的【高亮发光文字】
   static const TextStyle teleprompterActive = TextStyle(
     color: CyberColors.neonGreen,

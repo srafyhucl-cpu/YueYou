@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'merge_particle.dart';
 
@@ -108,7 +109,7 @@ class _TileWidgetState extends State<TileWidget>
                     color: CyberColors.whiteHigh,
                     fontSize: _getFontSize(widget.value),
                     fontWeight: FontWeight.w900,
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: CyberTextStyles.monoFont,
                     shadows: const [
                       Shadow(
                         color: CyberColors.blackDim,

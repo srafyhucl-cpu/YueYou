@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import '../../game_2048/providers/game_provider.dart';
 import '../../game_2048/presentation/widgets/square_board.dart';
@@ -143,7 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 16),
                   // 提词器（带边框容器）
-                  const TeleprompterView(),
+                  const RepaintBoundary(child: TeleprompterView()),
                   const SizedBox(height: 1),
                   // 灵动岛胶囊（内部有 Padding(top:15)，总视觉间距 = 1 + 15 = 16px）
                   const CyberPlayerConsole(),
@@ -320,7 +321,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             style: TextStyle(
                               color: CyberColors.whiteSubtle,
                               fontSize: 16,
-                              fontFamily: 'JetBrains Mono',
+                              fontFamily: CyberTextStyles.monoFont,
                               fontWeight: FontWeight.w300,
                             ),
                           ),
@@ -362,7 +363,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: TextStyle(
             color: isCombo ? CyberColors.neonPink : CyberColors.neonCyan,
             fontSize: 22,
-            fontFamily: 'JetBrains Mono',
+            fontFamily: CyberTextStyles.monoFont,
             fontWeight: FontWeight.w900,
             shadows: [
               if (isCombo)

@@ -56,6 +56,17 @@ class _TeleprompterViewState extends State<TeleprompterView>
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     );
+    _ktvController.addListener(_syncScroll);
+  }
+
+  void _syncScroll() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollCtrl.hasClients || _totalTextWidth <= 0) return;
+      if (!_scrollCtrl.position.hasPixels) return;
+      final target = (_ktvController.value * _totalTextWidth)
+          .clamp(0.0, _scrollCtrl.position.maxScrollExtent);
+      _scrollCtrl.jumpTo(target);
+    });
   }
 
   @override
@@ -145,16 +156,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
                           final pos = isPlaying ? _ktvController.value : 0.0;
                           final charIndex =
                               (pos * text.length).floor().clamp(0, text.length);
-
-                          // 帧后滚动：线性插值到预计算总宽度，无逐帧 TextPainter
-                          WidgetsBinding.instance.addPostFrameCallback((__) {
-                            if (!mounted ||
-                                !_scrollCtrl.hasClients ||
-                                _totalTextWidth <= 0) return;
-                            final target = (pos * _totalTextWidth).clamp(
-                                0.0, _scrollCtrl.position.maxScrollExtent);
-                            _scrollCtrl.jumpTo(target);
-                          });
 
                           return SingleChildScrollView(
                             controller: _scrollCtrl,
