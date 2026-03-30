@@ -1,26 +1,97 @@
-# 阅游 (YueYou) - AI 编码与 UI 规范指南
+{
+  "project_context": "阅游 (YueYou) - 赛博朋克风格的沉浸式小说听读器 + 2048 益智游戏，Flutter 跨平台应用。核心挑战：在同一屏幕内同时驱动 KTV 提词器动画和 2048 棋盘高频交互，且必须维持 60FPS 并避免设备发热。",
 
-## 1. 角色设定
-你是一个精通 Web 前端性能优化、Capacitor 跨端打包以及赛博朋克 (Cyberpunk) 视觉设计的超级全栈工程师。
-当前项目的核心是：在一个 Capacitor WebView 中，同时完美运行长文本解析滚动（提词器）和高频交互矩阵游戏（2048），且必须保持极低的设备发热率和极高的帧率。
+  "tech_stack": [
+    "Flutter 3.x / Dart 3.x",
+    "Provider 6.x (ChangeNotifier + ProxyProvider)",
+    "SharedPreferences (设置/游戏进度持久化)",
+    "File System / path_provider (小说正文文件存储)",
+    "audioplayers (流式 TTS 音频播放)",
+    "http (TTS HTTP POST 流请求)",
+    "Rive 0.13.x (XIAOYO 吉祥物动画，开发中)",
+    "fast_gbk (GBK 编码小说文件支持)",
+    "wakelock_plus (朗读时屏幕常亮)",
+    "Cyberpunk / Glassmorphism UI Theme"
+  ],
 
-## 2. UI/UX 核心视觉铁律 (Cyberpunk Aesthetic)
-在编写任何涉及 UI 和 CSS 的代码时，必须严格遵守以下规范：
-- **绝对正方形棋盘**：2048 的游戏网格区（Grid）必须是绝对的 1:1 正方形。优先使用 `aspect-ratio: 1 / 1;` 配合 `width: 100%;` 实现，严禁出现长方形格子或不均匀的间隙。
-- **灵动岛呼吸感**：在处理顶部提词器或全局布局时，必须使用 `padding-top: env(safe-area-inset-top);` 来避开手机的打孔屏和灵动岛。严禁让文字顶到屏幕边缘，必须留出极具质感的暗色呼吸空间。
-- **极客暗黑配色**：背景色严格使用深邃黑（如 `#050505` 或 `#0a0a0a`）。高亮元素、文字、边框使用高饱和度的霓虹色（如荧光绿 `#39ff14`、骇客蓝 `#00f3ff`）。
-- **动态光标指示器**：提词器必须带有一个闪烁的读取位置光标。光标样式应类似终端提示符（`_` 或 `|`），带有轻微的 `box-shadow` 霓虹发光效果。
+  "architecture": {
+    "pattern": "Feature-Driven Clean Architecture",
+    "layer_rules": {
+      "core/": "全局基础设施：主题(theme/)、配置(config/)、数据库(database/)。严禁引入任何 feature 层的代码。",
+      "features/*/domain/": "纯 Dart 业务逻辑。严禁引入 package:flutter/material.dart 或任何 UI 库。只能使用 dart:core / dart:math 等纯 Dart 库。",
+      "features/*/providers/": "状态桥接层。继承 ChangeNotifier，调用 domain/ 或 Service，禁止包含 UI 布局代码。",
+      "features/*/presentation/": "纯渲染层。只消费 Provider 状态，禁止直接操作 Service 或写业务逻辑。",
+      "shared/widgets/": "通用无状态 UI 组件，不依赖任何特定 feature 的 Provider。"
+    },
+    "data_flow": "UI (Consumer/context.watch) → Provider (ChangeNotifier) → Service / StorageService → 持久化"
+  },
 
-## 3. 性能与动画铁律 (Performance First)
-- **禁用重排动画**：所有涉及 2048 方块滑动、合并、以及光标移动的动画，**绝对禁止**通过修改 `top`、`left`、`width`、`height` 来实现。
-- **强制硬件加速**：必须且只能使用 `transform: translate()`、`scale()` 和 `opacity` 进行动画渲染，以调用 GPU 硬件加速，确保在低端安卓机上不掉帧。
+  "coding_standards": {
+    "colors": "严禁硬编码任何颜色值。必须且只能引用 lib/core/theme/cyber_colors.dart 中的 CyberColors 常量。",
+    "fonts": "严禁硬编码 fontFamily 字符串。必须使用 CyberTextStyles.monoFont 常量或 CyberTextStyles 中定义的 TextStyle。",
+    "dimensions": "间距、圆角、边框厚度统一从 lib/core/theme/cyber_dimensions.dart 的 CyberDimensions 读取，禁止魔法数字。",
+    "documentation": "所有 public 方法和复杂算法块必须加 /// 三斜线注释。核心逻辑旁用中文写推演步骤注释。",
+    "naming": "遵循 Flutter 官方 lint 规范。feature 目录名使用 snake_case，类名 PascalCase，私有成员 _camelCase。",
+    "asset_paths": "资源路径必须与 pubspec.yaml 中 flutter.assets 声明完全一致。音频目录为 assets/audios/，Rive 为 assets/rive/，Lottie 为 assets/lottie/。"
+  },
 
-## 4. 架构与代码规范
-- **维持原生模块化**：保持现有的 Vanilla JS 模块化结构（如 `GameEngine.js`, `Renderer.js`）。不要未经允许私自引入 React/Vue 等重型框架。
-- **数据存储安全**：遇到大文本存储需求时，避开 `localStorage`，优先思考基于 `IndexedDB` (或封装库) 的异步方案。
-- **职责分离**：`GameEngine.js` 只处理纯数学和逻辑矩阵，绝对不能出现 DOM 操作；`Renderer.js` 只负责读取状态并更新 DOM，绝对不能耦合分数计算逻辑。
+  "strict_anti_patterns": [
+    {
+      "rule": "build() 必须是纯函数",
+      "forbidden": "在 build() 方法或 AnimatedBuilder.builder 内部调用任何有副作用的方法（修改成员变量、调用 addPostFrameCallback、触发动画）。",
+      "correct": "在 initState() 或 didChangeDependencies() 中注册 AnimationController.addListener() 或 Provider.addListener() 处理副作用。参考 BoardMascot._onGameChanged() 的实现模式。"
+    },
+    {
+      "rule": "禁止重排动画",
+      "forbidden": "通过修改 top/left/width/height 实现动画。",
+      "correct": "必须使用 Transform.translate() / Transform.scale() / Opacity，调用 GPU 硬件加速。"
+    },
+    {
+      "rule": "高频重绘必须隔离",
+      "forbidden": "将动画 Widget 直接嵌套在静态 Column/Stack 中，导致父级 rebuild。",
+      "correct": "用 RepaintBoundary 包裹所有高频重绘区域（棋盘、提词器、吉祥物）。"
+    },
+    {
+      "rule": "禁止硬编码服务器地址",
+      "forbidden": "在代码中写死任何 IP 地址或域名。",
+      "correct": "通过 --dart-define 注入，在 lib/core/config/ 中读取 const String.fromEnvironment()。"
+    },
+    {
+      "rule": "大文件必须用 Isolate",
+      "forbidden": "在主线程直接调用 RegExp.allMatches() 或文件读取处理 >100KB 文本。",
+      "correct": "使用 compute() 函数将解析逻辑移入后台 Isolate（参考 TextParser.parse()）。"
+    },
+    {
+      "rule": "禁止遗留死代码",
+      "forbidden": "保留 @Deprecated 方法、无调用者的 public 方法、注释掉的大段代码块。",
+      "correct": "功能删除时彻底清理相关方法、字段和注释代码，保持代码库整洁。"
+    },
+    {
+      "rule": "禁止云同步相关代码",
+      "forbidden": "添加任何向远端服务器推送用户数据（游戏状态、阅读进度、个人信息）的功能。",
+      "correct": "所有用户数据仅本地持久化（SharedPreferences + 文件存储）。TTS 仅发送待合成文本，不携带用户标识。"
+    }
+  ],
 
-## 5. 交互流程
-- 在给出代码修改前，先简要说明修改思路。
-- 每次完成核心 UI 修改后，提醒我进行真机/浏览器预览。
-- 最好能向我展示你的中文思考过程，让我了解你的设计思路。
+  "performance_rules": [
+    "RepaintBoundary 覆盖所有动画组件：棋盘(SquareBoard)、吉祥物(BoardMascot)、提词器(TeleprompterView)。",
+    "AnimationController.addListener() 代替在 builder 内注册 postFrameCallback。",
+    "CustomPainter 必须正确实现 shouldRepaint()，基于实际参数变化判断，禁止 return true。",
+    "Provider 消费端用 context.select() 精确订阅单字段，避免无关字段变化触发 rebuild。",
+    "AudioPlayer 生命周期与 ChangeNotifier 同步：dispose() 内必须调用 audioPlayer.dispose()。"
+  ],
+
+  "preferred_patterns": [
+    "响应式副作用：StatefulWidget 通过 didChangeDependencies() 获取 Provider，再调用 addListener(_onXxxChanged) 处理状态变化，而非在 build() 中处理。",
+    "Stack 叠层布局：吉祥物趴在棋盘上方，提词器在游戏区下方，均使用 Stack + Positioned。",
+    "外部服务抽象：TTS、文件选择器、音效等封装为独立 Service 类，放入 core/services/ 或 feature/services/，禁止在 Widget 中直接调用平台 API。",
+    "存储分级：小 Key-Value（设置、分数）用 SharedPreferences；大数据（小说正文）用文件系统（path_provider + dart:io）。",
+    "会话锁模式：异步操作链（如 TTS 预加载循环）用递增整数 session 校验，防止切章/切书后旧请求污染新状态。参考 TtsEngineService._loopSession。"
+  ],
+
+  "in_development": {
+    "rive_mascot": "BoardMascotRive — XIAOYO 的 Rive 动画版本（assets/rive/xiaoyo.riv），用于替换 Canvas 版 BoardMascot。注意：build() 内的 _updateRiveInputs 副作用需修复，改为 addListener 模式。",
+    "ambient_sound": "环境音播放器 — SettingsProvider.ambientEnabled 字段已预留，待实现背景音乐功能。",
+    "board_effects": "棋盘特效 — rain_effect.dart（雨滴特效）和 board_reset_animation.dart（重置翻转动画）已实现，待接入完整交互流程。"
+  }
+}
