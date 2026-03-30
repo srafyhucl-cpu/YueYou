@@ -6,14 +6,10 @@ on:
   push:
   pull_request:
 
-env:
-  # 提前启用 Node.js 24 以消除 Node.js 20 弃用警告
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build-test:
     name: 分析与测试
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -22,6 +18,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true # 启用 Flutter SDK 缓存
 
       - name: 获取依赖
         run: flutter pub get
