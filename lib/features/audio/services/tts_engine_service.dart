@@ -180,16 +180,6 @@ class TtsEngineService extends ChangeNotifier {
     _setPlaybackFlags(isSpeaking: false, isBuffering: false);
   }
 
-  @Deprecated('Use internal listener instead')
-  void applySettings({
-    required bool storyTts,
-    required double ttsRate,
-    required String voice,
-    required double volume,
-  }) {
-    // 空实现，保留接口兼容性
-  }
-
   void cycleSpeed() {
     final int currentIndex = _speedTiers.indexOf(_playbackRate);
     final int nextIndex = (currentIndex + 1) % _speedTiers.length;
@@ -204,17 +194,6 @@ class TtsEngineService extends ChangeNotifier {
     _playbackRate = logicalRate;
     _audioPlayer.setPlaybackRate(logicalRate);
     notifyListeners();
-  }
-
-  void syncVolumeFromSettings(double volume) {
-    _volume = volume.clamp(0.0, 1.0);
-    _audioPlayer.setVolume(_volume);
-  }
-
-  void syncVoiceFromSettings(String voice) {
-    if (_voice == voice) return;
-    _voice = voice;
-    refreshSession();
   }
 
   /// 🔥 切章核心：同步递增 session，立即停播，清空队列，重启循环

@@ -32,10 +32,6 @@ class BoardMascotState extends State<BoardMascot>
   late AnimationController _expressionController;
   late Animation<double> _expressionAnimation;
 
-  // ── 空闲浮动层（已移除，XIAOYO 紧抓边框）──
-  // late AnimationController _idleController;
-  // late Animation<double> _idleAnimation;
-
   // ── 头部倾斜（复用 _eyeController 同步，左右滑动各 ±6°）──
   late Animation<double> _tiltAnimation;
 
@@ -98,14 +94,6 @@ class BoardMascotState extends State<BoardMascot>
     _expressionAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
       CurvedAnimation(parent: _expressionController, curve: Curves.easeInOut),
     );
-
-    // 空闲浮动：已移除，让 XIAOYO 紧紧抓住边框
-    // _idleController = AnimationController(
-    //   vsync: this,
-    //   duration: const Duration(milliseconds: 2200),
-    // );
-    // _idleAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
-    //     CurvedAnimation(parent: _idleController, curve: Curves.easeInOut));
 
     // 头部倾斜：复用 _eyeController，初始正立
     _tiltAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
@@ -293,7 +281,6 @@ class BoardMascotState extends State<BoardMascot>
     _eyeController.dispose();
     _bodyController.dispose();
     _expressionController.dispose();
-    // _idleController.dispose(); // 已移除
     _wobbleController.dispose();
     _blinkController.dispose();
     _pulseController.dispose();

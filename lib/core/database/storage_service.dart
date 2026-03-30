@@ -17,8 +17,6 @@ class StorageService {
   static const String _kReadingRecords = 'reading_records';
   static const String _kCurrentNovelId = 'current_novel_id';
   static const String _kNovelIndex = 'novel_index';
-  static const String _kAuthToken = 'auth_token';
-
   static const String _kSettingSound = 'setting_sound';
   static const String _kSettingStoryTts = 'setting_story_tts';
   static const String _kSettingVoice = 'setting_voice';
@@ -145,16 +143,6 @@ class StorageService {
 
   static Future<void> setCurrentNovelIndex(int index) async {
     await _p.setInt(_kNovelIndex, index);
-  }
-
-  static String? getAuthToken() => _p.getString(_kAuthToken);
-
-  static Future<void> setAuthToken(String? token) async {
-    if (token == null || token.isEmpty) {
-      await _p.remove(_kAuthToken);
-    } else {
-      await _p.setString(_kAuthToken, token);
-    }
   }
 
   // ── 书籍正文内容（替代 IndexedDB LocalDB.js）──────────────────────────────

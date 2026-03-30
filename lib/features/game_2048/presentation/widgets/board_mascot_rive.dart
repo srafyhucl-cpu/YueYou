@@ -38,10 +38,30 @@ class _BoardMascotRiveState extends State<BoardMascotRive> {
   int _lastMergedValue = -1;
   bool _lastIsOver = false;
 
+  // GameProvider 监听（与 BoardMascot 保持一致的响应式模式）
+  GameProvider? _watchedProvider;
+
   @override
   void initState() {
     super.initState();
     _loadRiveFile();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<GameProvider>();
+    if (_watchedProvider != provider) {
+      _watchedProvider?.removeListener(_onGameChanged);
+      _watchedProvider = provider;
+      _watchedProvider!.addListener(_onGameChanged);
+    }
+  }
+
+  /// GameProvider 状态变化回调：仅更新 Rive 状态机输入，不触发 Widget rebuild
+  void _onGameChanged() {
+    if (!mounted || _watchedProvider == null) return;
+    _updateRiveInputs(_watchedProvider!);
   }
 
   /// 加载 Rive 文件并初始化状态机
@@ -103,17 +123,14 @@ class _BoardMascotRiveState extends State<BoardMascotRive> {
 
   @override
   void dispose() {
+    _watchedProvider?.removeListener(_onGameChanged);
     _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final game = context.watch<GameProvider>();
-
-    // 实时更新状态机输入
-    _updateRiveInputs(game);
-
+    // build() 纯函数：Rive 状态机输入由 _onGameChanged 驱动，此处只负责渲染
     return SizedBox(
       width: 68,
       height: 84,

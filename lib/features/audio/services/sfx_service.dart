@@ -31,13 +31,13 @@ class SfxService {
 
     // 播放合并音效
     try {
-      await _mergePlayer.play(AssetSource('audio/merge.mp3'));
+      await _mergePlayer.play(AssetSource('audios/merge.mp3'));
     } catch (e) {
       // 静默失败，不影响游戏
     }
   }
 
   static void dispose() {
-    // 无需释放资源
+    _mergePlayer.dispose();
   }
 }
