@@ -42,16 +42,26 @@ jobs:
           reporttypes: MarkdownSummaryGithub;Cobertura
 
       - name: 列出报告文件 (调试)
-        run: ls -R coverage-report
+        run: |
+          ls -R
+          if [ -d "coverage-report" ]; then ls -R coverage-report; fi
 
       - name: 发布覆盖率摘要到 Job Summary
-        run: cat coverage-report/Summary.md >> $GITHUB_STEP_SUMMARY
+        run: |
+          REPORT_FILE=$(find coverage-report -name "Summary.md" -o -name "Summary.markdown" | head -n 1)
+          if [ -n "$REPORT_FILE" ]; then
+            cat "$REPORT_FILE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ 未找到覆盖率报告文件" >> $GITHUB_STEP_SUMMARY
+            echo "请检查 '列出报告文件 (调试)' 步骤以确认生成路径。" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
           filePath: coverage-report/Summary.md
+          comment_tag: coverage-report
 
       - name: 上传覆盖率产物
         uses: actions/upload-artifact@v4
