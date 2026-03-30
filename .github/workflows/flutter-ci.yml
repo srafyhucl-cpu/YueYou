@@ -29,6 +29,13 @@ jobs:
       - name: 运行测试并生成覆盖率
         run: flutter test --coverage
 
+      - name: 生成覆盖率报告摘要
+        uses: vitorocruz/dart-coverage-assistant@v1
+        with:
+          generate-badges: true
+          enforce-threshold: false
+          report-title: "阅游 (YueYou) 测试覆盖率报告"
+
       - name: 上传覆盖率产物
         uses: actions/upload-artifact@v4
         with:
