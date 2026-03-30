@@ -41,14 +41,17 @@ jobs:
           targetdir: coverage-report
           reporttypes: MarkdownSummaryGithub;Cobertura
 
+      - name: 列出报告文件 (调试)
+        run: ls -R coverage-report
+
       - name: 发布覆盖率摘要到 Job Summary
-        run: cat coverage-report/Summary.markdown >> $GITHUB_STEP_SUMMARY
+        run: cat coverage-report/Summary.md >> $GITHUB_STEP_SUMMARY
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
-          filePath: coverage-report/Summary.markdown
+          filePath: coverage-report/Summary.md
 
       - name: 上传覆盖率产物
         uses: actions/upload-artifact@v4
