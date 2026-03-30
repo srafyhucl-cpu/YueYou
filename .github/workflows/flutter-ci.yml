@@ -41,26 +41,40 @@ jobs:
           targetdir: coverage-report
           reporttypes: MarkdownSummaryGithub;Cobertura
 
-      - name: 列出报告文件 (调试)
+      - name: 发布覆盖率摘要 (图表+数据)
         run: |
-          ls -R
-          if [ -d "coverage-report" ]; then ls -R coverage-report; fi
-
-      - name: 发布覆盖率摘要到 Job Summary
-        run: |
-          REPORT_FILE=$(find coverage-report -name "Summary.md" -o -name "Summary.markdown" | head -n 1)
-          if [ -n "$REPORT_FILE" ]; then
+          echo "## 📊 测试覆盖率报告" >> $GITHUB_STEP_SUMMARY
+          
+          # 尝试从插件生成的报告中提取内容
+          REPORT_FILE=$(find coverage-report -name "Summary*.md" -o -name "Summary*.markdown" | head -n 1)
+          
+          if [ -n "$REPORT_FILE" ] && [ -f "$REPORT_FILE" ]; then
+            echo "✅ 使用插件生成的报告: $REPORT_FILE"
             cat "$REPORT_FILE" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ⚠️ 未找到覆盖率报告文件" >> $GITHUB_STEP_SUMMARY
-            echo "请检查 '列出报告文件 (调试)' 步骤以确认生成路径。" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ 插件报告未就绪，改用手动解析摘要"
+            # 备选方案：使用 Perl 直接从 lcov.info 提取数据并生成 Shields.io 徽章图表
+            perl -ne '
+              if(/^LF:(\d+)/){$total+=$1}elsif(/^LH:(\d+)/){$covered+=$1}
+              END {
+                $pct = $total > 0 ? ($covered / $total * 100) : 0;
+                $color = $pct >= 80 ? "green" : ($pct >= 50 ? "orange" : "red");
+                printf "\n### 总体覆盖率: **%.2f%%**\n", $pct;
+                printf "![Coverage](https://img.shields.io/badge/coverage-%.2f%25-%s?style=for-the-badge)\n\n", $pct, $color;
+                print "| 项目 | 统计值 |\n| :--- | :--- |\n";
+                print "| 已覆盖行数 | $covered |\n";
+                print "| 总行数 | $total |\n";
+              }
+            ' coverage/lcov.info >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
-          filePath: coverage-report/Summary.md
+          message: |
+            ## 📊 测试覆盖率更新
+            本次推送的测试覆盖率摘要已发布在 [Job Summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})。
           comment_tag: coverage-report
 
       - name: 上传覆盖率产物
