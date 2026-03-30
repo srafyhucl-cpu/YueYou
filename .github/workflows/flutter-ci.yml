@@ -39,16 +39,16 @@ jobs:
         with:
           reports: coverage/lcov.info
           targetdir: coverage-report
-          reporttypes: MarkdownSummary;Cobertura
+          reporttypes: MarkdownSummaryGithub;Cobertura
 
       - name: 发布覆盖率摘要到 Job Summary
-        run: cat coverage-report/Summary.md >> $GITHUB_STEP_SUMMARY
+        run: cat coverage-report/Summary.markdown >> $GITHUB_STEP_SUMMARY
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
-          filePath: coverage-report/Summary.md
+          filePath: coverage-report/Summary.markdown
 
       - name: 上传覆盖率产物
         uses: actions/upload-artifact@v4
