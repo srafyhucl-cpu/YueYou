@@ -29,24 +29,26 @@ jobs:
       - name: 运行测试并生成覆盖率
         run: flutter test --coverage
 
-      - name: 生成覆盖率报告摘要
-        uses: irongut/CodeCoverageSummary@v1.3.0
+      - name: 设置 .NET Core (ReportGenerator 依赖项)
+        uses: actions/setup-dotnet@v4
         with:
-          filename: coverage/lcov.info
-          badge: true
-          fail_below_min: false
-          format: markdown
-          hide_branch_rate: false
-          hide_complexity: true
-          indicators: true
-          output: both
-          thresholds: '50 75'
+          dotnet-version: 8.x
+
+      - name: 生成覆盖率报告
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.16
+        with:
+          reports: coverage/lcov.info
+          targetdir: coverage-report
+          reporttypes: MarkdownSummary;Cobertura
+
+      - name: 发布覆盖率摘要到 Job Summary
+        run: cat coverage-report/Summary.md >> $GITHUB_STEP_SUMMARY
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
-          filePath: code-coverage-results.md
+          filePath: coverage-report/Summary.md
 
       - name: 上传覆盖率产物
         uses: actions/upload-artifact@v4
