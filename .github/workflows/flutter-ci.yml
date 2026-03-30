@@ -41,6 +41,23 @@ jobs:
           targetdir: coverage-report
           reporttypes: MarkdownSummaryGithub;Cobertura
 
+      - name: 生成业务核心 LCOV（过滤 UI/生成代码/TTS 引擎）
+        run: |
+          awk '
+            BEGIN{ FS=":" }
+            /^SF:/ {
+              path=substr($0,4);
+              norm=path; gsub(/\\/, "/", norm); # 统一路径分隔符
+              inc=1;
+              if (norm ~ /^lib\/.*\/presentation\//) inc=0;            # UI 层
+              else if (norm ~ /^lib\/shared\/widgets\//) inc=0;         # 通用控件
+              else if (norm ~ /\/generated\//) inc=0;                    # 生成目录
+              else if (norm ~ /\.g\.dart$/) inc=0;                       # 生成文件
+              else if (norm ~ /^lib\/features\/audio\/services\/tts_engine_service\.dart$/) inc=0; # TTS 引擎（阶段性排除）
+            }
+            { if (inc==1) print $0 }
+          ' coverage/lcov.info > coverage/lcov.core.info
+
       - name: 发布覆盖率摘要 (中文图表)
         run: |
           echo "## 📊 测试覆盖率报告 (中文)" >> $GITHUB_STEP_SUMMARY
@@ -69,6 +86,23 @@ jobs:
           sort -nr |
           head -n 10 |
           awk -F"\t" 'BEGIN { print "\n#### 文件覆盖率 Top 10\n"; print "| 序号 | 文件 | 覆盖率 | 行(覆盖/总) |"; print "|:--:|:--|:--:|:--:|" } { printf "| %d | %s | %s%% | %s |\n", NR, $2, $1, $3 }' >> $GITHUB_STEP_SUMMARY
+
+      - name: 校验业务核心覆盖率阈值 (≥ 90%)
+        run: |
+          THRESHOLD=90
+          if [ ! -s coverage/lcov.core.info ]; then
+            echo "❌ 未生成业务核心覆盖率文件 coverage/lcov.core.info" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          CORE_PCT=$(awk -F: '/^LF:/{lf+=$2+0} /^LH:/{lh+=$2+0} END{ if(lf>0) printf("%.2f", (lh/lf*100)); else print "0" }' coverage/lcov.core.info)
+          echo "\n### 覆盖率门槛：业务核心 ${CORE_PCT}% (目标 ≥ ${THRESHOLD}%)" >> $GITHUB_STEP_SUMMARY
+          awk -v pct="$CORE_PCT" -v thr="$THRESHOLD" 'BEGIN { if (pct+0 >= thr) exit 0; else exit 1 }'
+          if [ $? -ne 0 ]; then
+            echo "❌ 业务核心覆盖率未达标：${CORE_PCT}% < ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ 业务核心覆盖率达标：${CORE_PCT}% ≥ ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
