@@ -6,6 +6,10 @@ on:
   push:
   pull_request:
 
+env:
+  # 提前启用 Node.js 24 以消除 Node.js 20 弃用警告
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-test:
     name: 分析与测试
