@@ -31,6 +31,11 @@ class StorageService {
     _prefs ??= await SharedPreferences.getInstance();
   }
 
+  /// 测试专用：清除 SharedPreferences 单例缓存，使 [init] 可重新初始化
+  /// 生产环境禁止调用
+  @visibleForTesting
+  static void resetForTesting() => _prefs = null;
+
   static SharedPreferences get _p {
     assert(_prefs != null, 'StorageService.init() 必须在 runApp 前调用');
     return _prefs!;
