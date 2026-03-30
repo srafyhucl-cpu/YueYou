@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
 
 /// 声纹跳动动画组件
 /// 用于灵动岛内部，当 TTS 播报时显示动态声纹
@@ -10,7 +11,7 @@ class VoiceWaveform extends StatefulWidget {
   const VoiceWaveform({
     super.key,
     required this.isActive,
-    this.color = const Color(0xFF22D3EE),
+    this.color = CyberColors.neonCyan,
   });
 
   @override

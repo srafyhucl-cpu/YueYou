@@ -14,14 +14,20 @@ class TtsConfig {
     this.maxPrefetchQueue = 6,
   });
 
-  /// 开发环境配置
+  /// 开发环境配置（通过 --dart-define=TTS_SERVER_URL=http://your-server:3000/api/v1/tts/createStream 指定）
   static const TtsConfig development = TtsConfig(
-    serverUrl: 'http://8.218.177.149:3000/api/v1/tts/createStream',
+    serverUrl: String.fromEnvironment(
+      'TTS_SERVER_URL',
+      defaultValue: 'http://localhost:3000/api/v1/tts/createStream',
+    ),
   );
 
-  /// 生产环境配置
+  /// 生产环境配置（通过 --dart-define=TTS_SERVER_URL 覆盖）
   static const TtsConfig production = TtsConfig(
-    serverUrl: 'https://api.yueyou.com/v1/tts/createStream',
+    serverUrl: String.fromEnvironment(
+      'TTS_SERVER_URL',
+      defaultValue: 'http://localhost:3000/api/v1/tts/createStream',
+    ),
   );
 
   /// 当前环境配置

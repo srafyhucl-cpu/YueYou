@@ -175,7 +175,7 @@ class _BookCard extends StatelessWidget {
                         Text(
                           book.displayTitle,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: CyberColors.whiteHigh,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -196,8 +196,8 @@ class _BookCard extends StatelessWidget {
                               child: LinearProgressIndicator(
                                 value: percent / 100,
                                 backgroundColor: CyberColors.whiteSubtle,
-                                valueColor:
-                                    const AlwaysStoppedAnimation(Colors.white),
+                                valueColor: const AlwaysStoppedAnimation(
+                                    CyberColors.whiteHigh),
                                 minHeight: 4,
                               ),
                             ),

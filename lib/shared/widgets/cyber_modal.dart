@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
 
 /// 赛博朋克风格全局弹窗封装
 /// 替代 Navigator.push 全屏跳转，点击外部可关闭
@@ -12,7 +13,7 @@ Future<T?> showCyberModal<T>({
     context: context,
     barrierDismissible: barrierDismissible,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-    barrierColor: Colors.black.withOpacity(0.7),
+    barrierColor: CyberColors.blackOverlay,
     transitionDuration: const Duration(milliseconds: 300),
     pageBuilder: (context, animation, secondaryAnimation) {
       return SafeArea(
@@ -36,17 +37,17 @@ Future<T?> showCyberModal<T>({
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: const Color(0xFF22D3EE).withOpacity(0.4),
+                      color: CyberColors.neonCyan.withOpacity(0.4),
                       width: 2.0,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF22D3EE).withOpacity(0.25),
+                        color: CyberColors.neonCyan.withOpacity(0.25),
                         blurRadius: 30,
                         spreadRadius: 2,
                       ),
                       const BoxShadow(
-                        color: Color.fromRGBO(0, 0, 0, 0.6),
+                        color: CyberColors.blackShadow,
                         blurRadius: 40,
                         offset: Offset(0, 15),
                       ),
@@ -58,7 +59,7 @@ Future<T?> showCyberModal<T>({
                       filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                       child: Container(
                         decoration: const BoxDecoration(
-                          color: Color(0xE60A0A0F),
+                          color: CyberColors.glassDark,
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),

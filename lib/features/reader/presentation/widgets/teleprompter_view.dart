@@ -35,13 +35,13 @@ class _TeleprompterViewState extends State<TeleprompterView>
     height: 1.0,
     shadows: [
       Shadow(
-        color: Color.fromRGBO(0, 243, 255, 0.5),
+        color: CyberColors.hackerBlue.withOpacity(0.5),
         blurRadius: 8,
       ),
     ],
   );
 
-  static final TextStyle _unreadStyle = TextStyle(
+  static const TextStyle _unreadStyle = TextStyle(
     color: CyberColors.whiteMuted,
     fontSize: _fontSize,
     fontWeight: FontWeight.w500,
@@ -220,14 +220,20 @@ class _TeleprompterViewState extends State<TeleprompterView>
                           ),
                         ),
 
-                      // ── 左端渐隐遮罩（防文字溢出可见）────────────
+                      // ── 左端渐隐遮罩（防文字溢出可见，避开边框）────────────
                       Positioned(
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
+                        left: 2,
+                        top: 2,
+                        bottom: 2,
                         width: 40,
                         child: Container(
                           decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              topLeft:
+                                  Radius.circular(CyberDimensions.radiusL - 2),
+                              bottomLeft:
+                                  Radius.circular(CyberDimensions.radiusL - 2),
+                            ),
                             gradient: LinearGradient(
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
@@ -240,14 +246,20 @@ class _TeleprompterViewState extends State<TeleprompterView>
                         ),
                       ),
 
-                      // ── 右端渐隐遮罩 ──────────────────────────────
+                      // ── 右端渐隐遮罩（避开边框）──────────────────────────────
                       Positioned(
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
+                        right: 2,
+                        top: 2,
+                        bottom: 2,
                         width: 40,
                         child: Container(
                           decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              topRight:
+                                  Radius.circular(CyberDimensions.radiusL - 2),
+                              bottomRight:
+                                  Radius.circular(CyberDimensions.radiusL - 2),
+                            ),
                             gradient: LinearGradient(
                               begin: Alignment.centerRight,
                               end: Alignment.centerLeft,

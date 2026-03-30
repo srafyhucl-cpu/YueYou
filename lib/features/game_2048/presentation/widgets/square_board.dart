@@ -87,7 +87,7 @@ class _SquareBoardState extends State<SquareBoard>
   Color _ratingColor(String rating) {
     switch (rating) {
       case '传奇':
-        return const Color(0xFFFFD700); // 金色
+        return CyberColors.tileGold; // 金色
       case '大师':
         return CyberColors.neonPink;
       case '专家':

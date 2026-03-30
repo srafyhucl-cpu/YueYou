@@ -37,6 +37,9 @@ class TtsEngineService extends ChangeNotifier {
   bool _startingLoops = false; // 🔥 启动锁：防止 _heartbeat 并发重复启动
   TtsAudioItem? _currentItem;
 
+  // 空闲超时计时器
+  Timer? _idleTimer;
+
   bool _disposed = false;
 
   bool get isEnabled => _isEnabled;
@@ -102,6 +105,7 @@ class TtsEngineService extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _settings.removeListener(_onSettingsChanged);
+    _idleTimer?.cancel();
     _playLoopActive = false;
     _prefetchLoopActive = false;
     _audioPlayer.dispose();
@@ -113,11 +117,12 @@ class TtsEngineService extends ChangeNotifier {
     _voice = _settings.voice;
     _volume = _settings.ambientVol;
     _playbackRate = _settings.ttsRate;
+    _isEnabled = _settings.storyTts;
 
     await _audioPlayer.setVolume(_volume.clamp(0.0, 1.0));
     await _audioPlayer.setPlaybackRate(_playbackRate);
 
-    debugPrint('🎵 双轨流媒体TTS引擎已初始化');
+    debugPrint('🎵 双轨流媒体TTS引擎已初始化 (enabled=$_isEnabled)');
   }
 
   Future<void> init() async {
@@ -160,6 +165,8 @@ class TtsEngineService extends ChangeNotifier {
     debugPrint('🎵 TTS setEnabled: $enable (session=$_loopSession)');
     _syncWakeLock(_isEnabled && _isSpeaking);
     if (enable) {
+      // 启用时启动空闲计时器
+      _scheduleIdleTimer();
       if (_prefetchedItems.isEmpty) {
         _setPlaybackFlags(isSpeaking: false, isBuffering: true);
       }
@@ -167,6 +174,8 @@ class TtsEngineService extends ChangeNotifier {
       _heartbeat();
       return;
     }
+    // 禁用时取消空闲计时器
+    _idleTimer?.cancel();
     _audioPlayer.stop();
     _setPlaybackFlags(isSpeaking: false, isBuffering: false);
   }
@@ -186,6 +195,7 @@ class TtsEngineService extends ChangeNotifier {
     final int nextIndex = (currentIndex + 1) % _speedTiers.length;
     _playbackRate = _speedTiers[nextIndex];
     _audioPlayer.setPlaybackRate(_playbackRate);
+    _settings.setTtsRate(_playbackRate);
     notifyListeners();
   }
 
@@ -221,8 +231,28 @@ class TtsEngineService extends ChangeNotifier {
     _prefetchLoopActive = false;
 
     if (_isEnabled) {
+      _scheduleIdleTimer();
       _heartbeat();
     }
+  }
+
+  /// 通知用户有交互行为，重置空闲计时器
+  void notifyUserActivity() {
+    if (!_isEnabled) return;
+    _scheduleIdleTimer();
+  }
+
+  void _scheduleIdleTimer() {
+    _idleTimer?.cancel();
+    final int minutes = _settings.idleTimeout;
+    if (minutes <= 0) return;
+    _idleTimer = Timer(Duration(minutes: minutes), () {
+      if (_isEnabled && !_disposed) {
+        debugPrint('⏰ 空闲超时 ${minutes}min，自动暂停 TTS');
+        setEnabled(false);
+        _settings.setStoryTts(false);
+      }
+    });
   }
 
   void stopAll() {
@@ -542,7 +572,7 @@ class TtsEngineService extends ChangeNotifier {
         // 构建请求URL
         final uri = Uri.parse(_config.serverUrl);
 
-        // 发送HTTP POST请求
+        // 发送HTTP POST请求 (JSON格式以匹配服务器校验逻辑)
         final response = await http
             .post(
               uri,
@@ -630,25 +660,21 @@ class TtsEngineService extends ChangeNotifier {
         'message': 'Host: ${uri.host}, Port: ${uri.port}, Path: ${uri.path}',
       });
 
-      // 步骤 3：发送 HTTP 请求
+      // 步骤 3：发送 HTTP 请求 (Multipart/Form-Data格式)
       const testText = '测试文本一二三四五';
       debugPrint('📡 发送 TTS 测试请求: $testText');
 
-      final response = await http
-          .post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'text': testText,
-          'voice': _voice,
-        }),
-      )
-          .timeout(
+      final requestMulti = http.MultipartRequest('POST', uri);
+      requestMulti.fields['text'] = testText;
+      requestMulti.fields['voice'] = _voice;
+
+      final streamedResponse = await requestMulti.send().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('请求超时 (10秒)');
         },
       );
+      final response = await http.Response.fromStream(streamedResponse);
 
       result['statusCode'] = response.statusCode;
       result['responseSize'] = response.bodyBytes.length;

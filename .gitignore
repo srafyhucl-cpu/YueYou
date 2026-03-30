@@ -16,10 +16,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code — 含设备序列号等本机专属配置，不入库
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -41,3 +39,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android 本地构建配置（含本机 SDK 路径），不入库
+**/android/local.properties
+
+# 环境变量 / 密钥文件 — 禁止提交真实服务器地址或密钥
+.env
+.env.*
+*.env
+dart_defines.json
+
+# 内部开发笔记（可能含服务器 IP 等敏感信息）
+handoff_status.md

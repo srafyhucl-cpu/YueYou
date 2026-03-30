@@ -86,7 +86,7 @@ class _FloatingScoreState extends State<FloatingScore>
               child: Text(
                 '+${widget.score}',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: CyberColors.whiteHigh,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                   fontFamily: 'JetBrains Mono',

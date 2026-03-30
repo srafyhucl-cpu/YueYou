@@ -229,7 +229,7 @@ class _ChapterItem extends StatelessWidget {
           ),
           color: isActive
               ? CyberColors.neonPink.withOpacity(0.1)
-              : Colors.transparent,
+              : CyberColors.transparent,
         ),
         child: Row(
           children: [

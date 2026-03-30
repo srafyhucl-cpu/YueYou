@@ -36,26 +36,30 @@ class YueYouApp extends StatelessWidget {
           create: (_) => BookshelfProvider()..loadFromStorage(),
         ),
 
-        // 3号：2048 游戏引擎（接入设置里的 soundEnabled）
-        ChangeNotifierProxyProvider<SettingsProvider, GameProvider>(
-          create: (ctx) {
-            final gp = GameProvider();
-            gp.soundEnabled = ctx.read<SettingsProvider>().sound;
-            return gp;
-          },
-          update: (ctx, settings, prev) {
-            prev?.soundEnabled = settings.sound;
-            return prev ?? GameProvider();
-          },
-        ),
-
-        // 4号：TTS 发声引擎（通过内部监听器响应设置变化）
+        // 3号：TTS 发声引擎（通过内部监听器响应设置变化）
         ChangeNotifierProxyProvider<SettingsProvider, TtsEngineService>(
           create: (ctx) {
             final settings = ctx.read<SettingsProvider>();
             return TtsEngineService(settings);
           },
           update: (ctx, settings, prev) => prev ?? TtsEngineService(settings),
+        ),
+
+        // 4号：2048 游戏引擎（接入设置里的 soundEnabled + TTS 空闲计时器）
+        ChangeNotifierProxyProvider2<SettingsProvider, TtsEngineService,
+            GameProvider>(
+          create: (ctx) {
+            final gp = GameProvider();
+            gp.soundEnabled = ctx.read<SettingsProvider>().sound;
+            gp.onUserMove =
+                () => ctx.read<TtsEngineService>().notifyUserActivity();
+            return gp;
+          },
+          update: (ctx, settings, tts, prev) {
+            prev?.soundEnabled = settings.sound;
+            prev?.onUserMove = () => tts.notifyUserActivity();
+            return prev ?? GameProvider();
+          },
         ),
 
         // 5号：提词器解析引擎（ProxyProvider 注入 TTS 引擎）

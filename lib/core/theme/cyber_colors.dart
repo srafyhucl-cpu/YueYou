@@ -84,4 +84,12 @@ class CyberColors {
   static const Color tile2048Start = Color(0xFFf12711);
   static const Color tile2048End = Color(0xFFf5af19); // 亮红
   static const Color tile512 = Color(0xFFFFD60A); // 金色
+
+  // 工具色
+  static const Color white = Color(0xFFFFFFFF); // 纯白（Canvas 高光专用）
+  static const Color transparent = Color(0x00000000); // 透明（Material 背景专用）
+  static const Color tileGold = Color(0xFFFFD700); // 传奇金色（square_board 溯源）
+  static const Color hackerBlue =
+      Color(0xFF00F3FF); // 骇客蓝（规范中的 #00f3ff，吹着天 BGM）
+  static const Color tileBlue = Color(0xFF3B82F6); // 方块低数粒子色（tile_widget 溯源）
 }

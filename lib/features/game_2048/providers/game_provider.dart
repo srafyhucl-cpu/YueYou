@@ -54,6 +54,9 @@ class GameProvider extends ChangeNotifier {
   /// 上一次滑动方向（供吉祥物眼球跟随使用）
   Direction? lastMoveDirection;
 
+  /// 用户有效操作回调（由 main.dart 注入，用于重置 TTS 空闲计时器）
+  void Function()? onUserMove;
+
   /// 本次移动中合并产生的最大値（0=无合并，供吉祥物欢呼判断）
   int lastMergedValue = 0;
 
@@ -149,6 +152,7 @@ class GameProvider extends ChangeNotifier {
   /// 执行移动逻辑 (核心迁移逻辑)
   /// 溯源：映射 JS L32-112 (move)
   void move(Direction direction) {
+    onUserMove?.call();
     lastMoveDirection = direction;
     lastMergedValue = 0;
     lastMoveNoMerge = false;

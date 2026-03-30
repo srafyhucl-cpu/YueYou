@@ -16,8 +16,16 @@ import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  /// GlobalKey 持有在 State 层，避免每次 build 重新创建导致组件卸载
+  final GlobalKey<BoardMascotState> _mascotKey = GlobalKey<BoardMascotState>();
 
   void _openLibrary(BuildContext context) {
     showCyberModal(
@@ -74,29 +82,59 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   // 2. 状态面板
                   _buildStatusPanel(),
-                  // 76px 缓冲区：留出 XIAOYO 向上溢出的视觉空间，不与计分板重叠
-                  const SizedBox(height: 76),
-                  // 棋盘 + XIAOYO 爬墙头（LayoutBuilder 精确算出爪子位置）
+                  // 棋盘 + XIAOYO 爬墙头
+                  // 76px 缓冲区合并进 Expanded 内部计算，保证 mascotTop 始终为正值（在 Stack 边界内）
                   Expanded(
                     flex: 2,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
+                        const double kBuffer = 76.0;
                         final w = constraints.maxWidth;
                         final h = constraints.maxHeight;
-                        // 棋盘是 AspectRatio 1:1，尺寸 = 较短边
-                        final boardSz = w < h ? w : h;
-                        final boardTop = (h - boardSz) / 2;
-                        // 爪底 ≈ widget 高 84px 的 73px 处，让爪子紧扣棋盘上边框
+                        // 棋盘可用高度 = 总高 - 顶部缓冲区
+                        final boardAvailH = h - kBuffer;
+                        final boardSz = w < boardAvailH ? w : boardAvailH;
+                        // 棋盘顶部位置 = 缓冲区 + 剩余居中空间
+                        final boardTop = kBuffer + (boardAvailH - boardSz) / 2;
+                        // XIAOYO 顶部 = boardTop - 73，由于 boardTop >= kBuffer = 76 > 73，始终为正数
                         final mascotTop = boardTop - 73.0;
+
                         return Stack(
-                          clipBehavior: Clip.none,
                           children: [
-                            const Center(child: SquareBoard()),
+                            // 1. 棋盘层（在缓冲区下方居中）
                             Positioned(
-                              top: mascotTop,
+                              top: boardTop,
                               left: 0,
                               right: 0,
-                              child: const Center(child: BoardMascot()),
+                              height: boardSz,
+                              child: const SquareBoard(),
+                            ),
+
+                            // 2. XIAOYO 渲染层（纯渲染，不处理手势）
+                            Positioned(
+                              top: mascotTop,
+                              left: (w - 68) / 2,
+                              width: 68,
+                              height: 84,
+                              child: IgnorePointer(
+                                child: BoardMascot(key: _mascotKey),
+                              ),
+                            ),
+
+                            // 3. XIAOYO 点击层（透明覆盖，独立于棋盘手势）
+                            Positioned(
+                              top: mascotTop,
+                              left: (w - 68) / 2,
+                              width: 68,
+                              height: 84,
+                              child: GestureDetector(
+                                onTap: () {
+                                  debugPrint('🎯 XIAOYO 点击层被触发');
+                                  _mascotKey.currentState
+                                      ?.triggerTapAnimation();
+                                },
+                                behavior: HitTestBehavior.opaque,
+                              ),
                             ),
                           ],
                         );
@@ -378,7 +416,7 @@ class _SegButtonState extends State<_SegButton> {
         decoration: BoxDecoration(
           color: _isPressed
               ? CyberColors.neonCyan.withOpacity(0.12)
-              : Colors.transparent,
+              : CyberColors.transparent,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

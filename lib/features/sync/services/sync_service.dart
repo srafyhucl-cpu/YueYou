@@ -51,8 +51,12 @@ class SyncResult {
 
 /// 云同步服务（星图）
 /// 对应后端：/api/state/save, /api/state/load
+/// 通过 --dart-define=SYNC_SERVER_URL=http://your-server:8080 指定服务器地址
 class SyncService {
-  static const String _prodServer = 'http://8.218.177.149:8080';
+  static const String _prodServer = String.fromEnvironment(
+    'SYNC_SERVER_URL',
+    defaultValue: 'http://localhost:8080',
+  );
   static const String _devServer = 'http://localhost:8080';
   static const bool _useDevServer =
       bool.fromEnvironment('USE_DEV_SERVER', defaultValue: false);

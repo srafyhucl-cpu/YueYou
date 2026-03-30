@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
-import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
 /// 设置界面
@@ -75,8 +74,6 @@ class SettingsScreen extends StatelessWidget {
           value: settings.sound,
           onChanged: (v) {
             settings.setSound(v);
-            // 同步到 GameProvider
-            context.read<GameProvider>().soundEnabled = v;
           },
         ),
         const SizedBox(height: 20),
@@ -95,6 +92,9 @@ class SettingsScreen extends StatelessWidget {
             }
           },
         ),
+        const SizedBox(height: 12),
+        const _LabelRow(label: '朗读音量'),
+        _VolumeSlider(settings: settings),
         const SizedBox(height: 12),
         const _LabelRow(label: '播报倍速'),
         _SpeedSelector(settings: settings),
@@ -183,7 +183,7 @@ class _ToggleTile extends StatelessWidget {
       ),
       child: SwitchListTile(
         title: Text(label,
-            style: const TextStyle(color: Colors.white, fontSize: 14)),
+            style: const TextStyle(color: CyberColors.whiteHigh, fontSize: 14)),
         subtitle: Text(subtitle,
             style:
                 const TextStyle(color: CyberColors.whiteMuted, fontSize: 12)),
@@ -318,7 +318,7 @@ class _TtsTestButton extends StatelessWidget {
         ),
       ),
       child: Material(
-        color: Colors.transparent,
+        color: CyberColors.transparent,
         child: InkWell(
           onTap: () => _testTtsConnection(context),
           borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
@@ -339,7 +339,7 @@ class _TtsTestButton extends StatelessWidget {
                       Text(
                         '测试 TTS 连接',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: CyberColors.whiteHigh,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -566,7 +566,7 @@ class _TtsTestResultDialog extends StatelessWidget {
                 Text(
                   '$stepNumber. $name',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: CyberColors.whiteHigh,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -581,6 +581,65 @@ class _TtsTestResultDialog extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 朗读音量滑块（对应 ambientVol，0.0 ~ 1.0）
+class _VolumeSlider extends StatelessWidget {
+  final SettingsProvider settings;
+  const _VolumeSlider({required this.settings});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: CyberColors.surface,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+        border: Border.all(
+          color: CyberColors.whiteFaint,
+          width: CyberDimensions.borderNormal,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.volume_down,
+              color: CyberColors.whiteMuted, size: 18),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: CyberColors.neonCyan,
+                inactiveTrackColor: CyberColors.whiteFaint,
+                thumbColor: CyberColors.neonCyan,
+                overlayColor: CyberColors.neonCyan.withOpacity(0.12),
+                trackHeight: 2.0,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              ),
+              child: Slider(
+                value: settings.ambientVol,
+                min: 0.0,
+                max: 1.0,
+                divisions: 10,
+                onChanged: (v) async {
+                  await settings.setAmbientVol(v);
+                },
+              ),
+            ),
+          ),
+          const Icon(Icons.volume_up, color: CyberColors.whiteMuted, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            '${(settings.ambientVol * 100).round()}%',
+            style: const TextStyle(
+              color: CyberColors.neonCyan,
+              fontSize: 12,
+              fontFamily: 'JetBrains Mono',
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -612,7 +671,8 @@ class _IdleTimeoutSelector extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('空闲自动暂停',
-                    style: TextStyle(color: Colors.white, fontSize: 14)),
+                    style:
+                        TextStyle(color: CyberColors.whiteHigh, fontSize: 14)),
                 SizedBox(height: 2),
                 Text('长时间无操作后自动停止播报',
                     style:

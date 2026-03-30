@@ -105,7 +105,7 @@ class _TileWidgetState extends State<TileWidget>
                 child: Text(
                   '${widget.value}',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: CyberColors.whiteHigh,
                     fontSize: _getFontSize(widget.value),
                     fontWeight: FontWeight.w900,
                     fontFamily: 'JetBrains Mono',
@@ -140,11 +140,11 @@ class _TileWidgetState extends State<TileWidget>
 
   /// 获取粒子颜色（与光晕颜色一致）
   Color _getParticleColor(int value) {
-    if (value <= 16) return const Color(0xFF3B82F6);
-    if (value <= 64) return const Color(0xFF8B5CF6);
-    if (value <= 256) return const Color(0xFFEC4899);
-    if (value <= 1024) return const Color(0xFF22D3EE);
-    return const Color(0xFFFFD700);
+    if (value <= 16) return CyberColors.tileBlue;
+    if (value <= 64) return CyberColors.neonPurple;
+    if (value <= 256) return CyberColors.hotPink;
+    if (value <= 1024) return CyberColors.neonCyan;
+    return CyberColors.tileGold;
   }
 
   /// 动态霓虹光晕：根据数字大小生成不同颜色的发光效果
@@ -155,23 +155,23 @@ class _TileWidgetState extends State<TileWidget>
 
     if (value <= 16) {
       // 暗蓝光
-      glowColor = const Color(0xFF3B82F6);
+      glowColor = CyberColors.tileBlue;
       intensity = 8.0;
     } else if (value <= 64) {
       // 紫光
-      glowColor = const Color(0xFF8B5CF6);
+      glowColor = CyberColors.neonPurple;
       intensity = 12.0;
     } else if (value <= 256) {
       // 粉红光
-      glowColor = const Color(0xFFEC4899);
+      glowColor = CyberColors.hotPink;
       intensity = 16.0;
     } else if (value <= 1024) {
       // 青色赛博光
-      glowColor = const Color(0xFF22D3EE);
+      glowColor = CyberColors.neonCyan;
       intensity = 20.0;
     } else {
       // 金色传说光晕
-      glowColor = const Color(0xFFFFD700);
+      glowColor = CyberColors.tileGold;
       intensity = 24.0;
     }
 

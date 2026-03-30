@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
 
 /// 灵动岛霓虹进度条绘制器
 /// 从顶部中心开始，顺时针绘制进度，带呼吸光晕效果
@@ -11,7 +12,7 @@ class NeonProgressPainter extends CustomPainter {
 
   NeonProgressPainter({
     required this.progress,
-    this.color = const Color(0xFF22D3EE),
+    this.color = CyberColors.neonCyan,
     this.strokeWidth = 2.5,
     this.animationValue = 0.0,
   });

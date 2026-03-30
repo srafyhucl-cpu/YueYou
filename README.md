@@ -2,7 +2,7 @@
 
 **赛博朋克风格的沉浸式小说阅读器 + 2048 游戏**
 
-从 Capacitor/JS/CSS 混合应用 1:1 重构为 Flutter 高性能原生应用。
+基于 Flutter 构建的高性能跨平台应用，融合提词器朗读与益智游戏于一体。
 
 ---
 
@@ -30,15 +30,17 @@
 
 ### 核心技术栈
 - **Flutter 3.x** — 跨平台 UI 框架
-- **Provider** — 状态管理（百万级架构）
+- **Provider** — 状态管理
 - **SharedPreferences** — 本地持久化
 - **Isolate (compute)** — 大文件解析隔离
+- **audioplayers + http** — 流式 TTS 引擎
 
 ### 架构模式
 ```
 lib/
 ├── core/                    # 核心层
 │   ├── theme/              # 主题系统（CyberColors/CyberTextStyles）
+│   ├── config/             # 环境配置（TtsConfig）
 │   └── services/           # 全局服务
 ├── features/               # 功能模块
 │   ├── reader/            # 阅读器
@@ -48,6 +50,7 @@ lib/
 │   ├── audio/             # TTS 引擎
 │   ├── game_2048/         # 2048 游戏
 │   ├── library/           # 书库管理
+│   ├── sync/              # 云同步服务
 │   └── dashboard/         # 主界面
 └── shared/                # 共享组件
 ```
@@ -61,53 +64,58 @@ UI (Consumer) → Provider (ChangeNotifier) → Service → Storage
 
 ---
 
-## 🎯 开发规范
-
-项目遵循 `.agents/skills/` 下定义的严格开发规范：
-
-### 1. **UI/UX 规范** (`ui_cyberpunk.md`)
-- ✅ **零硬编码颜色**：所有颜色集中在 `CyberColors`
-- ✅ **SafeArea 包裹**：顶层界面防止刘海遮挡
-- ✅ **RepaintBoundary 隔离**：动画组件性能优化
-- ✅ **组件模块化**：单一职责 + 可复用
-
-### 2. **领域逻辑规范** (`domain_pure_logic.md`)
-- ✅ **UI 物理隔离**：`domain/` 下禁止引入 `material.dart`
-- ✅ **纯函数设计**：无副作用 + 可测试
-- ✅ **强类型约束**：避免 `dynamic`（JSON 序列化除外）
-- ✅ **中文算法注释**：复杂逻辑必须注释
-
-### 3. **性能规范** (`isolate_computation.md`)
-- ✅ **强制 Isolate**：大文件解析用 `compute`
-- ✅ **异步流处理**：TTS 流式响应
-- ✅ **内存管理**：及时释放资源
-
-### 4. **迁移规范** (`skill_strict_migration.md`)
-- ✅ **1:1 逻辑复刻**：保留旧版业务规则
-- ✅ **溯源注释**：61 处 `对应 JS xxx` 注释
-- ✅ **禁止脑补**：不添加旧版不存在的功能
-
----
-
 ## 🚀 快速开始
 
 ### 环境要求
-- Flutter SDK ≥ 3.0.0
-- Dart SDK ≥ 3.0.0
+- Flutter SDK ≥ 3.5.0
+- Dart SDK ≥ 3.5.0
 
 ### 安装依赖
 ```bash
 flutter pub get
 ```
 
-### 运行项目
+### 运行项目（本地 TTS/Sync 服务器）
 ```bash
 flutter run
 ```
 
+### 运行项目（指定远端服务器）
+```bash
+flutter run \
+  --dart-define=TTS_SERVER_URL=http://your-tts-server:3000/api/v1/tts/createStream \
+  --dart-define=SYNC_SERVER_URL=http://your-sync-server:8080
+```
+
+### 构建 Release APK
+```bash
+flutter build apk --release \
+  --dart-define=TTS_SERVER_URL=http://your-tts-server:3000/api/v1/tts/createStream \
+  --dart-define=SYNC_SERVER_URL=http://your-sync-server:8080
+```
+
 ### 代码检查
 ```bash
-flutter analyze  # 当前：零报错 ✅
+flutter analyze
+```
+
+---
+
+## ⚙️ 服务器配置
+
+TTS 和云同步服务器地址通过编译期常量注入，**不在代码中硬编码任何服务器 IP**。
+
+| 变量 | 说明 | 默认值（开发） |
+|------|------|--------------|
+| `TTS_SERVER_URL` | TTS 流式接口地址 | `http://localhost:3000/api/v1/tts/createStream` |
+| `SYNC_SERVER_URL` | 云同步服务地址 | `http://localhost:8080` |
+
+> 本地开发时默认指向 `localhost`，部署时通过 `--dart-define` 传入真实服务器地址。
+
+### Android 明文流量（HTTP）
+如使用 HTTP 协议连接服务器，需在 `android/app/src/main/AndroidManifest.xml` 中添加：
+```xml
+<application android:usesCleartextTraffic="true">
 ```
 
 ---
@@ -116,12 +124,16 @@ flutter analyze  # 当前：零报错 ✅
 
 ```yaml
 dependencies:
-  flutter:
-    sdk: flutter
-  provider: ^6.0.0           # 状态管理
-  shared_preferences: ^2.0.0 # 本地存储
-  file_picker: ^5.0.0        # 文件选择
-  http: ^1.0.0               # HTTP 请求
+  provider: ^6.1.5           # 状态管理
+  shared_preferences: ^2.3.3 # 本地持久化
+  file_picker: ^6.1.1        # 文件导入
+  http: ^1.6.0               # HTTP 请求（TTS/Sync）
+  audioplayers: ^6.4.0       # 流式音频播放
+  path_provider: ^2.1.5      # 临时文件路径
+  fast_gbk: ^1.0.0           # GBK 编码支持
+  wakelock_plus: ^1.4.0      # 屏幕常亮
+  rive: ^0.13.14             # Rive 动画
+  marquee: ^2.3.0            # 跑马灯文字
 ```
 
 ---
@@ -137,9 +149,9 @@ neonPurple  #8B5CF6  // 紫色（次要）
 neonGreen   #00FF41  // 绿色（成功）
 
 // 毛玻璃系统
-glassDark         #D90A0A0F  // 深底色
-panelBackground   #0D0E18    // 面板底色
-surface           #1A1B28    // 卡片表面
+glassDark         rgba(10,10,15,0.85)  // 深底色
+panelBackground   #0D0E18              // 面板底色
+surface           #1A1B28             // 卡片表面
 
 // 语义化透明度
 whiteHigh/Medium/Dim/Muted/Subtle/Faint  // 白色系列
@@ -148,28 +160,19 @@ blackOverlay/Shadow/Dim                   // 黑色系列
 
 ---
 
-## 📝 开发日志
+## 🎯 开发规范
 
-### 最近更新
-- ✅ **2024-03** 完成开发规范审计，消灭 71 处硬编码颜色
-- ✅ **2024-03** 重构顶部导航为统一玻璃工具栏（方案C）
-- ✅ **2024-03** 修复章节标题朗读逻辑（拆分噪音/标题判定）
-- ✅ **2024-03** 实现 TTS 流式引擎 + 智能预加载
+项目遵循 `.agents/skills/` 下定义的严格开发规范：
 
-### 待办事项
-- [ ] 添加书签功能
-- [ ] 支持更多 TTS 发音人
-- [ ] 优化大文件（>10MB）加载性能
-- [ ] 添加夜间模式切换
+- ✅ **零硬编码颜色**：所有颜色集中在 `CyberColors`
+- ✅ **UI 物理隔离**：`domain/` 下禁止引入 `material.dart`
+- ✅ **强制 Isolate**：大文件解析用 `compute`
+- ✅ **SafeArea 包裹**：顶层界面防止刘海遮挡
+- ✅ **RepaintBoundary 隔离**：动画组件性能优化
+- ✅ **服务器地址外置**：通过 `--dart-define` 注入，禁止硬编码
 
 ---
 
 ## 📄 许可证
 
 MIT License
-
----
-
-## 🙏 致谢
-
-本项目从旧版 Capacitor 应用迁移而来，保留了原有的业务逻辑和用户体验，同时通过 Flutter 重构实现了更高的性能和更好的代码可维护性。

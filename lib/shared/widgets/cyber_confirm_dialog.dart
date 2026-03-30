@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
 
 /// 赛博朋克风格确认对话框
 /// 用于重置游戏等需要二次确认的操作
@@ -14,7 +15,7 @@ Future<bool> showCyberConfirmDialog({
     context: context,
     barrierDismissible: true,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-    barrierColor: Colors.black.withOpacity(0.7),
+    barrierColor: CyberColors.blackOverlay,
     transitionDuration: const Duration(milliseconds: 250),
     pageBuilder: (context, animation, secondaryAnimation) {
       return SafeArea(
@@ -37,15 +38,15 @@ Future<bool> showCyberConfirmDialog({
                       filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xE60A0A0F),
+                          color: CyberColors.glassDark,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: const Color(0xFFEC4899).withOpacity(0.4),
+                            color: CyberColors.hotPink.withOpacity(0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFEC4899).withOpacity(0.3),
+                              color: CyberColors.hotPink.withOpacity(0.3),
                               blurRadius: 25,
                               spreadRadius: 2,
                             ),
@@ -58,7 +59,7 @@ Future<bool> showCyberConfirmDialog({
                             Text(
                               title,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: CyberColors.whiteHigh,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -67,8 +68,8 @@ Future<bool> showCyberConfirmDialog({
                             Text(
                               message,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
+                              style: const TextStyle(
+                                color: CyberColors.whiteMedium,
                                 fontSize: 14,
                                 height: 1.5,
                               ),
@@ -80,7 +81,8 @@ Future<bool> showCyberConfirmDialog({
                                   child: _CyberButton(
                                     text: cancelText,
                                     isPrimary: false,
-                                    onTap: () => Navigator.of(context).pop(false),
+                                    onTap: () =>
+                                        Navigator.of(context).pop(false),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -88,7 +90,8 @@ Future<bool> showCyberConfirmDialog({
                                   child: _CyberButton(
                                     text: confirmText,
                                     isPrimary: true,
-                                    onTap: () => Navigator.of(context).pop(true),
+                                    onTap: () =>
+                                        Navigator.of(context).pop(true),
                                   ),
                                 ),
                               ],
@@ -129,27 +132,26 @@ class _CyberButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: isPrimary
               ? const LinearGradient(
-                  colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                  colors: [CyberColors.hotPink, CyberColors.neonPurple],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: isPrimary ? null : Colors.white.withOpacity(0.1),
+          color: isPrimary ? null : CyberColors.whiteSubtle,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isPrimary
-                ? Colors.transparent
-                : Colors.white.withOpacity(0.2),
+            color:
+                isPrimary ? CyberColors.transparent : CyberColors.whiteSubtle,
             width: 1,
           ),
         ),
         child: Center(
           child: Text(
             text,
-            style: TextStyle(
-              color: Colors.white,
+            style: const TextStyle(
+              color: CyberColors.whiteHigh,
               fontSize: 14,
-              fontWeight: isPrimary ? FontWeight.w900 : FontWeight.w600,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),

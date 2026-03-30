@@ -102,7 +102,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
                           ),
                           boxShadow: const [
                             BoxShadow(
-                              color: Color.fromRGBO(0, 0, 0, 0.4),
+                              color: CyberColors.blackShadow,
                               blurRadius: 25,
                               offset: Offset(0, 8),
                             ),
@@ -139,7 +139,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      color: Colors.white,
+                                      color: CyberColors.whiteHigh,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       height: 1.2,
@@ -192,7 +192,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
         child: Center(
           child: Icon(
             isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            color: Colors.white,
+            color: CyberColors.white,
             size: 14,
           ),
         ),

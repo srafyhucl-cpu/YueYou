@@ -24,7 +24,7 @@ class CyberImportButton extends StatelessWidget {
               sigmaY: CyberDimensions.blurMedium,
             ),
             child: Material(
-              color: Colors.transparent,
+              color: CyberColors.transparent,
               child: InkWell(
                 onTap: isBusy
                     ? null
@@ -74,7 +74,7 @@ class CyberImportButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusL),
-                    color: const Color(0xCC13141E),
+                    color: CyberColors.cardBackground.withOpacity(0.8),
                     border: Border.all(
                       color:
                           isBusy ? CyberColors.neonPink : CyberColors.neonGreen,

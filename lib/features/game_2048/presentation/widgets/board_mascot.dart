@@ -1,18 +1,24 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 
 /// 棋盘吉祥物 —— 趴在棋盘上方，眼球跟随玩家滑动方向
 /// 合成大棋子时欢呼跳跃，失败时陪你一起难过
+///
+/// 架构设计：纯渲染组件，不处理手势，通过 onTap 回调接收点击事件
 class BoardMascot extends StatefulWidget {
-  const BoardMascot({super.key});
+  /// 点击回调（由父组件 DashboardScreen 触发）
+  final VoidCallback? onTap;
+
+  const BoardMascot({super.key, this.onTap});
 
   @override
-  State<BoardMascot> createState() => _BoardMascotState();
+  State<BoardMascot> createState() => BoardMascotState();
 }
 
-class _BoardMascotState extends State<BoardMascot>
+class BoardMascotState extends State<BoardMascot>
     with TickerProviderStateMixin {
   // ── 眼球方向层（可随时打断，从当前值插值，绝不跳变）──
   late AnimationController _eyeController;
@@ -26,9 +32,9 @@ class _BoardMascotState extends State<BoardMascot>
   late AnimationController _expressionController;
   late Animation<double> _expressionAnimation;
 
-  // ── 空闲浮动层（±3px 正弦往返，让她像活着一样）──
-  late AnimationController _idleController;
-  late Animation<double> _idleAnimation;
+  // ── 空闲浮动层（已移除，XIAOYO 紧抓边框）──
+  // late AnimationController _idleController;
+  // late Animation<double> _idleAnimation;
 
   // ── 头部倾斜（复用 _eyeController 同步，左右滑动各 ±6°）──
   late Animation<double> _tiltAnimation;
@@ -40,6 +46,10 @@ class _BoardMascotState extends State<BoardMascot>
   // ── 眨眼层（独立随机循环，与其他层完全解耦）──
   late AnimationController _blinkController;
   late Animation<double> _blinkAnimation;
+
+  // ── 点击能量脉冲层 ──
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   // ── GameProvider 监听 ──
   GameProvider? _watchedProvider;
@@ -89,13 +99,13 @@ class _BoardMascotState extends State<BoardMascot>
       CurvedAnimation(parent: _expressionController, curve: Curves.easeInOut),
     );
 
-    // 空闲浮动：2200ms 往返循环，±3px 上下漂浮
-    _idleController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat(reverse: true);
-    _idleAnimation = Tween<double>(begin: -3.0, end: 3.0).animate(
-        CurvedAnimation(parent: _idleController, curve: Curves.easeInOut));
+    // 空闲浮动：已移除，让 XIAOYO 紧紧抓住边框
+    // _idleController = AnimationController(
+    //   vsync: this,
+    //   duration: const Duration(milliseconds: 2200),
+    // );
+    // _idleAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
+    //     CurvedAnimation(parent: _idleController, curve: Curves.easeInOut));
 
     // 头部倾斜：复用 _eyeController，初始正立
     _tiltAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
@@ -120,6 +130,14 @@ class _BoardMascotState extends State<BoardMascot>
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.05), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 0.05, end: 1.0), weight: 50),
     ]).animate(_blinkController);
+
+    // 能量脉冲：点击时触发，600ms 扩散消失
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
   }
 
   /// 随机间隔眨眼（2.5s ~ 5.5s）
@@ -275,47 +293,74 @@ class _BoardMascotState extends State<BoardMascot>
     _eyeController.dispose();
     _bodyController.dispose();
     _expressionController.dispose();
-    _idleController.dispose();
+    // _idleController.dispose(); // 已移除
     _wobbleController.dispose();
     _blinkController.dispose();
+    _pulseController.dispose();
     super.dispose();
+  }
+
+  /// 触发点击动画（由外部回调调用）
+  void triggerTapAnimation() {
+    // 能量脉冲
+    _pulseController.forward(from: 0.0);
+    // 眼睛快速眨一下
+    _blinkController.forward(from: 0.0).then((_) {
+      if (mounted) _blinkController.reverse();
+    });
+    // 轻微跳跃
+    _bodyController.forward(from: 0.0);
+    // 开心表情
+    _setExpression(0.8);
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted && !(_watchedProvider?.isOver ?? false)) {
+        _setExpression(0.0);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      // 最外层：身体跳跃 + 空闲浮动叠加（GPU translate）
-      child: AnimatedBuilder(
-        animation: Listenable.merge(
-            [_bodyController, _idleController, _wobbleController]),
-        builder: (context, child) => Transform.translate(
-          offset: Offset(
-            _wobbleAnimation.value.dx,
-            _bodyAnimation.value +
-                _idleAnimation.value +
-                _wobbleAnimation.value.dy,
-          ),
-          child: child,
-        ),
-        // 中间层：头部倾斜（GPU rotate）
+    return SizedBox(
+      width: 68,
+      height: 84,
+      child: RepaintBoundary(
+        // 最外层：身体跳跃 + 晃动（移除空闲浮动）
         child: AnimatedBuilder(
-          animation: _eyeController,
-          builder: (context, child) => Transform.rotate(
-            angle: _tiltAnimation.value,
+          animation: Listenable.merge([_bodyController, _wobbleController]),
+          builder: (context, child) => Transform.translate(
+            offset: Offset(
+              _wobbleAnimation.value.dx,
+              _bodyAnimation.value + _wobbleAnimation.value.dy,
+            ),
             child: child,
           ),
-          child: SizedBox(
-            width: 68,
-            height: 84,
-            // 内层：眼球 + 眨眼 + 表情
+          // 中间层：头部倾斜（GPU rotate）
+          child: AnimatedBuilder(
+            animation: _eyeController,
+            builder: (context, child) => Transform.rotate(
+              angle: _tiltAnimation.value,
+              child: child,
+            ),
+            // 内层：眼球 + 眨眼 + 表情 + 脉冲波（OverflowBox 允许波纹超出布局边界）
             child: AnimatedBuilder(
-              animation: Listenable.merge(
-                  [_eyeController, _blinkController, _expressionController]),
-              builder: (context, _) => CustomPaint(
-                painter: _MascotFacePainter(
-                  eyeOffset: _eyeAnimation.value,
-                  blinkScale: _blinkAnimation.value,
-                  expressionValue: _expressionAnimation.value,
+              animation: Listenable.merge([
+                _eyeController,
+                _blinkController,
+                _expressionController,
+                _pulseController
+              ]),
+              builder: (context, _) => OverflowBox(
+                maxWidth: 200,
+                maxHeight: 200,
+                child: CustomPaint(
+                  size: const Size(200, 200),
+                  painter: _MascotFacePainter(
+                    eyeOffset: _eyeAnimation.value,
+                    blinkScale: _blinkAnimation.value,
+                    expressionValue: _expressionAnimation.value,
+                    pulseValue: _pulseAnimation.value,
+                  ),
                 ),
               ),
             ),
@@ -336,247 +381,381 @@ class _MascotFacePainter extends CustomPainter {
   final Offset eyeOffset;
   final double blinkScale;
   final double expressionValue;
+  final double pulseValue;
+
+  static const double _mW = 68.0;
+  static const double _mH = 84.0;
 
   const _MascotFacePainter({
     required this.eyeOffset,
     required this.blinkScale,
     required this.expressionValue,
+    required this.pulseValue,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 画布中心 = 吉祥物中心（OverflowBox 居中对齐）
     final cx = size.width / 2;
-    final faceR = size.width * 0.38;
-    final faceCy = size.height * 0.44;
+    // 吉祥物顶部在画布中的偏移
+    final offsetY = (size.height - _mH) / 2;
+    const coreR = _mW * 0.32;
+    final coreCy = offsetY + _mH * 0.40;
 
-    _drawEars(canvas, cx, faceCy, faceR);
-    _drawFace(canvas, cx, faceCy, faceR);
-    _drawEyes(canvas, cx, faceCy, faceR);
-    _drawNose(canvas, cx, faceCy, faceR);
-    _drawMouth(canvas, cx, faceCy, faceR);
-    if (expressionValue > 0.08) _drawBlush(canvas, cx, faceCy, faceR);
-    _drawPaws(canvas, size, cx, faceCy, faceR);
-  }
+    _drawTentacles(canvas, cx, offsetY, coreCy, coreR);
+    _drawCore(canvas, cx, coreCy, coreR);
+    _drawEyes(canvas, cx, coreCy, coreR);
+    _drawMouth(canvas, cx, coreCy, coreR);
 
-  // ── 下垂的狗狗耳朵 ──
-  void _drawEars(Canvas canvas, double cx, double faceCy, double faceR) {
-    final earSpacing = faceR * 0.55;
-    final earW = faceR * 0.28;
-    final earH = faceR * 0.55;
-    final earBaseY = faceCy - faceR * 0.45;
-
-    for (final side in [-1.0, 1.0]) {
-      final ex = cx + side * earSpacing;
-      // 下垂的椭圆耳朵
-      final earOval = Rect.fromCenter(
-        center: Offset(ex, earBaseY + earH * 0.2),
-        width: earW,
-        height: earH,
-      );
-      // 外耳
-      canvas.drawOval(
-        earOval,
-        Paint()..color = const Color(0xFF6B5637),
-      );
-      // 内耳（浅色）
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(ex, earBaseY + earH * 0.2),
-          width: earW * 0.7,
-          height: earH * 0.8,
-        ),
-        Paint()..color = const Color(0xFF8B6F47),
-      );
+    if (pulseValue > 0.0) {
+      _drawPulseWave(canvas, cx, coreCy, coreR);
     }
   }
 
-  // ── 泰迪狗脸：棕褐色渐变 ──
-  void _drawFace(Canvas canvas, double cx, double faceCy, double faceR) {
-    final center = Offset(cx, faceCy);
-    final rect = Rect.fromCircle(center: center, radius: faceR);
-    // 棕褐色径向渐变
-    final shader = const RadialGradient(
-      center: Alignment(-0.15, -0.20),
-      radius: 0.85,
-      colors: [Color(0xFFA0826D), Color(0xFF8B6F47)],
-    ).createShader(rect);
-    canvas.drawCircle(center, faceR, Paint()..shader = shader);
-    // 简单轮廓线
+  // ── 能量脉冲波：点击时从核心扩散 ──
+  void _drawPulseWave(Canvas canvas, double cx, double coreCy, double coreR) {
+    final center = Offset(cx, coreCy);
+    final fade = 1.0 - pulseValue; // 1.0→0.0 逐渐消失
+
+    // 第一圈（最外层，扩散最远）
+    final r1 = coreR * (1.0 + pulseValue * 2.2);
     canvas.drawCircle(
       center,
-      faceR,
+      r1,
       Paint()
-        ..color = const Color(0xFF6B5637)
+        ..color = CyberColors.hackerBlue.withOpacity(fade * 0.5)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
+        ..strokeWidth = 2.5
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+
+    // 第二圈（中层）
+    final r2 = coreR * (1.0 + pulseValue * 1.4);
+    canvas.drawCircle(
+      center,
+      r2,
+      Paint()
+        ..color = CyberColors.hackerBlue.withOpacity(fade * 0.75)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
+    // 第三圈（最内层，最亮，扩散最慢）
+    final r3 = coreR * (1.0 + pulseValue * 0.7);
+    canvas.drawCircle(
+      center,
+      r3,
+      Paint()
+        ..color = CyberColors.hackerBlue.withOpacity(fade * 0.9)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
     );
   }
 
-  // ── 大眼睛：纯黑瞳孔 + 白色高光 ──
-  void _drawEyes(Canvas canvas, double cx, double faceCy, double faceR) {
-    final eyeY = faceCy - faceR * 0.18;
-    final spacing = faceR * 0.48;
-    final eyeR = faceR * 0.32;
-    final pupilR = eyeR * 0.45;
-    final maxOff = eyeR * 0.25;
+  // ── 能量触手：抓住边框 + 能量扩散 ──
+  void _drawTentacles(
+      Canvas canvas, double cx, double offsetY, double coreCy, double coreR) {
+    final tentacleTop = coreCy + coreR * 0.8;
+    final tentacleBottom = offsetY + _mH;
+    final spacing = coreR * 0.85;
+
+    for (final side in [-1.0, 1.0]) {
+      final tx = cx + side * spacing;
+
+      // 触手路径（贝塞尔曲线，更有机感）
+      final path = Path()
+        ..moveTo(tx, tentacleTop)
+        ..quadraticBezierTo(
+          tx + side * 3,
+          (tentacleTop + tentacleBottom) * 0.5,
+          tx + side * 2,
+          tentacleBottom,
+        );
+
+      // 底部能量扩散效果（融入边框）
+      final bottomX = tx + side * 2;
+      canvas.drawCircle(
+        Offset(bottomX, tentacleBottom),
+        12.0,
+        Paint()
+          ..color = CyberColors.hackerBlue.withOpacity(0.15)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
+      canvas.drawCircle(
+        Offset(bottomX, tentacleBottom),
+        6.0,
+        Paint()
+          ..color = CyberColors.hackerBlue.withOpacity(0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+
+      // 外发光（霓虹效果）
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = CyberColors.hackerBlue.withOpacity(0.3)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 8.0
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+
+      // 核心线条
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = CyberColors.hackerBlue
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round,
+      );
+
+      // 能量节点（3个脉冲发光点）
+      for (int i = 0; i < 3; i++) {
+        final t = 0.25 + i * 0.25;
+        final nodeY = tentacleTop + (tentacleBottom - tentacleTop) * t;
+        final nodeX = tx + side * (3 * (1 - t) + 2 * t);
+
+        // 外外层发光（脉冲效果）
+        canvas.drawCircle(
+          Offset(nodeX, nodeY),
+          5.0,
+          Paint()
+            ..color = CyberColors.hackerBlue.withOpacity(0.2)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+        );
+        // 外发光
+        canvas.drawCircle(
+          Offset(nodeX, nodeY),
+          3.5,
+          Paint()
+            ..color = CyberColors.hackerBlue.withOpacity(0.5)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+        );
+        // 核心点
+        canvas.drawCircle(
+          Offset(nodeX, nodeY),
+          1.8,
+          Paint()..color = CyberColors.hackerBlue,
+        );
+        // 高光
+        canvas.drawCircle(
+          Offset(nodeX - 0.5, nodeY - 0.5),
+          0.8,
+          Paint()..color = CyberColors.white,
+        );
+      }
+    }
+  }
+
+  // ── 核心球体：发光的赛博生命体 + 双层光晕 ──
+  void _drawCore(Canvas canvas, double cx, double coreCy, double coreR) {
+    final center = Offset(cx, coreCy);
+    final rect = Rect.fromCircle(center: center, radius: coreR);
+
+    // 外外层光晕（远距离辐射）
+    canvas.drawCircle(
+      center,
+      coreR + 12,
+      Paint()
+        ..color = CyberColors.hackerBlue.withOpacity(0.08)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+
+    // 外发光层（霓虹光晕）
+    canvas.drawCircle(
+      center,
+      coreR + 6,
+      Paint()
+        ..color = CyberColors.hackerBlue.withOpacity(0.2)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+
+    // 主体渐变（深黑到半透明青）
+    final shader = RadialGradient(
+      center: const Alignment(-0.2, -0.3),
+      radius: 0.9,
+      colors: [
+        CyberColors.surface,
+        CyberColors.background,
+        CyberColors.hackerBlue.withOpacity(0.15),
+      ],
+      stops: const [0.0, 0.6, 1.0],
+    ).createShader(rect);
+    canvas.drawCircle(center, coreR, Paint()..shader = shader);
+
+    // 霓虹边框（双层）
+    canvas.drawCircle(
+      center,
+      coreR + 0.5,
+      Paint()
+        ..color = CyberColors.hackerBlue.withOpacity(0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
+    );
+    canvas.drawCircle(
+      center,
+      coreR,
+      Paint()
+        ..color = CyberColors.hackerBlue
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8,
+    );
+
+    // 内部脉冲圆环（根据表情值动态缩放）
+    final pulseR = coreR * (0.5 + expressionValue.abs() * 0.2);
+    canvas.drawCircle(
+      center,
+      pulseR,
+      Paint()
+        ..color = CyberColors.hackerBlue.withOpacity(0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+
+    // 核心点（最亮点）
+    canvas.drawCircle(
+      Offset(cx - coreR * 0.15, coreCy - coreR * 0.2),
+      coreR * 0.08,
+      Paint()
+        ..color = CyberColors.hackerBlue
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+  }
+
+  // ── 霓虹眼睛：发光的追踪点 ──
+  void _drawEyes(Canvas canvas, double cx, double coreCy, double coreR) {
+    final eyeY = coreCy - coreR * 0.18;
+    final spacing = coreR * 0.50;
+    final eyeR = coreR * 0.12;
+    final maxOff = coreR * 0.15;
 
     for (final side in [-1.0, 1.0]) {
       final ex = cx + side * spacing;
-      canvas.save();
-      canvas.translate(ex, eyeY);
 
       if (expressionValue > 0.55) {
-        // 开心：弯眼 ^^
-        canvas.drawArc(
-          Rect.fromCenter(
-            center: Offset(0, eyeR * 0.15),
-            width: eyeR * 2.2,
-            height: eyeR * 1.8,
-          ),
-          math.pi * 0.15,
-          math.pi * 0.7,
-          false,
+        // 开心：发光弧线 ^
+        final arcPath = Path()
+          ..addArc(
+            Rect.fromCenter(
+              center: Offset(ex, eyeY + eyeR * 0.3),
+              width: eyeR * 3.5,
+              height: eyeR * 2.5,
+            ),
+            math.pi * 0.2,
+            math.pi * 0.6,
+          );
+
+        // 外发光
+        canvas.drawPath(
+          arcPath,
           Paint()
-            ..color = const Color(0xFF2C1810)
-            ..strokeWidth = 2.8
+            ..color = CyberColors.hackerBlue.withOpacity(0.4)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 4.0
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+        );
+        // 核心线
+        canvas.drawPath(
+          arcPath,
+          Paint()
+            ..color = CyberColors.hackerBlue
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0
             ..strokeCap = StrokeCap.round,
         );
       } else {
-        // 普通/难过：圆眼
+        // 普通：发光圆点（跟随滑动）
         canvas.save();
-        canvas.scale(1.0, blinkScale.clamp(0.06, 1.0));
+        canvas.translate(ex, eyeY);
+        canvas.scale(1.0, blinkScale.clamp(0.1, 1.0));
 
-        // 眼白（米白色）
-        canvas.drawCircle(
-          Offset.zero,
-          eyeR,
-          Paint()..color = const Color(0xFFF5E6D3),
-        );
-
-        // 瞳孔（纯黑，跟随滑动）
         final po = Offset(
           eyeOffset.dx.clamp(-maxOff, maxOff),
           eyeOffset.dy.clamp(-maxOff, maxOff),
         );
-        canvas.drawCircle(po, pupilR, Paint()..color = const Color(0xFF2C1810));
 
-        // 高光
+        // 外外层发光（增强辐射）
         canvas.drawCircle(
-          Offset(po.dx - pupilR * 0.25, po.dy - pupilR * 0.25),
-          pupilR * 0.35,
-          Paint()..color = Colors.white.withOpacity(0.9),
+          po,
+          eyeR + 5,
+          Paint()
+            ..color = CyberColors.hackerBlue.withOpacity(0.25)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
         );
+
+        // 外发光
         canvas.drawCircle(
-          Offset(po.dx + pupilR * 0.15, po.dy + pupilR * 0.12),
-          pupilR * 0.12,
-          Paint()..color = Colors.white.withOpacity(0.6),
+          po,
+          eyeR + 3,
+          Paint()
+            ..color = CyberColors.hackerBlue.withOpacity(0.5)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        );
+
+        // 核心点
+        canvas.drawCircle(
+          po,
+          eyeR,
+          Paint()..color = CyberColors.hackerBlue,
+        );
+
+        // 高光（更亮）
+        canvas.drawCircle(
+          po + Offset(-eyeR * 0.3, -eyeR * 0.3),
+          eyeR * 0.4,
+          Paint()..color = CyberColors.white,
         );
 
         canvas.restore();
       }
-
-      canvas.restore();
     }
   }
 
-  // ── 小黑鼻子 ──
-  void _drawNose(Canvas canvas, double cx, double faceCy, double faceR) {
-    canvas.drawCircle(
-      Offset(cx, faceCy + faceR * 0.08),
-      faceR * 0.055,
-      Paint()..color = const Color(0xFF2C1810),
+  // ── 霓虹嘴巴：发光弧线 ──
+  void _drawMouth(Canvas canvas, double cx, double coreCy, double coreR) {
+    final my = coreCy + coreR * 0.35;
+    final hw = coreR * 0.35;
+    final curvature = expressionValue * coreR * 0.22;
+
+    final mouthPath = Path()
+      ..moveTo(cx - hw, my)
+      ..quadraticBezierTo(
+        cx,
+        my +
+            curvature +
+            (expressionValue < -0.3 ? -coreR * 0.05 : coreR * 0.08),
+        cx + hw,
+        my,
+      );
+
+    // 外发光
+    canvas.drawPath(
+      mouthPath,
+      Paint()
+        ..color = CyberColors.hackerBlue.withOpacity(0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.0
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
-    // 鼻子高光
-    canvas.drawCircle(
-      Offset(cx - faceR * 0.01, faceCy + faceR * 0.065),
-      faceR * 0.02,
-      Paint()..color = Colors.white.withOpacity(0.4),
+
+    // 核心线
+    canvas.drawPath(
+      mouthPath,
+      Paint()
+        ..color = CyberColors.hackerBlue
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeCap = StrokeCap.round,
     );
-  }
-
-  // ── 嘴巴：可爱微笑/委屈下撇 ──
-  void _drawMouth(Canvas canvas, double cx, double faceCy, double faceR) {
-    final my = faceCy + faceR * 0.35;
-    final hw = faceR * 0.25;
-    final curvature = expressionValue * faceR * 0.15;
-
-    if (expressionValue < -0.3) {
-      // 委屈：下撇嘴
-      canvas.drawPath(
-        Path()
-          ..moveTo(cx - hw, my)
-          ..quadraticBezierTo(cx, my + curvature - faceR * 0.02, cx + hw, my),
-        Paint()
-          ..color = const Color(0xFF6B5637)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.8
-          ..strokeCap = StrokeCap.round,
-      );
-    } else {
-      // 微笑：上扬嘴
-      canvas.drawPath(
-        Path()
-          ..moveTo(cx - hw, my)
-          ..quadraticBezierTo(cx, my + curvature + faceR * 0.03, cx + hw, my),
-        Paint()
-          ..color = const Color(0xFF6B5637)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.8
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-  }
-
-  // ── 腮红：开心时显现 ──
-  void _drawBlush(Canvas canvas, double cx, double faceCy, double faceR) {
-    final alpha = (expressionValue * 80).round().clamp(0, 80);
-    if (alpha == 0) return;
-    final by = faceCy + faceR * 0.20;
-    final bx = faceR * 0.65;
-    final paint = Paint()..color = const Color(0xFFFFB6C1).withAlpha(alpha);
-    canvas.drawCircle(Offset(cx - bx, by), faceR * 0.22, paint);
-    canvas.drawCircle(Offset(cx + bx, by), faceR * 0.22, paint);
-  }
-
-  // ── 小爪子：紧扣棋盘 ──
-  void _drawPaws(
-      Canvas canvas, Size size, double cx, double faceCy, double faceR) {
-    final pawY = faceCy + faceR + size.height * 0.065;
-    final pawW = faceR * 0.55;
-    final pawH = faceR * 0.28;
-    final spacing = faceR * 0.65;
-
-    for (final side in [-1.0, 1.0]) {
-      final px = cx + side * spacing;
-      final rRect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(px, pawY), width: pawW, height: pawH),
-        Radius.circular(pawH * 0.6),
-      );
-      // 爪子底色
-      canvas.drawRRect(rRect, Paint()..color = const Color(0xFF8B6F47));
-      // 轮廓
-      canvas.drawRRect(
-        rRect,
-        Paint()
-          ..color = const Color(0xFF6B5637)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.0,
-      );
-      // 肉垫（深棕）
-      final padR = pawH * 0.15;
-      for (int i = -1; i <= 1; i++) {
-        canvas.drawCircle(
-          Offset(px + i * pawW * 0.25, pawY - pawH * 0.06),
-          padR,
-          Paint()..color = const Color(0xFF6B5637),
-        );
-      }
-    }
   }
 
   @override
   bool shouldRepaint(_MascotFacePainter old) =>
       old.eyeOffset != eyeOffset ||
       old.blinkScale != blinkScale ||
-      old.expressionValue != expressionValue;
+      old.expressionValue != expressionValue ||
+      old.pulseValue != pulseValue;
 }

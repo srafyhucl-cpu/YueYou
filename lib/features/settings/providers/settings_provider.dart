@@ -12,16 +12,19 @@ class SettingsProvider with ChangeNotifier {
   late int idleTimeout;
   late double ttsRate;
   late double ambientVol;
+
+  /// 环境音开关 — 预留字段，待环境音播放器功能实现后启用
+  /// 当前无 UI 入口，也无消费方，仅持久化存档保持向后兼容
   late bool ambientEnabled;
 
   /// App 启动时从 StorageService 恢复所有设置
   void loadFromStorage() {
-    sound          = StorageService.getSettingSound();
-    storyTts       = StorageService.getSettingStoryTts();
-    voice          = StorageService.getSettingVoice();
-    idleTimeout    = StorageService.getSettingIdleTimeout();
-    ttsRate        = StorageService.getSettingTtsRate();
-    ambientVol     = StorageService.getSettingAmbientVol();
+    sound = StorageService.getSettingSound();
+    storyTts = StorageService.getSettingStoryTts();
+    voice = StorageService.getSettingVoice();
+    idleTimeout = StorageService.getSettingIdleTimeout();
+    ttsRate = StorageService.getSettingTtsRate();
+    ambientVol = StorageService.getSettingAmbientVol();
     ambientEnabled = StorageService.getSettingAmbientEnabled();
     notifyListeners();
   }
