@@ -9,6 +9,69 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../../core/config/tts_config.dart';
 
+/// 抽象接口，用于测试时注入 Mock
+abstract class TtsAudioPlayer {
+  Future<void> setSource(Source source);
+  Future<void> resume();
+  Future<void> pause();
+  Future<void> stop();
+  Future<void> setVolume(double volume);
+  Future<void> setPlaybackRate(double rate);
+  Stream<void> get onPlayerComplete;
+  Future<void> dispose();
+}
+
+/// 抽象接口，用于测试时注入 Mock
+abstract class TtsWakeLock {
+  Future<void> enable();
+  Future<void> disable();
+}
+
+/// 抽象接口，用于测试时注入 Mock
+abstract class TtsHttpClient {
+  Future<http.Response> post(Uri url,
+      {Map<String, String>? headers, Object? body});
+}
+
+/// 生产环境实现：包装真实 AudioPlayer
+class _RealAudioPlayer implements TtsAudioPlayer {
+  final AudioPlayer _player;
+  _RealAudioPlayer(this._player);
+  @override
+  Future<void> setSource(Source source) => _player.setSource(source);
+  @override
+  Future<void> resume() => _player.resume();
+  @override
+  Future<void> pause() => _player.pause();
+  @override
+  Future<void> stop() => _player.stop();
+  @override
+  Future<void> setVolume(double volume) => _player.setVolume(volume);
+  @override
+  Future<void> setPlaybackRate(double rate) => _player.setPlaybackRate(rate);
+  @override
+  Stream<void> get onPlayerComplete => _player.onPlayerComplete;
+  @override
+  Future<void> dispose() => _player.dispose();
+}
+
+/// 生产环境实现：包装真实 WakelockPlus
+class _RealWakeLock implements TtsWakeLock {
+  @override
+  Future<void> enable() => WakelockPlus.enable();
+  @override
+  Future<void> disable() => WakelockPlus.disable();
+}
+
+/// 生产环境实现：包装真实 http.Client
+class _RealHttpClient implements TtsHttpClient {
+  @override
+  Future<http.Response> post(Uri url,
+      {Map<String, String>? headers, Object? body}) {
+    return http.post(url, headers: headers, body: body);
+  }
+}
+
 /// 阅游双轨流媒体 TTS 引擎
 /// 架构：生产者/消费者双轨预加载模型
 class TtsEngineService extends ChangeNotifier {
@@ -23,9 +86,11 @@ class TtsEngineService extends ChangeNotifier {
   double _playbackRate = 1.0;
   final List<double> _speedTiers = [1.0, 1.2, 1.5, 2.0, 2.5, 0.7];
 
-  // 双轨流媒体核心
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  int _loopSession = 0; // 会话锁 — 切章时同步递增
+  // 双轨流媒体核心（通过接口抽象，支持测试注入）
+  late final TtsAudioPlayer _audioPlayer;
+  late final TtsWakeLock _wakeLock;
+  late final TtsHttpClient _httpClient;
+  int _loopSession = 0;
   bool _wakeLockHeld = false;
 
   // 🔥 预加载队列：文件路径 + 真实行号绑定，彻底消灭 _currentPlayingIndex
@@ -53,8 +118,16 @@ class TtsEngineService extends ChangeNotifier {
 
   late SettingsProvider _settings;
 
-  TtsEngineService(SettingsProvider settings, {TtsConfig? config})
-      : _config = config ?? TtsConfig.current {
+  TtsEngineService(
+    SettingsProvider settings, {
+    TtsConfig? config,
+    TtsAudioPlayer? audioPlayer,
+    TtsWakeLock? wakeLock,
+    TtsHttpClient? httpClient,
+  })  : _config = config ?? TtsConfig.current,
+        _audioPlayer = audioPlayer ?? _RealAudioPlayer(AudioPlayer()),
+        _wakeLock = wakeLock ?? _RealWakeLock(),
+        _httpClient = httpClient ?? _RealHttpClient() {
     _settings = settings;
     _initTtsHardware();
     _listenToSettings();
@@ -552,7 +625,7 @@ class TtsEngineService extends ChangeNotifier {
         final uri = Uri.parse(_config.serverUrl);
 
         // 发送HTTP POST请求 (JSON格式以匹配服务器校验逻辑)
-        final response = await http
+        final response = await _httpClient
             .post(
               uri,
               headers: {'Content-Type': 'application/json'},
@@ -765,9 +838,9 @@ class TtsEngineService extends ChangeNotifier {
     _wakeLockHeld = enable;
     try {
       if (enable) {
-        await WakelockPlus.enable();
+        await _wakeLock.enable();
       } else {
-        await WakelockPlus.disable();
+        await _wakeLock.disable();
       }
     } catch (_) {}
   }

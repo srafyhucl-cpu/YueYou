@@ -45,8 +45,8 @@ class GameProvider extends ChangeNotifier {
   // 是否显示 Game Over 弹窗（独立于 isOver）
   bool showGameOverDialog = false;
 
-  // 随机数生成器 (替换 JS Math.random)
-  final Random _random = Random();
+  // 随机数生成器 (替换 JS Math.random，支持注入种子用于测试)
+  late final Random _random;
 
   /// 是否开启音效（由 SettingsProvider 通过 main.dart 同步注入）
   bool soundEnabled = true;
@@ -63,8 +63,20 @@ class GameProvider extends ChangeNotifier {
   /// 本次有有效滑动但无任何合并（供吉祥物惋惜/生气表情）
   bool lastMoveNoMerge = false;
 
-  GameProvider() {
-    _loadSavedState();
+  /// 音效服务（支持注入 mock，默认使用 SfxService）
+  final void Function(int)? _onPlayMerge;
+
+  GameProvider({
+    Random? random,
+    void Function(int)? onPlayMerge,
+    bool autoLoadState = true,
+  }) : _onPlayMerge = onPlayMerge {
+    _random = random ?? Random();
+    if (autoLoadState) {
+      _loadSavedState();
+    } else {
+      _initFresh();
+    }
   }
 
   /// App 启动时从 StorageService 恢复游戏快照（对应 JS loadSavedState）
@@ -188,7 +200,11 @@ class GameProvider extends ChangeNotifier {
           }
         }
       }
-      SfxService.playMerge(maxMergedValue);
+      if (_onPlayMerge != null) {
+        _onPlayMerge(maxMergedValue);
+      } else {
+        SfxService.playMerge(maxMergedValue);
+      }
     }
 
     // 获取移动向量 (溯源：JS L147-154)
@@ -278,7 +294,11 @@ class GameProvider extends ChangeNotifier {
 
       // 合并音效（对应 JS: if (result.mergedTiles.length > 0 && t.sound) l.playEffect('merge')）
       if (mergedTiles.isNotEmpty && soundEnabled) {
-        SfxService.playMerge(0);
+        if (_onPlayMerge != null) {
+          _onPlayMerge(0);
+        } else {
+          SfxService.playMerge(0);
+        }
       }
       _persistState();
       notifyListeners();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,11 +7,71 @@ import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
+// 简单的手动 Mock 实现
+class _FakeAudioPlayer implements TtsAudioPlayer {
+  int setSourceCalls = 0;
+  int resumeCalls = 0;
+  int pauseCalls = 0;
+  int stopCalls = 0;
+  int setVolumeCalls = 0;
+  int setPlaybackRateCalls = 0;
+  int disposeCalls = 0;
+  double? lastVolume;
+  double? lastPlaybackRate;
+  final _controller = StreamController<void>.broadcast();
+
+  @override
+  Future<void> setSource(source) async => setSourceCalls++;
+  @override
+  Future<void> resume() async => resumeCalls++;
+  @override
+  Future<void> pause() async => pauseCalls++;
+  @override
+  Future<void> stop() async => stopCalls++;
+  @override
+  Future<void> setVolume(double volume) async {
+    setVolumeCalls++;
+    lastVolume = volume;
+  }
+
+  @override
+  Future<void> setPlaybackRate(double rate) async {
+    setPlaybackRateCalls++;
+    lastPlaybackRate = rate;
+  }
+
+  @override
+  Future<void> dispose() async => disposeCalls++;
+  @override
+  Stream<void> get onPlayerComplete => _controller.stream;
+  void completePlayback() => _controller.add(null);
+}
+
+class _FakeWakeLock implements TtsWakeLock {
+  int enableCalls = 0;
+  int disableCalls = 0;
+  @override
+  Future<void> enable() async => enableCalls++;
+  @override
+  Future<void> disable() async => disableCalls++;
+}
+
 class _Harness {
   final SettingsProvider settings;
   final TtsEngineService service;
-
   _Harness({required this.settings, required this.service});
+}
+
+class _MockHarness {
+  final SettingsProvider settings;
+  final TtsEngineService service;
+  final _FakeAudioPlayer fakeAudioPlayer;
+  final _FakeWakeLock fakeWakeLock;
+  _MockHarness(
+      {required this.settings,
+      required this.service,
+      required this.fakeAudioPlayer,
+      required this.fakeWakeLock});
 }
 
 void _mockAudioplayersChannels() {
@@ -33,30 +95,51 @@ void _mockWakelockPlusChannel() {
   });
 }
 
-Future<_Harness> _makeService({
-  bool storyTts = false,
-  double ttsRate = 1.0,
-  double ambientVol = 0.5,
-  String voice = 'zh-CN-XiaoxiaoNeural',
-}) async {
+Future<_Harness> _makeService(
+    {bool storyTts = false,
+    double ttsRate = 1.0,
+    double ambientVol = 0.5,
+    String voice = 'zh-CN-XiaoxiaoNeural'}) async {
   SharedPreferences.setMockInitialValues({
     'setting_story_tts': storyTts,
     'setting_tts_rate': ttsRate,
     'setting_ambient_vol': ambientVol,
-    'setting_voice': voice,
+    'setting_voice': voice
   });
   StorageService.resetForTesting();
   await StorageService.init();
-
   _mockAudioplayersChannels();
   _mockWakelockPlusChannel();
-
-  final settings = SettingsProvider();
-  settings.loadFromStorage();
-
+  final settings = SettingsProvider()..loadFromStorage();
   final service = TtsEngineService(settings);
   await Future<void>.delayed(Duration.zero);
   return _Harness(settings: settings, service: service);
+}
+
+Future<_MockHarness> _makeMockService(
+    {bool storyTts = false,
+    double ttsRate = 1.0,
+    double ambientVol = 0.5,
+    String voice = 'zh-CN-XiaoxiaoNeural'}) async {
+  SharedPreferences.setMockInitialValues({
+    'setting_story_tts': storyTts,
+    'setting_tts_rate': ttsRate,
+    'setting_ambient_vol': ambientVol,
+    'setting_voice': voice
+  });
+  StorageService.resetForTesting();
+  await StorageService.init();
+  final settings = SettingsProvider()..loadFromStorage();
+  final fakeAudioPlayer = _FakeAudioPlayer();
+  final fakeWakeLock = _FakeWakeLock();
+  final service = TtsEngineService(settings,
+      audioPlayer: fakeAudioPlayer, wakeLock: fakeWakeLock);
+  await Future<void>.delayed(Duration.zero);
+  return _MockHarness(
+      settings: settings,
+      service: service,
+      fakeAudioPlayer: fakeAudioPlayer,
+      fakeWakeLock: fakeWakeLock);
 }
 
 void main() {
@@ -110,6 +193,60 @@ void main() {
       h.service.play();
       expect(h.service.isEnabled, isTrue);
       h.service.pause();
+      h.service.dispose();
+    });
+  });
+
+  group('TtsEngineService with Mocks', () {
+    test('play 应调用 AudioPlayer.resume 和 WakeLock.enable', () async {
+      final h = await _makeMockService(storyTts: false);
+      h.service.play();
+      expect(h.fakeAudioPlayer.resumeCalls, equals(1));
+      expect(h.fakeWakeLock.enableCalls, equals(1));
+      h.service.dispose();
+    });
+
+    test('pause 应调用 AudioPlayer.pause 和 WakeLock.disable', () async {
+      final h = await _makeMockService(storyTts: true);
+      h.service.pause();
+      expect(h.fakeAudioPlayer.pauseCalls, equals(1));
+      expect(h.fakeWakeLock.disableCalls, equals(1));
+      h.service.dispose();
+    });
+
+    test('setEnabled(false) 应调用 stop 和 disable', () async {
+      final h = await _makeMockService(storyTts: true);
+      h.service.setEnabled(false);
+      expect(h.fakeAudioPlayer.stopCalls, equals(1));
+      expect(h.fakeWakeLock.disableCalls, equals(1));
+      h.service.dispose();
+    });
+
+    test('refreshSession 应调用 AudioPlayer.stop', () async {
+      final h = await _makeMockService();
+      h.service.refreshSession();
+      expect(h.fakeAudioPlayer.stopCalls, equals(1));
+      h.service.dispose();
+    });
+
+    test('cycleSpeed 应调用 AudioPlayer.setPlaybackRate', () async {
+      final h = await _makeMockService(ttsRate: 1.0);
+      h.service.cycleSpeed();
+      expect(h.fakeAudioPlayer.setPlaybackRateCalls, equals(1));
+      expect(h.fakeAudioPlayer.lastPlaybackRate, isNot(equals(1.0)));
+      h.service.dispose();
+    });
+
+    test('dispose 应调用 AudioPlayer.dispose', () async {
+      final h = await _makeMockService();
+      h.service.dispose();
+      expect(h.fakeAudioPlayer.disposeCalls, equals(1));
+    });
+
+    test('初始化时应设置音量', () async {
+      final h = await _makeMockService(ambientVol: 0.8);
+      expect(h.fakeAudioPlayer.setVolumeCalls, greaterThanOrEqualTo(1));
+      expect(h.fakeAudioPlayer.lastVolume, equals(0.8));
       h.service.dispose();
     });
   });
