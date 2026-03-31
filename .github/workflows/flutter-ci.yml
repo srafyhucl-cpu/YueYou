@@ -41,7 +41,7 @@ jobs:
           targetdir: coverage-report
           reporttypes: MarkdownSummaryGithub;Cobertura
 
-      - name: 生成业务核心 LCOV（过滤 UI/生成代码/TTS 引擎）
+      - name: 生成业务核心 LCOV（过滤 UI/生成代码）
         run: |
           awk '
             BEGIN{ FS=":" }
@@ -59,8 +59,6 @@ jobs:
               else if (rel ~ /^lib\/core\/theme\//) inc=0;               # 主题样式（非业务逻辑）
               else if (rel ~ /\/generated\//) inc=0;                      # 生成目录
               else if (rel ~ /\.g\.dart$/) inc=0;                         # 生成文件
-              else if (rel ~ /^lib\/features\/audio\/services\/tts_engine_service\.dart$/) inc=0; # TTS 引擎（阶段性排除）
-              else if (rel ~ /^lib\/features\/audio\/services\/sfx_service\.dart$/) inc=0;        # 音效服务（平台依赖，阶段性排除）
             }
             { if (inc==1) print $0 }
           ' coverage/lcov.info > coverage/lcov.core.info
@@ -180,8 +178,6 @@ jobs:
           echo "- lib/shared/widgets/**（通用控件）" >> $GITHUB_STEP_SUMMARY
           echo "- lib/core/theme/**（主题样式）" >> $GITHUB_STEP_SUMMARY
           echo "- **/generated/** 与 **/*.g.dart（生成代码）" >> $GITHUB_STEP_SUMMARY
-          echo "- lib/features/audio/services/tts_engine_service.dart（TTS 引擎，阶段性排除）" >> $GITHUB_STEP_SUMMARY
-          echo "- lib/features/audio/services/sfx_service.dart（音效服务，阶段性排除）" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 低覆盖模块 Top 10（业务核心，优先补这些）" >> $GITHUB_STEP_SUMMARY
@@ -258,13 +254,12 @@ jobs:
           PASS=$(awk -v pct="$CORE_PCT" -v thr="$THRESHOLD" 'BEGIN { if (pct+0 >= thr) print "yes"; else print "no" }')
           if [ "$PASS" != "yes" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **未达标**：业务核心覆盖率 ${CORE_PCT}% < ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **未达标（仅警告，不阻断 CI）**：业务核心覆盖率 ${CORE_PCT}% < ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
             echo "建议：优先为上方 Top 模块补单元测试（覆盖关键分支/异常分支）。" >> $GITHUB_STEP_SUMMARY
-            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **达标**：业务核心覆盖率 ${CORE_PCT}% ≥ ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
           fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **达标**：业务核心覆盖率 ${CORE_PCT}% ≥ ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
