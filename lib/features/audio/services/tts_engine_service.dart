@@ -90,6 +90,7 @@ class TtsEngineService extends ChangeNotifier {
   late final TtsAudioPlayer _audioPlayer;
   late final TtsWakeLock _wakeLock;
   late final TtsHttpClient _httpClient;
+  final Future<void> Function(Duration) _delay;
   int _loopSession = 0;
   bool _wakeLockHeld = false;
 
@@ -124,10 +125,12 @@ class TtsEngineService extends ChangeNotifier {
     TtsAudioPlayer? audioPlayer,
     TtsWakeLock? wakeLock,
     TtsHttpClient? httpClient,
+    Future<void> Function(Duration)? delayFn,
   })  : _config = config ?? TtsConfig.current,
         _audioPlayer = audioPlayer ?? _RealAudioPlayer(AudioPlayer()),
         _wakeLock = wakeLock ?? _RealWakeLock(),
-        _httpClient = httpClient ?? _RealHttpClient() {
+        _httpClient = httpClient ?? _RealHttpClient(),
+        _delay = delayFn ?? ((d) => Future<void>.delayed(d)) {
     _settings = settings;
     _initTtsHardware();
     _listenToSettings();
@@ -364,7 +367,7 @@ class TtsEngineService extends ChangeNotifier {
         // 队列已满或未启用，等待
         if (!_isEnabled ||
             _prefetchedItems.length >= _config.maxPrefetchQueue) {
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await _delay(const Duration(milliseconds: 500));
           continue;
         }
 
@@ -374,7 +377,7 @@ class TtsEngineService extends ChangeNotifier {
             await _requestNextSentence(sessionSnapshot);
         if (request == null) {
           debugPrint('⚠️ onNeedPrefetch 返回 null，等待1秒...');
-          await Future<void>.delayed(const Duration(seconds: 1));
+          await _delay(const Duration(seconds: 1));
           continue;
         }
         final textPreview = request.text.length > 20
@@ -409,13 +412,13 @@ class TtsEngineService extends ChangeNotifier {
           if (consecutiveFailures >= 5) {
             debugPrint('🚨 服务器任务队列已满，暂停预加载15秒...');
             consecutiveFailures = 0;
-            await Future<void>.delayed(const Duration(seconds: 15));
+            await _delay(const Duration(seconds: 15));
             debugPrint('⏰ 等待完成，重新尝试...');
             continue; // 不跳过，等待后重试同一句
           }
 
           // 🔥 失败后等待3秒再重试（让服务器任务队列释放）
-          await Future<void>.delayed(const Duration(seconds: 3));
+          await _delay(const Duration(seconds: 3));
           continue; // 重试同一句
         }
 
@@ -459,7 +462,7 @@ class TtsEngineService extends ChangeNotifier {
           if (_isSpeaking || _isBuffering) {
             _setPlaybackFlags(isSpeaking: false, isBuffering: false);
           }
-          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await _delay(const Duration(milliseconds: 100));
           continue;
         }
 
@@ -471,7 +474,7 @@ class TtsEngineService extends ChangeNotifier {
             debugPrint('⏳ 队列为空，进入缓冲状态...');
             _setPlaybackFlags(isSpeaking: false, isBuffering: true);
           }
-          await Future<void>.delayed(const Duration(milliseconds: 200));
+          await _delay(const Duration(milliseconds: 200));
           continue;
         }
         debugPrint('🎬 队列有 ${_prefetchedItems.length} 个音频，准备播放...');
@@ -550,7 +553,7 @@ class TtsEngineService extends ChangeNotifier {
             await _audioPlayer.resume(); // resume 比 play 快几十毫秒
 
             // 🔥 延迟50ms重新同步倍速，确保生效（某些安卓机型需要）
-            await Future.delayed(const Duration(milliseconds: 50));
+            await _delay(const Duration(milliseconds: 50));
             await _audioPlayer.setPlaybackRate(_playbackRate);
 
             debugPrint('✅ AudioPlayer 已启动，倍速: $_playbackRate');
@@ -599,7 +602,7 @@ class TtsEngineService extends ChangeNotifier {
           // 🔥 尝试重置 AudioPlayer，防止状态异常
           try {
             await _audioPlayer.stop();
-            await Future.delayed(const Duration(milliseconds: 100));
+            await _delay(const Duration(milliseconds: 100));
           } catch (_) {}
 
           _setPlaybackFlags(isSpeaking: false, isBuffering: false);
@@ -650,7 +653,7 @@ class TtsEngineService extends ChangeNotifier {
           if (attempt < _config.maxRetries - 1) {
             // 指数退避
             final delay = _config.baseRetryDelay * (1 << attempt);
-            await Future.delayed(delay);
+            await _delay(delay);
             continue;
           }
           return null;
@@ -675,7 +678,7 @@ class TtsEngineService extends ChangeNotifier {
         if (attempt < _config.maxRetries - 1) {
           // 指数退避
           final delay = _config.baseRetryDelay * (1 << attempt);
-          await Future.delayed(delay);
+          await _delay(delay);
         } else {
           debugPrint('❌ TTS下载最终失败');
         }

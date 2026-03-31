@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
@@ -54,6 +57,47 @@ class _FakeWakeLock implements TtsWakeLock {
   Future<void> enable() async => enableCalls++;
   @override
   Future<void> disable() async => disableCalls++;
+}
+
+class _FakeHttpClient implements TtsHttpClient {
+  final List<http.Response> _queue;
+  int postCalls = 0;
+
+  _FakeHttpClient({List<http.Response>? queue})
+      : _queue = queue ?? <http.Response>[];
+
+  @override
+  Future<http.Response> post(Uri url,
+      {Map<String, String>? headers, Object? body}) async {
+    postCalls++;
+    if (_queue.isNotEmpty) {
+      return _queue.removeAt(0);
+    }
+    return http.Response('internal error', 500);
+  }
+}
+
+class _DelayRecorder {
+  final List<Duration> durations = <Duration>[];
+  int calls = 0;
+  final Map<Duration, Completer<void>> _completers =
+      <Duration, Completer<void>>{};
+
+  Future<void> call(Duration d) async {
+    durations.add(d);
+    calls++;
+    final completer = _completers[d];
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+
+  bool has(Duration d) => durations.contains(d);
+
+  Future<void> wait(Duration d) {
+    return (_completers[d] ??= Completer<void>()).future;
+  }
 }
 
 class _Harness {
@@ -120,7 +164,10 @@ Future<_MockHarness> _makeMockService(
     {bool storyTts = false,
     double ttsRate = 1.0,
     double ambientVol = 0.5,
-    String voice = 'zh-CN-XiaoxiaoNeural'}) async {
+    String voice = 'zh-CN-XiaoxiaoNeural',
+    TtsConfig? config,
+    TtsHttpClient? httpClient,
+    Future<void> Function(Duration)? delayFn}) async {
   SharedPreferences.setMockInitialValues({
     'setting_story_tts': storyTts,
     'setting_tts_rate': ttsRate,
@@ -132,8 +179,14 @@ Future<_MockHarness> _makeMockService(
   final settings = SettingsProvider()..loadFromStorage();
   final fakeAudioPlayer = _FakeAudioPlayer();
   final fakeWakeLock = _FakeWakeLock();
-  final service = TtsEngineService(settings,
-      audioPlayer: fakeAudioPlayer, wakeLock: fakeWakeLock);
+  final service = TtsEngineService(
+    settings,
+    config: config,
+    audioPlayer: fakeAudioPlayer,
+    wakeLock: fakeWakeLock,
+    httpClient: httpClient,
+    delayFn: delayFn,
+  );
   await pumpEventQueue(times: 20);
   return _MockHarness(
       settings: settings,
@@ -208,7 +261,6 @@ void main() {
 
     test('pause 应调用 AudioPlayer.pause 和 WakeLock.disable', () async {
       final h = await _makeMockService(storyTts: true);
-      // WakeLock 仅在“已持有”状态下才会触发 disable，先 play() 让其进入持有状态。
       h.service.play();
       h.service.pause();
       expect(h.fakeAudioPlayer.pauseCalls, equals(1));
@@ -218,7 +270,6 @@ void main() {
 
     test('setEnabled(false) 应调用 stop 和 disable', () async {
       final h = await _makeMockService(storyTts: true);
-      // 先 play() 确保 _isEnabled=true 且 WakeLock 已被持有，避免 setEnabled(false) 因状态未同步而提前 return。
       h.service.play();
       h.service.setEnabled(false);
       expect(h.fakeAudioPlayer.stopCalls, equals(1));
@@ -235,7 +286,6 @@ void main() {
 
     test('cycleSpeed 应调用 AudioPlayer.setPlaybackRate', () async {
       final h = await _makeMockService(ttsRate: 1.0);
-      // 初始化阶段会设置一次 playbackRate，这里用“相对增量”断言，避免被初始化调用次数干扰。
       final beforeCalls = h.fakeAudioPlayer.setPlaybackRateCalls;
       final beforeRate = h.fakeAudioPlayer.lastPlaybackRate;
       h.service.cycleSpeed();
@@ -254,6 +304,155 @@ void main() {
       final h = await _makeMockService(ambientVol: 0.8);
       expect(h.fakeAudioPlayer.setVolumeCalls, greaterThanOrEqualTo(1));
       expect(h.fakeAudioPlayer.lastVolume, equals(0.8));
+      h.service.dispose();
+    });
+  });
+
+  group('TtsEngineService - hard branches (prefetch/download)', () {
+    late DebugPrintCallback oldDebugPrint;
+
+    setUpAll(() {
+      oldDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {};
+    });
+
+    tearDownAll(() {
+      debugPrint = oldDebugPrint;
+    });
+
+    test('短句(<5字符)应被过滤：不触发 HTTP 请求且不入队', () async {
+      final httpClient = _FakeHttpClient();
+      final delay = _DelayRecorder();
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: httpClient,
+        delayFn: delay.call,
+      );
+
+      int calls = 0;
+      h.service.onNeedPrefetch = (session) async {
+        calls++;
+        if (calls == 1) {
+          return TtsAudioRequest(lineIndex: 0, text: '啊', title: 't');
+        }
+        return null;
+      };
+
+      h.service.setEnabled(true);
+      await delay.wait(const Duration(seconds: 1));
+
+      expect(httpClient.postCalls, equals(0));
+      expect(h.service.bufferedCount, equals(0));
+      h.service.setEnabled(false);
+      h.service.dispose();
+    });
+
+    test('HTTP 400：应直接跳过不重试（post 仅 1 次）', () async {
+      final httpClient = _FakeHttpClient(
+        queue: <http.Response>[http.Response('bad request', 400)],
+      );
+      final delay = _DelayRecorder();
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: httpClient,
+        delayFn: delay.call,
+        config: const TtsConfig(
+          serverUrl: 'https://test.invalid/tts',
+          maxRetries: 5,
+          requestTimeout: Duration(milliseconds: 10),
+          baseRetryDelay: Duration(milliseconds: 2),
+        ),
+      );
+
+      int calls = 0;
+      h.service.onNeedPrefetch = (session) async {
+        calls++;
+        if (calls == 1) {
+          return TtsAudioRequest(lineIndex: 0, text: '一二三四五', title: 't');
+        }
+        return null;
+      };
+
+      h.service.setEnabled(true);
+      await delay.wait(const Duration(seconds: 3));
+
+      expect(httpClient.postCalls, equals(1));
+      expect(delay.has(const Duration(seconds: 3)), isTrue);
+      h.service.setEnabled(false);
+      h.service.dispose();
+    });
+
+    test('HTTP 500：应按 maxRetries 重试（post 次数= maxRetries）', () async {
+      const cfg = TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxRetries: 3,
+        requestTimeout: Duration(milliseconds: 10),
+        baseRetryDelay: Duration(milliseconds: 2),
+      );
+      final httpClient = _FakeHttpClient(
+        queue: <http.Response>[
+          http.Response('e1', 500),
+          http.Response('e2', 500),
+          http.Response('e3', 500),
+        ],
+      );
+      final delay = _DelayRecorder();
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: httpClient,
+        delayFn: delay.call,
+        config: cfg,
+      );
+
+      int calls = 0;
+      h.service.onNeedPrefetch = (session) async {
+        calls++;
+        if (calls == 1) {
+          return TtsAudioRequest(lineIndex: 0, text: '一二三四五', title: 't');
+        }
+        return null;
+      };
+
+      h.service.setEnabled(true);
+      await delay.wait(const Duration(seconds: 3));
+
+      expect(httpClient.postCalls, equals(cfg.maxRetries));
+      expect(delay.has(const Duration(seconds: 3)), isTrue);
+      h.service.setEnabled(false);
+      h.service.dispose();
+    });
+
+    test('连续下载失败≥5次：应触发15秒退避等待', () async {
+      final httpClient = _FakeHttpClient(
+        queue: List<http.Response>.generate(
+          6,
+          (_) => http.Response('bad request', 400),
+        ),
+      );
+      final delay = _DelayRecorder();
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: httpClient,
+        delayFn: delay.call,
+        config: const TtsConfig(
+          serverUrl: 'https://test.invalid/tts',
+          maxRetries: 1,
+          requestTimeout: Duration(milliseconds: 10),
+          baseRetryDelay: Duration(milliseconds: 2),
+        ),
+      );
+
+      h.service.onNeedPrefetch = (session) async {
+        if (httpClient.postCalls >= 5) return null;
+        return TtsAudioRequest(lineIndex: 0, text: '一二三四五', title: 't');
+      };
+
+      h.service.setEnabled(true);
+      await delay.wait(const Duration(seconds: 15));
+
+      expect(httpClient.postCalls, greaterThanOrEqualTo(5));
+      expect(delay.has(const Duration(seconds: 15)), isTrue);
+      h.service.setEnabled(false);
       h.service.dispose();
     });
   });
