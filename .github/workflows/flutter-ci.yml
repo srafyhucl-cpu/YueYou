@@ -48,12 +48,19 @@ jobs:
             /^SF:/ {
               path=substr($0,4);
               norm=path; gsub(/\\/, "/", norm); # 统一路径分隔符
+              rel=norm;
+              # lcov 的 SF 可能是绝对路径（如 /home/.../lib/xxx.dart），统一截取到 lib/ 之后
+              sub(/^.*\/lib\//, "lib/", rel);
+              sub(/\r$/, "", rel);
               inc=1;
-              if (norm ~ /^lib\/.*\/presentation\//) inc=0;            # UI 层
-              else if (norm ~ /^lib\/shared\/widgets\//) inc=0;         # 通用控件
-              else if (norm ~ /\/generated\//) inc=0;                    # 生成目录
-              else if (norm ~ /\.g\.dart$/) inc=0;                       # 生成文件
-              else if (norm ~ /^lib\/features\/audio\/services\/tts_engine_service\.dart$/) inc=0; # TTS 引擎（阶段性排除）
+              if (rel !~ /^lib\//) inc=0;                                 # 只统计 lib/ 下源码
+              else if (rel ~ /^lib\/.*\/presentation\//) inc=0;          # UI 层
+              else if (rel ~ /^lib\/shared\/widgets\//) inc=0;           # 通用控件
+              else if (rel ~ /^lib\/core\/theme\//) inc=0;               # 主题样式（非业务逻辑）
+              else if (rel ~ /\/generated\//) inc=0;                      # 生成目录
+              else if (rel ~ /\.g\.dart$/) inc=0;                         # 生成文件
+              else if (rel ~ /^lib\/features\/audio\/services\/tts_engine_service\.dart$/) inc=0; # TTS 引擎（阶段性排除）
+              else if (rel ~ /^lib\/features\/audio\/services\/sfx_service\.dart$/) inc=0;        # 音效服务（平台依赖，阶段性排除）
             }
             { if (inc==1) print $0 }
           ' coverage/lcov.info > coverage/lcov.core.info
@@ -94,15 +101,43 @@ jobs:
             echo "❌ 未生成业务核心覆盖率文件 coverage/lcov.core.info" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-          CORE_PCT=$(awk -F: '/^LF:/{lf+=$2+0} /^LH:/{lh+=$2+0} END{ if(lf>0) printf("%.2f", (lh/lf*100)); else print "0" }' coverage/lcov.core.info)
-          echo "\n### 覆盖率门槛：业务核心 ${CORE_PCT}% (目标 ≥ ${THRESHOLD}%)" >> $GITHUB_STEP_SUMMARY
-          awk -v pct="$CORE_PCT" -v thr="$THRESHOLD" 'BEGIN { if (pct+0 >= thr) exit 0; else exit 1 }'
-          if [ $? -ne 0 ]; then
-            echo "❌ 业务核心覆盖率未达标：${CORE_PCT}% < ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+
+          CORE_LF=$(awk -F: '/^LF:/{lf+=$2+0} END{ print lf+0 }' coverage/lcov.core.info)
+          CORE_LH=$(awk -F: '/^LH:/{lh+=$2+0} END{ print lh+0 }' coverage/lcov.core.info)
+          CORE_PCT=$(awk -v lh="$CORE_LH" -v lf="$CORE_LF" 'BEGIN{ if(lf>0) printf("%.2f", (lh/lf*100)); else print "0.00" }')
+
+          echo "\n## ✅/❌ 覆盖率门槛（业务核心）" >> $GITHUB_STEP_SUMMARY
+          echo "- **当前业务核心覆盖率**：${CORE_PCT}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **目标阈值**：≥ ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **统计行数**：${CORE_LH}/${CORE_LF}（覆盖/总）" >> $GITHUB_STEP_SUMMARY
+          echo "\n### 统计口径（已过滤，不计入业务核心）" >> $GITHUB_STEP_SUMMARY
+          echo "- lib/**/presentation/**（UI 层）" >> $GITHUB_STEP_SUMMARY
+          echo "- lib/shared/widgets/**（通用控件）" >> $GITHUB_STEP_SUMMARY
+          echo "- lib/core/theme/**（主题样式）" >> $GITHUB_STEP_SUMMARY
+          echo "- **/generated/** 与 **/*.g.dart（生成代码）" >> $GITHUB_STEP_SUMMARY
+          echo "- lib/features/audio/services/tts_engine_service.dart（TTS 引擎，阶段性排除）" >> $GITHUB_STEP_SUMMARY
+          echo "- lib/features/audio/services/sfx_service.dart（音效服务，阶段性排除）" >> $GITHUB_STEP_SUMMARY
+
+          echo "\n### 低覆盖文件 Top 10（业务核心，优先补这些）" >> $GITHUB_STEP_SUMMARY
+          awk '
+            BEGIN{ FS=":" }
+            /^SF:/ { if (have) { cov=(lf>0?lh/lf*100:0); printf("%0.2f\t%s\t%d/%d\n", cov, file, lh, lf) } ; file=substr($0,4); lf=0; lh=0; have=1; next }
+            /^LF:/ { lf=$2+0; next }
+            /^LH:/ { lh=$2+0; next }
+            /^end_of_record/ { cov=(lf>0?lh/lf*100:0); printf("%0.2f\t%s\t%d/%d\n", cov, file, lh, lf); have=0 }
+          ' coverage/lcov.core.info |
+          sort -n |
+          head -n 10 |
+          awk -F"\t" 'BEGIN { print "| 序号 | 文件 | 覆盖率 | 行(覆盖/总) |"; print "|:--:|:--|:--:|:--:|" } { printf "| %d | %s | %s%% | %s |\n", NR, $2, $1, $3 }' >> $GITHUB_STEP_SUMMARY
+
+          PASS=$(awk -v pct="$CORE_PCT" -v thr="$THRESHOLD" 'BEGIN { if (pct+0 >= thr) print "yes"; else print "no" }')
+          if [ "$PASS" != "yes" ]; then
+            echo "\n❌ **未达标**：业务核心覆盖率 ${CORE_PCT}% < ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
+            echo "建议：优先为上方 Top 文件补单元测试（覆盖关键分支/异常分支）。" >> $GITHUB_STEP_SUMMARY
             exit 1
-          else
-            echo "✅ 业务核心覆盖率达标：${CORE_PCT}% ≥ ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
           fi
+
+          echo "\n✅ **达标**：业务核心覆盖率 ${CORE_PCT}% ≥ ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2

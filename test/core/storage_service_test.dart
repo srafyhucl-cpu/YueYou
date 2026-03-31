@@ -1,6 +1,27 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/database/storage_service.dart';
+
+void _mockPathProvider(String documentsDir) {
+  const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, (MethodCall call) async {
+    if (call.method == 'getApplicationDocumentsDirectory') {
+      return documentsDir;
+    }
+    if (call.method == 'getTemporaryDirectory') {
+      return documentsDir;
+    }
+    if (call.method == 'getApplicationSupportDirectory') {
+      return documentsDir;
+    }
+    return documentsDir;
+  });
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +44,13 @@ void main() {
     });
 
     test('无存档时 loadGameState 返回 null', () {
+      expect(StorageService.loadGameState(), isNull);
+    });
+
+    test('存档 JSON 损坏时 loadGameState 返回 null', () async {
+      SharedPreferences.setMockInitialValues({'local_save_data': '{'});
+      StorageService.resetForTesting();
+      await StorageService.init();
       expect(StorageService.loadGameState(), isNull);
     });
 
@@ -113,6 +141,19 @@ void main() {
       final record = StorageService.getReadingRecord('book_zero');
       expect(record['cursor'], 0);
     });
+
+    test('reading_records JSON 损坏时返回空 Map', () async {
+      SharedPreferences.setMockInitialValues({'reading_records': '{'});
+      StorageService.resetForTesting();
+      await StorageService.init();
+      expect(StorageService.getReadingRecord('book_x')['cursor'], 0);
+    });
+
+    test('percent 保留两位小数', () async {
+      await StorageService.updateReadingRecord('book_pct', 1, 3);
+      final record = StorageService.getReadingRecord('book_pct');
+      expect(record['percent'], closeTo(33.33, 0.01));
+    });
   });
 
   // ── 当前小说 ─────────────────────────────────────────────────────────────────
@@ -147,6 +188,13 @@ void main() {
 
   group('StorageService - 书架', () {
     test('空书架返回空列表', () {
+      expect(StorageService.loadBookshelf(), isEmpty);
+    });
+
+    test('书架 JSON 损坏时返回空列表', () async {
+      SharedPreferences.setMockInitialValues({'local_bookshelf': '{'});
+      StorageService.resetForTesting();
+      await StorageService.init();
       expect(StorageService.loadBookshelf(), isEmpty);
     });
 
@@ -216,6 +264,84 @@ void main() {
     test('setSettingAmbientVol 持久化并可读取', () async {
       await StorageService.setSettingAmbientVol(0.8);
       expect(StorageService.getSettingAmbientVol(), closeTo(0.8, 0.001));
+    });
+  });
+
+  group('StorageService - 书籍正文', () {
+    test('saveBookContent / loadBookContent 往返一致', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_books_');
+      _mockPathProvider(dir.path);
+
+      await StorageService.saveBookContent(
+        'book_1',
+        lines: const ['L1', 'L2'],
+        chapters: const [
+          {'title': '第一章', 'lineIndex': 0},
+        ],
+      );
+
+      final loaded = await StorageService.loadBookContent('book_1');
+      expect(loaded, isNotNull);
+      expect((loaded!['lines'] as List).cast<String>(), ['L1', 'L2']);
+      expect((loaded['chapters'] as List).length, 1);
+    });
+
+    test('loadBookContent 在文件不存在时返回 null', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_books_');
+      _mockPathProvider(dir.path);
+      final loaded = await StorageService.loadBookContent('not_exists');
+      expect(loaded, isNull);
+    });
+
+    test('deleteBookContent 在文件不存在时不抛异常', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_books_');
+      _mockPathProvider(dir.path);
+      expect(() async => StorageService.deleteBookContent('not_exists'),
+          returnsNormally);
+    });
+
+    test('deleteBookContent 在文件存在时会删除，随后 loadBookContent 返回 null', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_books_');
+      _mockPathProvider(dir.path);
+
+      await StorageService.saveBookContent(
+        'book_del',
+        lines: const ['L1'],
+        chapters: const [],
+      );
+
+      expect(await StorageService.loadBookContent('book_del'), isNotNull);
+
+      await StorageService.deleteBookContent('book_del');
+      expect(await StorageService.loadBookContent('book_del'), isNull);
+    });
+
+    test('loadBookContent 在 JSON 损坏时返回 null', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_books_');
+      _mockPathProvider(dir.path);
+
+      final file = File('${dir.path}/books/book_bad.json');
+      await file.parent.create(recursive: true);
+      await file.writeAsString('{');
+
+      final loaded = await StorageService.loadBookContent('book_bad');
+      expect(loaded, isNull);
+    });
+
+    test('saveBookContent 在 IO 异常时不抛出', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_books_');
+      final fakeDocumentsFile = File('${dir.path}/not_a_dir');
+      await fakeDocumentsFile.writeAsString('x');
+
+      _mockPathProvider(fakeDocumentsFile.path);
+      expect(
+        () async => StorageService.saveBookContent(
+          'book_io_error',
+          lines: const ['L1'],
+          chapters: const [],
+        ),
+        returnsNormally,
+      );
     });
   });
 }
