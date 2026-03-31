@@ -80,10 +80,9 @@ jobs:
             }
           ' coverage/lcov.info >> $GITHUB_STEP_SUMMARY
 
-          # 统计各文件覆盖率并输出 Top 10（中文表格）
+          # 统计各文件覆盖率并输出（中文表格，全部模块）
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<details><summary>📦 模块覆盖率明细（全部模块）</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 模块覆盖率明细（全部模块）" >> $GITHUB_STEP_SUMMARY
           awk '
             BEGIN{ FS=":" }
             function norm(p,  rel) {
@@ -152,8 +151,6 @@ jobs:
             BEGIN { print "| 序号 | 模块 | 覆盖率 | 行(覆盖/总) |"; print "|:--:|:--|:--:|:--:|" }
             { printf "| %d | %s | %s%% | %s |\n", NR, zh($2), $1, $3 }
           ' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
 
       - name: 校验业务核心覆盖率阈值 (≥ 90%)
         run: |
@@ -180,8 +177,7 @@ jobs:
           echo "- **/generated/** 与 **/*.g.dart（生成代码）" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<details><summary>📦 业务核心模块覆盖率明细（全部模块）</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 业务核心模块覆盖率明细（全部模块）" >> $GITHUB_STEP_SUMMARY
           awk '
             BEGIN{ FS=":" }
             function norm(p,  rel) {
@@ -250,8 +246,6 @@ jobs:
             BEGIN { print "| 序号 | 模块 | 覆盖率 | 行(覆盖/总) |"; print "|:--:|:--|:--:|:--:|" }
             { printf "| %d | %s | %s%% | %s |\n", NR, zh($2), $1, $3 }
           ' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
 
           PASS=$(awk -v pct="$CORE_PCT" -v thr="$THRESHOLD" 'BEGIN { if (pct+0 >= thr) print "yes"; else print "no" }')
           if [ "$PASS" != "yes" ]; then
