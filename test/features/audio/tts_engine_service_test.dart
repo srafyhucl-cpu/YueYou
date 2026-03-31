@@ -112,7 +112,7 @@ Future<_Harness> _makeService(
   _mockWakelockPlusChannel();
   final settings = SettingsProvider()..loadFromStorage();
   final service = TtsEngineService(settings);
-  await Future<void>.delayed(Duration.zero);
+  await pumpEventQueue(times: 20);
   return _Harness(settings: settings, service: service);
 }
 
@@ -134,7 +134,7 @@ Future<_MockHarness> _makeMockService(
   final fakeWakeLock = _FakeWakeLock();
   final service = TtsEngineService(settings,
       audioPlayer: fakeAudioPlayer, wakeLock: fakeWakeLock);
-  await Future<void>.delayed(Duration.zero);
+  await pumpEventQueue(times: 20);
   return _MockHarness(
       settings: settings,
       service: service,
@@ -208,6 +208,8 @@ void main() {
 
     test('pause 应调用 AudioPlayer.pause 和 WakeLock.disable', () async {
       final h = await _makeMockService(storyTts: true);
+      // WakeLock 仅在“已持有”状态下才会触发 disable，先 play() 让其进入持有状态。
+      h.service.play();
       h.service.pause();
       expect(h.fakeAudioPlayer.pauseCalls, equals(1));
       expect(h.fakeWakeLock.disableCalls, equals(1));
@@ -216,6 +218,8 @@ void main() {
 
     test('setEnabled(false) 应调用 stop 和 disable', () async {
       final h = await _makeMockService(storyTts: true);
+      // 先 play() 确保 _isEnabled=true 且 WakeLock 已被持有，避免 setEnabled(false) 因状态未同步而提前 return。
+      h.service.play();
       h.service.setEnabled(false);
       expect(h.fakeAudioPlayer.stopCalls, equals(1));
       expect(h.fakeWakeLock.disableCalls, equals(1));
@@ -231,9 +235,12 @@ void main() {
 
     test('cycleSpeed 应调用 AudioPlayer.setPlaybackRate', () async {
       final h = await _makeMockService(ttsRate: 1.0);
+      // 初始化阶段会设置一次 playbackRate，这里用“相对增量”断言，避免被初始化调用次数干扰。
+      final beforeCalls = h.fakeAudioPlayer.setPlaybackRateCalls;
+      final beforeRate = h.fakeAudioPlayer.lastPlaybackRate;
       h.service.cycleSpeed();
-      expect(h.fakeAudioPlayer.setPlaybackRateCalls, equals(1));
-      expect(h.fakeAudioPlayer.lastPlaybackRate, isNot(equals(1.0)));
+      expect(h.fakeAudioPlayer.setPlaybackRateCalls, equals(beforeCalls + 1));
+      expect(h.fakeAudioPlayer.lastPlaybackRate, isNot(equals(beforeRate)));
       h.service.dispose();
     });
 
