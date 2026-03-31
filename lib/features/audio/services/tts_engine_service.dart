@@ -706,7 +706,7 @@ class TtsEngineService extends ChangeNotifier {
         'message': '服务器地址: ${_config.serverUrl}',
       });
 
-      // 步骤 2：发送测试请求
+      // 步骤 2：解析 URL
       final uri = Uri.parse(_config.serverUrl);
       result['steps'].add({
         'step': 2,
@@ -715,21 +715,20 @@ class TtsEngineService extends ChangeNotifier {
         'message': 'Host: ${uri.host}, Port: ${uri.port}, Path: ${uri.path}',
       });
 
-      // 步骤 3：发送 HTTP 请求 (Multipart/Form-Data格式)
+      // 步骤 3：发送 HTTP 请求
       const testText = '测试文本一二三四五';
       debugPrint('📡 发送 TTS 测试请求: $testText');
 
-      final requestMulti = http.MultipartRequest('POST', uri);
-      requestMulti.fields['text'] = testText;
-      requestMulti.fields['voice'] = _voice;
-
-      final streamedResponse = await requestMulti.send().timeout(
+      // 使用注入的 httpClient 以确保可测试性
+      final response = await _httpClient.post(
+        uri,
+        body: {'text': testText, 'voice': _voice},
+      ).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('请求超时 (10秒)');
         },
       );
-      final response = await http.Response.fromStream(streamedResponse);
 
       result['statusCode'] = response.statusCode;
       result['responseSize'] = response.bodyBytes.length;

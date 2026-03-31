@@ -1,5 +1,9 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -77,6 +81,25 @@ class _FakeHttpClient implements TtsHttpClient {
   }
 }
 
+class _SequencedHttpClient implements TtsHttpClient {
+  final List<Object> _events;
+  int postCalls = 0;
+
+  _SequencedHttpClient(this._events);
+
+  @override
+  Future<http.Response> post(Uri url,
+      {Map<String, String>? headers, Object? body}) async {
+    postCalls++;
+    if (_events.isEmpty) {
+      return http.Response('internal error', 500);
+    }
+    final e = _events.removeAt(0);
+    if (e is http.Response) return e;
+    return Future<http.Response>.error(e);
+  }
+}
+
 class _DelayRecorder {
   final List<Duration> durations = <Duration>[];
   int calls = 0;
@@ -116,6 +139,41 @@ class _MockHarness {
       required this.service,
       required this.fakeAudioPlayer,
       required this.fakeWakeLock});
+}
+
+void _mockPathProviderTempDir(String tempDirPath) {
+  const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, (MethodCall call) async {
+    if (call.method == 'getTemporaryDirectory') {
+      return tempDirPath;
+    }
+    if (call.method == 'getApplicationDocumentsDirectory') {
+      return tempDirPath;
+    }
+    if (call.method == 'getApplicationSupportDirectory') {
+      return tempDirPath;
+    }
+    return tempDirPath;
+  });
+}
+
+void _restorePathProviderTempDir() {
+  _mockPathProviderTempDir(Directory.systemTemp.path);
+}
+
+Future<void> _safeDeleteDir(Directory dir) async {
+  try {
+    if (await dir.exists()) {
+      await dir.delete(recursive: true);
+    }
+  } catch (_) {}
+}
+
+http.Response _okAudioBytesResponse({required int sizeBytes}) {
+  final bytes = Uint8List(sizeBytes);
+  return http.Response.bytes(bytes, 200);
 }
 
 void _mockAudioplayersChannels() {
@@ -306,10 +364,60 @@ void main() {
       expect(h.fakeAudioPlayer.lastVolume, equals(0.8));
       h.service.dispose();
     });
+
+    test('syncSpeedFromSettings 应更新 playbackRate', () async {
+      final h = await _makeMockService(ttsRate: 1.0);
+      h.service.syncSpeedFromSettings(1.5, 1.5);
+      expect(h.service.playbackRate, equals(1.5));
+      expect(h.fakeAudioPlayer.lastPlaybackRate, equals(1.5));
+      h.service.dispose();
+    });
+
+    test('syncSpeedFromSettings 相同值时不更新', () async {
+      final h = await _makeMockService(ttsRate: 1.5);
+      final beforeCalls = h.fakeAudioPlayer.setPlaybackRateCalls;
+      h.service.syncSpeedFromSettings(1.5, 1.5);
+      expect(h.fakeAudioPlayer.setPlaybackRateCalls, equals(beforeCalls));
+      h.service.dispose();
+    });
+
+    test('stopAll 应递增 session 并调用 stop', () async {
+      final h = await _makeMockService(storyTts: true);
+      final before = h.service.currentSession;
+      h.service.stopAll();
+      expect(h.service.currentSession, equals(before + 1));
+      expect(h.fakeAudioPlayer.stopCalls, greaterThanOrEqualTo(1));
+      h.service.dispose();
+    });
+
+    test('启用状态下 refreshSession 应触发重启分支', () async {
+      final h = await _makeMockService(storyTts: false);
+      h.service.setEnabled(true);
+      final beforeSession = h.service.currentSession;
+      final beforeStopCalls = h.fakeAudioPlayer.stopCalls;
+
+      h.service.refreshSession();
+
+      expect(h.service.currentSession, equals(beforeSession + 1));
+      expect(h.fakeAudioPlayer.stopCalls, greaterThan(beforeStopCalls));
+      h.service.dispose();
+    });
+
+    test('启用状态下 notifyUserActivity 应执行重置计时器分支', () async {
+      final h = await _makeMockService(storyTts: false);
+      h.service.setEnabled(true);
+
+      expect(() => h.service.notifyUserActivity(), returnsNormally);
+      h.service.dispose();
+    });
   });
 
   group('TtsEngineService - hard branches (prefetch/download)', () {
     late DebugPrintCallback oldDebugPrint;
+
+    tearDown(() {
+      _restorePathProviderTempDir();
+    });
 
     setUpAll(() {
       oldDebugPrint = debugPrint;
@@ -455,5 +563,549 @@ void main() {
       h.service.setEnabled(false);
       h.service.dispose();
     });
+
+    test('HTTP 请求抛异常：应指数退避后重试并最终成功', () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts_retry_ok');
+      try {
+        _mockPathProviderTempDir(tempDir.path);
+
+        final httpClient = _SequencedHttpClient(<Object>[
+          const SocketException('x'),
+          _okAudioBytesResponse(sizeBytes: 2048),
+        ]);
+        final delay = _DelayRecorder();
+        final h = await _makeMockService(
+          storyTts: false,
+          httpClient: httpClient,
+          delayFn: delay.call,
+          config: const TtsConfig(
+            serverUrl: 'https://test.invalid/tts',
+            maxRetries: 2,
+            requestTimeout: Duration(milliseconds: 10),
+            baseRetryDelay: Duration(milliseconds: 1),
+            maxPrefetchQueue: 1,
+          ),
+        );
+
+        h.service.onNeedPrefetch = (session) async {
+          if (httpClient.postCalls > 1) return null;
+          return TtsAudioRequest(lineIndex: 0, text: '这是一句测试文本', title: 't');
+        };
+
+        h.service.setEnabled(true);
+        await delay.wait(const Duration(milliseconds: 1));
+
+        for (int i = 0; i < 400 && h.service.bufferedCount == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+
+        expect(httpClient.postCalls, equals(2));
+        expect(h.service.bufferedCount, greaterThanOrEqualTo(1));
+        h.service.setEnabled(false);
+        h.service.dispose();
+      } finally {
+        await _safeDeleteDir(tempDir);
+      }
+    });
   });
+
+  group('TtsEngineService - idle timeout', () {
+    test('空闲超时触发后应自动 setEnabled(false) 并写回 storyTts=false', () async {
+      SharedPreferences.setMockInitialValues({
+        'setting_story_tts': false,
+        'setting_tts_rate': 1.0,
+        'setting_ambient_vol': 0.5,
+        'setting_voice': 'zh-CN-XiaoxiaoNeural',
+        'setting_idle_timeout': 1,
+      });
+      StorageService.resetForTesting();
+      await StorageService.init();
+
+      final settings = SettingsProvider()..loadFromStorage();
+      final fakeAudioPlayer = _FakeAudioPlayer();
+      final fakeWakeLock = _FakeWakeLock();
+      final service = TtsEngineService(
+        settings,
+        audioPlayer: fakeAudioPlayer,
+        wakeLock: fakeWakeLock,
+        httpClient: _FakeHttpClient(),
+        delayFn: (d) => Future<void>.delayed(d),
+        config: const TtsConfig(
+          serverUrl: 'https://test.invalid/tts',
+          maxRetries: 1,
+          requestTimeout: Duration(milliseconds: 10),
+          baseRetryDelay: Duration(milliseconds: 1),
+          maxPrefetchQueue: 0,
+        ),
+      );
+
+      service.onNeedPrefetch = (session) async => null;
+
+      fakeAsync((async) {
+        async.flushMicrotasks();
+        service.setEnabled(true);
+        async.flushMicrotasks();
+        async.elapse(const Duration(minutes: 1));
+        async.flushMicrotasks();
+
+        expect(service.isEnabled, isFalse);
+        expect(settings.storyTts, isFalse);
+        expect(StorageService.getSettingStoryTts(), isFalse);
+      });
+
+      service.dispose();
+    });
+  });
+
+  group('TtsEngineService - play loop branches', () {
+    late DebugPrintCallback oldDebugPrint;
+
+    tearDown(() {
+      _restorePathProviderTempDir();
+    });
+
+    setUpAll(() {
+      oldDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {};
+    });
+
+    tearDownAll(() {
+      debugPrint = oldDebugPrint;
+    });
+
+    test('成功下载并播放：触发 started/finished 且删除临时文件', () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts_play_ok');
+      try {
+        _mockPathProviderTempDir(tempDir.path);
+
+        final httpClient = _FakeHttpClient(
+          queue: <http.Response>[
+            _okAudioBytesResponse(sizeBytes: 2048),
+          ],
+        );
+        final delay = _DelayRecorder();
+        final h = await _makeMockService(
+          storyTts: false,
+          httpClient: httpClient,
+          delayFn: delay.call,
+          config: const TtsConfig(
+            serverUrl: 'https://test.invalid/tts',
+            maxRetries: 1,
+            requestTimeout: Duration(milliseconds: 10),
+            baseRetryDelay: Duration(milliseconds: 1),
+            maxPrefetchQueue: 1,
+          ),
+        );
+
+        int startedCalls = 0;
+        int finishedCalls = 0;
+        h.service.onItemStarted = (_) {
+          startedCalls++;
+        };
+        h.service.onItemFinished = (_) {
+          finishedCalls++;
+        };
+
+        h.service.onNeedPrefetch = (session) async {
+          if (httpClient.postCalls > 0) return null;
+          return TtsAudioRequest(lineIndex: 7, text: '这是一句测试文本', title: 't');
+        };
+
+        h.service.setEnabled(true);
+
+        for (int i = 0; i < 200 && h.fakeAudioPlayer.setSourceCalls == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+        expect(h.fakeAudioPlayer.setSourceCalls, greaterThanOrEqualTo(1));
+        expect(startedCalls, greaterThanOrEqualTo(1));
+
+        h.fakeAudioPlayer.completePlayback();
+        for (int i = 0; i < 500 && finishedCalls == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+        expect(finishedCalls, greaterThanOrEqualTo(1));
+
+        h.service.setEnabled(false);
+        await pumpEventQueue(times: 20);
+        final mp3s = tempDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.mp3'))
+            .toList();
+        expect(mp3s, isEmpty);
+
+        h.service.dispose();
+      } finally {
+        await _safeDeleteDir(tempDir);
+      }
+    });
+
+    test('音频文件太小(<1KB)：应跳过且不调用 setSource', () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts_play_small');
+      try {
+        _mockPathProviderTempDir(tempDir.path);
+
+        final httpClient = _FakeHttpClient(
+          queue: <http.Response>[
+            _okAudioBytesResponse(sizeBytes: 10),
+          ],
+        );
+        final delay = _DelayRecorder();
+        final h = await _makeMockService(
+          storyTts: false,
+          httpClient: httpClient,
+          delayFn: delay.call,
+          config: const TtsConfig(
+            serverUrl: 'https://test.invalid/tts',
+            maxRetries: 1,
+            requestTimeout: Duration(milliseconds: 10),
+            baseRetryDelay: Duration(milliseconds: 1),
+            maxPrefetchQueue: 1,
+          ),
+        );
+
+        h.service.onNeedPrefetch = (session) async {
+          if (httpClient.postCalls > 0) return null;
+          return TtsAudioRequest(lineIndex: 1, text: '这是一句测试文本', title: 't');
+        };
+
+        h.service.setEnabled(true);
+        for (int i = 0; i < 200 && httpClient.postCalls == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+        expect(httpClient.postCalls, greaterThanOrEqualTo(1));
+
+        for (int i = 0; i < 400 && h.service.bufferedCount == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+
+        for (int i = 0; i < 800; i++) {
+          final mp3s = tempDir
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.mp3'))
+              .toList();
+          if (mp3s.isEmpty) {
+            break;
+          }
+          await pumpEventQueue(times: 1);
+        }
+
+        final mp3sAfter = tempDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.mp3'))
+            .toList();
+        expect(mp3sAfter, isEmpty);
+        expect(h.fakeAudioPlayer.setSourceCalls, equals(0));
+
+        h.service.setEnabled(false);
+        h.service.dispose();
+      } finally {
+        await _safeDeleteDir(tempDir);
+      }
+    });
+
+    test('AudioPlayer.setSource 抛异常：应进入异常恢复分支并 stop', () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts_play_throw');
+      try {
+        _mockPathProviderTempDir(tempDir.path);
+
+        final throwingPlayer = _FakeAudioPlayer();
+        final httpClient = _FakeHttpClient(
+          queue: <http.Response>[
+            _okAudioBytesResponse(sizeBytes: 2048),
+          ],
+        );
+        final settings = await (() async {
+          SharedPreferences.setMockInitialValues({
+            'setting_story_tts': false,
+            'setting_tts_rate': 1.0,
+            'setting_ambient_vol': 0.5,
+            'setting_voice': 'zh-CN-XiaoxiaoNeural'
+          });
+          StorageService.resetForTesting();
+          await StorageService.init();
+          return SettingsProvider()..loadFromStorage();
+        })();
+
+        final service = TtsEngineService(
+          settings,
+          audioPlayer: _ThrowingSetSourceAudioPlayer(throwingPlayer),
+          wakeLock: _FakeWakeLock(),
+          httpClient: httpClient,
+          delayFn: (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
+          config: const TtsConfig(
+            serverUrl: 'https://test.invalid/tts',
+            maxRetries: 1,
+            requestTimeout: Duration(milliseconds: 10),
+            baseRetryDelay: Duration(milliseconds: 1),
+            maxPrefetchQueue: 1,
+          ),
+        );
+
+        service.onNeedPrefetch = (session) async {
+          if (httpClient.postCalls > 0) return null;
+          return TtsAudioRequest(lineIndex: 3, text: '这是一句测试文本', title: 't');
+        };
+
+        service.setEnabled(true);
+        for (int i = 0; i < 200 && throwingPlayer.setSourceCalls == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+
+        service.setEnabled(false);
+        await pumpEventQueue(times: 50);
+
+        expect(throwingPlayer.setSourceCalls, greaterThanOrEqualTo(1));
+        expect(throwingPlayer.stopCalls, greaterThanOrEqualTo(1));
+        service.dispose();
+      } finally {
+        await _safeDeleteDir(tempDir);
+      }
+    });
+  });
+
+  group('TtsEngineService - testConnection branches', () {
+    late DebugPrintCallback oldDebugPrint;
+
+    tearDown(() {
+      _restorePathProviderTempDir();
+    });
+
+    setUpAll(() {
+      oldDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {};
+    });
+
+    tearDownAll(() {
+      debugPrint = oldDebugPrint;
+    });
+
+    test('testConnection 成功返回 success=true 且包含 steps', () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts_conn_ok');
+      try {
+        _mockPathProviderTempDir(tempDir.path);
+        final httpClient = _FakeHttpClient(
+          queue: <http.Response>[
+            _okAudioBytesResponse(sizeBytes: 2048),
+          ],
+        );
+        final h = await _makeMockService(
+          storyTts: false,
+          httpClient: httpClient,
+        );
+
+        final result = await h.service.testConnection();
+        expect(result['success'], isTrue);
+        expect(result['statusCode'], equals(200));
+        expect(result['steps'], isA<List>());
+
+        h.service.dispose();
+      } finally {
+        await _safeDeleteDir(tempDir);
+      }
+    });
+
+    test('testConnection 服务器返回非200：success=false', () async {
+      final httpClient = _FakeHttpClient(
+        queue: <http.Response>[http.Response('not found', 404)],
+      );
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: httpClient,
+      );
+
+      final result = await h.service.testConnection();
+      expect(result['success'], isFalse);
+      expect(result['statusCode'], equals(404));
+
+      h.service.dispose();
+    });
+
+    test('testConnection 网络异常：SocketException 分支', () async {
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: const _ThrowingHttpClient(SocketException('x')),
+      );
+
+      final result = await h.service.testConnection();
+      expect(result['success'], isFalse);
+      expect(result['message'], isA<String>());
+
+      h.service.dispose();
+    });
+
+    test('testConnection 200 但音频太小：应进入 warning 分支', () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts_conn_small');
+      try {
+        _mockPathProviderTempDir(tempDir.path);
+        final httpClient = _FakeHttpClient(
+          queue: <http.Response>[
+            _okAudioBytesResponse(sizeBytes: 10),
+          ],
+        );
+        final h = await _makeMockService(
+          storyTts: false,
+          httpClient: httpClient,
+        );
+
+        final result = await h.service.testConnection();
+        expect(result['success'], isTrue);
+        expect(result['statusCode'], equals(200));
+        expect(result['steps'], isA<List>());
+
+        h.service.dispose();
+      } finally {
+        await _safeDeleteDir(tempDir);
+      }
+    });
+
+    test('testConnection 写入文件失败：step 5 应为 error', () async {
+      const MethodChannel channel =
+          MethodChannel('plugins.flutter.io/path_provider');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'getTemporaryDirectory') {
+          throw PlatformException(code: 'x');
+        }
+        return null;
+      });
+
+      try {
+        final httpClient = _FakeHttpClient(
+          queue: <http.Response>[
+            _okAudioBytesResponse(sizeBytes: 2048),
+          ],
+        );
+        final h = await _makeMockService(
+          storyTts: false,
+          httpClient: httpClient,
+        );
+
+        final result = await h.service.testConnection();
+        expect(result['success'], isTrue);
+        expect(result['statusCode'], equals(200));
+        final steps = (result['steps'] as List).cast<Map>();
+        expect(
+            steps.any((s) => s['step'] == 5 && s['status'] == 'error'), isTrue);
+        h.service.dispose();
+      } finally {
+        _restorePathProviderTempDir();
+      }
+    });
+
+    test('testConnection URL 非法：应进入未知错误分支', () async {
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: _FakeHttpClient(),
+        config: const TtsConfig(serverUrl: 'http://[::1'),
+      );
+
+      final result = await h.service.testConnection();
+      expect(result['success'], isFalse);
+      expect(result['message'], isA<String>());
+      h.service.dispose();
+    });
+
+    test('testConnection 超时：应命中 TimeoutException 分支', () async {
+      final settings = await (() async {
+        SharedPreferences.setMockInitialValues({
+          'setting_story_tts': false,
+          'setting_tts_rate': 1.0,
+          'setting_ambient_vol': 0.5,
+          'setting_voice': 'zh-CN-XiaoxiaoNeural',
+        });
+        StorageService.resetForTesting();
+        await StorageService.init();
+        return SettingsProvider()..loadFromStorage();
+      })();
+
+      final hanging = Completer<http.Response>();
+      final service = TtsEngineService(
+        settings,
+        audioPlayer: _FakeAudioPlayer(),
+        wakeLock: _FakeWakeLock(),
+        httpClient: _HangingHttpClient(hanging.future),
+        delayFn: (d) => Future<void>.delayed(d),
+        config: const TtsConfig(
+          serverUrl: 'https://test.invalid/tts',
+          maxRetries: 1,
+          requestTimeout: Duration(milliseconds: 10),
+          baseRetryDelay: Duration(milliseconds: 1),
+          maxPrefetchQueue: 0,
+        ),
+      );
+
+      Map<String, dynamic>? result;
+      fakeAsync((async) {
+        async.flushMicrotasks();
+        final f = service.testConnection();
+        f.then((v) {
+          result = v;
+        });
+        async.elapse(const Duration(seconds: 11));
+        async.flushMicrotasks();
+        expect(result, isNotNull);
+        expect(result!['success'], isFalse);
+        expect(result!['message'], contains('请求超时'));
+      });
+
+      service.dispose();
+    });
+  });
+}
+
+class _ThrowingSetSourceAudioPlayer implements TtsAudioPlayer {
+  final _FakeAudioPlayer _inner;
+  _ThrowingSetSourceAudioPlayer(this._inner);
+
+  @override
+  Future<void> dispose() => _inner.dispose();
+
+  @override
+  Stream<void> get onPlayerComplete => _inner.onPlayerComplete;
+
+  @override
+  Future<void> pause() => _inner.pause();
+
+  @override
+  Future<void> resume() => _inner.resume();
+
+  @override
+  Future<void> setPlaybackRate(double rate) => _inner.setPlaybackRate(rate);
+
+  @override
+  Future<void> setSource(Source source) async {
+    await _inner.setSource(source);
+    throw Exception('setSource failed');
+  }
+
+  @override
+  Future<void> setVolume(double volume) => _inner.setVolume(volume);
+
+  @override
+  Future<void> stop() => _inner.stop();
+}
+
+class _ThrowingHttpClient implements TtsHttpClient {
+  final Object error;
+  const _ThrowingHttpClient(this.error);
+
+  @override
+  Future<http.Response> post(Uri url,
+      {Map<String, String>? headers, Object? body}) {
+    return Future<http.Response>.error(error);
+  }
+}
+
+class _HangingHttpClient implements TtsHttpClient {
+  final Future<http.Response> future;
+  const _HangingHttpClient(this.future);
+
+  @override
+  Future<http.Response> post(Uri url,
+      {Map<String, String>? headers, Object? body}) {
+    return future;
+  }
 }
