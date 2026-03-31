@@ -130,7 +130,32 @@ jobs:
           ' coverage/lcov.info |
           sort -n |
           head -n 10 |
-          awk -F"\t" 'BEGIN { print "\n#### 模块覆盖率 Top 10（覆盖率最低，优先补测）\n"; print "| 序号 | 模块 | 覆盖率 | 行(覆盖/总) |"; print "|:--:|:--|:--:|:--:|" } { printf "| %d | %s | %s%% | %s |\n", NR, $2, $1, $3 }' >> $GITHUB_STEP_SUMMARY
+          awk -F"\t" '
+            function zh(m) {
+              if (m=="features/reader") return "阅读器（features/reader）";
+              if (m=="features/audio") return "音频（features/audio）";
+              if (m=="features/game_2048") return "2048 游戏（features/game_2048）";
+              if (m=="features/library") return "书库（features/library）";
+              if (m=="features/settings") return "设置（features/settings）";
+              if (m=="features/dashboard") return "主界面（features/dashboard）";
+              if (m=="core/database") return "存储（core/database）";
+              if (m=="core/config") return "配置（core/config）";
+              if (m=="core/theme") return "主题（core/theme）";
+              if (m=="core/constants") return "常量（core/constants）";
+              if (m=="shared/widgets") return "通用控件（shared/widgets）";
+              if (m=="shared") return "共享（shared）";
+              if (m=="core") return "核心（core）";
+              if (m=="features") return "功能（features）";
+              if (m=="other") return "其他（other）";
+              return m;
+            }
+            BEGIN {
+              print "\n#### 模块覆盖率 Top 10（覆盖率最低，优先补测）\n";
+              print "| 序号 | 模块 | 覆盖率 | 行(覆盖/总) |";
+              print "|:--:|:--|:--:|:--:|";
+            }
+            { printf "| %d | %s | %s%% | %s |\n", NR, zh($2), $1, $3 }
+          ' >> $GITHUB_STEP_SUMMARY
 
       - name: 校验业务核心覆盖率阈值 (≥ 90%)
         run: |
@@ -144,11 +169,13 @@ jobs:
           CORE_LH=$(awk -F: '/^LH:/{lh+=$2+0} END{ print lh+0 }' coverage/lcov.core.info)
           CORE_PCT=$(awk -v lh="$CORE_LH" -v lf="$CORE_LF" 'BEGIN{ if(lf>0) printf("%.2f", (lh/lf*100)); else print "0.00" }')
 
-          printf "\n## ✅/❌ 覆盖率门槛（业务核心）\n" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅/❌ 覆盖率门槛（业务核心）" >> $GITHUB_STEP_SUMMARY
           echo "- **当前业务核心覆盖率**：${CORE_PCT}%" >> $GITHUB_STEP_SUMMARY
           echo "- **目标阈值**：≥ ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
           echo "- **统计行数**：${CORE_LH}/${CORE_LF}（覆盖/总）" >> $GITHUB_STEP_SUMMARY
-          printf "\n### 统计口径（已过滤，不计入业务核心）\n" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 统计口径（已过滤，不计入业务核心）" >> $GITHUB_STEP_SUMMARY
           echo "- lib/**/presentation/**（UI 层）" >> $GITHUB_STEP_SUMMARY
           echo "- lib/shared/widgets/**（通用控件）" >> $GITHUB_STEP_SUMMARY
           echo "- lib/core/theme/**（主题样式）" >> $GITHUB_STEP_SUMMARY
@@ -156,7 +183,8 @@ jobs:
           echo "- lib/features/audio/services/tts_engine_service.dart（TTS 引擎，阶段性排除）" >> $GITHUB_STEP_SUMMARY
           echo "- lib/features/audio/services/sfx_service.dart（音效服务，阶段性排除）" >> $GITHUB_STEP_SUMMARY
 
-          printf "\n### 低覆盖模块 Top 10（业务核心，优先补这些）\n" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 低覆盖模块 Top 10（业务核心，优先补这些）" >> $GITHUB_STEP_SUMMARY
           awk '
             BEGIN{ FS=":" }
             function norm(p,  rel) {
@@ -204,16 +232,39 @@ jobs:
           ' coverage/lcov.core.info |
           sort -n |
           head -n 10 |
-          awk -F"\t" 'BEGIN { print "| 序号 | 模块 | 覆盖率 | 行(覆盖/总) |"; print "|:--:|:--|:--:|:--:|" } { printf "| %d | %s | %s%% | %s |\n", NR, $2, $1, $3 }' >> $GITHUB_STEP_SUMMARY
+          awk -F"\t" '
+            function zh(m) {
+              if (m=="features/reader") return "阅读器（features/reader）";
+              if (m=="features/audio") return "音频（features/audio）";
+              if (m=="features/game_2048") return "2048 游戏（features/game_2048）";
+              if (m=="features/library") return "书库（features/library）";
+              if (m=="features/settings") return "设置（features/settings）";
+              if (m=="features/dashboard") return "主界面（features/dashboard）";
+              if (m=="core/database") return "存储（core/database）";
+              if (m=="core/config") return "配置（core/config）";
+              if (m=="core/theme") return "主题（core/theme）";
+              if (m=="core/constants") return "常量（core/constants）";
+              if (m=="shared/widgets") return "通用控件（shared/widgets）";
+              if (m=="shared") return "共享（shared）";
+              if (m=="core") return "核心（core）";
+              if (m=="features") return "功能（features）";
+              if (m=="other") return "其他（other）";
+              return m;
+            }
+            BEGIN { print "| 序号 | 模块 | 覆盖率 | 行(覆盖/总) |"; print "|:--:|:--|:--:|:--:|" }
+            { printf "| %d | %s | %s%% | %s |\n", NR, zh($2), $1, $3 }
+          ' >> $GITHUB_STEP_SUMMARY
 
           PASS=$(awk -v pct="$CORE_PCT" -v thr="$THRESHOLD" 'BEGIN { if (pct+0 >= thr) print "yes"; else print "no" }')
           if [ "$PASS" != "yes" ]; then
-            printf "\n❌ **未达标**：业务核心覆盖率 ${CORE_PCT}% < ${THRESHOLD}%。\n" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **未达标**：业务核心覆盖率 ${CORE_PCT}% < ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
             echo "建议：优先为上方 Top 模块补单元测试（覆盖关键分支/异常分支）。" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
-          printf "\n✅ **达标**：业务核心覆盖率 ${CORE_PCT}% ≥ ${THRESHOLD}%。\n" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **达标**：业务核心覆盖率 ${CORE_PCT}% ≥ ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
 
       - name: 发布覆盖率评论
         uses: thollander/actions-comment-pull-request@v2
