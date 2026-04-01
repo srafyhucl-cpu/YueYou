@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -17,9 +18,11 @@ class ChapterListScreen extends StatefulWidget {
 class _ChapterListScreenState extends State<ChapterListScreen> {
   bool _reversed = false;
   ScrollController? _scrollController;
+  Timer? _pendingJumpTimer;
 
   @override
   void dispose() {
+    _pendingJumpTimer?.cancel();
     _scrollController?.dispose();
     super.dispose();
   }
@@ -182,7 +185,9 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
                 Navigator.of(context).pop();
 
                 // 等待弹窗退场动画完成后，再执行数据突变
-                Future.delayed(const Duration(milliseconds: 250), () {
+                _pendingJumpTimer?.cancel();
+                _pendingJumpTimer =
+                    Timer(const Duration(milliseconds: 250), () {
                   reader.jumpToLine(chapter.lineIndex);
                 });
               },

@@ -8,12 +8,14 @@ import '../../library/domain/book_model.dart';
 /// 职责：管理 sentences 和 currentIndex，并联动 TtsEngineService 进行语音播报
 class ReaderProvider with ChangeNotifier {
   final TtsEngineService _ttsEngine;
+  final Future<ParseResult> Function(String rawText) _parseBook;
   List<String> _sentences = [];
   int _currentIndex = 0;
   int _fetchIndex = 0;
   bool _isParsing = false;
   String? _currentBookId;
   List<ChapterModel> _chapters = [];
+  String? _lastTtsError;
 
   // 🔥 章节标题正则（与 file_import_service 同步）
   static final RegExp _chapterRegex = RegExp(
@@ -47,7 +49,13 @@ class ReaderProvider with ChangeNotifier {
     return text.isNotEmpty && text.length < 50 && _chapterRegex.hasMatch(text);
   }
 
-  ReaderProvider(this._ttsEngine) {
+  ReaderProvider(
+    this._ttsEngine, {
+    Future<ParseResult> Function(String rawText)? parseBook,
+  }) : _parseBook = parseBook ?? TextParser.parse {
+    _lastTtsError = _ttsEngine.lastError;
+    _ttsEngine.addListener(_onTtsEngineChanged);
+
     // 生产者：为 TTS 引擎提供下一句有效文本
     // 🔥 重写核心：_fetchIndex 在此处立即推进，跳过所有已消耗行（含合并短句）
     _ttsEngine.onNeedPrefetch = (session) async {
@@ -152,6 +160,28 @@ class ReaderProvider with ChangeNotifier {
   TtsEngineService get ttsEngine => _ttsEngine;
   List<ChapterModel> get chapters => _chapters;
   String? get currentBookId => _currentBookId;
+  String? get ttsErrorMessage => _lastTtsError;
+
+  /// 清理当前 TTS 错误提示（例如 UI 已展示并确认后）。
+  void clearTtsError() {
+    _ttsEngine.clearLastError();
+  }
+
+  void _onTtsEngineChanged() {
+    bool changed = false;
+    final nextError = _ttsEngine.lastError;
+    if (nextError != _lastTtsError) {
+      _lastTtsError = nextError;
+      changed = true;
+    }
+    // 🔥 关键修复：TTS 引擎的播放状态变化必须同步给 ReaderProvider 的监听者（如提词器）
+    // 否则暂停时提词器无法立即感知到 isSpeaking 的变化，导致动画继续执行到结束
+    changed = true;
+
+    if (changed) {
+      notifyListeners();
+    }
+  }
 
   /// 计算当前章节标题（遍历 chapters，找到 lineIndex <= currentIndex 的最新章节）
   String get currentChapterTitle {
@@ -194,7 +224,7 @@ class ReaderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final parseResult = await TextParser.parse(rawText);
+      final parseResult = await _parseBook(rawText);
       _sentences = parseResult.sentences;
       _currentBookId = bookId;
 
@@ -246,7 +276,11 @@ class ReaderProvider with ChangeNotifier {
 
   /// 切换播放/暂停状态
   void toggleTTS() {
-    _ttsEngine.setEnabled(!_ttsEngine.isEnabled);
+    if (_ttsEngine.isSpeaking) {
+      _ttsEngine.pause();
+    } else {
+      _ttsEngine.play();
+    }
   }
 
   /// 倍速切换桥接
@@ -337,5 +371,21 @@ class ReaderProvider with ChangeNotifier {
       _sentences.length,
     );
     await StorageService.setCurrentNovelIndex(_currentIndex);
+  }
+
+  void switchChapter(int chapterIndex) {
+    if (_chapters.isEmpty) return;
+    if (chapterIndex < 0 || chapterIndex >= _chapters.length) return;
+    _currentIndex = _chapters[chapterIndex].lineIndex;
+    _fetchIndex = _chapters[chapterIndex].lineIndex;
+    _ttsEngine.refreshSession();
+    notifyListeners();
+    _saveProgress();
+  }
+
+  @override
+  void dispose() {
+    _ttsEngine.removeListener(_onTtsEngineChanged);
+    super.dispose();
   }
 }

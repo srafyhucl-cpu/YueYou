@@ -1,7 +1,5 @@
 ﻿import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/foundation.dart';
@@ -408,6 +406,25 @@ void main() {
       h.service.setEnabled(true);
 
       expect(() => h.service.notifyUserActivity(), returnsNormally);
+      h.service.dispose();
+    });
+
+    test('testConnection 失败后应暴露 lastError 且可清理', () async {
+      final httpClient = _FakeHttpClient(
+        queue: <http.Response>[http.Response('not found', 404)],
+      );
+      final h = await _makeMockService(
+        storyTts: false,
+        httpClient: httpClient,
+      );
+
+      await h.service.testConnection();
+
+      expect(h.service.lastError, contains('HTTP 404'));
+
+      h.service.clearLastError();
+      expect(h.service.lastError, isNull);
+
       h.service.dispose();
     });
   });

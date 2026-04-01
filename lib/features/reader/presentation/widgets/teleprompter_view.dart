@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -24,9 +25,15 @@ class _TeleprompterViewState extends State<TeleprompterView>
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
   ReaderProvider? _reader;
+  String? _errorMessage;
+  bool _errorVisible = false;
+  Timer? _errorHideTimer;
+  Timer? _errorCleanupTimer;
 
   static const double _fontSize = 18;
   static const double _containerHeight = 46;
+  static const Duration _errorDisplayDuration = Duration(seconds: 3);
+  static const Duration _errorFadeDuration = Duration(milliseconds: 300);
 
   static final TextStyle _readStyle = TextStyle(
     color: CyberColors.neonCyan,
@@ -60,6 +67,48 @@ class _TeleprompterViewState extends State<TeleprompterView>
     _ktvController.addListener(_syncScroll);
   }
 
+  void _onErrorChanged(String? message) {
+    if (_errorMessage == message && _errorVisible) {
+      return;
+    }
+
+    _errorHideTimer?.cancel();
+    _errorCleanupTimer?.cancel();
+
+    if (message == null || message.isEmpty) {
+      _hideErrorTip();
+      return;
+    }
+
+    setState(() {
+      _errorMessage = message;
+      _errorVisible = true;
+    });
+
+    _errorHideTimer = Timer(_errorDisplayDuration, _hideErrorTip);
+  }
+
+  void _hideErrorTip() {
+    if (!mounted) return;
+    if (!_errorVisible && _errorMessage == null) return;
+
+    setState(() {
+      _errorVisible = false;
+    });
+
+    _errorCleanupTimer = Timer(_errorFadeDuration, () {
+      if (!mounted || _errorVisible) return;
+      setState(() {
+        _errorMessage = null;
+      });
+    });
+  }
+
+  void _onErrorTipTap() {
+    _hideErrorTip();
+    _reader?.clearTtsError();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -76,6 +125,8 @@ class _TeleprompterViewState extends State<TeleprompterView>
     final reader = _reader;
     if (!mounted || reader == null) return;
 
+    _onErrorChanged(reader.ttsErrorMessage);
+
     if (reader.isParsing || reader.sentences.isEmpty) {
       if (_prevIsPlaying) {
         _ktvController.stop();
@@ -87,19 +138,22 @@ class _TeleprompterViewState extends State<TeleprompterView>
     final String text = reader.currentSentence ?? '';
     final bool isPlaying = reader.ttsEngine.isSpeaking;
 
+    // 🔥 关键修复：即使不播放，如果文字变了（如手动切句），也要重置提词器进度并预计算
+    if (text != _prevText && text.isNotEmpty) {
+      _onSentenceChanged(text, reader.ttsEngine.playbackRate, start: isPlaying);
+    }
+
     if (isPlaying && text.isNotEmpty) {
-      if (text != _prevText) {
-        _onSentenceChanged(text, reader.ttsEngine.playbackRate);
-      } else if (!_ktvController.isAnimating) {
+      if (!_ktvController.isAnimating) {
         _ktvController.forward();
       }
       _prevIsPlaying = true;
-      return;
-    }
-
-    if (!isPlaying && _prevIsPlaying) {
-      _ktvController.stop();
-      _prevIsPlaying = false;
+    } else {
+      // 停止动画但保留当前进度
+      if (_prevIsPlaying) {
+        _ktvController.stop();
+        _prevIsPlaying = false;
+      }
     }
   }
 
@@ -116,13 +170,15 @@ class _TeleprompterViewState extends State<TeleprompterView>
   @override
   void dispose() {
     _reader?.removeListener(_onReaderChanged);
+    _errorHideTimer?.cancel();
+    _errorCleanupTimer?.cancel();
     _ktvController.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
-  void _onSentenceChanged(String text, double playbackRate) {
-    if (text == _prevText) return;
+  void _onSentenceChanged(String text, double playbackRate,
+      {bool start = true}) {
     _prevText = text;
     // 新句子：预计算文字总宽度（只做一次，后续用线性插值）
     final tp = TextPainter(
@@ -130,11 +186,17 @@ class _TeleprompterViewState extends State<TeleprompterView>
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: double.infinity);
     _totalTextWidth = tp.width;
+
     final speed = playbackRate.clamp(0.5, 3.0);
     // 中文 TTS 约 3.5 字/秒（~286ms/字），比之前 5字/秒更贴近实际语速
     final ms = (text.length * (1000 / (speed * 3.5))).round().clamp(800, 10000);
     _ktvController.duration = Duration(milliseconds: ms);
-    _ktvController.forward(from: 0.0);
+
+    if (start) {
+      _ktvController.forward(from: 0.0);
+    } else {
+      _ktvController.value = 0.0; // 暂停且切句时，重置进度到开头
+    }
   }
 
   @override
@@ -180,7 +242,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
                       AnimatedBuilder(
                         animation: _ktvController,
                         builder: (context, _) {
-                          final pos = isPlaying ? _ktvController.value : 0.0;
+                          final pos = _ktvController.value;
                           final charIndex =
                               (pos * text.length).floor().clamp(0, text.length);
 
@@ -299,6 +361,47 @@ class _TeleprompterViewState extends State<TeleprompterView>
                           ),
                         ),
                       ),
+
+                      if (_errorMessage != null)
+                        Positioned(
+                          top: CyberDimensions.spacingXS,
+                          left: CyberDimensions.spacingS,
+                          right: CyberDimensions.spacingS,
+                          child: AnimatedOpacity(
+                            duration: _errorFadeDuration,
+                            opacity: _errorVisible ? 1.0 : 0.0,
+                            child: GestureDetector(
+                              key: const ValueKey('teleprompter_error_tip'),
+                              onTap: _onErrorTipTap,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CyberDimensions.spacingS,
+                                  vertical: CyberDimensions.spacingXS,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: CyberColors.panelBackground,
+                                  borderRadius: BorderRadius.circular(
+                                      CyberDimensions.radiusS),
+                                  border: Border.all(
+                                    color:
+                                        CyberColors.neonPink.withOpacity(0.7),
+                                    width: CyberDimensions.borderNormal,
+                                  ),
+                                ),
+                                child: Text(
+                                  _errorMessage!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: CyberColors.whiteHigh,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

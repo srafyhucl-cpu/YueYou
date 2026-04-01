@@ -108,6 +108,21 @@ flutter run
 flutter run --dart-define=TTS_SERVER_URL=http://your-tts-server:3000/api/v1/tts/createStream
 ```
 
+### VS Code / Windsurf 原生调试
+如需在 VS Code 或 Windsurf 中使用 Flutter 原生调试、热加载与热重启，并同时指定远端 TTS 服务地址，可在项目本地创建 `.vscode/launch.json`，为目标设备配置加入：
+```json
+{
+  "name": "yueyou (Flutter Device)",
+  "request": "launch",
+  "type": "dart",
+  "deviceId": "你的设备ID",
+  "toolArgs": [
+    "--dart-define=TTS_SERVER_URL=http://your-tts-server:3000/api/v1/tts/createStream"
+  ]
+}
+```
+之后从 IDE 的 `Run and Debug` 面板启动该配置，即可在同一调试会话中继续使用热加载与热重启，无需每次手动输入终端命令。
+
 ### 构建 Release APK
 ```bash
 flutter build apk --release \
