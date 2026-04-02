@@ -119,23 +119,61 @@ class FileImportService {
       final Uint8List sanitizedBytes = _stripUtf8Bom(bytes);
       if (sanitizedBytes.isEmpty) return '';
 
-      // 🛡️ 第一重盾：严格的 UTF-8 校验
-      try {
+      if (_isValidUtf8(sanitizedBytes)) {
         return const Utf8Decoder(allowMalformed: false).convert(sanitizedBytes);
+      }
+
+      try {
+        return gbk.decode(sanitizedBytes, allowMalformed: true);
       } catch (_) {
-        // 🛡️ 第二重盾：GBK 容错推土机
-        try {
-          return gbk.decode(sanitizedBytes, allowMalformed: true);
-        } catch (_) {
-          // 🛡️ 第三重盾：宽容 UTF-8 强解
-          return const Utf8Decoder(allowMalformed: true)
-              .convert(sanitizedBytes);
-        }
+        return const Utf8Decoder(allowMalformed: true).convert(sanitizedBytes);
       }
     } catch (error, stackTrace) {
       debugPrint(' TXT 编码解析彻底崩塌: $error\n$stackTrace');
       return null;
     }
+  }
+
+  static bool _isValidUtf8(Uint8List bytes) {
+    int i = 0;
+    while (i < bytes.length) {
+      final int byte = bytes[i];
+      if (byte <= 0x7F) {
+        i++;
+        continue;
+      }
+
+      int expectedContinuation;
+      if (byte >= 0xC2 && byte <= 0xDF) {
+        expectedContinuation = 1;
+      } else if (byte >= 0xE0 && byte <= 0xEF) {
+        expectedContinuation = 2;
+      } else if (byte >= 0xF0 && byte <= 0xF4) {
+        expectedContinuation = 3;
+      } else {
+        return false;
+      }
+
+      if (i + expectedContinuation >= bytes.length) {
+        return false;
+      }
+
+      for (int j = 1; j <= expectedContinuation; j++) {
+        final int continuation = bytes[i + j];
+        if (continuation < 0x80 || continuation > 0xBF) {
+          return false;
+        }
+      }
+
+      if (byte == 0xE0 && bytes[i + 1] < 0xA0) return false;
+      if (byte == 0xED && bytes[i + 1] > 0x9F) return false;
+      if (byte == 0xF0 && bytes[i + 1] < 0x90) return false;
+      if (byte == 0xF4 && bytes[i + 1] > 0x8F) return false;
+
+      i += expectedContinuation + 1;
+    }
+
+    return true;
   }
 
   static Uint8List _stripUtf8Bom(Uint8List bytes) {

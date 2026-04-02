@@ -18,7 +18,7 @@ class TtsConfig {
   static const TtsConfig development = TtsConfig(
     serverUrl: String.fromEnvironment(
       'TTS_SERVER_URL',
-      defaultValue: 'http://localhost:3000/api/v1/tts/createStream',
+      defaultValue: 'http://localhost:8080/api/v1/tts',
     ),
   );
 
@@ -26,7 +26,7 @@ class TtsConfig {
   static const TtsConfig production = TtsConfig(
     serverUrl: String.fromEnvironment(
       'TTS_SERVER_URL',
-      defaultValue: 'http://localhost:3000/api/v1/tts/createStream',
+      defaultValue: 'http://localhost:8080/api/v1/tts',
     ),
   );
 

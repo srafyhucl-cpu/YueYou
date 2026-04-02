@@ -28,13 +28,6 @@ class SfxService {
       await Future.delayed(const Duration(milliseconds: 50));
       await HapticFeedback.heavyImpact();
     }
-
-    // 播放合并音效
-    try {
-      await _mergePlayer.play(AssetSource('audios/merge.mp3'));
-    } catch (e) {
-      // 静默失败，不影响游戏
-    }
   }
 
   static void dispose() {

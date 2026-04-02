@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/database/storage_service.dart';
@@ -11,15 +10,18 @@ import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 
 class _FakeHttpClient implements TtsHttpClient {
-  final http.Response _response;
+  final TtsHttpResponse _response;
 
   _FakeHttpClient(this._response);
 
   @override
-  Future<http.Response> post(Uri url,
+  Future<TtsHttpResponse> post(Uri url,
       {Map<String, String>? headers, Object? body}) async {
     return _response;
   }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {}
 }
 
 void _mockAudioplayersChannels() {
@@ -82,7 +84,9 @@ void main() {
 
   testWidgets('TTS 错误提示会自动淡出并清理', (tester) async {
     final reader = await _makeReader(
-      httpClient: _FakeHttpClient(http.Response('not found', 404)),
+      httpClient: _FakeHttpClient(
+        const TtsHttpResponse(statusCode: 404, body: 'not found'),
+      ),
     );
     final service = reader.ttsEngine;
     addTearDown(() {
@@ -115,7 +119,9 @@ void main() {
 
   testWidgets('点击错误提示后立即清理错误状态', (tester) async {
     final reader = await _makeReader(
-      httpClient: _FakeHttpClient(http.Response('not found', 404)),
+      httpClient: _FakeHttpClient(
+        const TtsHttpResponse(statusCode: 404, body: 'not found'),
+      ),
     );
     final service = reader.ttsEngine;
     addTearDown(() {

@@ -121,6 +121,9 @@ class ReaderProvider with ChangeNotifier {
 
     // 🔥 onItemStarted：播放开始时，用真实 lineIndex 同步 UI
     _ttsEngine.onItemStarted = (item) {
+      if (item.session != _ttsEngine.currentSession) {
+        return;
+      }
       if (_currentIndex != item.lineIndex) {
         _currentIndex = item.lineIndex;
         notifyListeners();
@@ -129,6 +132,9 @@ class ReaderProvider with ChangeNotifier {
 
     // 🔥 onItemFinished：播放完成时，只更新 _currentIndex（UI显示），不修改 _fetchIndex（预加载游标）
     _ttsEngine.onItemFinished = (item) async {
+      if (item.session != _ttsEngine.currentSession) {
+        return;
+      }
       if (_sentences.isEmpty) return;
 
       // 从当前播放完成的真实行号开始，找下一个有效句子（噪音跳过，章节标题保留）
@@ -244,7 +250,7 @@ class ReaderProvider with ChangeNotifier {
 
       // 恢复之前的阅读进度（对应 JS loadBookFromShelf 传入 cursor）
       int targetIndex = 0;
-      if (forceIndex && initialIndex != null) {
+      if (initialIndex != null) {
         targetIndex = initialIndex;
       } else if (bookId != null) {
         final record = StorageService.getReadingRecord(bookId);

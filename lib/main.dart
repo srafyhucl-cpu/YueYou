@@ -10,6 +10,7 @@ import 'features/library/providers/bookshelf_provider.dart';
 import 'features/library/domain/book_model.dart';
 import 'features/reader/providers/reader_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
+import 'widgets/tts_error_listener.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -130,6 +131,7 @@ class _BootstrapperState extends State<_Bootstrapper> {
         ),
         useMaterial3: true,
       ),
+      builder: (context, child) => TtsErrorListener(child: child!),
       home: const DashboardScreen(),
     );
   }

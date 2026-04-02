@@ -1,11 +1,11 @@
 ﻿import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/database/storage_service.dart';
@@ -62,39 +62,72 @@ class _FakeWakeLock implements TtsWakeLock {
 }
 
 class _FakeHttpClient implements TtsHttpClient {
-  final List<http.Response> _queue;
+  final List<TtsHttpResponse> _queue;
+  final Map<String, List<int>> downloads;
   int postCalls = 0;
+  int downloadCalls = 0;
 
-  _FakeHttpClient({List<http.Response>? queue})
-      : _queue = queue ?? <http.Response>[];
+  _FakeHttpClient(
+      {List<TtsHttpResponse>? queue, Map<String, List<int>>? downloads})
+      : _queue = List<TtsHttpResponse>.of(queue ?? const <TtsHttpResponse>[]),
+        downloads = Map<String, List<int>>.from(
+          downloads ?? const <String, List<int>>{},
+        );
 
   @override
-  Future<http.Response> post(Uri url,
+  Future<TtsHttpResponse> post(Uri url,
       {Map<String, String>? headers, Object? body}) async {
     postCalls++;
     if (_queue.isNotEmpty) {
       return _queue.removeAt(0);
     }
-    return http.Response('internal error', 500);
+    return const TtsHttpResponse(statusCode: 500, body: 'internal error');
+  }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {
+    downloadCalls++;
+    final bytes = downloads[url.toString()];
+    if (bytes == null) {
+      throw HttpException('missing download stub: $url');
+    }
+    final file = File(savePath);
+    await file.writeAsBytes(bytes);
   }
 }
 
 class _SequencedHttpClient implements TtsHttpClient {
   final List<Object> _events;
+  final Map<String, List<int>> downloads;
   int postCalls = 0;
+  int downloadCalls = 0;
 
-  _SequencedHttpClient(this._events);
+  _SequencedHttpClient(this._events, {Map<String, List<int>>? downloads})
+      : downloads = Map<String, List<int>>.from(
+          downloads ?? const <String, List<int>>{},
+        );
 
   @override
-  Future<http.Response> post(Uri url,
+  Future<TtsHttpResponse> post(Uri url,
       {Map<String, String>? headers, Object? body}) async {
     postCalls++;
     if (_events.isEmpty) {
-      return http.Response('internal error', 500);
+      return const TtsHttpResponse(statusCode: 500, body: 'internal error');
     }
     final e = _events.removeAt(0);
-    if (e is http.Response) return e;
-    return Future<http.Response>.error(e);
+    if (e is TtsHttpResponse) return e;
+    return Future<TtsHttpResponse>.error(e);
+  }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {
+    downloadCalls++;
+    final bytes = downloads[url.toString()];
+    if (bytes == null) {
+      throw HttpException('missing download stub: $url');
+    }
+    final file = File(savePath);
+    await file.writeAsBytes(bytes);
   }
 }
 
@@ -169,9 +202,15 @@ Future<void> _safeDeleteDir(Directory dir) async {
   } catch (_) {}
 }
 
-http.Response _okAudioBytesResponse({required int sizeBytes}) {
-  final bytes = Uint8List(sizeBytes);
-  return http.Response.bytes(bytes, 200);
+TtsHttpResponse _jsonUrlResponse(String url) {
+  return TtsHttpResponse(
+    statusCode: 200,
+    body: jsonEncode({'status': 'success', 'url': url}),
+  );
+}
+
+List<int> _audioBytes({required int sizeBytes}) {
+  return Uint8List(sizeBytes);
 }
 
 void _mockAudioplayersChannels() {
@@ -299,6 +338,10 @@ void main() {
     test('play/pause 在禁用状态下可调用且不抛异常', () async {
       final h = await _makeService(storyTts: false);
       expect(h.service.isEnabled, isFalse);
+      // 绑定 onNeedPrefetch 以允许 TTS 启用
+      h.service.onNeedPrefetch = (session) async {
+        return TtsAudioRequest(lineIndex: 0, text: '这是一句测试文本', title: 't');
+      };
       h.service.play();
       expect(h.service.isEnabled, isTrue);
       h.service.pause();
@@ -411,7 +454,9 @@ void main() {
 
     test('testConnection 失败后应暴露 lastError 且可清理', () async {
       final httpClient = _FakeHttpClient(
-        queue: <http.Response>[http.Response('not found', 404)],
+        queue: const <TtsHttpResponse>[
+          TtsHttpResponse(statusCode: 404, body: 'not found')
+        ],
       );
       final h = await _makeMockService(
         storyTts: false,
@@ -474,7 +519,9 @@ void main() {
 
     test('HTTP 400：应直接跳过不重试（post 仅 1 次）', () async {
       final httpClient = _FakeHttpClient(
-        queue: <http.Response>[http.Response('bad request', 400)],
+        queue: const <TtsHttpResponse>[
+          TtsHttpResponse(statusCode: 400, body: 'bad request')
+        ],
       );
       final delay = _DelayRecorder();
       final h = await _makeMockService(
@@ -515,10 +562,10 @@ void main() {
         baseRetryDelay: Duration(milliseconds: 2),
       );
       final httpClient = _FakeHttpClient(
-        queue: <http.Response>[
-          http.Response('e1', 500),
-          http.Response('e2', 500),
-          http.Response('e3', 500),
+        queue: const <TtsHttpResponse>[
+          TtsHttpResponse(statusCode: 500, body: 'e1'),
+          TtsHttpResponse(statusCode: 500, body: 'e2'),
+          TtsHttpResponse(statusCode: 500, body: 'e3'),
         ],
       );
       final delay = _DelayRecorder();
@@ -549,9 +596,9 @@ void main() {
 
     test('连续下载失败≥5次：应触发15秒退避等待', () async {
       final httpClient = _FakeHttpClient(
-        queue: List<http.Response>.generate(
+        queue: List<TtsHttpResponse>.generate(
           6,
-          (_) => http.Response('bad request', 400),
+          (_) => const TtsHttpResponse(statusCode: 400, body: 'bad request'),
         ),
       );
       final delay = _DelayRecorder();
@@ -583,13 +630,19 @@ void main() {
 
     test('HTTP 请求抛异常：应指数退避后重试并最终成功', () async {
       final tempDir = await Directory.systemTemp.createTemp('tts_retry_ok');
+      const audioUrl = 'https://cdn.test/retry_ok.mp3';
       try {
         _mockPathProviderTempDir(tempDir.path);
 
-        final httpClient = _SequencedHttpClient(<Object>[
-          const SocketException('x'),
-          _okAudioBytesResponse(sizeBytes: 2048),
-        ]);
+        final httpClient = _SequencedHttpClient(
+          <Object>[
+            const SocketException('x'),
+            _jsonUrlResponse(audioUrl),
+          ],
+          downloads: <String, List<int>>{
+            audioUrl: _audioBytes(sizeBytes: 2048)
+          },
+        );
         final delay = _DelayRecorder();
         final h = await _makeMockService(
           storyTts: false,
@@ -692,13 +745,15 @@ void main() {
 
     test('成功下载并播放：触发 started/finished 且删除临时文件', () async {
       final tempDir = await Directory.systemTemp.createTemp('tts_play_ok');
+      const audioUrl = 'https://cdn.test/play_ok.mp3';
       try {
         _mockPathProviderTempDir(tempDir.path);
 
         final httpClient = _FakeHttpClient(
-          queue: <http.Response>[
-            _okAudioBytesResponse(sizeBytes: 2048),
-          ],
+          queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
+          downloads: <String, List<int>>{
+            audioUrl: _audioBytes(sizeBytes: 2048)
+          },
         );
         final delay = _DelayRecorder();
         final h = await _makeMockService(
@@ -759,13 +814,13 @@ void main() {
 
     test('音频文件太小(<1KB)：应跳过且不调用 setSource', () async {
       final tempDir = await Directory.systemTemp.createTemp('tts_play_small');
+      const audioUrl = 'https://cdn.test/play_small.mp3';
       try {
         _mockPathProviderTempDir(tempDir.path);
 
         final httpClient = _FakeHttpClient(
-          queue: <http.Response>[
-            _okAudioBytesResponse(sizeBytes: 10),
-          ],
+          queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
+          downloads: <String, List<int>>{audioUrl: _audioBytes(sizeBytes: 10)},
         );
         final delay = _DelayRecorder();
         final h = await _makeMockService(
@@ -825,14 +880,16 @@ void main() {
 
     test('AudioPlayer.setSource 抛异常：应进入异常恢复分支并 stop', () async {
       final tempDir = await Directory.systemTemp.createTemp('tts_play_throw');
+      const audioUrl = 'https://cdn.test/play_throw.mp3';
       try {
         _mockPathProviderTempDir(tempDir.path);
 
         final throwingPlayer = _FakeAudioPlayer();
         final httpClient = _FakeHttpClient(
-          queue: <http.Response>[
-            _okAudioBytesResponse(sizeBytes: 2048),
-          ],
+          queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
+          downloads: <String, List<int>>{
+            audioUrl: _audioBytes(sizeBytes: 2048)
+          },
         );
         final settings = await (() async {
           SharedPreferences.setMockInitialValues({
@@ -901,12 +958,14 @@ void main() {
 
     test('testConnection 成功返回 success=true 且包含 steps', () async {
       final tempDir = await Directory.systemTemp.createTemp('tts_conn_ok');
+      const audioUrl = 'https://cdn.test/conn_ok.mp3';
       try {
         _mockPathProviderTempDir(tempDir.path);
         final httpClient = _FakeHttpClient(
-          queue: <http.Response>[
-            _okAudioBytesResponse(sizeBytes: 2048),
-          ],
+          queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
+          downloads: <String, List<int>>{
+            audioUrl: _audioBytes(sizeBytes: 2048)
+          },
         );
         final h = await _makeMockService(
           storyTts: false,
@@ -926,7 +985,9 @@ void main() {
 
     test('testConnection 服务器返回非200：success=false', () async {
       final httpClient = _FakeHttpClient(
-        queue: <http.Response>[http.Response('not found', 404)],
+        queue: const <TtsHttpResponse>[
+          TtsHttpResponse(statusCode: 404, body: 'not found')
+        ],
       );
       final h = await _makeMockService(
         storyTts: false,
@@ -955,12 +1016,12 @@ void main() {
 
     test('testConnection 200 但音频太小：应进入 warning 分支', () async {
       final tempDir = await Directory.systemTemp.createTemp('tts_conn_small');
+      const audioUrl = 'https://cdn.test/conn_small.mp3';
       try {
         _mockPathProviderTempDir(tempDir.path);
         final httpClient = _FakeHttpClient(
-          queue: <http.Response>[
-            _okAudioBytesResponse(sizeBytes: 10),
-          ],
+          queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
+          downloads: <String, List<int>>{audioUrl: _audioBytes(sizeBytes: 10)},
         );
         final h = await _makeMockService(
           storyTts: false,
@@ -990,10 +1051,12 @@ void main() {
       });
 
       try {
+        const audioUrl = 'https://cdn.test/conn_write_fail.mp3';
         final httpClient = _FakeHttpClient(
-          queue: <http.Response>[
-            _okAudioBytesResponse(sizeBytes: 2048),
-          ],
+          queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
+          downloads: <String, List<int>>{
+            audioUrl: _audioBytes(sizeBytes: 2048)
+          },
         );
         final h = await _makeMockService(
           storyTts: false,
@@ -1038,7 +1101,7 @@ void main() {
         return SettingsProvider()..loadFromStorage();
       })();
 
-      final hanging = Completer<http.Response>();
+      final hanging = Completer<TtsHttpResponse>();
       final service = TtsEngineService(
         settings,
         audioPlayer: _FakeAudioPlayer(),
@@ -1110,19 +1173,29 @@ class _ThrowingHttpClient implements TtsHttpClient {
   const _ThrowingHttpClient(this.error);
 
   @override
-  Future<http.Response> post(Uri url,
+  Future<TtsHttpResponse> post(Uri url,
       {Map<String, String>? headers, Object? body}) {
-    return Future<http.Response>.error(error);
+    return Future<TtsHttpResponse>.error(error);
+  }
+
+  @override
+  Future<void> download(Uri url, String savePath) {
+    return Future<void>.error(error);
   }
 }
 
 class _HangingHttpClient implements TtsHttpClient {
-  final Future<http.Response> future;
+  final Future<TtsHttpResponse> future;
   const _HangingHttpClient(this.future);
 
   @override
-  Future<http.Response> post(Uri url,
+  Future<TtsHttpResponse> post(Uri url,
       {Map<String, String>? headers, Object? body}) {
     return future;
+  }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {
+    await future;
   }
 }

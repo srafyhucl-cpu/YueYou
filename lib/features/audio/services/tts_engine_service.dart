@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../settings/providers/settings_provider.dart';
@@ -29,8 +29,16 @@ abstract class TtsWakeLock {
 
 /// 抽象接口，用于测试时注入 Mock
 abstract class TtsHttpClient {
-  Future<http.Response> post(Uri url,
+  Future<TtsHttpResponse> post(Uri url,
       {Map<String, String>? headers, Object? body});
+  Future<void> download(Uri url, String savePath);
+}
+
+class TtsHttpResponse {
+  final int statusCode;
+  final String body;
+
+  const TtsHttpResponse({required this.statusCode, required this.body});
 }
 
 /// 生产环境实现：包装真实 AudioPlayer
@@ -65,10 +73,37 @@ class _RealWakeLock implements TtsWakeLock {
 
 /// 生产环境实现：包装真实 http.Client
 class _RealHttpClient implements TtsHttpClient {
+  final Dio _dio = Dio();
+
   @override
-  Future<http.Response> post(Uri url,
-      {Map<String, String>? headers, Object? body}) {
-    return http.post(url, headers: headers, body: body);
+  Future<TtsHttpResponse> post(Uri url,
+      {Map<String, String>? headers, Object? body}) async {
+    final response = await _dio.postUri(
+      url,
+      data: body,
+      options: Options(
+        headers: headers,
+        responseType: ResponseType.plain,
+        validateStatus: (_) => true,
+      ),
+    );
+    final dynamic data = response.data;
+    return TtsHttpResponse(
+      statusCode: response.statusCode ?? 500,
+      body: data is String ? data : jsonEncode(data),
+    );
+  }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {
+    final response = await _dio.downloadUri(
+      url,
+      savePath,
+      options: Options(validateStatus: (_) => true),
+    );
+    if ((response.statusCode ?? 500) >= 400) {
+      throw HttpException('下载音频失败: HTTP ${response.statusCode}');
+    }
   }
 }
 
@@ -110,6 +145,7 @@ class TtsEngineService extends ChangeNotifier {
   bool _disposed = false;
   late final Future<void> _initFuture;
   bool _initCompleted = false;
+  String? _lastGeneratedAudioPath;
 
   bool get isEnabled => _isEnabled;
   bool get isPlaying => _isEnabled && _isSpeaking;
@@ -236,6 +272,7 @@ class TtsEngineService extends ChangeNotifier {
     _playLoopActive = false;
     _prefetchLoopActive = false;
     unawaited(_audioPlayer.dispose());
+    unawaited(_deleteFileIfExists(_lastGeneratedAudioPath));
     _clearPrefetchQueue();
     super.dispose();
   }
@@ -252,6 +289,18 @@ class TtsEngineService extends ChangeNotifier {
 
       _initCompleted = true;
       debugPrint('🎵 双轨流媒体TTS引擎已初始化 (enabled=$_isEnabled)');
+      if (_isEnabled && !_disposed) {
+        _scheduleIdleTimer();
+        if (_prefetchedItems.isEmpty) {
+          _setPlaybackFlags(isSpeaking: false, isBuffering: true);
+        }
+        Future.microtask(() {
+          if (!_disposed && _isEnabled) {
+            debugPrint('🚀 初始化完成后启动双轨循环...');
+            _heartbeat();
+          }
+        });
+      }
     } catch (e) {
       debugPrint('⚠️ TTS 引擎初始化失败: $e');
       _initCompleted = true;
@@ -299,10 +348,25 @@ class TtsEngineService extends ChangeNotifier {
 
   void setEnabled(bool enabled) {
     if (_isEnabled == enabled) return;
+    // Check if there is book content before enabling TTS
+    if (enabled && onNeedPrefetch == null) {
+      debugPrint('⚠️ 无法开启 TTS：当前没有书籍内容 (onNeedPrefetch 未绑定)');
+      _setLastError('无法开启 TTS：请先导入书籍');
+      return;
+    }
+    // If enabling, check if onNeedPrefetch returns null (indicating no content)
+    if (enabled) {
+      // Since onNeedPrefetch might be async, we can't directly check the result here
+      // Instead, we'll let it enable but stop loops if no content is fetched
+      debugPrint('🔍 检查书籍内容...');
+    }
     _isEnabled = enabled;
     notifyListeners();
     debugPrint('🎵 TTS setEnabled: $enabled (session=$_loopSession)');
-    _clearLastError();
+    // 只在手动切换时清除错误，自动关闭（如无内容）时保留错误以便提示用户
+    if (!enabled && _lastError == null) {
+      _clearLastError();
+    }
     if (enabled) {
       // 启用时启动空闲计时器
       _scheduleIdleTimer();
@@ -319,6 +383,10 @@ class TtsEngineService extends ChangeNotifier {
       _currentItem = null; // 🔥 关键修复：置空当前项，防止 stop 触发 onItemFinished 导致跳句
       _audioPlayer.stop();
       _setPlaybackFlags(isSpeaking: false, isBuffering: false);
+      // 确保可以关闭 TTS
+      _playLoopActive = false;
+      _prefetchLoopActive = false;
+      debugPrint('🛑 TTS 已关闭');
     }
   }
 
@@ -432,6 +500,7 @@ class TtsEngineService extends ChangeNotifier {
     final int mySession = _loopSession; // 🔥 捕获启动时的 session，用于隔离循环实例
     debugPrint('🔄 预加载循环启动 (session=$mySession)');
     int consecutiveFailures = 0; // 🔥 连续失败计数器
+    int noContentCount = 0; // 连续返回 null 的次数
 
     try {
       while (!_disposed && _loopSession == mySession) {
@@ -472,8 +541,20 @@ class TtsEngineService extends ChangeNotifier {
         final request = await _requestNextSentence(sessionSnapshot);
         if (request == null) {
           await _delay(const Duration(milliseconds: 200));
+          noContentCount++;
+          // 如果连续多次返回 null，可能是没有书籍内容，停止 TTS
+          if (noContentCount > 10) {
+            debugPrint('⚠️ 连续 $noContentCount 次 onNeedPrefetch 返回 null，停止 TTS');
+            _setLastError('无法继续 TTS：没有可读取的内容，请先导入书籍');
+            // 延迟关闭，给监听器留出显示错误的时间
+            Future.microtask(() {
+              if (!_disposed) setEnabled(false);
+            });
+            break;
+          }
           continue;
         }
+        noContentCount = 0; // 重置计数器
 
         // 🔥 短句过滤：少于5个字符的文本不触发HTTP请求
         if (request.text.length < 5) {
@@ -695,6 +776,7 @@ class TtsEngineService extends ChangeNotifier {
         final uri = Uri.parse(_config.serverUrl);
 
         // 发送HTTP POST请求 (JSON格式以匹配服务器校验逻辑)
+        debugPrint('📡 发送 TTS 请求: ${request.text}');
         final response = await _httpClient
             .post(
           uri,
@@ -713,13 +795,15 @@ class TtsEngineService extends ChangeNotifier {
           },
         );
 
+        debugPrint('📡 TTS 响应: HTTP ${response.statusCode}');
+
         if (response.statusCode != 200) {
           final errorBody = response.body;
           _setLastError('TTS 服务错误: HTTP ${response.statusCode}');
           debugPrint(
               '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})\n响应: $errorBody');
 
-          // � 400错误特殊处理：虽然不重试，但仍应触发3秒退避
+          // 🔥 400错误特殊处理：虽然不重试，但仍应触发3秒退避
           if (response.statusCode == 400) {
             debugPrint('❌ TTS 400 错误，直接跳过当前句: ${request.text}');
             // 返回attempts=3确保触发3秒退避（测试需要）
@@ -740,12 +824,34 @@ class TtsEngineService extends ChangeNotifier {
           return (filePath: null, attempts: attempts);
         }
 
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException('TTS 响应不是合法 JSON 对象');
+        }
+        final String status = (decoded['status'] as String? ?? '').trim();
+        final String audioUrl = (decoded['url'] as String? ?? '').trim();
+        if (status != 'success' || audioUrl.isEmpty) {
+          throw FormatException('TTS 响应缺少有效 url: ${response.body}');
+        }
+
+        debugPrint('[TTS URL] $audioUrl');
+        await _deleteFileIfExists(_lastGeneratedAudioPath);
+
         // 写入临时文件
         final tempDir = await getTemporaryDirectory();
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final filePath = '${tempDir.path}/tts_$timestamp.mp3';
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
+        debugPrint('📥 开始下载音频文件到: $filePath');
+        await _httpClient.download(Uri.parse(audioUrl), filePath).timeout(
+          _config.requestTimeout,
+          onTimeout: () {
+            throw TimeoutException(
+              'TTS 下载超时 (${_config.requestTimeout.inSeconds}秒)',
+            );
+          },
+        );
+        debugPrint('[Local Path] $filePath');
+        _lastGeneratedAudioPath = filePath;
 
         _clearLastError();
         return (filePath: filePath, attempts: attempts);
@@ -809,10 +915,13 @@ class TtsEngineService extends ChangeNotifier {
       debugPrint('📡 发送 TTS 测试请求: $testText');
 
       // 使用注入的 httpClient 以确保可测试性
-      final response = await _httpClient.post(
+      final response = await _httpClient
+          .post(
         uri,
-        body: {'text': testText, 'voice': _voice},
-      ).timeout(
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'text': testText, 'voice': _voice}),
+      )
+          .timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('请求超时 (10秒)');
@@ -820,45 +929,47 @@ class TtsEngineService extends ChangeNotifier {
       );
 
       result['statusCode'] = response.statusCode;
-      result['responseSize'] = response.bodyBytes.length;
+      result['responseSize'] = response.body.length;
 
       if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException('TTS 响应不是合法 JSON 对象');
+        }
+        final String status = (decoded['status'] as String? ?? '').trim();
+        final String audioUrl = (decoded['url'] as String? ?? '').trim();
+        if (status != 'success' || audioUrl.isEmpty) {
+          throw FormatException('响应缺少有效 url: ${response.body}');
+        }
+
         result['steps'].add({
           'step': 3,
           'name': 'HTTP 请求',
           'status': 'success',
-          'message':
-              '状态码: ${response.statusCode}, 响应大小: ${response.bodyBytes.length} 字节',
+          'message': '状态码: ${response.statusCode}, 已获取音频 URL',
         });
 
-        // 步骤 4：验证音频文件
-        if (response.bodyBytes.length < 1024) {
-          result['steps'].add({
-            'step': 4,
-            'name': '验证音频文件',
-            'status': 'warning',
-            'message': '警告：音频文件太小 (<1KB)，可能是错误响应',
-          });
-        } else {
-          result['steps'].add({
-            'step': 4,
-            'name': '验证音频文件',
-            'status': 'success',
-            'message': '音频文件大小正常: ${response.bodyBytes.length} 字节',
-          });
-        }
+        result['steps'].add({
+          'step': 4,
+          'name': '解析音频地址',
+          'status': 'success',
+          'message': 'URL: $audioUrl',
+        });
 
-        // 步骤 5：尝试写入文件
+        // 步骤 5：尝试下载并写入文件
         try {
           final tempDir = await getTemporaryDirectory();
           final testFile = File('${tempDir.path}/tts_test.mp3');
-          await testFile.writeAsBytes(response.bodyBytes);
+          await _httpClient.download(Uri.parse(audioUrl), testFile.path);
+          final int fileSize = await testFile.length();
 
           result['steps'].add({
             'step': 5,
-            'name': '写入文件',
-            'status': 'success',
-            'message': '成功写入: ${testFile.path}',
+            'name': '下载并写入文件',
+            'status': fileSize < 1024 ? 'warning' : 'success',
+            'message': fileSize < 1024
+                ? '警告：音频文件太小 (<1KB)，可能是错误响应'
+                : '成功写入: ${testFile.path}',
           });
 
           // 清理测试文件
@@ -866,7 +977,7 @@ class TtsEngineService extends ChangeNotifier {
         } catch (e) {
           result['steps'].add({
             'step': 5,
-            'name': '写入文件',
+            'name': '下载并写入文件',
             'status': 'error',
             'message': '写入文件失败: $e',
           });
@@ -882,6 +993,7 @@ class TtsEngineService extends ChangeNotifier {
           'status': 'error',
           'message': '服务器返回错误: ${response.statusCode}\n响应: ${response.body}',
         });
+        result['statusCode'] = response.statusCode;
         result['message'] = '服务器返回错误: ${response.statusCode}';
         _setLastError('连接测试失败: HTTP ${response.statusCode}');
       }
@@ -942,8 +1054,28 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   Future<TtsAudioRequest?> _requestNextSentence(int session) async {
-    if (onNeedPrefetch == null) return null;
-    return onNeedPrefetch!(session);
+    if (onNeedPrefetch == null) {
+      debugPrint('⚠️ onNeedPrefetch 未绑定，无法获取下一句');
+      return null;
+    }
+    final request = await onNeedPrefetch!(session);
+    if (request == null) {
+      debugPrint('⏳ onNeedPrefetch 返回 null，当前暂无可预取文本');
+    }
+    return request;
+  }
+
+  Future<void> _deleteFileIfExists(String? path) async {
+    if (path == null || path.isEmpty) return;
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+    if (_lastGeneratedAudioPath == path) {
+      _lastGeneratedAudioPath = null;
+    }
   }
 
   /// 强制重启循环，用于解决卡顿问题
@@ -958,6 +1090,13 @@ class TtsEngineService extends ChangeNotifier {
     _setPlaybackFlags(
         isSpeaking: false, isBuffering: _prefetchedItems.isNotEmpty);
     _heartbeat();
+  }
+
+  bool _checkNoBookContent() {
+    // Check if there is no book content by attempting to fetch a sentence
+    if (onNeedPrefetch == null) return true;
+    // A more robust check could be implemented here if needed, but for now, rely on onNeedPrefetch returning null consistently as an indicator of no content
+    return false;
   }
 }
 

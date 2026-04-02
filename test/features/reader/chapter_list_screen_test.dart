@@ -1,9 +1,7 @@
 import 'dart:async';
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/database/storage_service.dart';
@@ -55,10 +53,13 @@ class _FakeWakeLock implements TtsWakeLock {
 
 class _FakeHttpClient implements TtsHttpClient {
   @override
-  Future<http.Response> post(Uri url,
+  Future<TtsHttpResponse> post(Uri url,
       {Map<String, String>? headers, Object? body}) async {
-    return http.Response('', 200);
+    return const TtsHttpResponse(statusCode: 200, body: '');
   }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {}
 }
 
 Future<ParseResult> _parseBookStub(String rawText) async {
