@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -10,7 +11,7 @@ enum Direction { up, down, left, right }
 
 /// 2048 游戏逻辑的核心 Provider (ChangeNotifier)
 /// 溯源：完整复刻自旧版 yueyou-app/www/js/modules/GameEngine.js
-class GameProvider extends ChangeNotifier {
+class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   // 棋盘大小 (溯源：JS L16)
   final int size = 4;
 
@@ -42,9 +43,6 @@ class GameProvider extends ChangeNotifier {
   // 游戏是否结束 (溯源：JS L20)
   bool isOver = false;
 
-  // 是否显示 Game Over 弹窗（独立于 isOver）
-  bool showGameOverDialog = false;
-
   // 随机数生成器 (替换 JS Math.random，支持注入种子用于测试)
   late final Random _random;
 
@@ -65,13 +63,22 @@ class GameProvider extends ChangeNotifier {
 
   /// 音效服务（支持注入 mock，默认使用 SfxService）
   final void Function(int)? _onPlayMerge;
+  Timer? _persistDebounceTimer;
+  final Duration _persistDebounceDuration;
+  final StreamController<void> _gameOverController =
+      StreamController<void>.broadcast();
+
+  Stream<void> get onGameOver => _gameOverController.stream;
 
   GameProvider({
     Random? random,
     void Function(int)? onPlayMerge,
     bool autoLoadState = true,
-  }) : _onPlayMerge = onPlayMerge {
+    Duration persistDebounceDuration = const Duration(seconds: 1),
+  })  : _onPlayMerge = onPlayMerge,
+        _persistDebounceDuration = persistDebounceDuration {
     _random = random ?? Random();
+    WidgetsBinding.instance.addObserver(this);
     if (autoLoadState) {
       _loadSavedState();
     } else {
@@ -130,7 +137,6 @@ class GameProvider extends ChangeNotifier {
 
   void _initFresh() {
     isOver = false;
-    showGameOverDialog = false;
     score = 0;
     combo = 0;
     board = List.generate(size, (_) => List.filled(size, null));
@@ -144,20 +150,13 @@ class GameProvider extends ChangeNotifier {
   /// 溯源：映射 JS L15-26 (reset)
   void reset() {
     isOver = false;
-    showGameOverDialog = false;
     score = 0;
     combo = 0;
     board = List.generate(size, (_) => List.filled(size, null));
     addRandomTile();
     addRandomTile();
     updateScore();
-    _persistState();
-    notifyListeners();
-  }
-
-  /// 关闭 Game Over 弹窗，但保留失败状态（用于截图分享）
-  void dismissGameOver() {
-    showGameOverDialog = false;
+    _schedulePersistState();
     notifyListeners();
   }
 
@@ -169,10 +168,7 @@ class GameProvider extends ChangeNotifier {
     lastMergedValue = 0;
     lastMoveNoMerge = false;
     if (isOver) {
-      if (!showGameOverDialog) {
-        showGameOverDialog = true;
-        notifyListeners();
-      }
+      _emitGameOver();
       return;
     }
 
@@ -300,7 +296,7 @@ class GameProvider extends ChangeNotifier {
           SfxService.playMerge(0);
         }
       }
-      _persistState();
+      _schedulePersistState();
       notifyListeners();
       return;
     }
@@ -308,14 +304,20 @@ class GameProvider extends ChangeNotifier {
     // 即使没有发生位移，也可能已经进入无路可走状态
     if (!_movesAvailable()) {
       _markGameOver();
-      _persistState();
+      _schedulePersistState();
       notifyListeners();
     }
   }
 
   void _markGameOver() {
     isOver = true;
-    showGameOverDialog = true;
+    _emitGameOver();
+  }
+
+  void _emitGameOver() {
+    if (!_gameOverController.isClosed) {
+      _gameOverController.add(null);
+    }
   }
 
   /// 全盘得分计算逻辑
@@ -358,6 +360,28 @@ class GameProvider extends ChangeNotifier {
       novelIndex: novelIndex,
       currentNovelId: currentNovelId,
     );
+  }
+
+  void _schedulePersistState() {
+    _persistDebounceTimer?.cancel();
+    if (_persistDebounceDuration <= Duration.zero) {
+      _persistState();
+      return;
+    }
+    _persistDebounceTimer = Timer(_persistDebounceDuration, _persistState);
+  }
+
+  void flushPersistState() {
+    _persistDebounceTimer?.cancel();
+    _persistDebounceTimer = null;
+    _persistState();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      flushPersistState();
+    }
   }
 
   /// 在空格处添加随机块 (2 或 4)
@@ -436,5 +460,13 @@ class GameProvider extends ChangeNotifier {
       }
     }
     return false;
+  }
+
+  @override
+  void dispose() {
+    _persistDebounceTimer?.cancel();
+    _gameOverController.close();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 }

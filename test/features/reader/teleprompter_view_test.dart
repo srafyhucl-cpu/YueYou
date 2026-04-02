@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +26,44 @@ class _FakeHttpClient implements TtsHttpClient {
   Future<void> download(Uri url, String savePath) async {}
 }
 
+class _FakeAudioPlayer implements TtsAudioPlayer {
+  final StreamController<void> _controller = StreamController<void>.broadcast();
+
+  @override
+  Future<void> dispose() async {
+    await _controller.close();
+  }
+
+  @override
+  Stream<void> get onPlayerComplete => _controller.stream;
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> resume() async {}
+
+  @override
+  Future<void> setPlaybackRate(double rate) async {}
+
+  @override
+  Future<void> setSource(Source source) async {}
+
+  @override
+  Future<void> setVolume(double volume) async {}
+
+  @override
+  Future<void> stop() async {}
+}
+
+class _FakeWakeLock implements TtsWakeLock {
+  @override
+  Future<void> disable() async {}
+
+  @override
+  Future<void> enable() async {}
+}
+
 void _mockAudioplayersChannels() {
   const MethodChannel global = MethodChannel('xyz.luan/audioplayers.global');
   const MethodChannel player = MethodChannel('xyz.luan/audioplayers');
@@ -40,7 +80,14 @@ Future<ReaderProvider> _makeReader({TtsHttpClient? httpClient}) async {
   _mockAudioplayersChannels();
   final settings = SettingsProvider()..loadFromStorage();
   settings.storyTts = false; // 禁用 TTS，避免播放循环
-  return ReaderProvider(TtsEngineService(settings, httpClient: httpClient));
+  return ReaderProvider(
+    TtsEngineService(
+      settings,
+      httpClient: httpClient,
+      audioPlayer: _FakeAudioPlayer(),
+      wakeLock: _FakeWakeLock(),
+    ),
+  );
 }
 
 Widget _wrapWithProviders(ReaderProvider reader) {

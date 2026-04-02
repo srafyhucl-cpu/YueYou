@@ -282,6 +282,11 @@ class ReaderProvider with ChangeNotifier {
 
   /// 切换播放/暂停状态
   void toggleTTS() {
+    // 🔥 任务 1.2：前置拦截——未导入书籍或数据为空时，禁止触发 TTS
+    if (_currentBookId == null || _sentences.isEmpty) {
+      _ttsEngine.setLastError('未检测到有效数据块，请先导入书籍');
+      return;
+    }
     if (_ttsEngine.isSpeaking) {
       _ttsEngine.pause();
     } else {
@@ -387,6 +392,29 @@ class ReaderProvider with ChangeNotifier {
     _ttsEngine.refreshSession();
     notifyListeners();
     _saveProgress();
+  }
+
+  /// 🔥 任务 1.3：级联重置——当当前正在阅读的书籍被删除时，完全重置阅读器状态
+  void resetForDeletedBook(String bookId) {
+    if (_currentBookId != bookId) return;
+
+    // 停止 TTS 播放
+    if (_ttsEngine.isEnabled) {
+      _ttsEngine.setEnabled(false);
+    }
+
+    // 置空所有数据
+    _currentBookId = null;
+    _sentences = [];
+    _chapters = [];
+    _currentIndex = 0;
+    _fetchIndex = 0;
+
+    // 异步清除持久化的当前小说标识
+    StorageService.setCurrentNovelId(null);
+
+    notifyListeners();
+    debugPrint('🗑️ 级联重置：书籍 $bookId 已删除，ReaderProvider 已清空');
   }
 
   @override

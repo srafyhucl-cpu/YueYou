@@ -20,56 +20,88 @@ Future<void> main() async {
   runApp(const YueYouApp());
 }
 
+class _AppBootstrapData {
+  final SettingsProvider settings;
+  final BookshelfProvider bookshelf;
+
+  const _AppBootstrapData({
+    required this.settings,
+    required this.bookshelf,
+  });
+}
+
 class YueYouApp extends StatelessWidget {
   const YueYouApp({super.key});
 
+  Future<_AppBootstrapData> _loadBootstrapData() async {
+    final settings = SettingsProvider();
+    final bookshelf = BookshelfProvider();
+
+    await Future.wait<void>([
+      Future<void>(() => settings.loadFromStorage()),
+      Future<void>(() => bookshelf.loadFromStorage()),
+    ]);
+
+    return _AppBootstrapData(settings: settings, bookshelf: bookshelf);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        // 1号：全局设置（最先启动，其它 Provider 读取设置值）
-        ChangeNotifierProvider(
-          create: (_) => SettingsProvider()..loadFromStorage(),
-        ),
+    return FutureBuilder<_AppBootstrapData>(
+      future: _loadBootstrapData(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              backgroundColor: CyberColors.background,
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
 
-        // 2号：书架状态
-        ChangeNotifierProvider(
-          create: (_) => BookshelfProvider()..loadFromStorage(),
-        ),
-
-        // 3号：TTS 发声引擎（通过内部监听器响应设置变化）
-        ChangeNotifierProxyProvider<SettingsProvider, TtsEngineService>(
-          create: (ctx) {
-            final settings = ctx.read<SettingsProvider>();
-            return TtsEngineService(settings);
-          },
-          update: (ctx, settings, prev) => prev ?? TtsEngineService(settings),
-        ),
-
-        // 4号：2048 游戏引擎（接入设置里的 soundEnabled + TTS 空闲计时器）
-        ChangeNotifierProxyProvider2<SettingsProvider, TtsEngineService,
-            GameProvider>(
-          create: (ctx) {
-            final gp = GameProvider();
-            gp.soundEnabled = ctx.read<SettingsProvider>().sound;
-            gp.onUserMove =
-                () => ctx.read<TtsEngineService>().notifyUserActivity();
-            return gp;
-          },
-          update: (ctx, settings, tts, prev) {
-            prev?.soundEnabled = settings.sound;
-            prev?.onUserMove = () => tts.notifyUserActivity();
-            return prev ?? GameProvider();
-          },
-        ),
-
-        // 5号：提词器解析引擎（ProxyProvider 注入 TTS 引擎）
-        ChangeNotifierProxyProvider<TtsEngineService, ReaderProvider>(
-          create: (ctx) => ReaderProvider(ctx.read<TtsEngineService>()),
-          update: (ctx, tts, previous) => previous ?? ReaderProvider(tts),
-        ),
-      ],
-      child: const _Bootstrapper(),
+        final bootstrap = snapshot.data!;
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SettingsProvider>.value(
+              value: bootstrap.settings,
+            ),
+            ChangeNotifierProvider<BookshelfProvider>.value(
+              value: bootstrap.bookshelf,
+            ),
+            ChangeNotifierProxyProvider<SettingsProvider, TtsEngineService>(
+              create: (ctx) {
+                final settings = ctx.read<SettingsProvider>();
+                return TtsEngineService(settings);
+              },
+              update: (ctx, settings, prev) =>
+                  prev ?? TtsEngineService(settings),
+            ),
+            ChangeNotifierProxyProvider2<SettingsProvider, TtsEngineService,
+                GameProvider>(
+              create: (ctx) {
+                final gp = GameProvider();
+                gp.soundEnabled = ctx.read<SettingsProvider>().sound;
+                gp.onUserMove =
+                    () => ctx.read<TtsEngineService>().notifyUserActivity();
+                return gp;
+              },
+              update: (ctx, settings, tts, prev) {
+                prev?.soundEnabled = settings.sound;
+                prev?.onUserMove = () => tts.notifyUserActivity();
+                return prev ?? GameProvider();
+              },
+            ),
+            ChangeNotifierProxyProvider<TtsEngineService, ReaderProvider>(
+              create: (ctx) => ReaderProvider(ctx.read<TtsEngineService>()),
+              update: (ctx, tts, previous) => previous ?? ReaderProvider(tts),
+            ),
+          ],
+          child: const _Bootstrapper(),
+        );
+      },
     );
   }
 }

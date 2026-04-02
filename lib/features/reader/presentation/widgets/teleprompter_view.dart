@@ -6,6 +6,7 @@ import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_shadows.dart';
+import 'package:yueyou/core/utils/safe_string.dart';
 
 /// 🔥 赛博 KTV 提词器 - 音乐播放器居中滚动风格
 /// 架构：AnimationController 驱动逐字进度，TextPainter 计算已读宽度
@@ -258,12 +259,12 @@ class _TeleprompterViewState extends State<TeleprompterView>
                                   children: [
                                     // 已读：亮青色 + 发光
                                     TextSpan(
-                                      text: text.substring(0, charIndex),
+                                      text: safeSubstring(text, 0, charIndex),
                                       style: _readStyle,
                                     ),
                                     // 未读：暗色
                                     TextSpan(
-                                      text: text.substring(charIndex),
+                                      text: safeSubstring(text, charIndex, text.length),
                                       style: _unreadStyle.copyWith(
                                         color: CyberColors.whiteMuted
                                             .withOpacity(

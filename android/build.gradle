@@ -14,9 +14,13 @@ allprojects {
 
 rootProject.buildDir = "../build"
 subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
+    // 🔥 仅对同盘符的 :app 模块重定向 buildDir
+    // 跨盘符插件（如 C 盘的 Pub Cache）保留默认路径，避免 "different roots" 异常
+    afterEvaluate { project ->
+        if (project.projectDir.absolutePath.startsWith(rootProject.projectDir.absolutePath)) {
+            project.buildDir = "${rootProject.buildDir}/${project.name}"
+        }
+    }
     project.evaluationDependsOn(":app")
 }
 

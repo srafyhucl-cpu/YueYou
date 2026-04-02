@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../../core/config/tts_config.dart';
+import '../../../core/utils/safe_string.dart';
 
 /// 抽象接口，用于测试时注入 Mock
 abstract class TtsAudioPlayer {
@@ -130,13 +131,13 @@ class TtsEngineService extends ChangeNotifier {
   int _loopSession = 0;
   bool _wakeLockHeld = false;
 
-  // 🔥 预加载队列：文件路径 + 真实行号绑定，彻底消灭 _currentPlayingIndex
+  // 预加载队列：文件路径 + 真实行号绑定，彻底消灭 _currentPlayingIndex
   final List<_PrefetchedAudio> _prefetchedItems = [];
 
   // 循环控制
   bool _playLoopActive = false;
   bool _prefetchLoopActive = false;
-  bool _startingLoops = false; // 🔥 启动锁：防止 _heartbeat 并发重复启动
+  bool _startingLoops = false; // 启动锁：防止 _heartbeat 并发重复启动
   TtsAudioItem? _currentItem;
 
   // 空闲超时计时器
@@ -236,6 +237,11 @@ class TtsEngineService extends ChangeNotifier {
     _clearLastError();
   }
 
+  /// 设置 TTS 错误信息，供外部模块（如 ReaderProvider 前置拦截）使用。
+  void setLastError(String message) {
+    _setLastError(message);
+  }
+
   void _syncSettingsInternal({
     required bool storyTts,
     required double ttsRate,
@@ -279,6 +285,9 @@ class TtsEngineService extends ChangeNotifier {
 
   Future<void> _initTtsHardware() async {
     try {
+      // 任务 1.1：回收上一次 Session 遗留的垃圾 MP3 文件
+      await _cleanupOrphanedTtsFiles();
+
       _voice = _settings.voice;
       _volume = _settings.ambientVol;
       _playbackRate = _settings.ttsRate;
@@ -288,7 +297,7 @@ class TtsEngineService extends ChangeNotifier {
       await _audioPlayer.setPlaybackRate(_playbackRate);
 
       _initCompleted = true;
-      debugPrint('🎵 双轨流媒体TTS引擎已初始化 (enabled=$_isEnabled)');
+      debugPrint(' 双轨流媒体TTS引擎已初始化 (enabled=$_isEnabled)');
       if (_isEnabled && !_disposed) {
         _scheduleIdleTimer();
         if (_prefetchedItems.isEmpty) {
@@ -296,19 +305,50 @@ class TtsEngineService extends ChangeNotifier {
         }
         Future.microtask(() {
           if (!_disposed && _isEnabled) {
-            debugPrint('🚀 初始化完成后启动双轨循环...');
+            debugPrint(' 初始化完成后启动双轨循环...');
             _heartbeat();
           }
         });
       }
     } catch (e) {
-      debugPrint('⚠️ TTS 引擎初始化失败: $e');
+      debugPrint(' TTS 引擎初始化失败: $e');
       _initCompleted = true;
     }
   }
 
   Future<void> init() async {
     // 流媒体引擎无需额外初始化
+  }
+
+  /// 任务 1.1：遍历临时目录，清理所有 tts_*.mp3 残留文件
+  Future<void> _cleanupOrphanedTtsFiles() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final dir = Directory(tempDir.path);
+      if (!await dir.exists()) return;
+
+      final entities = dir.listSync();
+      int cleaned = 0;
+      for (final entity in entities) {
+        if (entity is File) {
+          final name = entity.path.split(Platform.pathSeparator).last;
+          // 匹配 tts_*.mp3 模式
+          if (name.startsWith('tts_') && name.endsWith('.mp3')) {
+            // 跳过当前 Session 正在使用的文件
+            if (entity.path == _lastGeneratedAudioPath) continue;
+            try {
+              await entity.delete();
+              cleaned++;
+            } catch (_) {}
+          }
+        }
+      }
+      if (cleaned > 0) {
+        debugPrint(' 已回收 $cleaned 个残留 TTS 临时文件');
+      }
+    } catch (e) {
+      debugPrint(' 清理残留 TTS 文件失败: $e');
+    }
   }
 
   /// API兼容层：写死返回音色列表
@@ -326,10 +366,10 @@ class TtsEngineService extends ChangeNotifier {
   FutureOr<void> Function(TtsAudioItem item)? onItemFinished;
 
   void play() {
-    // 🔥 精准修复：直接恢复播放，不销毁队列
+    // 精准修复：直接恢复播放，不销毁队列
     if (!_isEnabled) {
       setEnabled(true);
-      // 🔥 启用后继续执行，而不是返回
+      // 启用后继续执行，而不是返回
     }
     _clearLastError();
     _audioPlayer.resume();
@@ -340,7 +380,7 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   void pause() {
-    // 🔥 精准修复：直接暂停，绝不清空队列
+    // 精准修复：直接暂停，绝不清空队列
     _audioPlayer.pause();
     _setPlaybackFlags(isSpeaking: false, isBuffering: _isBuffering);
     _syncWakeLock(false);
@@ -350,7 +390,7 @@ class TtsEngineService extends ChangeNotifier {
     if (_isEnabled == enabled) return;
     // Check if there is book content before enabling TTS
     if (enabled && onNeedPrefetch == null) {
-      debugPrint('⚠️ 无法开启 TTS：当前没有书籍内容 (onNeedPrefetch 未绑定)');
+      debugPrint(' 无法开启 TTS：当前没有书籍内容 (onNeedPrefetch 未绑定)');
       _setLastError('无法开启 TTS：请先导入书籍');
       return;
     }
@@ -358,11 +398,11 @@ class TtsEngineService extends ChangeNotifier {
     if (enabled) {
       // Since onNeedPrefetch might be async, we can't directly check the result here
       // Instead, we'll let it enable but stop loops if no content is fetched
-      debugPrint('🔍 检查书籍内容...');
+      debugPrint(' 检查书籍内容...');
     }
     _isEnabled = enabled;
     notifyListeners();
-    debugPrint('🎵 TTS setEnabled: $enabled (session=$_loopSession)');
+    debugPrint(' TTS setEnabled: $enabled (session=$_loopSession)');
     // 只在手动切换时清除错误，自动关闭（如无内容）时保留错误以便提示用户
     if (!enabled && _lastError == null) {
       _clearLastError();
@@ -373,20 +413,20 @@ class TtsEngineService extends ChangeNotifier {
       if (_prefetchedItems.isEmpty) {
         _setPlaybackFlags(isSpeaking: false, isBuffering: true);
       }
-      debugPrint('🚀 启动双轨循环...');
-      // 🔥 不再强制重置循环标志位：现有循环会自然检测 _isEnabled 并恢复
+      debugPrint(' 启动双轨循环...');
+      // 不再强制重置循环标志位：现有循环会自然检测 _isEnabled 并恢复
       // 只在循环确实不在运行时才启动新循环
       _heartbeat();
     } else {
       // 禁用时取消空闲计时器
       _idleTimer?.cancel();
-      _currentItem = null; // 🔥 关键修复：置空当前项，防止 stop 触发 onItemFinished 导致跳句
+      _currentItem = null; // 关键修复：置空当前项，防止 stop 触发 onItemFinished 导致跳句
       _audioPlayer.stop();
       _setPlaybackFlags(isSpeaking: false, isBuffering: false);
       // 确保可以关闭 TTS
       _playLoopActive = false;
       _prefetchLoopActive = false;
-      debugPrint('🛑 TTS 已关闭');
+      debugPrint(' TTS 已关闭');
     }
   }
 
@@ -406,24 +446,24 @@ class TtsEngineService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 🔥 切章核心：同步递增 session，立即停播，清空队列，重启循环
+  /// 切章核心：同步递增 session，立即停播，清空队列，重启循环
   void refreshSession() {
     _loopSession++;
-    debugPrint('🔄 refreshSession: session=$_loopSession');
+    debugPrint(' refreshSession: session=$_loopSession');
     _audioPlayer.stop();
     _clearLastError();
     _currentItem = null;
     _setPlaybackFlags(isSpeaking: false, isBuffering: false);
     _clearPrefetchQueue();
 
-    // 🔥 不再强制重置循环标志位：旧循环通过 session 不匹配自动退出
+    // 不再强制重置循环标志位：旧循环通过 session 不匹配自动退出
     // _loopSession 已递增，旧循环在下一次 while 检查时会发现 session 不匹配并退出
     // 退出后 finally 中会正确重置标志位（仅当 session 仍匹配时）
     _startingLoops = false;
 
     if (_isEnabled) {
       _scheduleIdleTimer();
-      // 🔥 延迟一个微任务启动新循环，给旧循环退出的机会
+      // 延迟一个微任务启动新循环，给旧循环退出的机会
       Future.microtask(() {
         if (!_disposed && _isEnabled) _heartbeat();
       });
@@ -442,7 +482,8 @@ class TtsEngineService extends ChangeNotifier {
     if (minutes <= 0) return;
     _idleTimer = Timer(Duration(minutes: minutes), () {
       if (_isEnabled && !_disposed) {
-        debugPrint('⏰ 空闲超时 ${minutes}min，自动暂停 TTS');
+        debugPrint(' 空闲超时 ${minutes}min，自动暂停 TTS');
+        _setLastError('空闲超时，自动暂停 TTS');
         setEnabled(false);
         _settings.setStoryTts(false);
       }
@@ -669,8 +710,7 @@ class TtsEngineService extends ChangeNotifier {
           lineIndex: realLineIndex,
           text: prefetched.text,
           title: prefetched.text.isNotEmpty
-              ? prefetched.text.substring(
-                  0, prefetched.text.length > 20 ? 20 : prefetched.text.length)
+              ? safeSubstring(prefetched.text, 0, 20)
               : 'Untitled',
           estimatedDuration: const Duration(seconds: 5), // Placeholder duration
         );
@@ -736,8 +776,19 @@ class TtsEngineService extends ChangeNotifier {
             await sub.cancel();
           }
         } on TimeoutException catch (e) {
-          debugPrint('⚠️ 播放超时: $e');
-          // 超时后继续下一条，不卡死
+          debugPrint('⚠️ 音频加载超时: $e');
+          await _audioPlayer.stop();
+          _audioPlayer.pause();
+          _setLastError('音频加载超时，已暂停');
+          _setPlaybackFlags(isSpeaking: false, isBuffering: false);
+          _syncWakeLock(false);
+          return;
+        } catch (e) {
+          debugPrint('⚠️ 播放异常，已暂停: $e');
+          await _audioPlayer.stop();
+          _setPlaybackFlags(isSpeaking: false, isBuffering: false);
+          _syncWakeLock(false);
+          rethrow;
         } finally {
           try {
             await File(filePath).delete();
@@ -885,6 +936,7 @@ class TtsEngineService extends ChangeNotifier {
   /// 🛠️ TTS 连接测试工具
   /// 返回详细的诊断信息，帮助排查问题
   Future<Map<String, dynamic>> testConnection() async {
+    final String voice = _initCompleted ? _voice : _settings.voice;
     final result = <String, dynamic>{
       'success': false,
       'serverUrl': _config.serverUrl,
@@ -919,7 +971,7 @@ class TtsEngineService extends ChangeNotifier {
           .post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'text': testText, 'voice': _voice}),
+        body: jsonEncode({'text': testText, 'voice': voice}),
       )
           .timeout(
         const Duration(seconds: 10),
@@ -1090,13 +1142,6 @@ class TtsEngineService extends ChangeNotifier {
     _setPlaybackFlags(
         isSpeaking: false, isBuffering: _prefetchedItems.isNotEmpty);
     _heartbeat();
-  }
-
-  bool _checkNoBookContent() {
-    // Check if there is no book content by attempting to fetch a sentence
-    if (onNeedPrefetch == null) return true;
-    // A more robust check could be implemented here if needed, but for now, rely on onNeedPrefetch returning null consistently as an indicator of no content
-    return false;
   }
 }
 

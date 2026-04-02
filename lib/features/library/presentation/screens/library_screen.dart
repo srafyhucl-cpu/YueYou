@@ -289,7 +289,8 @@ class _BookCard extends StatelessWidget {
       ),
     );
     if (confirmed == true && context.mounted) {
-      await context.read<BookshelfProvider>().deleteBook(book.id);
+      final reader = context.read<ReaderProvider>();
+      await context.read<BookshelfProvider>().deleteBook(book.id, reader: reader);
     }
   }
 }

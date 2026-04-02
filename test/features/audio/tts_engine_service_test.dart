@@ -923,8 +923,15 @@ void main() {
           return TtsAudioRequest(lineIndex: 3, text: '这是一句测试文本', title: 't');
         };
 
+        await pumpEventQueue(times: 20);
         service.setEnabled(true);
-        for (int i = 0; i < 200 && throwingPlayer.setSourceCalls == 0; i++) {
+        for (int i = 0; i < 200 && httpClient.postCalls == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+        for (int i = 0; i < 400 && service.bufferedCount == 0; i++) {
+          await pumpEventQueue(times: 1);
+        }
+        for (int i = 0; i < 400 && throwingPlayer.setSourceCalls == 0; i++) {
           await pumpEventQueue(times: 1);
         }
 

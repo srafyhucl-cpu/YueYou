@@ -1,7 +1,71 @@
 # 阅游 (YueYou) 项目开发日志
  
 ---
- 
+
+### **2026-04-02**
+- **重构(TTS)**: TTS 服务架构重构，适配新后端 API 两步下载流程（POST 获取 URL + GET 下载音频），并修复无书籍时开启 TTS 的问题。
+  - **架构变更**:
+    - 重构 `TtsHttpClient` 抽象，新增 `download()` 方法支持独立音频文件下载
+    - 替换原有直接写入响应体逻辑为两步下载：先 POST JSON 获取音频 URL，再 GET 下载到本地缓存
+    - 新增临时文件清理机制，避免磁盘空间泄漏
+  - **错误处理增强**:
+    - 新增 `TtsErrorListener` 全局错误监听组件，通过 `MaterialApp.builder` 集成到应用根节点
+    - TTS 错误时自动显示 SnackBar 提示用户（如"无法继续 TTS：没有可读取的内容，请先导入书籍"）
+    - 优化 `setEnabled()` 错误清除逻辑，区分用户手动关闭与系统自动关闭场景，保留错误信息供 UI 展示
+  - **无书籍保护机制**:
+    - 连续 11 次 `onNeedPrefetch` 返回 null 后自动停止 TTS 并显示错误提示
+    - 自动关闭前通过 `Future.microtask` 延迟执行，确保监听器先收到错误事件
+  - **文件导入优化**:
+    - 优化 UTF-8 解码逻辑，添加字节级有效性检查 `_isValidUtf8()`，避免不必要的 `FormatException`
+    - 解码策略：UTF-8 严格校验 → GBK 容错解码 → UTF-8 宽松解码三层兜底
+  - **测试适配**:
+    - 修复 `play/pause` 单元测试，绑定 `onNeedPrefetch` 回调以适配新的启用检查逻辑
+    - 更新所有 Mock HTTP Client 实现，适配新 `TtsHttpClient` 接口
+  - **验证结果**: 单元测试全部通过（199/199），代码已提交并推送到 `yueyou_test` 分支。
+  - **提交记录**: Commit ID `e05005d` - "修复TTS无书籍时自动关闭及添加错误提示"
+- **优化(模块一：核心防呆与全域容错机制)**: 按 `optimization_tasks.md` 收口模块一剩余任务，补齐临时文件回收、安全截断和播放超时可见化暂停。
+  - **1.1 临时音频文件回收**:
+    - 在 `TtsEngineService` 初始化阶段扫描临时目录，主动清理历史遗留的 `tts_*.mp3` 文件
+    - 保留当前会话仍可能使用的文件路径，降低强杀 App 后的缓存泄漏风险
+  - **1.3 删除书籍级联重置**:
+    - 确认 `BookshelfProvider.deleteBook()` 已在删除当前阅读书籍时联动 `ReaderProvider.resetForDeletedBook()`
+    - 删除后同步停止 TTS、清空句子/章节/进度状态，避免幽灵章节与越界读取
+  - **1.4 提词器安全截断**:
+    - 将 `TextParser._emergencySplit()` 中的直接 `substring()` 全部替换为 `safeSubstring()`
+    - 统一收口长句切分与提词器高亮切片的越界保护，降低 Emoji / 特殊字符触发 `RangeError` 的风险
+  - **1.5 播放超时显式暂停**:
+    - `setSource` / 音频加载超时后不再静默跳句，而是显式 `stop + pause`
+    - 通过 `lastError` 抛出“音频加载超时，已暂停”状态，交由 UI 提示用户手动恢复
+    - 同步保留 `testConnection()` 在初始化未完成场景下的可测性，避免 `LateInitializationError`
+  - **测试验证**:
+    - `flutter test test/features/audio/tts_engine_service_test.dart` 通过
+    - `flutter test test/features/reader/teleprompter_view_test.dart` 通过
+    - `flutter analyze lib/features/audio/services/tts_engine_service.dart lib/features/reader/domain/text_parser.dart lib/features/library/providers/bookshelf_provider.dart lib/features/reader/providers/reader_provider.dart` 通过
+
+- **优化(模块二：内存与状态管理加固)**: 按 `optimization_tasks.md` 继续推进模块二，优先完成高收益的状态持久化、防竞态启动和 UI 状态解耦。
+  - **2.2 2048 持久化防抖**:
+    - 为 `GameProvider` 增加可配置的持久化防抖调度，默认 1 秒合并多次写入
+    - 在 `AppLifecycleState.paused` 时主动 `flushPersistState()`，避免后台切换时丢档
+    - 测试环境使用 `Duration.zero` 关闭防抖，避免挂起 `Timer` 污染单测生命周期
+  - **2.3 GameOver 事件化**:
+    - 从 `GameProvider` 中移除 `showGameOverDialog` 与 `dismissGameOver()` 等 UI 状态
+    - Provider 仅保留 `isOver` 领域状态，并通过 `onGameOver` 广播事件通知界面层
+    - `SquareBoard` 改为本地维护弹窗显隐，监听事件后显示，点击取消/重开时仅操作本地 UI 状态
+  - **2.4 启动显式预加载**:
+    - `main.dart` 改为启动时先显式加载 `SettingsProvider` / `BookshelfProvider`
+    - 预加载完成后再构建 `MultiProvider` 与 `TtsEngineService`，降低首屏阶段的 Provider 启动竞态
+  - **2.1 TXT 导入流式读取 + Isolate 生命周期管理**:
+    - `FileImportService` 从 `compute` 迁移到 `Isolate.spawn`，提供 `cancelImport()` 主动终止能力
+    - 彻底移除 `readAsBytes()`，主线程只传文件路径给 Isolate
+    - Isolate 内部采用 `File.openRead()` 流式读取 → 编码解码 → `LineSplitter` 行切分，内存中不再同时驻留原始字节和解码字符串
+    - 编码检测改为采样前 8KB 判断 UTF-8/GBK，新增 `_isValidUtf8Sample` 允许尾部截断的不完整序列
+    - BOM 处理通过 `file.openRead(3)` 跳过前 3 字节，无需额外内存拷贝
+  - **测试验证**:
+    - `flutter test test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart test/widget_test.dart` 通过
+    - `flutter analyze lib/features/game_2048/providers/game_provider.dart lib/features/game_2048/presentation/widgets/square_board.dart test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart lib/main.dart` 通过
+
+---
+
 ### **2026-04-01**
 - **修复(TTS)**: 修复了暂停后恢复播放时偶发跳句的问题，播放循环现在仅在音频自然播放完成时才推进到下一句，避免暂停、切章、超时等中断场景误触发 `onItemFinished`。
 - **修复(提词器)**: 优化了 `TeleprompterView` 与 `ReaderProvider`、`TtsEngineService` 的状态同步链路，确保暂停时提词器立即停止，暂停状态下切换句子时能正确重置进度。

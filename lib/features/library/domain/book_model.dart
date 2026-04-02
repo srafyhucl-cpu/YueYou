@@ -1,3 +1,5 @@
+import '../../../core/utils/safe_string.dart';
+
 /// 书架书目模型
 /// 对应旧版 JS local_bookshelf 数组中的单个对象: { id, title, total, cursor }
 class BookModel {
@@ -43,7 +45,7 @@ class BookModel {
 
   /// 封面首字（对应 JS coverChar）
   String get coverChar =>
-      displayTitle.isNotEmpty ? displayTitle.substring(0, 1) : '?';
+      displayTitle.isNotEmpty ? safeSubstring(displayTitle, 0, 1) : '?';
 }
 
 /// 章节索引模型

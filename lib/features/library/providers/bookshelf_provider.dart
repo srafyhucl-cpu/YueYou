@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/database/storage_service.dart';
 import '../domain/book_model.dart';
+import '../../reader/providers/reader_provider.dart';
 
 /// 书架状态管理 Provider
 /// 完整复刻旧版 local_bookshelf + ProgressManager + LocalDB.js 的业务闭环
@@ -61,7 +62,11 @@ class BookshelfProvider with ChangeNotifier {
   }
 
   /// 删除书籍 —— 对应 JS deleteBook：清理书架 + LocalDB + ProgressManager
-  Future<void> deleteBook(int id) async {
+  /// 🔥 任务 1.3：若删除的是当前阅读中的书籍，同步重置 ReaderProvider 状态
+  Future<void> deleteBook(int id, {ReaderProvider? reader}) async {
+    // 级联删除：先重置阅读器，再清数据
+    reader?.resetForDeletedBook(id.toString());
+
     _shelf.removeWhere((b) => b.id == id);
     await Future.wait([
       StorageService.saveBookshelf(_shelf.map((b) => b.toJson()).toList()),

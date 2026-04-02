@@ -65,7 +65,11 @@ void main() {
 
   group('SquareBoard Widget Tests', () {
     testWidgets('渲染基础棋盘网格', (tester) async {
-      final provider = GameProvider(autoLoadState: false)..soundEnabled = false;
+      final provider = GameProvider(
+        autoLoadState: false,
+        persistDebounceDuration: Duration.zero,
+      )..soundEnabled = false;
+      addTearDown(provider.dispose);
       await tester.pumpWidget(createTestableWidget(provider));
       await tester
           .pump(); // SquareBoard has animations, but shouldn't settle if repeating
@@ -75,7 +79,11 @@ void main() {
     });
 
     testWidgets('渲染方块及其数值', (tester) async {
-      final provider = GameProvider(autoLoadState: false)..soundEnabled = false;
+      final provider = GameProvider(
+        autoLoadState: false,
+        persistDebounceDuration: Duration.zero,
+      )..soundEnabled = false;
+      addTearDown(provider.dispose);
       provider.board = List.generate(4, (_) => List.filled(4, null));
       provider.board[0][0] = const TileModel(id: 1, value: 2);
       provider.board[1][1] = const TileModel(id: 2, value: 2048);
@@ -88,7 +96,11 @@ void main() {
     });
 
     testWidgets('手势滑动触发 move', (tester) async {
-      final provider = GameProvider(autoLoadState: false)..soundEnabled = false;
+      final provider = GameProvider(
+        autoLoadState: false,
+        persistDebounceDuration: Duration.zero,
+      )..soundEnabled = false;
+      addTearDown(provider.dispose);
       provider.board = List.generate(4, (_) => List.filled(4, null));
       provider.board[0][3] = const TileModel(id: 1, value: 2);
 
@@ -105,9 +117,12 @@ void main() {
     });
 
     testWidgets('游戏结束显示弹窗并可点击复制战绩', (tester) async {
-      final provider = GameProvider(autoLoadState: false)..soundEnabled = false;
+      final provider = GameProvider(
+        autoLoadState: false,
+        persistDebounceDuration: Duration.zero,
+      )..soundEnabled = false;
+      addTearDown(provider.dispose);
       provider.isOver = true;
-      provider.showGameOverDialog = true;
       provider.score = 5000;
       provider.board = List.generate(4, (_) => List.filled(4, null));
       provider.board[0][0] = const TileModel(id: 1, value: 1024);
@@ -132,9 +147,12 @@ void main() {
     });
 
     testWidgets('点击重新开始按钮重置游戏', (tester) async {
-      final provider = GameProvider(autoLoadState: false)..soundEnabled = false;
+      final provider = GameProvider(
+        autoLoadState: false,
+        persistDebounceDuration: Duration.zero,
+      )..soundEnabled = false;
+      addTearDown(provider.dispose);
       provider.isOver = true;
-      provider.showGameOverDialog = true;
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump(const Duration(milliseconds: 100));
@@ -145,7 +163,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(provider.isOver, isFalse);
-      expect(provider.showGameOverDialog, isFalse);
+      expect(find.text('游戏结束'), findsNothing);
     });
   });
 }

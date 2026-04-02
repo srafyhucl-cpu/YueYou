@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../core/utils/safe_string.dart';
 
 /// 解析结果：句子列表 + 每句对应的原始行号
 class ParseResult {
@@ -76,21 +77,21 @@ class TextParser {
     while (start < longText.length) {
       int end = start + limit;
       if (end >= longText.length) {
-        chunks.add(longText.substring(start));
+        chunks.add(safeSubstring(longText, start, longText.length));
         break;
       }
 
       // 在阈值范围内寻找最佳断点
-      final sub = longText.substring(start, end);
+      final sub = safeSubstring(longText, start, end);
       // 匹配中英文逗号、空格、顿号
       int lastBreak = sub.lastIndexOf(RegExp(r'[，, 、\s]'));
 
       // 如果断点位置合理（超过阈值的 70%），则在此处截断；否则强制物理截断
       if (lastBreak != -1 && lastBreak > limit * 0.7) {
-        chunks.add(longText.substring(start, start + lastBreak + 1));
+        chunks.add(safeSubstring(longText, start, start + lastBreak + 1));
         start += lastBreak + 1;
       } else {
-        chunks.add(longText.substring(start, end));
+        chunks.add(safeSubstring(longText, start, end));
         start = end;
       }
     }

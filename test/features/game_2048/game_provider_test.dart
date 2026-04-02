@@ -29,7 +29,8 @@ int _boardSum(GameProvider p) {
 }
 
 /// 辅助：创建已关闭音效的 GameProvider（避免测试中触发平台 HapticFeedback）
-GameProvider _newProvider() => GameProvider()..soundEnabled = false;
+GameProvider _newProvider() =>
+    GameProvider(persistDebounceDuration: Duration.zero)..soundEnabled = false;
 
 void _mockAudioChannels() {
   const MethodChannel global = MethodChannel('xyz.luan/audioplayers.global');
@@ -82,10 +83,6 @@ void main() {
 
     test('初始 isOver 为 false', () {
       expect(_newProvider().isOver, isFalse);
-    });
-
-    test('初始 showGameOverDialog 为 false', () {
-      expect(_newProvider().showGameOverDialog, isFalse);
     });
 
     test('新方块值只能是 2 或 4', () {
@@ -228,7 +225,7 @@ void main() {
   });
 
   group('GameProvider - 游戏结束', () {
-    test('棋盘满且无相邻相同值时触发 isOver', () {
+    test('棋盘满且无相邻相同值时触发 isOver', () async {
       final p = _newProvider();
       int id = 0;
       p.board = [
@@ -257,26 +254,24 @@ void main() {
           TileModel(id: id++, value: 2)
         ],
       ];
+      int events = 0;
+      final sub = p.onGameOver.listen((_) => events++);
+      addTearDown(sub.cancel);
       p.move(Direction.left);
+      await pumpEventQueue(times: 1);
       expect(p.isOver, isTrue);
-      expect(p.showGameOverDialog, isTrue);
+      expect(events, equals(1));
     });
 
-    test('dismissGameOver 关闭弹窗但 isOver 保持 true', () {
+    test('isOver 为 true 时再次 move 会再次派发 gameOver 事件', () async {
       final p = _newProvider();
+      int events = 0;
+      final sub = p.onGameOver.listen((_) => events++);
+      addTearDown(sub.cancel);
       p.isOver = true;
-      p.showGameOverDialog = true;
-      p.dismissGameOver();
-      expect(p.isOver, isTrue);
-      expect(p.showGameOverDialog, isFalse);
-    });
-
-    test('isOver 为 true 时再次 move 弹出 showGameOverDialog', () {
-      final p = _newProvider();
-      p.isOver = true;
-      p.showGameOverDialog = false;
       p.move(Direction.left);
-      expect(p.showGameOverDialog, isTrue);
+      await pumpEventQueue(times: 1);
+      expect(events, equals(1));
     });
   });
 
