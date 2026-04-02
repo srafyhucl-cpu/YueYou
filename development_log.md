@@ -2,6 +2,16 @@
  
  ---
  
+### **2026-04-02**
+- **问题描述**: TTS 播放时出现跳句现象，日志显示多个播放循环同时运行，导致 `AudioPlayer` 资源竞争，音频互相打断。
+- **根因分析**: `setEnabled(true)` 和 `refreshSession()` 方法会强制重置循环标志位，导致旧循环未完全退出时新循环启动，造成并发竞争。
+- **修复方案**:
+  - 在 `_startPlayLoop()` 和 `_startPrefetchLoop()` 中捕获启动时的 `mySession`，并在 `while` 条件中检查 `mySession` 是否与当前 `_loopSession` 匹配，确保旧循环自动退出。
+  - 修改 `setEnabled(true)` 逻辑，不再强制重置循环标志位，让现有循环自然恢复。
+  - 修改 `refreshSession()` 逻辑，移除标志位重置，延迟启动新循环，给旧循环退出机会。
+- **验证结果**: 单元测试全部通过（199/199），代码已提交并推送到 `yueyou_test` 分支。
+- **提交记录**: Commit ID `a6e5f30` - "修复 TTS 跳句问题：通过 session 隔离循环实例防止并发竞争"
+
 ### **2026-04-01**
 - **修复(TTS)**: 修复了暂停后恢复播放时偶发跳句的问题，播放循环现在仅在音频自然播放完成时才推进到下一句，避免暂停、切章、超时等中断场景误触发 `onItemFinished`。
 - **修复(提词器)**: 优化了 `TeleprompterView` 与 `ReaderProvider`、`TtsEngineService` 的状态同步链路，确保暂停时提词器立即停止，暂停状态下切换句子时能正确重置进度。
