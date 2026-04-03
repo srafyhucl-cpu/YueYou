@@ -875,14 +875,23 @@ class TtsEngineService extends ChangeNotifier {
           return (filePath: null, attempts: attempts);
         }
 
-        final dynamic decoded = jsonDecode(response.body);
+        final String responseBody = response.body.trim();
+        debugPrint(
+            '🔴 TTS 服务器原始响应内容: ${responseBody.length > 100 ? responseBody.substring(0, 100) : responseBody}');
+        if (!(responseBody.startsWith('{') || responseBody.startsWith('['))) {
+          throw const FormatException(
+            'TTS 接口返回的不是 JSON。当前地址可能指向旧版直出音频接口，请改为返回 {"status":"success","url":"..."} 的业务接口。',
+          );
+        }
+
+        final dynamic decoded = jsonDecode(responseBody);
         if (decoded is! Map<String, dynamic>) {
           throw const FormatException('TTS 响应不是合法 JSON 对象');
         }
         final String status = (decoded['status'] as String? ?? '').trim();
         final String audioUrl = (decoded['url'] as String? ?? '').trim();
         if (status != 'success' || audioUrl.isEmpty) {
-          throw FormatException('TTS 响应缺少有效 url: ${response.body}');
+          throw FormatException('TTS 响应缺少有效 url: $responseBody');
         }
 
         debugPrint('[TTS URL] $audioUrl');
@@ -921,6 +930,9 @@ class TtsEngineService extends ChangeNotifier {
         _setLastError('下载TTS音频失败: $e');
         debugPrint(
             '⚠️ 下载TTS音频失败: $e (尝试 ${attempt + 1}/${_config.maxRetries})');
+        if (e is FormatException) {
+          return (filePath: null, attempts: attempts);
+        }
         if (attempt < _config.maxRetries - 1) {
           // 指数退避
           final delay = _config.baseRetryDelay * (1 << attempt);

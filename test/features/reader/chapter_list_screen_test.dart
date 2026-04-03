@@ -48,7 +48,7 @@ class _FakeAudioPlayer implements TtsAudioPlayer {
   Future<void> setPlaybackRate(double rate) async {}
 
   @override
-  Stream<void> get onPlayerComplete => Stream<void>.empty();
+  Stream<void> get onPlayerComplete => const Stream<void>.empty();
 
   @override
   Future<void> dispose() async {}

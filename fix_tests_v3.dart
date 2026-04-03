@@ -175,5 +175,5 @@ void main() {
 
     File(file).writeAsStringSync(content);
   }
-  print("Fixes applied successfully.");
+  stdout.writeln('Fixes applied successfully.');
 }

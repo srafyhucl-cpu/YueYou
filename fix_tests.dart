@@ -74,5 +74,5 @@ void main() {
 
     File(file).writeAsStringSync(content);
   }
-  print("Fix applied.");
+  stdout.writeln('Fix applied.');
 }

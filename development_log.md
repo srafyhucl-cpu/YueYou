@@ -3,6 +3,16 @@
 ---
 
 ### **2026-04-03**
+- **修复(TTS 联调与告警清理)**: 收口一批开发期告警，并为 TTS 新旧接口不匹配场景补充更明确的诊断信息。
+  - **TTS 契约诊断增强**:
+    - 在 `TtsEngineService._downloadTtsAudio()` 中为 POST 响应增加 JSON 形态预检查，避免将 MP3/二进制流误当作 JSON 解析后直接抛出原始 `FormatException`。
+    - 当服务端返回非 JSON 内容时，明确提示当前地址可能指向旧版“直出音频”接口，客户端应接入返回 `{"status":"success","url":"..."}` 的业务接口。
+    - 增加原始响应前 100 字符调试输出，便于真机联调时快速确认后端返回的是 JSON 还是音频流。
+  - **Lint 与测试辅助脚本清理**:
+    - 清理 `fix_tests.dart`、`fix_tests_new.dart`、`fix_tests_v3.dart` 中的字符串拼接告警，统一改为字符串插值。
+    - 将辅助脚本中的 `print` 替换为 `stdout.writeln`，消除开发期 info 级提示。
+    - 为 `tts_contract_test.dart`、`chapter_list_screen_test.dart`、`teleprompter_view_test.dart` 中可常量化的 `Stream.empty()` 与 `Duration` 调用补齐 `const`。
+
 - **架构重构与测试工程化（四阶段整体推进）**: 按优先级分四阶段完成 12 项任务，涵盖测试闭环、生命周期修正、状态解耦、设计系统收口与契约测试。
   - **第一阶段：紧急修复与基础加固**
     - **[P0-1] FileImportService 测试闭环**:
