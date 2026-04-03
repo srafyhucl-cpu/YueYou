@@ -100,6 +100,7 @@
     - `flutter analyze --no-fatal-infos` 通过（仅剩历史 info，0 warning / 0 error）。
     - GitHub Actions `flutter test --coverage` 通过（219 用例）。
     - `file_picker` 的 linux/macos/windows default plugin 提示仍存在，但属于上游插件告警，不影响测试通过。
+    - **补充**: 修复 coverage 场景下 `HTTP 请求抛异常：应指数退避后重试并最终成功` 测试的时序 flaky，将断言从依赖瞬时 `bufferedCount` 改为验证稳定的 `postCalls`、`downloadCalls` 与重试 `delay` 记录，确保 `flutter test --coverage` 在本地也稳定通过（219 passed, 0 failed）。
 
 - **重构(TTS)**: TTS 服务架构重构，适配新后端 API 两步下载流程（POST 获取 URL + GET 下载音频），并修复无书籍时开启 TTS 的问题。
   - **架构变更**:
