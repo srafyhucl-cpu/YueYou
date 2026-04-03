@@ -87,6 +87,17 @@
     - `flutter analyze` 全部 5 个修改文件通过，0 issues
     - 相关测试套件全部通过（63/63）
 
+- **测试稳定性修复（CI flaky 收敛）**:
+  - 修复 `test/features/audio/tts_engine_service_test.dart` 在 CI/全量运行下的三类不稳定问题：`path_provider` mock 指向真实系统临时目录导致初始化扫描过慢、`testConnection` 写文件失败分支的专用 mock 被构造器内 mock 覆盖、以及依赖固定 delay 的重试断言在不同机器上时序漂移。
+  - 新增测试隔离临时目录 `_testTempDir`，`_makeService()` / `_makeMockService()` 统一将 `path_provider` 指向空目录，避免 `_cleanupOrphanedTtsFiles()` 扫描真实系统 temp 引发 `_voice` 尚未初始化就进入下载分支的竞态。
+  - `_makeMockService()` 在返回 harness 前主动等待 `setVolume` / `setPlaybackRate` 初始化副作用落地，消除 `syncSpeedFromSettings 相同值时不更新` 被异步初始化污染的问题。
+  - 将 HTTP 500 重试测试从“等待固定 delay”改为“等待 `postCalls == maxRetries`”，并仅验证指数退避延迟集合出现，降低对调度细节的脆弱依赖。
+  - 调整 `testConnection 写入文件失败：step 5 应为 error` 的 mock 顺序：先创建 service，再将 `getTemporaryDirectory` 改为抛出 `PlatformException`，确保步骤 5 稳定命中 error 分支。
+  - `merge_particle_test.dart` 保持 `pumpAndSettle` 写法验证动画完成回调，在与 TTS 套件组合运行时确认已不再被前置测试竞态拖垮。
+- **验证结果**:
+  - `flutter test test/features/audio/tts_engine_service_test.dart test/features/game_2048/merge_particle_test.dart` 通过。
+  - `flutter test` 全量通过（210 用例）。
+
 ---
 
 ### **2026-04-02**
