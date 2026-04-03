@@ -249,6 +249,7 @@ Future<_Harness> _makeService(
   await StorageService.init();
   _mockAudioplayersChannels();
   _mockWakelockPlusChannel();
+  _mockPathProviderTempDir(Directory.systemTemp.path);
   final settings = SettingsProvider()..loadFromStorage();
   final service = TtsEngineService(settings);
   await pumpEventQueue(times: 20);
@@ -271,6 +272,7 @@ Future<_MockHarness> _makeMockService(
   });
   StorageService.resetForTesting();
   await StorageService.init();
+  _mockPathProviderTempDir(Directory.systemTemp.path);
   final settings = SettingsProvider()..loadFromStorage();
   final fakeAudioPlayer = _FakeAudioPlayer();
   final fakeWakeLock = _FakeWakeLock();
@@ -586,10 +588,15 @@ void main() {
       };
 
       h.service.setEnabled(true);
-      await delay.wait(const Duration(seconds: 3));
+      // 等待所有重试完成（指数退避：2ms + 4ms = 6ms 总延迟）
+      await delay.wait(const Duration(milliseconds: 4));
+      // 确保所有重试完成
+      for (int i = 0; i < 100 && httpClient.postCalls < cfg.maxRetries; i++) {
+        await pumpEventQueue(times: 1);
+      }
 
       expect(httpClient.postCalls, equals(cfg.maxRetries));
-      expect(delay.has(const Duration(seconds: 3)), isTrue);
+      expect(delay.has(const Duration(milliseconds: 4)), isTrue);
       h.service.setEnabled(false);
       h.service.dispose();
     });

@@ -27,7 +27,7 @@ void main() {
     expect(completed, isFalse);
 
     // 等待动画结束 (duration is 400ms)
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
     expect(completed, isTrue);
   });
