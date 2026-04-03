@@ -3,23 +3,67 @@
 ---
 
 ### **2026-04-03**
-- **测试/设计系统工程化(P2-12/13/14)**: 完成测试基础设施收口、Reader/2048 相关失败用例修复，以及 Dashboard / Teleprompter / Settings 的设计 token 清理。
-  - **测试工程化**:
-    - 新增并统一接入 `test/utils/test_utils.dart`，集中初始化 `SharedPreferences`、`StorageService` 与平台通道 mock，降低测试重复样板代码。
-    - 修复 `chapter_list_screen_test.dart`：改为使用真实 `ReaderProvider + TtsEngineService` API，并通过注入固定 `ParseResult` 的方式去除过重解析链路，解决 Widget Test 卡住问题。
-    - 修复 `teleprompter_view_test.dart`：关闭测试场景下自动 TTS 播放，补齐 `ReaderProvider / TtsEngineService` 的资源释放，消除全量测试中的定时器泄漏与跨用例污染。
-    - 修复 `game_provider_test.dart` 中 2 个过时期望：
-      - “无有效移动时不新增方块” 改为真正不可移动棋盘。
-      - “每个方块在同一次移动中只能合并一次” 改为符合当前 2048 单次合并语义的断言。
-  - **设计系统收口**:
-    - 为 `CyberDimensions` 补充细粒度尺寸 token：`spacingXXS`、`teleprompterHeight`、`teleprompterMaskWidth`、`dashboardMascotWidth`、`dashboardMascotHeight`、`dashboardBoardBuffer`、`dashboardStatusCardMinHeight`。
-    - 为 `CyberTextStyles` 补充复用样式 token：`overlineTiny`、`segmentLabel`、`teleprompterInlineRead`、`teleprompterInlineUnread`、`teleprompterError`、`teleprompterPlaceholder`、`dashboardCounter`、`dashboardSeparator`、`captionBold`、`captionTight`、`captionComfortable`、`captionHint`。
-    - 清理 `dashboard_screen.dart` 中顶部工具栏、状态卡、分数计数器与吉祥物布局残留硬编码。
-    - 清理 `teleprompter_view.dart` 中电传屏高度、左右遮罩、中心指示线、错误提示与占位文案的残余魔法数字与内联文本样式。
-    - 清理 `settings_screen.dart` 中说明文案、倍速芯片、TTS 结果面板、音量百分比与空闲暂停说明区域的细碎样式硬编码。
+- **架构重构与测试工程化（四阶段整体推进）**: 按优先级分四阶段完成 12 项任务，涵盖测试闭环、生命周期修正、状态解耦、设计系统收口与契约测试。
+  - **第一阶段：紧急修复与基础加固**
+    - **[P0-1] FileImportService 测试闭环**:
+      - 新增 `_activeImportToken` 令牌机制，`cancelImport()` 递增令牌后旧 Isolate 返回值自动丢弃，消除取消后残留回调写入脏状态的竞态。
+      - 暴露 `parseFileForTesting()`、`isValidUtf8SampleForTesting()`、`stripUtf8BomForTesting()` 三个测试入口，无需 mock Isolate 即可直接验证流式解析、BOM 跳过与编码检测。
+      - 新增 `test/features/library/file_import_service_test.dart`：覆盖正常解析、BOM 跳过与空行过滤、不存在文件返回 null 三个用例。
+      - `CyberImportButton` 从 `StatelessWidget` 改为 `StatefulWidget`，`dispose()` 中主动 `cancelImport()`，防止页面销毁后 Isolate 仍在后台运行。
+    - **[P0-2] main.dart bootstrap 生命周期修正**:
+      - `YueYouApp` 从 `StatelessWidget` 改为 `StatefulWidget`，将 `_loadBootstrapData()` 的 `Future` 缓存到 `initState()` 的 `_bootstrapFuture` 字段。
+      - `FutureBuilder` 绑定稳定引用，彻底消除 `build()` 每次重建都触发异步初始化的副作用（违反红线规则 1）。
+    - **[P0-3] ReaderProvider 通知粒度优化**:
+      - 新增 `_lastTtsEnabled`、`_lastTtsSpeaking`、`_lastTtsBuffering` 三个快照字段，`_onTtsEngineChanged()` 中逐字段 diff，仅在值真正变化时才 `notifyListeners()`。
+      - 移除原先无条件 `changed = true` 的粗粒度通知，降低提词器在 TTS 缓冲期间的无效重绘频率。
+  - **第二阶段：UI 解耦与设计系统第一轮收口**
+    - **[P0-4] 模块三 design token 第一轮收口**:
+      - `CyberConfirmDialog` 剥离底层 `showGeneralDialog` 逻辑，改为 `showCyberModal` 的 `child` 传入，消除弹窗代码重复。
+      - 弹窗消息文本区包裹 `Flexible` + `SingleChildScrollView`，系统字体放大 200% 时可滑动查看。
+      - `cyber_modal.dart` 中硬编码边距/圆角/模糊值全部替换为 `CyberDimensions.radiusL`、`blurStrong`、`borderThick`、`spacingXL`。
+      - `LibraryScreen` 标题栏、空态文案、书籍卡片内间距/字号/删除按钮全部收口至 `CyberDimensions` + `CyberTextStyles`。
+      - `ChapterListScreen` 标题栏、进度摘要、章节行间距/图标尺寸/排序按钮全部收口至 `CyberDimensions` + `CyberTextStyles`。
+      - 书籍删除确认弹窗从手写 `AlertDialog` 迁移到 `showCyberConfirmDialog`，统一视觉规范。
+    - **[P1-6] toggleTTS() 去 UI 文案耦合**:
+      - `ReaderProvider.toggleTTS()` 返回值从 `void` 改为 `TtsToggleResult` 枚举（`playing` / `paused` / `noContent`），不再内部调用 `setLastError()` 写入 UI 文案。
+      - `CyberPlayerConsole` 在调用侧根据返回值决定是否通过 `ttsEngine.setLastError()` 展示提示，实现 domain 层与 UI 文案的彻底解耦。
+    - **[P1-7] 删除一致性策略明确化**:
+      - `BookshelfProvider.deleteBook()` 的三项持久化清理（书架元数据 / 正文内容 / 阅读记录）从 `Future.wait` 改为独立 `try-catch`，任一失败不影响其他两项。
+      - 内存状态 `_shelf` 先行移除并立即 `notifyListeners()`，确保 UI 瞬时响应；持久化清理在后台 best-effort 执行。
+      - 补充 `test/features/library/bookshelf_provider_test.dart`：覆盖添加/删除/级联重置等场景。
+  - **第三阶段：服务层与状态机解耦**
+    - **[P1-5] 拆 TtsEngineService 接口依赖**:
+      - 测试中 `TtsEngineService` 构造统一注入 `config`、`audioPlayer`、`wakeLock`、`httpClient`、`delayFn` 五个可替换依赖，不再依赖平台通道。
+      - `_FakeHttpClient` / `_FakeAudioPlayer` / `_FakeWakeLock` 统一对齐最新接口签名（`enable/disable` 顺序、`Stream.empty()` 替代 `StreamController`）。
+    - **[P1-8] FileImportService 去静态化准备**:
+      - 暴露三个 `ForTesting` 静态方法，为后续实例化改造预留测试入口，当前仍保持 `static` 以最小化破坏面。
+    - **[P1-9] GameProvider 再解耦**:
+      - 所有公开字段（`board`、`score`、`combo`、`maxCombo`、`bestScore`、`isOver`、`soundEnabled`、`lastMoveNoMerge`、`lastMergedValue`）全部私有化为 `_board`、`_score` 等，通过 getter 暴露只读视图。
+      - 新增 `setStateForTesting()` 方法，测试通过该入口注入棋盘/分数/状态，不再直接赋值私有字段。
+      - `game_provider_test.dart`、`square_board_test.dart` 全量迁移至 `setStateForTesting()` API，消除对内部状态的直接写入。
+  - **第四阶段：契约测试与设计系统工程化**
+    - **[P2-10] TTS 契约测试**:
+      - 新增 `test/features/audio/tts_contract_test.dart`，验证 `TtsEngineService` 严格遵循"分离下载"原则：先 POST 获取 JSON → 解析 `url` 字段 → 再 GET 下载音频。
+      - 覆盖成功响应（验证 `wasDownloadCalled` + `downloadedUrl`）与 500 错误响应（验证不下载 + `lastError` 包含错误信息）两个场景。
+    - **[P2-11] TextParser 不变量测试**:
+      - 扩展 `text_parser_test.dart`，新增 5 项不变量用例：解析结果不丢失有效字符、保持原始顺序、多行输入行号对应、长句截断语义完整性、连续标点符号不导致空句。
+      - 新增软断点回归测试：验证无标点长句优先从助词（的/了/和/与）处截断而非硬切。
+    - **[P2-12/13/14] 测试与设计系统工程化**:
+      - 新增 `test/utils/test_utils.dart`，集中初始化 `SharedPreferences`、`StorageService` 与 6 组平台通道 mock（path_provider / audioplayers / wakelock / haptic / platform / system_sound），所有测试文件统一接入。
+      - 修复 `chapter_list_screen_test.dart`：注入固定 `ParseResult` 去除过重解析链路，解决 Widget Test 卡住问题。
+      - 修复 `teleprompter_view_test.dart`：关闭测试场景自动 TTS 播放，补齐 `ReaderProvider / TtsEngineService` 资源释放，消除定时器泄漏。
+      - 修复 `game_provider_test.dart` 中 2 个过时期望（不可移动棋盘构造 + 单次合并语义断言）。
+      - 新增 `reader_provider_test.dart` 三个用例：`toggleTTS` 无书籍返回 `noContent`、有内容返回 `playing`、相同 TTS 错误不重复通知。
+      - `CyberDimensions` 补充：`spacingXXS`、`teleprompterHeight`、`teleprompterMaskWidth`、`dashboardMascotWidth/Height`、`dashboardBoardBuffer`、`dashboardStatusCardMinHeight`。
+      - `CyberTextStyles` 补充：`overlineTiny`、`segmentLabel`、`teleprompterInlineRead/Unread`、`teleprompterError/Placeholder`、`dashboardCounter/Separator`、`captionBold/Tight/Comfortable/Hint`。
+      - `dashboard_screen.dart`：顶部工具栏、状态卡、分数计数器与吉祥物布局全部 token 化。
+      - `teleprompter_view.dart`：电传屏高度、左右遮罩、中心指示线、错误提示与占位文案全部 token 化。
+      - `settings_screen.dart`：说明文案、倍速芯片边框、TTS 结果面板、音量百分比、空闲暂停说明全部 token 化。
   - **验证结果**:
-    - `flutter test` 全量通过。
-    - 相关修改文件 `flutter analyze` 通过。
+    - `flutter test` 全量通过（219 用例）。
+    - `flutter analyze` 相关修改文件通过。
+    - 35 个文件变更，+2209 / -851 行。
+  - **提交记录**: Commit ID `ed1c4b8` - "完成P2-12/13/14测试与设计系统工程化收尾"
 
 - **优化(模块三：视觉、交互与用户体验)**: 按 `optimization_tasks.md` 完成模块三全部 4 项任务，清剿弹窗硬编码、字体缩放溢出、僵尸弹窗和文本截断体验问题。
   - **3.1 弹窗组件原子化**:
