@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 
 /// 赛博朋克风格全局弹窗封装
 /// 替代 Navigator.push 全屏跳转，点击外部可关闭
@@ -28,17 +29,18 @@ Future<T?> showCyberModal<T>({
               child: FadeTransition(
                 opacity: animation,
                 child: Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 64),
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: CyberDimensions.spacingXL, vertical: 64),
                   constraints: BoxConstraints(
                     maxWidth: 500,
                     maxHeight: MediaQuery.of(context).size.height * 0.85,
                   ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusL),
                     border: Border.all(
                       color: CyberColors.neonCyan.withOpacity(0.4),
-                      width: 2.0,
+                      width: CyberDimensions.borderThick,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -54,15 +56,19 @@ Future<T?> showCyberModal<T>({
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusL),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      filter: ImageFilter.blur(
+                          sigmaX: CyberDimensions.blurStrong,
+                          sigmaY: CyberDimensions.blurStrong),
                       child: Container(
                         decoration: const BoxDecoration(
                           color: CyberColors.glassDark,
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius:
+                              BorderRadius.circular(CyberDimensions.radiusL),
                           child: child, // 🚨 极其重要：双重防溢出保护
                         ),
                       ),

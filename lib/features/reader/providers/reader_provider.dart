@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../../core/database/storage_service.dart';
-import '../domain/text_parser.dart';
+import 'package:yueyou/features/reader/domain/text_parser.dart';
 import '../../audio/services/tts_engine_service.dart';
 import '../../library/domain/book_model.dart';
+
+/// TTS 切换操作的领域结果
+enum TtsToggleResult {
+  /// 成功切换到播放
+  playing,
+
+  /// 成功切换到暂停
+  paused,
+
+  /// 无有效书籍数据，无法开启 TTS
+  noContent,
+}
 
 /// 阅游提词器 Provider
 /// 职责：管理 sentences 和 currentIndex，并联动 TtsEngineService 进行语音播报
@@ -16,6 +28,9 @@ class ReaderProvider with ChangeNotifier {
   String? _currentBookId;
   List<ChapterModel> _chapters = [];
   String? _lastTtsError;
+  bool _lastTtsEnabled = false;
+  bool _lastTtsSpeaking = false;
+  bool _lastTtsBuffering = false;
 
   // 🔥 章节标题正则（与 file_import_service 同步）
   static final RegExp _chapterRegex = RegExp(
@@ -54,6 +69,9 @@ class ReaderProvider with ChangeNotifier {
     Future<ParseResult> Function(String rawText)? parseBook,
   }) : _parseBook = parseBook ?? TextParser.parse {
     _lastTtsError = _ttsEngine.lastError;
+    _lastTtsEnabled = _ttsEngine.isEnabled;
+    _lastTtsSpeaking = _ttsEngine.isSpeaking;
+    _lastTtsBuffering = _ttsEngine.isBuffering;
     _ttsEngine.addListener(_onTtsEngineChanged);
 
     // 生产者：为 TTS 引擎提供下一句有效文本
@@ -180,9 +198,24 @@ class ReaderProvider with ChangeNotifier {
       _lastTtsError = nextError;
       changed = true;
     }
-    // 🔥 关键修复：TTS 引擎的播放状态变化必须同步给 ReaderProvider 的监听者（如提词器）
-    // 否则暂停时提词器无法立即感知到 isSpeaking 的变化，导致动画继续执行到结束
-    changed = true;
+
+    final nextEnabled = _ttsEngine.isEnabled;
+    if (nextEnabled != _lastTtsEnabled) {
+      _lastTtsEnabled = nextEnabled;
+      changed = true;
+    }
+
+    final nextSpeaking = _ttsEngine.isSpeaking;
+    if (nextSpeaking != _lastTtsSpeaking) {
+      _lastTtsSpeaking = nextSpeaking;
+      changed = true;
+    }
+
+    final nextBuffering = _ttsEngine.isBuffering;
+    if (nextBuffering != _lastTtsBuffering) {
+      _lastTtsBuffering = nextBuffering;
+      changed = true;
+    }
 
     if (changed) {
       notifyListeners();
@@ -281,16 +314,18 @@ class ReaderProvider with ChangeNotifier {
   }
 
   /// 切换播放/暂停状态
-  void toggleTTS() {
+  /// 返回领域结果，由 UI 层决定如何展示提示
+  TtsToggleResult toggleTTS() {
     // 🔥 任务 1.2：前置拦截——未导入书籍或数据为空时，禁止触发 TTS
     if (_currentBookId == null || _sentences.isEmpty) {
-      _ttsEngine.setLastError('未检测到有效数据块，请先导入书籍');
-      return;
+      return TtsToggleResult.noContent;
     }
     if (_ttsEngine.isSpeaking) {
       _ttsEngine.pause();
+      return TtsToggleResult.paused;
     } else {
       _ttsEngine.play();
+      return TtsToggleResult.playing;
     }
   }
 

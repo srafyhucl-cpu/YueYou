@@ -84,9 +84,12 @@ void main() {
         persistDebounceDuration: Duration.zero,
       )..soundEnabled = false;
       addTearDown(provider.dispose);
-      provider.board = List.generate(4, (_) => List.filled(4, null));
-      provider.board[0][0] = const TileModel(id: 1, value: 2);
-      provider.board[1][1] = const TileModel(id: 2, value: 2048);
+      provider.setStateForTesting(board: [
+        [const TileModel(id: 1, value: 2), null, null, null],
+        [null, const TileModel(id: 2, value: 2048), null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ]);
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump();
@@ -101,8 +104,12 @@ void main() {
         persistDebounceDuration: Duration.zero,
       )..soundEnabled = false;
       addTearDown(provider.dispose);
-      provider.board = List.generate(4, (_) => List.filled(4, null));
-      provider.board[0][3] = const TileModel(id: 1, value: 2);
+      provider.setStateForTesting(board: [
+        [null, null, null, const TileModel(id: 1, value: 2)],
+        [null, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ]);
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump();
@@ -122,10 +129,16 @@ void main() {
         persistDebounceDuration: Duration.zero,
       )..soundEnabled = false;
       addTearDown(provider.dispose);
-      provider.isOver = true;
-      provider.score = 5000;
-      provider.board = List.generate(4, (_) => List.filled(4, null));
-      provider.board[0][0] = const TileModel(id: 1, value: 1024);
+      provider.setStateForTesting(
+        isOver: true,
+        score: 5000,
+        board: [
+          [const TileModel(id: 1, value: 1024), null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
 
       await tester.pumpWidget(createTestableWidget(provider));
       // RainEffect 循环动画会阻止 pumpAndSettle
@@ -152,7 +165,7 @@ void main() {
         persistDebounceDuration: Duration.zero,
       )..soundEnabled = false;
       addTearDown(provider.dispose);
-      provider.isOver = true;
+      provider.setStateForTesting(isOver: true);
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump(const Duration(milliseconds: 100));

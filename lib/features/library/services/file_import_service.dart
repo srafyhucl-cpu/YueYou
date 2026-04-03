@@ -35,6 +35,7 @@ class _ParseArgs {
 class FileImportService {
   // 当前运行中的 Isolate 引用，用于主动杀死
   static Isolate? _activeIsolate;
+  static int _activeImportToken = 0;
 
   // 是否有导入任务正在运行
   static bool get isImporting => _activeIsolate != null;
@@ -80,6 +81,7 @@ class FileImportService {
   // 🔥 核心：使用 Isolate.spawn + ReceivePort 管理生命周期
   static Future<FileImportResult?> _spawnParseIsolate(_ParseArgs args) async {
     final receivePort = ReceivePort();
+    final int importToken = ++_activeImportToken;
     try {
       _activeIsolate = await Isolate.spawn(
         _isolateEntryPoint,
@@ -91,7 +93,13 @@ class FileImportService {
       final dynamic rawResult = await receivePort.first;
 
       // Isolate 正常结束，释放引用
-      _activeIsolate = null;
+      if (_activeImportToken == importToken) {
+        _activeIsolate = null;
+      }
+
+      if (_activeImportToken != importToken) {
+        return null;
+      }
 
       if (rawResult == null) return null;
       if (rawResult is! Map<String, dynamic>) return null;
@@ -107,7 +115,9 @@ class FileImportService {
       return FileImportResult(title: title, lines: lines, chapters: chapters);
     } catch (e, st) {
       debugPrint('⚠️ Isolate 解析异常: $e\n$st');
-      _activeIsolate = null;
+      if (_activeImportToken == importToken) {
+        _activeIsolate = null;
+      }
       return null;
     } finally {
       receivePort.close();
@@ -139,9 +149,25 @@ class FileImportService {
   static void cancelImport() {
     if (_activeIsolate != null) {
       debugPrint('🛑 主动杀死导入 Isolate');
+      _activeImportToken++;
       _activeIsolate!.kill(priority: Isolate.immediate);
       _activeIsolate = null;
     }
+  }
+
+  static Future<FileImportResult?> parseFileForTesting(
+    String filePath,
+    String fileName,
+  ) {
+    return _parseFileStreaming(_ParseArgs(filePath, fileName));
+  }
+
+  static bool isValidUtf8SampleForTesting(Uint8List bytes) {
+    return _isValidUtf8Sample(bytes);
+  }
+
+  static Uint8List stripUtf8BomForTesting(Uint8List bytes) {
+    return _stripUtf8Bom(bytes);
   }
 
   // 🔥 2.1 核心：流式读取 + 解码 + 行切分，避免整文件驻留内存

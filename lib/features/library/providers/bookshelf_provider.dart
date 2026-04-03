@@ -62,18 +62,36 @@ class BookshelfProvider with ChangeNotifier {
   }
 
   /// 删除书籍 —— 对应 JS deleteBook：清理书架 + LocalDB + ProgressManager
-  /// 🔥 任务 1.3：若删除的是当前阅读中的书籍，同步重置 ReaderProvider 状态
+  ///
+  /// **一致性策略：Best-Effort 清理**
+  /// 1. 内存状态（_shelf）立即移除，确保 UI 瞬时响应。
+  /// 2. 三项持久化清理（书架元数据 / 正文内容 / 阅读记录）独立执行，
+  ///    任一失败不影响其他两项，避免单点故障导致数据残留。
+  /// 3. 若删除的是当前阅读中的书籍，先级联重置 ReaderProvider 状态。
   Future<void> deleteBook(int id, {ReaderProvider? reader}) async {
     // 级联删除：先重置阅读器，再清数据
     reader?.resetForDeletedBook(id.toString());
 
     _shelf.removeWhere((b) => b.id == id);
-    await Future.wait([
-      StorageService.saveBookshelf(_shelf.map((b) => b.toJson()).toList()),
-      StorageService.deleteBookContent(id.toString()),
-      StorageService.deleteReadingRecord(id.toString()),
-    ]);
     notifyListeners();
+
+    // Best-effort 持久化清理：每步独立 try-catch
+    try {
+      await StorageService.saveBookshelf(
+          _shelf.map((b) => b.toJson()).toList());
+    } catch (e) {
+      debugPrint('⚠️ 书架元数据持久化失败: $e');
+    }
+    try {
+      await StorageService.deleteBookContent(id.toString());
+    } catch (e) {
+      debugPrint('⚠️ 正文内容删除失败: $e');
+    }
+    try {
+      await StorageService.deleteReadingRecord(id.toString());
+    } catch (e) {
+      debugPrint('⚠️ 阅读记录删除失败: $e');
+    }
   }
 
   /// 读取书籍正文内容（章节列表 + 行数据）

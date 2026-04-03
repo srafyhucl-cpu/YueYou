@@ -170,7 +170,12 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
         ttsEngine.isEnabled && (ttsEngine.isSpeaking || ttsEngine.isBuffering);
 
     return GestureDetector(
-      onTap: () => reader.toggleTTS(),
+      onTap: () {
+        final result = reader.toggleTTS();
+        if (result == TtsToggleResult.noContent) {
+          ttsEngine.setLastError('未检测到有效数据块，请先导入书籍');
+        }
+      },
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: 28,

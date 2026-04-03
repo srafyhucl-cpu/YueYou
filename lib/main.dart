@@ -30,8 +30,21 @@ class _AppBootstrapData {
   });
 }
 
-class YueYouApp extends StatelessWidget {
+class YueYouApp extends StatefulWidget {
   const YueYouApp({super.key});
+
+  @override
+  State<YueYouApp> createState() => _YueYouAppState();
+}
+
+class _YueYouAppState extends State<YueYouApp> {
+  late final Future<_AppBootstrapData> _bootstrapFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrapFuture = _loadBootstrapData();
+  }
 
   Future<_AppBootstrapData> _loadBootstrapData() async {
     final settings = SettingsProvider();
@@ -48,7 +61,7 @@ class YueYouApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_AppBootstrapData>(
-      future: _loadBootstrapData(),
+      future: _bootstrapFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const MaterialApp(

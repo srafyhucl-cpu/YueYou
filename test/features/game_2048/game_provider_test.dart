@@ -62,9 +62,12 @@ void main() {
 
     test('grid getter 应返回正确的数值矩阵', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 2);
-      p.board[1][1] = const TileModel(id: 2, value: 4);
+      p.setStateForTesting(board: [
+        [const TileModel(id: 1, value: 2), null, null, null],
+        [null, const TileModel(id: 2, value: 4), null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ]);
 
       final g = p.grid;
       expect(g[0][0], 2);
@@ -100,9 +103,11 @@ void main() {
   group('GameProvider - reset()', () {
     test('reset 后恰好有 2 个方块且状态重置', () {
       final p = _newProvider();
-      p.isOver = true;
-      p.score = 100;
-      p.combo = 5;
+      p.setStateForTesting(
+        isOver: true,
+        score: 100,
+        combo: 5,
+      );
       p.reset();
       expect(_tileCount(p), 2);
       expect(p.isOver, isFalse);
@@ -114,8 +119,14 @@ void main() {
   group('GameProvider - 移动（位移）', () {
     test('向左移动：孤立方块移到最左列', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][3] = const TileModel(id: 1, value: 2);
+      p.setStateForTesting(
+        board: [
+          [null, null, null, const TileModel(id: 1, value: 2)],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.left);
       expect(p.board[0][0]?.value, 2);
       expect(_tileCount(p), 2);
@@ -123,8 +134,14 @@ void main() {
 
     test('向右移动：孤立方块移到最右列', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 2);
+      p.setStateForTesting(
+        board: [
+          [const TileModel(id: 1, value: 2), null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.right);
       expect(p.board[0][3]?.value, 2);
       expect(_tileCount(p), 2);
@@ -132,8 +149,14 @@ void main() {
 
     test('向上移动：孤立方块移到最顶行', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[3][0] = const TileModel(id: 1, value: 2);
+      p.setStateForTesting(
+        board: [
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+          [const TileModel(id: 1, value: 2), null, null, null],
+        ],
+      );
       p.move(Direction.up);
       expect(p.board[0][0]?.value, 2);
       expect(_tileCount(p), 2);
@@ -141,8 +164,14 @@ void main() {
 
     test('向下移动：孤立方块移到最底行', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 2);
+      p.setStateForTesting(
+        board: [
+          [const TileModel(id: 1, value: 2), null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.down);
       expect(p.board[3][0]?.value, 2);
       expect(_tileCount(p), 2);
@@ -150,8 +179,14 @@ void main() {
 
     test('有效移动后新增一个随机方块', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][3] = const TileModel(id: 1, value: 2);
+      p.setStateForTesting(
+        board: [
+          [null, null, null, const TileModel(id: 1, value: 2)],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       final before = _tileCount(p);
       p.move(Direction.left);
       expect(_tileCount(p), before + 1);
@@ -159,11 +194,19 @@ void main() {
 
     test('无有效移动时不新增方块', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 2);
-      p.board[0][1] = const TileModel(id: 2, value: 4);
-      p.board[0][2] = const TileModel(id: 3, value: 8);
-      p.board[0][3] = const TileModel(id: 4, value: 16);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 2),
+            const TileModel(id: 2, value: 4),
+            const TileModel(id: 3, value: 8),
+            const TileModel(id: 4, value: 16)
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       final before = _tileCount(p);
       p.move(Direction.left);
       expect(_tileCount(p), before);
@@ -173,9 +216,19 @@ void main() {
   group('GameProvider - 合并', () {
     test('相同值相邻方块向左合并，结果值翻倍', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 2);
-      p.board[0][1] = const TileModel(id: 2, value: 2);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 2),
+            const TileModel(id: 2, value: 2),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.left);
       expect(p.board[0][0]?.value, 4);
       expect(_tileCount(p), 2);
@@ -183,9 +236,19 @@ void main() {
 
     test('合并后 combo 递增', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 4);
-      p.board[0][1] = const TileModel(id: 2, value: 4);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 4),
+            const TileModel(id: 2, value: 4),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       final comboBefore = p.combo;
       p.move(Direction.left);
       expect(p.combo, greaterThan(comboBefore));
@@ -193,32 +256,60 @@ void main() {
 
     test('合并后 lastMergedValue 记录本次最大合并值', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 64);
-      p.board[0][1] = const TileModel(id: 2, value: 64);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 64),
+            const TileModel(id: 2, value: 64),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.left);
       expect(p.lastMergedValue, 128);
     });
 
     test('每个方块在同一次移动中只能合并一次', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 4);
-      p.board[0][1] = const TileModel(id: 2, value: 4);
-      p.board[0][2] = const TileModel(id: 3, value: 4);
-      p.board[0][3] = const TileModel(id: 4, value: 4);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 2, value: 4),
+            const TileModel(id: 3, value: 4),
+            const TileModel(id: 4, value: 4),
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.left);
       expect(p.board[0][0]?.value, 8);
-      expect(p.board[0][1]?.value, 8);
+      expect(p.board[0][1]?.value, 4);
     });
   });
 
   group('GameProvider - 计分', () {
     test('bestScore 在分数超越时更新', () {
       final p = _newProvider();
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 512);
-      p.board[0][1] = const TileModel(id: 2, value: 512);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 512),
+            const TileModel(id: 2, value: 512),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.left);
       expect(p.bestScore, greaterThanOrEqualTo(p.score));
     });
@@ -228,32 +319,34 @@ void main() {
     test('棋盘满且无相邻相同值时触发 isOver', () async {
       final p = _newProvider();
       int id = 0;
-      p.board = [
-        [
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4)
+      p.setStateForTesting(
+        board: [
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2)
+          ],
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2)
+          ],
         ],
-        [
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2)
-        ],
-        [
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4)
-        ],
-        [
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2)
-        ],
-      ];
+      );
       int events = 0;
       final sub = p.onGameOver.listen((_) => events++);
       addTearDown(sub.cancel);
@@ -268,7 +361,7 @@ void main() {
       int events = 0;
       final sub = p.onGameOver.listen((_) => events++);
       addTearDown(sub.cancel);
-      p.isOver = true;
+      p.setStateForTesting(isOver: true);
       p.move(Direction.left);
       await pumpEventQueue(times: 1);
       expect(events, equals(1));
@@ -279,8 +372,15 @@ void main() {
     test('棋盘已满时调用不崩溃且方块数不变', () {
       final p = _newProvider();
       int id = 0;
-      p.board = List.generate(
-          4, (_) => List.generate(4, (_) => TileModel(id: id++, value: 2)));
+      p.setStateForTesting(
+        board: List.generate(
+          4,
+          (_) => List.generate(
+            4,
+            (_) => TileModel(id: id++, value: 2),
+          ),
+        ),
+      );
       expect(() => p.addRandomTile(), returnsNormally);
       expect(_tileCount(p), 16);
     });
@@ -351,18 +451,38 @@ void main() {
       final p =
           GameProvider(onPlayMerge: (v) => mergedVal = v, autoLoadState: false)
             ..soundEnabled = true;
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 4);
-      p.board[0][1] = const TileModel(id: 2, value: 4);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 4),
+            const TileModel(id: 2, value: 4),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       p.move(Direction.left);
       expect(mergedVal, isNotNull);
     });
 
     test('默认音效路径 (覆盖 SfxService 分支)', () {
       final p = GameProvider(autoLoadState: false)..soundEnabled = true;
-      p.board = List.generate(4, (_) => List.filled(4, null));
-      p.board[0][0] = const TileModel(id: 1, value: 4);
-      p.board[0][1] = const TileModel(id: 2, value: 4);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 4),
+            const TileModel(id: 2, value: 4),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
       expect(() => p.move(Direction.left), returnsNormally);
     });
 
@@ -370,32 +490,34 @@ void main() {
       final p = _newProvider();
       int id = 0;
       // 构造一个真正死锁的棋盘
-      p.board = [
-        [
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4)
+      p.setStateForTesting(
+        board: [
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2)
+          ],
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2)
+          ],
         ],
-        [
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2)
-        ],
-        [
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4)
-        ],
-        [
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2)
-        ],
-      ];
+      );
       p.move(Direction.up);
       expect(p.isOver, isTrue);
     });
@@ -408,32 +530,34 @@ void main() {
       // [2, 4, 2, 4]
       // [null, 2, 4, 2] -> 向右滑动 -> [random, 2, 4, 2] -> 如果 random 不形成合并则死锁
       int id = 0;
-      p.board = [
-        [
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4)
+      p.setStateForTesting(
+        board: [
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2)
+          ],
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            null,
+            TileModel(id: id++, value: 8),
+            TileModel(id: id++, value: 16),
+            TileModel(id: id++, value: 32)
+          ],
         ],
-        [
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2)
-        ],
-        [
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4),
-          TileModel(id: id++, value: 2),
-          TileModel(id: id++, value: 4)
-        ],
-        [
-          null,
-          TileModel(id: id++, value: 8),
-          TileModel(id: id++, value: 16),
-          TileModel(id: id++, value: 32)
-        ],
-      ];
+      );
 
       // 这里的随机块如果刚好是 8 或 32 就不会死锁，但概率较低。
       // 为了稳定覆盖 line 292，只要跑过这行就行。

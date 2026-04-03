@@ -1,15 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
+import 'package:yueyou/core/database/storage_service.dart';
+import '../../utils/test_utils.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    StorageService.resetForTesting();
-    await StorageService.init();
+    await initializeTestEnvironment();
   });
 
   group('SettingsProvider', () {
@@ -52,7 +48,8 @@ void main() {
       expect(notified, greaterThan(0));
     });
 
-    test('setVoice / setIdleTimeout / setTtsRate / setAmbientVol / setAmbientEnabled 持久化',
+    test(
+        'setVoice / setIdleTimeout / setTtsRate / setAmbientVol / setAmbientEnabled 持久化',
         () async {
       final p = SettingsProvider();
       p.loadFromStorage();

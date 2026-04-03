@@ -74,13 +74,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             // 主内容
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: CyberDimensions.spacingM),
               child: Column(
                 children: [
-                  const SizedBox(height: 16),
+                  const SizedBox(height: CyberDimensions.spacingM),
                   // 1. 顶部导航
                   _buildTopNavigation(context),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: CyberDimensions.spacingM),
                   // 2. 状态面板
                   _buildStatusPanel(),
                   // 棋盘 + XIAOYO 爬墙头
@@ -89,7 +90,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     flex: 2,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        const double kBuffer = 76.0;
+                        const double kBuffer =
+                            CyberDimensions.dashboardBoardBuffer;
                         final w = constraints.maxWidth;
                         final h = constraints.maxHeight;
                         // 棋盘可用高度 = 总高 - 顶部缓冲区
@@ -98,7 +100,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         // 棋盘顶部位置 = 缓冲区 + 剩余居中空间
                         final boardTop = kBuffer + (boardAvailH - boardSz) / 2;
                         // XIAOYO 顶部 = boardTop - 73，由于 boardTop >= kBuffer = 76 > 73，始终为正数
-                        final mascotTop = boardTop - 73.0;
+                        final mascotTop = boardTop -
+                            (CyberDimensions.dashboardMascotHeight -
+                                CyberDimensions.spacingMS +
+                                1);
 
                         return Stack(
                           children: [
@@ -114,9 +119,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             // 2. XIAOYO 渲染层（纯渲染，不处理手势）
                             Positioned(
                               top: mascotTop,
-                              left: (w - 68) / 2,
-                              width: 68,
-                              height: 84,
+                              left: (w - CyberDimensions.dashboardMascotWidth) /
+                                  2,
+                              width: CyberDimensions.dashboardMascotWidth,
+                              height: CyberDimensions.dashboardMascotHeight,
                               child: IgnorePointer(
                                 child: BoardMascot(key: _mascotKey),
                               ),
@@ -125,9 +131,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             // 3. XIAOYO 点击层（透明覆盖，独立于棋盘手势）
                             Positioned(
                               top: mascotTop,
-                              left: (w - 68) / 2,
-                              width: 68,
-                              height: 84,
+                              left: (w - CyberDimensions.dashboardMascotWidth) /
+                                  2,
+                              width: CyberDimensions.dashboardMascotWidth,
+                              height: CyberDimensions.dashboardMascotHeight,
                               child: GestureDetector(
                                 onTap: () {
                                   debugPrint('🎯 XIAOYO 点击层被触发');
@@ -142,13 +149,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: CyberDimensions.spacingM),
                   // 提词器（带边框容器）
                   const RepaintBoundary(child: TeleprompterView()),
-                  const SizedBox(height: 1),
+                  const SizedBox(height: CyberDimensions.borderNormal),
                   // 灵动岛胶囊（内部有 Padding(top:15)，总视觉间距 = 1 + 15 = 16px）
                   const CyberPlayerConsole(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: CyberDimensions.spacingM),
                 ],
               ),
             ),
@@ -236,7 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: CyberDimensions.spacingMS),
             Expanded(
               child: _buildInfoCard(
                 context,
@@ -267,8 +274,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           sigmaY: CyberDimensions.blurStrong,
         ),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          constraints: const BoxConstraints(minHeight: 85),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CyberDimensions.spacingMS + CyberDimensions.spacingXXS,
+            vertical: CyberDimensions.spacingS + CyberDimensions.spacingXXS,
+          ),
+          constraints: const BoxConstraints(
+              minHeight: CyberDimensions.dashboardStatusCardMinHeight),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -297,14 +308,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Text(
                 title,
-                style: TextStyle(
+                style: CyberTextStyles.overlineTiny.copyWith(
                   color: CyberColors.neonCyan.withOpacity(0.6),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(
+                  height:
+                      CyberDimensions.spacingS - CyberDimensions.spacingXXS),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -318,12 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _buildAnimatedCounter(score),
                           const Text(
                             " | ",
-                            style: TextStyle(
-                              color: CyberColors.whiteSubtle,
-                              fontSize: 16,
-                              fontFamily: CyberTextStyles.monoFont,
-                              fontWeight: FontWeight.w300,
-                            ),
+                            style: CyberTextStyles.dashboardSeparator,
                           ),
                           _buildAnimatedCounter(combo, isCombo: true),
                         ],
@@ -336,11 +341,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       icon: const Icon(
                         Icons.refresh,
                         color: CyberColors.neonCyan,
-                        size: 20,
+                        size: CyberDimensions.iconM,
                       ),
                       style: IconButton.styleFrom(
                         backgroundColor: CyberColors.neonCyan.withOpacity(0.15),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(CyberDimensions.spacingS),
                       ),
                     ),
                 ],
@@ -360,11 +365,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context, animatedValue, child) {
         return Text(
           "$animatedValue",
-          style: TextStyle(
+          style: CyberTextStyles.dashboardCounter.copyWith(
             color: isCombo ? CyberColors.neonPink : CyberColors.neonCyan,
-            fontSize: 22,
-            fontFamily: CyberTextStyles.monoFont,
-            fontWeight: FontWeight.w900,
             shadows: [
               if (isCombo)
                 Shadow(
@@ -413,7 +415,8 @@ class _SegButtonState extends State<_SegButton> {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
         decoration: BoxDecoration(
           color: _isPressed
               ? CyberColors.neonCyan.withOpacity(0.12)
@@ -425,17 +428,13 @@ class _SegButtonState extends State<_SegButton> {
             Icon(
               widget.item.icon,
               color: CyberColors.neonCyan.withOpacity(0.8),
-              size: 18,
+              size: CyberDimensions.iconS,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(
+                width: CyberDimensions.spacingS - CyberDimensions.spacingXXS),
             Text(
               widget.item.label,
-              style: const TextStyle(
-                color: CyberColors.whiteHigh,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
+              style: CyberTextStyles.segmentLabel,
             ),
           ],
         ),

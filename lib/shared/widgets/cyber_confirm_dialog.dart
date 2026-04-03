@@ -1,9 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
+import 'package:yueyou/shared/widgets/cyber_modal.dart';
 
 /// 赛博朋克风格确认对话框
 /// 用于重置游戏等需要二次确认的操作
+/// 基于 showCyberModal 封装，内部只提供确认内容（标题 + 消息 + 按钮）
 Future<bool> showCyberConfirmDialog({
   required BuildContext context,
   required String title,
@@ -11,103 +13,58 @@ Future<bool> showCyberConfirmDialog({
   String confirmText = '确认',
   String cancelText = '取消',
 }) async {
-  final result = await showGeneralDialog<bool>(
+  final result = await showCyberModal<bool>(
     context: context,
-    barrierDismissible: true,
-    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-    barrierColor: CyberColors.blackOverlay,
-    transitionDuration: const Duration(milliseconds: 250),
-    pageBuilder: (context, animation, secondaryAnimation) {
-      return SafeArea(
-        child: Center(
-          child: Material(
-            type: MaterialType.transparency,
-            child: ScaleTransition(
-              scale: CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutBack,
-              ),
-              child: FadeTransition(
-                opacity: animation,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 40),
-                  constraints: const BoxConstraints(maxWidth: 360),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: CyberColors.glassDark,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: CyberColors.hotPink.withOpacity(0.4),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: CyberColors.hotPink.withOpacity(0.3),
-                              blurRadius: 25,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                color: CyberColors.whiteHigh,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              message,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: CyberColors.whiteMedium,
-                                fontSize: 14,
-                                height: 1.5,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _CyberButton(
-                                    text: cancelText,
-                                    isPrimary: false,
-                                    onTap: () =>
-                                        Navigator.of(context).pop(false),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _CyberButton(
-                                    text: confirmText,
-                                    isPrimary: true,
-                                    onTap: () =>
-                                        Navigator.of(context).pop(true),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+    child: Padding(
+      padding: const EdgeInsets.all(CyberDimensions.spacingL),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: CyberColors.whiteHigh,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: CyberDimensions.spacingM),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: CyberColors.whiteMedium,
+                  fontSize: 14,
+                  height: 1.5,
                 ),
               ),
             ),
           ),
-        ),
-      );
-    },
+          const SizedBox(height: CyberDimensions.spacingL),
+          Row(
+            children: [
+              Expanded(
+                child: _CyberButton(
+                  text: cancelText,
+                  isPrimary: false,
+                  onTap: () => Navigator.of(context).pop(false),
+                ),
+              ),
+              const SizedBox(width: CyberDimensions.spacingMS),
+              Expanded(
+                child: _CyberButton(
+                  text: confirmText,
+                  isPrimary: true,
+                  onTap: () => Navigator.of(context).pop(true),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
   );
   return result ?? false;
 }
@@ -128,7 +85,8 @@ class _CyberButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
         decoration: BoxDecoration(
           gradient: isPrimary
               ? const LinearGradient(
@@ -138,11 +96,11 @@ class _CyberButton extends StatelessWidget {
                 )
               : null,
           color: isPrimary ? null : CyberColors.whiteSubtle,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
           border: Border.all(
             color:
                 isPrimary ? CyberColors.transparent : CyberColors.whiteSubtle,
-            width: 1,
+            width: CyberDimensions.borderNormal,
           ),
         ),
         child: Center(

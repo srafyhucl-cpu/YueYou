@@ -4,6 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 
 /// 章节目录界面
@@ -74,20 +76,19 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
   Widget _buildHeader(BuildContext context) {
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(
+            sigmaX: CyberDimensions.blurLight,
+            sigmaY: CyberDimensions.blurLight),
         child: Container(
-          height: 56,
+          height: CyberDimensions.headerHeight,
           color: CyberColors.panelBackground.withOpacity(0.8),
           child: Row(
             children: [
-              const SizedBox(width: 16),
-              const Text(
+              const SizedBox(width: CyberDimensions.spacingM),
+              Text(
                 '章节目录',
-                style: TextStyle(
+                style: CyberTextStyles.screenTitle.copyWith(
                   color: CyberColors.neonPurple,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
                 ),
               ),
               const Spacer(),
@@ -96,13 +97,12 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
                 onPressed: () => setState(() => _reversed = !_reversed),
                 icon: Icon(
                   _reversed ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 16,
+                  size: CyberDimensions.iconXS,
                   color: CyberColors.whiteDim,
                 ),
                 label: Text(
                   _reversed ? '倒序' : '正序',
-                  style: const TextStyle(
-                      color: CyberColors.whiteDim, fontSize: 13),
+                  style: CyberTextStyles.bodySmall,
                 ),
               ),
               IconButton(
@@ -125,11 +125,13 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
         final int percent =
             totalLines > 0 ? ((cursor / totalLines) * 100).floor() : 0;
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+              horizontal: CyberDimensions.spacingM,
+              vertical: CyberDimensions.spacingS),
           color: CyberColors.panelBackground.withOpacity(0.13),
           child: Text(
             '共 $total 章 | 阅读进度 $percent%',
-            style: const TextStyle(color: CyberColors.whiteMuted, fontSize: 12),
+            style: CyberTextStyles.caption,
           ),
         );
       },
@@ -144,7 +146,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           return const Center(
             child: Text(
               '暂无目录数据',
-              style: TextStyle(color: CyberColors.whiteMuted, fontSize: 14),
+              style: CyberTextStyles.labelMedium,
             ),
           );
         }
@@ -168,7 +170,8 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           controller: _scrollController,
           itemCount: displayChapters.length,
           itemExtent: 56.0, // 固定item高度，提升性能
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding:
+              const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
           itemBuilder: (ctx, i) {
             final chapter = displayChapters[i];
             final int originalIdx = _reversed ? (chapters.length - 1 - i) : i;
@@ -227,7 +230,9 @@ class _ChapterItem extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+            horizontal: CyberDimensions.spacingM,
+            vertical: CyberDimensions.spacingMS),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(color: CyberColors.whiteFaint.withOpacity(0.4)),
@@ -240,18 +245,18 @@ class _ChapterItem extends StatelessWidget {
           children: [
             if (isActive)
               const Padding(
-                padding: EdgeInsets.only(right: 8),
+                padding: EdgeInsets.only(right: CyberDimensions.spacingS),
                 child: Icon(
                   Icons.play_arrow,
                   color: CyberColors.neonPink,
-                  size: 18,
+                  size: CyberDimensions.iconS,
                 ),
               )
             else
               Container(
                 width: 6,
                 height: 6,
-                margin: const EdgeInsets.only(right: 12),
+                margin: const EdgeInsets.only(right: CyberDimensions.spacingMS),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: dotColor,
@@ -260,9 +265,8 @@ class _ChapterItem extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
+                style: CyberTextStyles.tileTitle.copyWith(
                   color: isActive ? CyberColors.neonPink : textColor,
-                  fontSize: 14,
                   fontWeight: isActive ? FontWeight.w900 : FontWeight.normal,
                 ),
               ),

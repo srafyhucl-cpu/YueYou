@@ -6,6 +6,7 @@ import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_shadows.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/utils/safe_string.dart';
 
 /// 🔥 赛博 KTV 提词器 - 音乐播放器居中滚动风格
@@ -31,17 +32,15 @@ class _TeleprompterViewState extends State<TeleprompterView>
   Timer? _errorHideTimer;
   Timer? _errorCleanupTimer;
 
-  static const double _fontSize = 18;
-  static const double _containerHeight = 46;
   static const Duration _errorDisplayDuration = Duration(seconds: 3);
   static const Duration _errorFadeDuration = Duration(milliseconds: 300);
 
   static final TextStyle _readStyle = TextStyle(
-    color: CyberColors.neonCyan,
-    fontSize: _fontSize,
-    fontWeight: FontWeight.w800,
-    letterSpacing: 0.5,
-    height: 1.0,
+    color: CyberTextStyles.teleprompterInlineRead.color,
+    fontSize: CyberTextStyles.teleprompterInlineRead.fontSize,
+    fontWeight: CyberTextStyles.teleprompterInlineRead.fontWeight,
+    letterSpacing: CyberTextStyles.teleprompterInlineRead.letterSpacing,
+    height: CyberTextStyles.teleprompterInlineRead.height,
     shadows: [
       Shadow(
         color: CyberColors.hackerBlue.withOpacity(0.5),
@@ -50,12 +49,12 @@ class _TeleprompterViewState extends State<TeleprompterView>
     ],
   );
 
-  static const TextStyle _unreadStyle = TextStyle(
-    color: CyberColors.whiteMuted,
-    fontSize: _fontSize,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.5,
-    height: 1.0,
+  static final TextStyle _unreadStyle = TextStyle(
+    color: CyberTextStyles.teleprompterInlineUnread.color,
+    fontSize: CyberTextStyles.teleprompterInlineUnread.fontSize,
+    fontWeight: CyberTextStyles.teleprompterInlineUnread.fontWeight,
+    letterSpacing: CyberTextStyles.teleprompterInlineUnread.letterSpacing,
+    height: CyberTextStyles.teleprompterInlineUnread.height,
   );
 
   @override
@@ -226,7 +225,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
                   sigmaY: CyberDimensions.blurMedium,
                 ),
                 child: Container(
-                  height: _containerHeight,
+                  height: CyberDimensions.teleprompterHeight,
                   decoration: BoxDecoration(
                     color: CyberColors.glassDark,
                     borderRadius:
@@ -264,7 +263,8 @@ class _TeleprompterViewState extends State<TeleprompterView>
                                     ),
                                     // 未读：暗色
                                     TextSpan(
-                                      text: safeSubstring(text, charIndex, text.length),
+                                      text: safeSubstring(
+                                          text, charIndex, text.length),
                                       style: _unreadStyle.copyWith(
                                         color: CyberColors.whiteMuted
                                             .withOpacity(
@@ -283,12 +283,13 @@ class _TeleprompterViewState extends State<TeleprompterView>
                       if (isPlaying)
                         Positioned(
                           left: halfWidth - 1,
-                          top: 8,
-                          bottom: 8,
+                          top: CyberDimensions.spacingS,
+                          bottom: CyberDimensions.spacingS,
                           child: Container(
-                            width: 2,
+                            width: CyberDimensions.radiusXS,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(1),
+                              borderRadius: BorderRadius.circular(
+                                  CyberDimensions.radiusXS / 2),
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
@@ -313,17 +314,18 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
                       // ── 左端渐隐遮罩（防文字溢出可见，避开边框）────────────
                       Positioned(
-                        left: 2,
-                        top: 2,
-                        bottom: 2,
-                        width: 40,
+                        left: CyberDimensions.spacingXXS,
+                        top: CyberDimensions.spacingXXS,
+                        bottom: CyberDimensions.spacingXXS,
+                        width: CyberDimensions.teleprompterMaskWidth,
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: const BorderRadius.only(
-                              topLeft:
-                                  Radius.circular(CyberDimensions.radiusL - 2),
-                              bottomLeft:
-                                  Radius.circular(CyberDimensions.radiusL - 2),
+                              topLeft: Radius.circular(CyberDimensions.radiusL -
+                                  CyberDimensions.spacingXXS),
+                              bottomLeft: Radius.circular(
+                                  CyberDimensions.radiusL -
+                                      CyberDimensions.spacingXXS),
                             ),
                             gradient: LinearGradient(
                               begin: Alignment.centerLeft,
@@ -339,17 +341,19 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
                       // ── 右端渐隐遮罩（避开边框）──────────────────────────────
                       Positioned(
-                        right: 2,
-                        top: 2,
-                        bottom: 2,
-                        width: 40,
+                        right: CyberDimensions.spacingXXS,
+                        top: CyberDimensions.spacingXXS,
+                        bottom: CyberDimensions.spacingXXS,
+                        width: CyberDimensions.teleprompterMaskWidth,
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: const BorderRadius.only(
-                              topRight:
-                                  Radius.circular(CyberDimensions.radiusL - 2),
-                              bottomRight:
-                                  Radius.circular(CyberDimensions.radiusL - 2),
+                              topRight: Radius.circular(
+                                  CyberDimensions.radiusL -
+                                      CyberDimensions.spacingXXS),
+                              bottomRight: Radius.circular(
+                                  CyberDimensions.radiusL -
+                                      CyberDimensions.spacingXXS),
                             ),
                             gradient: LinearGradient(
                               begin: Alignment.centerRight,
@@ -393,11 +397,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
                                   _errorMessage!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: CyberColors.whiteHigh,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  style: CyberTextStyles.teleprompterError,
                                 ),
                               ),
                             ),
@@ -416,14 +416,12 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
   Widget _buildPlaceholder(String msg) {
     return SizedBox(
-      height: _containerHeight,
+      height: CyberDimensions.teleprompterHeight,
       child: Center(
         child: Text(
           msg,
-          style: TextStyle(
+          style: CyberTextStyles.teleprompterPlaceholder.copyWith(
             color: CyberColors.whiteMuted.withOpacity(0.5),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ),

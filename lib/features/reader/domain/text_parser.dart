@@ -70,6 +70,11 @@ class TextParser {
 
   /// 二次截断算法：优先寻找语义停顿点（逗号、空格、顿号、逗号）
   /// 确保 UI 在有限宽度内不会溢出，同时保持阅读节奏
+  ///
+  /// 断点优先级（两遍扫描）：
+  /// 1. 强断点 — 标点符号与空格（，, 、 \s）
+  /// 2. 软断点 — 连词/语气助词（的、了、和、与），避免劈开词组导致 TTS 朗读怪异
+  /// 3. 兜底 — 强制物理截断
   static List<String> _emergencySplit(String longText, int limit) {
     final List<String> chunks = [];
     int start = 0;
@@ -81,13 +86,21 @@ class TextParser {
         break;
       }
 
-      // 在阈值范围内寻找最佳断点
       final sub = safeSubstring(longText, start, end);
-      // 匹配中英文逗号、空格、顿号
+
+      // 第一遍：寻找强断点（标点、空格、顿号）
       int lastBreak = sub.lastIndexOf(RegExp(r'[，, 、\s]'));
 
-      // 如果断点位置合理（超过阈值的 70%），则在此处截断；否则强制物理截断
-      if (lastBreak != -1 && lastBreak > limit * 0.7) {
+      // 第二遍：若无合理强断点，尝试软断点（连词/语气助词）
+      if (lastBreak == -1 || lastBreak <= limit * 0.7) {
+        final softBreak = sub.lastIndexOf(RegExp(r'[的了和与]'));
+        if (softBreak != -1 && softBreak > limit * 0.5) {
+          lastBreak = softBreak;
+        }
+      }
+
+      // 如果断点位置合理，则在此处截断；否则强制物理截断
+      if (lastBreak != -1 && lastBreak > limit * 0.5) {
         chunks.add(safeSubstring(longText, start, start + lastBreak + 1));
         start += lastBreak + 1;
       } else {

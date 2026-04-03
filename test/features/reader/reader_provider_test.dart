@@ -22,6 +22,15 @@ void _mockAudioplayersChannels() {
   });
 }
 
+void _mockPathProviderChannel() {
+  const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, (MethodCall call) async {
+    return '.';
+  });
+}
+
 Future<ReaderProvider> _makeReaderProvider({bool ttsEnabled = false}) async {
   SharedPreferences.setMockInitialValues({});
   StorageService.resetForTesting();
@@ -29,9 +38,19 @@ Future<ReaderProvider> _makeReaderProvider({bool ttsEnabled = false}) async {
 
   // Mock 掉 audioplayers 的 MethodChannel，避免 MissingPluginException
   _mockAudioplayersChannels();
+  _mockPathProviderChannel();
 
   final settings = SettingsProvider();
   settings.loadFromStorage();
+  // 🔥 确保由于 SharedPreference mock 可能导致缺失默认值的字段被正确初始化
+  settings.voice = 'zh-CN-XiaoxiaoNeural';
+  settings.ttsRate = 1.0;
+  settings.idleTimeout = 0;
+  settings.sound = true;
+  settings.storyTts = false;
+  settings.ambientVol = 0.5;
+  settings.ambientEnabled = false;
+
   if (!ttsEnabled) {
     settings.storyTts = false; // 保证 ReaderProvider.loadBook 不触发 refreshSession
   }
@@ -318,6 +337,36 @@ void main() {
       final before = reader.ttsEngine.playbackRate;
       reader.cycleSpeed();
       expect(reader.ttsEngine.playbackRate, isNot(equals(before)));
+    });
+
+    test('toggleTTS 无书籍时返回 noContent', () async {
+      final reader = await _makeReaderProvider();
+      final result = reader.toggleTTS();
+      expect(result, TtsToggleResult.noContent);
+    });
+
+    test('toggleTTS 有内容时返回 playing', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook('第一章 开始\n你好世界。\n',
+          bookId: 'b_toggle', initialIndex: 0, forceIndex: true);
+      final result = reader.toggleTTS();
+      expect(result, TtsToggleResult.playing);
+    });
+
+    test('相同 TTS 错误重复写入时 ReaderProvider 不重复通知', () async {
+      final reader = await _makeReaderProvider();
+      int notified = 0;
+      reader.addListener(() => notified++);
+
+      reader.ttsEngine.setLastError('网络异常');
+      await Future<void>.delayed(Duration.zero);
+      final afterFirst = notified;
+
+      reader.ttsEngine.setLastError('网络异常');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(afterFirst, greaterThan(0));
+      expect(notified, afterFirst);
     });
   });
 }

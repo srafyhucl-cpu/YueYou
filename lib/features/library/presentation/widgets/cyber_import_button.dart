@@ -8,8 +8,19 @@ import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/library/services/file_import_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 
-class CyberImportButton extends StatelessWidget {
+class CyberImportButton extends StatefulWidget {
   const CyberImportButton({super.key});
+
+  @override
+  State<CyberImportButton> createState() => _CyberImportButtonState();
+}
+
+class _CyberImportButtonState extends State<CyberImportButton> {
+  @override
+  void dispose() {
+    FileImportService.cancelImport();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

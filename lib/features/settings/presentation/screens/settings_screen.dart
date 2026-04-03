@@ -36,20 +36,19 @@ class SettingsScreen extends StatelessWidget {
   Widget _buildHeader(BuildContext context) {
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(
+            sigmaX: CyberDimensions.blurLight,
+            sigmaY: CyberDimensions.blurLight),
         child: Container(
-          height: 56,
+          height: CyberDimensions.headerHeight,
           color: CyberColors.panelBackground.withOpacity(0.8),
           child: Row(
             children: [
-              const SizedBox(width: 16),
-              const Text(
+              const SizedBox(width: CyberDimensions.spacingM),
+              Text(
                 '系统设置',
-                style: TextStyle(
+                style: CyberTextStyles.screenTitle.copyWith(
                   color: CyberColors.neonGreen,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
                 ),
               ),
               const Spacer(),
@@ -66,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildBody(BuildContext context, SettingsProvider settings) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(CyberDimensions.spacingM),
       children: [
         const _SectionTitle(title: '游戏音效'),
         _ToggleTile(
@@ -77,7 +76,7 @@ class SettingsScreen extends StatelessWidget {
             settings.setSound(v);
           },
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: CyberDimensions.spacingML),
         const _SectionTitle(title: '语音播报'),
         _ToggleTile(
           label: '自动朗读',
@@ -93,29 +92,30 @@ class SettingsScreen extends StatelessWidget {
             }
           },
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CyberDimensions.spacingMS),
         const _LabelRow(label: '朗读音量'),
         _VolumeSlider(settings: settings),
-        const SizedBox(height: 12),
+        const SizedBox(height: CyberDimensions.spacingMS),
         const _LabelRow(label: '播报倍速'),
         _SpeedSelector(settings: settings),
-        const SizedBox(height: 12),
+        const SizedBox(height: CyberDimensions.spacingMS),
         const _LabelRow(label: '发声人'),
         _VoiceSelector(settings: settings),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CyberDimensions.spacingM,
+            vertical: CyberDimensions.spacingS,
+          ),
           child: Text(
             '💡 若音色无感情，请前往手机系统设置 -> 文本转语音 (TTS) 中切换系统高音质发音人',
-            style: TextStyle(
+            style: CyberTextStyles.captionHint.copyWith(
               color: CyberColors.neonPurple,
-              fontSize: 11,
-              height: 1.5,
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CyberDimensions.spacingMS),
         const _TtsTestButton(),
-        const SizedBox(height: 12),
+        const SizedBox(height: CyberDimensions.spacingMS),
         const _SectionTitle(title: '省电管理'),
         _IdleTimeoutSelector(settings: settings),
       ],
@@ -130,15 +130,10 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: CyberDimensions.spacingS),
       child: Text(
         title,
-        style: const TextStyle(
-          color: CyberColors.neonGreen,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.5,
-        ),
+        style: CyberTextStyles.sectionLabel,
       ),
     );
   }
@@ -151,9 +146,8 @@ class _LabelRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(label,
-          style: const TextStyle(color: CyberColors.whiteDim, fontSize: 14)),
+      padding: const EdgeInsets.only(bottom: CyberDimensions.spacingS),
+      child: Text(label, style: CyberTextStyles.labelMedium),
     );
   }
 }
@@ -183,11 +177,8 @@ class _ToggleTile extends StatelessWidget {
         ),
       ),
       child: SwitchListTile(
-        title: Text(label,
-            style: const TextStyle(color: CyberColors.whiteHigh, fontSize: 14)),
-        subtitle: Text(subtitle,
-            style:
-                const TextStyle(color: CyberColors.whiteMuted, fontSize: 12)),
+        title: Text(label, style: CyberTextStyles.tileTitle),
+        subtitle: Text(subtitle, style: CyberTextStyles.tileSubtitle),
         value: value,
         onChanged: onChanged,
         activeColor: CyberColors.neonGreen,
@@ -208,7 +199,7 @@ class _SpeedSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
+      spacing: CyberDimensions.spacingS,
       children: _speeds.map((s) {
         final bool selected = (settings.ttsRate - s).abs() < 0.01;
         return GestureDetector(
@@ -220,7 +211,11 @@ class _SpeedSelector extends StatelessWidget {
           },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal:
+                  CyberDimensions.spacingMS + CyberDimensions.spacingXXS,
+              vertical: CyberDimensions.spacingXS + CyberDimensions.spacingXXS,
+            ),
             decoration: BoxDecoration(
               color: selected
                   ? CyberColors.neonPink.withOpacity(0.18)
@@ -229,14 +224,15 @@ class _SpeedSelector extends StatelessWidget {
               border: Border.all(
                 color:
                     selected ? CyberColors.neonPink : CyberColors.whiteSubtle,
-                width: selected ? 1.4 : 0.8,
+                width: selected
+                    ? CyberDimensions.borderThick
+                    : CyberDimensions.borderThin,
               ),
             ),
             child: Text(
               '${s.toStringAsFixed(1)}x',
-              style: TextStyle(
+              style: CyberTextStyles.bodySmall.copyWith(
                 color: selected ? CyberColors.neonPink : CyberColors.whiteDim,
-                fontSize: 13,
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -264,7 +260,10 @@ class _VoiceSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CyberDimensions.spacingMS,
+        vertical: CyberDimensions.spacingXS,
+      ),
       decoration: BoxDecoration(
         color: CyberColors.surface,
         borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
@@ -275,8 +274,7 @@ class _VoiceSelector extends StatelessWidget {
       ),
       child: DropdownButton<String>(
         value: _voices.containsKey(settings.voice) ? settings.voice : null,
-        hint: Text(settings.voice,
-            style: const TextStyle(color: CyberColors.whiteDim, fontSize: 13)),
+        hint: Text(settings.voice, style: CyberTextStyles.bodySmall),
         isExpanded: true,
         dropdownColor: CyberColors.surface,
         underline: const SizedBox.shrink(),
@@ -284,9 +282,7 @@ class _VoiceSelector extends StatelessWidget {
         items: _voices.entries.map((e) {
           return DropdownMenuItem(
             value: e.key,
-            child: Text(e.value,
-                style:
-                    const TextStyle(color: CyberColors.whiteDim, fontSize: 13)),
+            child: Text(e.value, style: CyberTextStyles.bodySmall),
           );
         }).toList(),
         onChanged: (v) async {
@@ -304,8 +300,15 @@ class _VoiceSelector extends StatelessWidget {
 
 /// 空闲超时选择器（对应 JS idle-timeout 0-5 分钟）
 /// TTS 连接测试按钮
-class _TtsTestButton extends StatelessWidget {
+class _TtsTestButton extends StatefulWidget {
   const _TtsTestButton();
+
+  @override
+  State<_TtsTestButton> createState() => _TtsTestButtonState();
+}
+
+class _TtsTestButtonState extends State<_TtsTestButton> {
+  bool _isTesting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -321,45 +324,53 @@ class _TtsTestButton extends StatelessWidget {
       child: Material(
         color: CyberColors.transparent,
         child: InkWell(
-          onTap: () => _testTtsConnection(context),
+          onTap: _isTesting ? null : _testTtsConnection,
           borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CyberDimensions.spacingM,
+              vertical: CyberDimensions.spacingMS,
+            ),
             child: Row(
               children: [
-                Icon(
-                  Icons.wifi_tethering,
-                  color: CyberColors.neonCyan,
-                  size: 20,
-                ),
-                SizedBox(width: 12),
+                if (_isTesting)
+                  const SizedBox(
+                    width: CyberDimensions.iconM,
+                    height: CyberDimensions.iconM,
+                    child: CircularProgressIndicator(
+                      color: CyberColors.neonCyan,
+                      strokeWidth: 2,
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.wifi_tethering,
+                    color: CyberColors.neonCyan,
+                    size: CyberDimensions.iconM,
+                  ),
+                const SizedBox(width: CyberDimensions.spacingMS),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '测试 TTS 连接',
-                        style: TextStyle(
-                          color: CyberColors.whiteHigh,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        _isTesting ? '正在测试...' : '测试 TTS 连接',
+                        style: CyberTextStyles.tileTitle.copyWith(
+                          fontWeight: CyberTextStyles.bodySmallBold.fontWeight,
                         ),
                       ),
-                      SizedBox(height: 2),
-                      Text(
+                      const SizedBox(height: CyberDimensions.spacingXXS),
+                      const Text(
                         '诊断 TTS 服务器连接问题',
-                        style: TextStyle(
-                          color: CyberColors.whiteMuted,
-                          fontSize: 12,
-                        ),
+                        style: CyberTextStyles.tileSubtitle,
                       ),
                     ],
                   ),
                 ),
-                Icon(
+                const Icon(
                   Icons.arrow_forward_ios,
                   color: CyberColors.whiteMuted,
-                  size: 16,
+                  size: CyberDimensions.iconXS,
                 ),
               ],
             ),
@@ -369,45 +380,31 @@ class _TtsTestButton extends StatelessWidget {
     );
   }
 
-  Future<void> _testTtsConnection(BuildContext context) async {
+  Future<void> _testTtsConnection() async {
     final tts = context.read<TtsEngineService>();
 
-    // 显示加载对话框
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(color: CyberColors.neonCyan),
-      ),
-    );
+    setState(() => _isTesting = true);
 
     try {
-      // 执行测试
       final result = await tts.testConnection();
 
-      // 关闭加载对话框
-      if (context.mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      setState(() => _isTesting = false);
 
-      // 显示测试结果
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => _TtsTestResultDialog(result: result),
-        );
-      }
+      showDialog(
+        context: context,
+        builder: (context) => _TtsTestResultDialog(result: result),
+      );
     } catch (e) {
-      // 关闭加载对话框
-      if (context.mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      setState(() => _isTesting = false);
 
-      // 显示错误
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('测试失败: $e'),
-            backgroundColor: CyberColors.neonPink,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('测试失败: $e'),
+          backgroundColor: CyberColors.neonPink,
+        ),
+      );
     }
   }
 }
@@ -433,7 +430,7 @@ class _TtsTestResultDialog extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(CyberDimensions.spacingML),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,39 +441,34 @@ class _TtsTestResultDialog extends StatelessWidget {
                 Icon(
                   success ? Icons.check_circle : Icons.error,
                   color: success ? CyberColors.neonGreen : CyberColors.neonPink,
-                  size: 28,
+                  size: CyberDimensions.iconL,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: CyberDimensions.spacingMS),
                 Expanded(
                   child: Text(
                     success ? 'TTS 连接成功' : 'TTS 连接失败',
-                    style: TextStyle(
+                    style: CyberTextStyles.dialogTitle.copyWith(
                       color: success
                           ? CyberColors.neonGreen
                           : CyberColors.neonPink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: CyberDimensions.spacingM),
             // 服务器地址
             Text(
               '服务器: ${result['serverUrl']}',
-              style: const TextStyle(
-                color: CyberColors.whiteDim,
-                fontSize: 12,
-              ),
+              style: CyberTextStyles.caption,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: CyberDimensions.spacingM),
             // 测试步骤
             ...steps.map((step) => _buildStepItem(step)),
-            const SizedBox(height: 16),
+            const SizedBox(height: CyberDimensions.spacingM),
             // 总结信息
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(CyberDimensions.spacingMS),
               decoration: BoxDecoration(
                 color: success
                     ? CyberColors.neonGreen.withOpacity(0.1)
@@ -489,14 +481,12 @@ class _TtsTestResultDialog extends StatelessWidget {
               ),
               child: Text(
                 result['message'] as String,
-                style: TextStyle(
+                style: CyberTextStyles.captionComfortable.copyWith(
                   color: success ? CyberColors.neonGreen : CyberColors.neonPink,
-                  fontSize: 13,
-                  height: 1.4,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: CyberDimensions.spacingM),
             // 关闭按钮
             SizedBox(
               width: double.infinity,
@@ -505,19 +495,14 @@ class _TtsTestResultDialog extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: CyberColors.neonCyan,
                   foregroundColor: CyberColors.background,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: CyberDimensions.spacingMS),
                   shape: RoundedRectangleBorder(
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusS),
                   ),
                 ),
-                child: const Text(
-                  '关闭',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: const Text('关闭', style: CyberTextStyles.buttonLabel),
               ),
             ),
           ],
@@ -554,31 +539,25 @@ class _TtsTestResultDialog extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: CyberDimensions.spacingMS),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(statusIcon, color: statusColor, size: 20),
-          const SizedBox(width: 8),
+          Icon(statusIcon, color: statusColor, size: CyberDimensions.iconM),
+          const SizedBox(width: CyberDimensions.spacingS),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '$stepNumber. $name',
-                  style: const TextStyle(
-                    color: CyberColors.whiteHigh,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CyberTextStyles.bodySmallBold,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: CyberDimensions.spacingXXS),
                 Text(
                   message,
-                  style: TextStyle(
+                  style: CyberTextStyles.captionTight.copyWith(
                     color: statusColor.withOpacity(0.8),
-                    fontSize: 12,
-                    height: 1.3,
                   ),
                 ),
               ],
@@ -598,7 +577,10 @@ class _VolumeSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CyberDimensions.spacingM,
+        vertical: CyberDimensions.spacingS,
+      ),
       decoration: BoxDecoration(
         color: CyberColors.surface,
         borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
@@ -610,7 +592,7 @@ class _VolumeSlider extends StatelessWidget {
       child: Row(
         children: [
           const Icon(Icons.volume_down,
-              color: CyberColors.whiteMuted, size: 18),
+              color: CyberColors.whiteMuted, size: CyberDimensions.iconS),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
@@ -632,15 +614,14 @@ class _VolumeSlider extends StatelessWidget {
               ),
             ),
           ),
-          const Icon(Icons.volume_up, color: CyberColors.whiteMuted, size: 18),
-          const SizedBox(width: 8),
+          const Icon(Icons.volume_up,
+              color: CyberColors.whiteMuted, size: CyberDimensions.iconS),
+          const SizedBox(width: CyberDimensions.spacingS),
           Text(
             '${(settings.ambientVol * 100).round()}%',
-            style: const TextStyle(
+            style: CyberTextStyles.captionBold.copyWith(
               color: CyberColors.neonCyan,
-              fontSize: 12,
               fontFamily: CyberTextStyles.monoFont,
-              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -664,20 +645,19 @@ class _IdleTimeoutSelector extends StatelessWidget {
           width: CyberDimensions.borderNormal,
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CyberDimensions.spacingM,
+        vertical: CyberDimensions.spacingMS,
+      ),
       child: Row(
         children: [
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('空闲自动暂停',
-                    style:
-                        TextStyle(color: CyberColors.whiteHigh, fontSize: 14)),
-                SizedBox(height: 2),
-                Text('长时间无操作后自动停止播报',
-                    style:
-                        TextStyle(color: CyberColors.whiteMuted, fontSize: 12)),
+                Text('空闲自动暂停', style: CyberTextStyles.tileTitle),
+                SizedBox(height: CyberDimensions.spacingXXS),
+                Text('长时间无操作后自动停止播报', style: CyberTextStyles.tileSubtitle),
               ],
             ),
           ),
@@ -689,14 +669,10 @@ class _IdleTimeoutSelector extends StatelessWidget {
             items: [
               const DropdownMenuItem(
                   value: 0,
-                  child: Text('永不',
-                      style: TextStyle(
-                          color: CyberColors.whiteDim, fontSize: 13))),
+                  child: Text('永不', style: CyberTextStyles.bodySmall)),
               ...List.generate(5, (i) => i + 1).map((m) => DropdownMenuItem(
                     value: m,
-                    child: Text('$m 分钟',
-                        style: const TextStyle(
-                            color: CyberColors.whiteDim, fontSize: 13)),
+                    child: Text('$m 分钟', style: CyberTextStyles.bodySmall),
                   )),
             ],
             onChanged: (v) {

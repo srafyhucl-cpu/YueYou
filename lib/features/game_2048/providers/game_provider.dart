@@ -16,50 +16,65 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   final int size = 4;
 
   // 4x4 棋盘 (溯源：JS L28-31)
-  // 虽然 UI 现在用 grid, 但为了未来动画效果，我们保留 TileModel 对象的 board
-  List<List<TileModel?>> board = [];
+  List<List<TileModel?>> _board = [];
+  List<List<TileModel?>> get board => _board;
 
   // 兼容层：对齐旧版 UI 的 List<List<int>> 接口
   List<List<int>> get grid {
     return List.generate(
-        size, (r) => List.generate(size, (c) => board[r][c]?.value ?? 0));
+        size, (r) => List.generate(size, (c) => _board[r][c]?.value ?? 0));
   }
 
   // 游戏实时分 (溯源：JS L17)
-  int score = 0;
+  int _score = 0;
+  int get score => _score;
 
   // 最佳得分 (溯源：JS L10)
-  int bestScore = 0;
+  int _bestScore = 0;
+  int get bestScore => _bestScore;
 
   // 实时 Combo (溯源：JS L18)
-  int combo = 0;
+  int _combo = 0;
+  int get combo => _combo;
 
   // 最大 Combo (溯源：JS L11)
-  int maxCombo = 0;
+  int _maxCombo = 0;
+  int get maxCombo => _maxCombo;
 
   // 下一个产生的方块 ID (溯源：JS L19)
   int _nextId = DateTime.now().millisecondsSinceEpoch;
 
   // 游戏是否结束 (溯源：JS L20)
-  bool isOver = false;
+  bool _isOver = false;
+  bool get isOver => _isOver;
 
   // 随机数生成器 (替换 JS Math.random，支持注入种子用于测试)
   late final Random _random;
 
   /// 是否开启音效（由 SettingsProvider 通过 main.dart 同步注入）
-  bool soundEnabled = true;
+  bool _soundEnabled = true;
+  bool get soundEnabled => _soundEnabled;
+  set soundEnabled(bool value) {
+    if (_soundEnabled != value) {
+      _soundEnabled = value;
+      notifyListeners();
+    }
+  }
 
   /// 上一次滑动方向（供吉祥物眼球跟随使用）
-  Direction? lastMoveDirection;
+  Direction? _lastMoveDirection;
+  Direction? get lastMoveDirection => _lastMoveDirection;
 
   /// 用户有效操作回调（由 main.dart 注入，用于重置 TTS 空闲计时器）
   void Function()? onUserMove;
 
   /// 本次移动中合并产生的最大値（0=无合并，供吉祥物欢呼判断）
-  int lastMergedValue = 0;
+  int _lastMergedValue = 0;
+  int get lastMergedValue => _lastMergedValue;
 
   /// 本次有有效滑动但无任何合并（供吉祥物惋惜/生气表情）
-  bool lastMoveNoMerge = false;
+  bool _lastMoveNoMerge = false;
+  bool get lastMoveNoMerge => _lastMoveNoMerge;
 
   /// 音效服务（支持注入 mock，默认使用 SfxService）
   final void Function(int)? _onPlayMerge;
@@ -88,8 +103,8 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// App 启动时从 StorageService 恢复游戏快照（对应 JS loadSavedState）
   void _loadSavedState() {
-    bestScore = StorageService.loadBestScore();
-    maxCombo = StorageService.loadMaxCombo();
+    _bestScore = StorageService.loadBestScore();
+    _maxCombo = StorageService.loadMaxCombo();
     final saved = StorageService.loadGameState();
     if (saved != null) {
       try {
@@ -99,7 +114,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
             final List<dynamic> rows = List<dynamic>.from(
                 (boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null) ?? []);
             if (rows.length == size) {
-              board = List.generate(size, (r) {
+              _board = List.generate(size, (r) {
                 final row = rows[r] as List<dynamic>;
                 return List.generate(size, (c) {
                   final cell = row[c];
@@ -111,12 +126,12 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
                   );
                 });
               });
-              score = (saved['score'] as num?)?.toInt() ?? 0;
-              combo = (saved['combo'] as num?)?.toInt() ?? 0;
-              bestScore = (saved['bestScore'] as num?)?.toInt() ?? bestScore;
-              maxCombo = (saved['maxCombo'] as num?)?.toInt() ?? maxCombo;
+              _score = (saved['score'] as num?)?.toInt() ?? 0;
+              _combo = (saved['combo'] as num?)?.toInt() ?? 0;
+              _bestScore = (saved['bestScore'] as num?)?.toInt() ?? _bestScore;
+              _maxCombo = (saved['maxCombo'] as num?)?.toInt() ?? _maxCombo;
               int maxId = 0;
-              for (final row in board) {
+              for (final row in _board) {
                 for (final tile in row) {
                   if (tile != null && tile.id > maxId) maxId = tile.id;
                 }
@@ -136,23 +151,37 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _initFresh() {
-    isOver = false;
-    score = 0;
-    combo = 0;
-    board = List.generate(size, (_) => List.filled(size, null));
+    _isOver = false;
+    _score = 0;
+    _combo = 0;
+    _board = List.generate(size, (_) => List.filled(size, null));
     addRandomTile();
     addRandomTile();
     updateScore();
     notifyListeners();
   }
 
+  @visibleForTesting
+  void setStateForTesting({
+    List<List<TileModel?>>? board,
+    int? score,
+    int? combo,
+    bool? isOver,
+  }) {
+    if (board != null) _board = board;
+    if (score != null) _score = score;
+    if (combo != null) _combo = combo;
+    if (isOver != null) _isOver = isOver;
+    notifyListeners();
+  }
+
   /// 初始化/重置游戏
   /// 溯源：映射 JS L15-26 (reset)
   void reset() {
-    isOver = false;
-    score = 0;
-    combo = 0;
-    board = List.generate(size, (_) => List.filled(size, null));
+    _isOver = false;
+    _score = 0;
+    _combo = 0;
+    _board = List.generate(size, (_) => List.filled(size, null));
     addRandomTile();
     addRandomTile();
     updateScore();
@@ -164,10 +193,10 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// 溯源：映射 JS L32-112 (move)
   void move(Direction direction) {
     onUserMove?.call();
-    lastMoveDirection = direction;
-    lastMergedValue = 0;
-    lastMoveNoMerge = false;
-    if (isOver) {
+    _lastMoveDirection = direction;
+    _lastMergedValue = 0;
+    _lastMoveNoMerge = false;
+    if (_isOver) {
       _emitGameOver();
       return;
     }
@@ -178,7 +207,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
 
     // 触发滑动音效（轻量级触觉反馈）
     bool hasMerge = false;
-    for (final row in board) {
+    for (final row in _board) {
       for (final tile in row) {
         if (tile != null && tile.value > 2) {
           hasMerge = true;
@@ -186,10 +215,10 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
         }
       }
     }
-    if (soundEnabled && hasMerge) {
+    if (_soundEnabled && hasMerge) {
       // 传入合并后的最大数值，用于分级震动
       int maxMergedValue = 0;
-      for (final row in board) {
+      for (final row in _board) {
         for (final tile in row) {
           if (tile != null && tile.value > maxMergedValue) {
             maxMergedValue = tile.value;
@@ -215,7 +244,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     // 开始遍历
     for (int r in traversal['rows']!) {
       for (int c in traversal['cols']!) {
-        TileModel? tile = board[r][c];
+        TileModel? tile = _board[r][c];
         if (tile == null) continue;
 
         // 查找最远的可移动位置 (溯源：JS L54-60)
@@ -225,9 +254,9 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
         int nextC = c + vector['x']!;
 
         // 循环推移 (溯源：JS L56-62)
-        while (_inBounds(nextR, nextC) && board[nextR][nextC] == null) {
-          board[nextR][nextC] = tile;
-          board[curR][curC] = null;
+        while (_inBounds(nextR, nextC) && _board[nextR][nextC] == null) {
+          _board[nextR][nextC] = tile;
+          _board[curR][curC] = null;
 
           curR = nextR;
           curC = nextC;
@@ -238,29 +267,29 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
 
         // 检查合并 (溯源：JS L63-82)
         if (_inBounds(nextR, nextC)) {
-          TileModel? targetTile = board[nextR][nextC];
+          TileModel? targetTile = _board[nextR][nextC];
           // 逻辑：值相等且目标位置未在本轮合并过 (JS L65)
           if (targetTile != null &&
               targetTile.value == tile.value &&
               !mergedFlags[nextR][nextC]) {
             // 合并操作：值 * 2 (溯源：JS L66)
-            board[nextR][nextC] =
+            _board[nextR][nextC] =
                 targetTile.copyWith(value: targetTile.value * 2);
-            board[curR][curC] = null;
+            _board[curR][curC] = null;
 
             // 标记已合并，并更新状态
             mergedFlags[nextR][nextC] = true;
             moved = true;
-            combo++; // (溯源：JS L70)
+            _combo++; // (溯源：JS L70)
 
             // 更新最大 Combo (溯源：JS L71-74)
-            if (combo > maxCombo) {
-              maxCombo = combo;
+            if (_combo > _maxCombo) {
+              _maxCombo = _combo;
             }
 
             // 存入合并列表（在 JS 里用于触发 3D 效果，此处预留）
             mergedTiles.add(
-                {'r': nextR, 'c': nextC, 'value': board[nextR][nextC]!.value});
+                {'r': nextR, 'c': nextC, 'value': _board[nextR][nextC]!.value});
           }
         }
       }
@@ -269,11 +298,11 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (moved) {
       // 没有任何合并时 combo 归零 (溯源：JS L87)
       if (mergedTiles.isEmpty) {
-        combo = 0;
-        lastMoveNoMerge = true; // 有效滑动但无合并
+        _combo = 0;
+        _lastMoveNoMerge = true; // 有效滑动但无合并
       } else {
         // 记录本次合并的最大値，供吉祥物欢呼动画使用
-        lastMergedValue = mergedTiles
+        _lastMergedValue = mergedTiles
             .map((e) => e['value'] as int)
             .reduce((a, b) => a > b ? a : b);
       }
@@ -289,7 +318,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
       }
 
       // 合并音效（对应 JS: if (result.mergedTiles.length > 0 && t.sound) l.playEffect('merge')）
-      if (mergedTiles.isNotEmpty && soundEnabled) {
+      if (mergedTiles.isNotEmpty && _soundEnabled) {
         if (_onPlayMerge != null) {
           _onPlayMerge(0);
         } else {
@@ -310,7 +339,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _markGameOver() {
-    isOver = true;
+    _isOver = true;
     _emitGameOver();
   }
 
@@ -327,16 +356,16 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     int total = 0;
     for (int r = 0; r < size; r++) {
       for (int c = 0; c < size; c++) {
-        if (board[r][c] != null) {
-          total += board[r][c]!.value;
+        if (_board[r][c] != null) {
+          total += _board[r][c]!.value;
         }
       }
     }
-    score = total;
+    _score = total;
 
     // 记录最佳分数 (溯源：JS L130-132)
-    if (score > bestScore) {
-      bestScore = score;
+    if (_score > _bestScore) {
+      _bestScore = _score;
     }
   }
 
@@ -345,7 +374,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     final boardJson = List.generate(
         size,
         (r) => List.generate(size, (c) {
-              final t = board[r][c];
+              final t = _board[r][c];
               if (t == null) return null;
               return <String, dynamic>{'id': t.id, 'value': t.value};
             }));
@@ -353,10 +382,10 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     final String? currentNovelId = StorageService.getCurrentNovelId();
     StorageService.saveGameState(
       board: boardJson,
-      score: score,
-      combo: combo,
-      bestScore: bestScore,
-      maxCombo: maxCombo,
+      score: _score,
+      combo: _combo,
+      bestScore: _bestScore,
+      maxCombo: _maxCombo,
       novelIndex: novelIndex,
       currentNovelId: currentNovelId,
     );
@@ -390,7 +419,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     List<Map<String, int>> emptyCells = [];
     for (int r = 0; r < size; r++) {
       for (int c = 0; c < size; c++) {
-        if (board[r][c] == null) {
+        if (_board[r][c] == null) {
           emptyCells.add({'r': r, 'c': c});
         }
       }
@@ -400,7 +429,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
       final cell = emptyCells[_random.nextInt(emptyCells.length)];
       // 生成概率：2 (90%), 4 (10%) (溯源：JS L188)
       int value = _random.nextDouble() < 0.9 ? 2 : 4;
-      board[cell['r']!][cell['c']!] = TileModel(id: _nextId++, value: value);
+      _board[cell['r']!][cell['c']!] = TileModel(id: _nextId++, value: value);
     }
   }
 

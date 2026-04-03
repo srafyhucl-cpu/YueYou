@@ -2,6 +2,49 @@
  
 ---
 
+### **2026-04-03**
+- **测试/设计系统工程化(P2-12/13/14)**: 完成测试基础设施收口、Reader/2048 相关失败用例修复，以及 Dashboard / Teleprompter / Settings 的设计 token 清理。
+  - **测试工程化**:
+    - 新增并统一接入 `test/utils/test_utils.dart`，集中初始化 `SharedPreferences`、`StorageService` 与平台通道 mock，降低测试重复样板代码。
+    - 修复 `chapter_list_screen_test.dart`：改为使用真实 `ReaderProvider + TtsEngineService` API，并通过注入固定 `ParseResult` 的方式去除过重解析链路，解决 Widget Test 卡住问题。
+    - 修复 `teleprompter_view_test.dart`：关闭测试场景下自动 TTS 播放，补齐 `ReaderProvider / TtsEngineService` 的资源释放，消除全量测试中的定时器泄漏与跨用例污染。
+    - 修复 `game_provider_test.dart` 中 2 个过时期望：
+      - “无有效移动时不新增方块” 改为真正不可移动棋盘。
+      - “每个方块在同一次移动中只能合并一次” 改为符合当前 2048 单次合并语义的断言。
+  - **设计系统收口**:
+    - 为 `CyberDimensions` 补充细粒度尺寸 token：`spacingXXS`、`teleprompterHeight`、`teleprompterMaskWidth`、`dashboardMascotWidth`、`dashboardMascotHeight`、`dashboardBoardBuffer`、`dashboardStatusCardMinHeight`。
+    - 为 `CyberTextStyles` 补充复用样式 token：`overlineTiny`、`segmentLabel`、`teleprompterInlineRead`、`teleprompterInlineUnread`、`teleprompterError`、`teleprompterPlaceholder`、`dashboardCounter`、`dashboardSeparator`、`captionBold`、`captionTight`、`captionComfortable`、`captionHint`。
+    - 清理 `dashboard_screen.dart` 中顶部工具栏、状态卡、分数计数器与吉祥物布局残留硬编码。
+    - 清理 `teleprompter_view.dart` 中电传屏高度、左右遮罩、中心指示线、错误提示与占位文案的残余魔法数字与内联文本样式。
+    - 清理 `settings_screen.dart` 中说明文案、倍速芯片、TTS 结果面板、音量百分比与空闲暂停说明区域的细碎样式硬编码。
+  - **验证结果**:
+    - `flutter test` 全量通过。
+    - 相关修改文件 `flutter analyze` 通过。
+
+- **优化(模块三：视觉、交互与用户体验)**: 按 `optimization_tasks.md` 完成模块三全部 4 项任务，清剿弹窗硬编码、字体缩放溢出、僵尸弹窗和文本截断体验问题。
+  - **3.1 弹窗组件原子化**:
+    - 重构 `CyberConfirmDialog`，剥离底层 `showGeneralDialog` 逻辑，改为 `showCyberModal` 的子节点 `child` 传入
+    - 所有硬编码边距（`margin: 40`）、圆角（`BorderRadius.circular(20)`）、边框宽度（`width: 1.5`）、模糊值（`sigmaX: 15`）全部替换为 `CyberDimensions` 常量
+    - 同步修复 `cyber_modal.dart` 中的硬编码值，统一使用 `CyberDimensions.radiusL`、`blurStrong`、`borderThick`、`spacingXL`
+    - `_CyberButton` 内部 padding/圆角/边框宽度同步收口至 `CyberDimensions.spacingMS`、`radiusS`、`borderNormal`
+    - 新增 `CyberDimensions.spacingMS = 12.0` 补全 4px 网格间距体系
+  - **3.2 系统字体缩放防溢出**:
+    - 弹窗消息文本区包裹 `Flexible` + `SingleChildScrollView`，系统字体放大 200% 时可滑动查看，不再出现 Yellow/Black 溢出条
+  - **3.3 僵尸弹窗消除**:
+    - `_TtsTestButton` 从 `StatelessWidget` 改为 `StatefulWidget`，使用本地 `_isTesting` 声明式状态控制
+    - 移除命令式 `showDialog` + `Navigator.pop` 的 Loading 弹窗，改为按钮内联 `CircularProgressIndicator`
+    - 测试期间禁用重复点击（`onTap: _isTesting ? null : ...`），消除 Loading 弹窗与底层数据突变导致的僵尸弹窗风险
+  - **3.4 文本解析边缘截断优化**:
+    - `_emergencySplit` 增加两遍扫描机制：第一遍寻找强断点（标点/空格/顿号），第二遍寻找软断点（连词/助词：的、了、和、与）
+    - 软断点阈值降至 50%（强断点保持 70%），在无标点长句中优先从助词处截断，避免劈开词组导致 TTS 朗读怪异
+  - **测试验证**:
+    - 新增软断点回归测试，验证无标点长句优先从助词处截断而非硬切
+    - `flutter test test/features/reader/text_parser_test.dart` 通过（20/20）
+    - `flutter analyze` 全部 5 个修改文件通过，0 issues
+    - 相关测试套件全部通过（63/63）
+
+---
+
 ### **2026-04-02**
 - **重构(TTS)**: TTS 服务架构重构，适配新后端 API 两步下载流程（POST 获取 URL + GET 下载音频），并修复无书籍时开启 TTS 的问题。
   - **架构变更**:
@@ -63,6 +106,7 @@
   - **测试验证**:
     - `flutter test test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart test/widget_test.dart` 通过
     - `flutter analyze lib/features/game_2048/providers/game_provider.dart lib/features/game_2048/presentation/widgets/square_board.dart test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart lib/main.dart` 通过
+  - **提交记录**: Commit ID `25d15c3` - "优化(模块二完成): 2048 持久化防抖、GameOver 事件化、启动预加载、TXT 流式导入"
 
 ---
 
