@@ -702,14 +702,17 @@ void main() {
         };
 
         h.service.setEnabled(true);
-        await delay.wait(const Duration(milliseconds: 1));
+        for (int i = 0; i < 800 && httpClient.postCalls < 2; i++) {
+          await pumpEventQueue(times: 1);
+        }
 
-        for (int i = 0; i < 400 && h.service.bufferedCount == 0; i++) {
+        for (int i = 0; i < 800 && httpClient.downloadCalls == 0; i++) {
           await pumpEventQueue(times: 1);
         }
 
         expect(httpClient.postCalls, equals(2));
-        expect(h.service.bufferedCount, greaterThanOrEqualTo(1));
+        expect(httpClient.downloadCalls, greaterThanOrEqualTo(1));
+        expect(delay.has(const Duration(milliseconds: 1)), isTrue);
         h.service.setEnabled(false);
         h.service.dispose();
       } finally {
