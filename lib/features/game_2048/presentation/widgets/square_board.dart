@@ -386,7 +386,8 @@ class _SquareBoardState extends State<SquareBoard>
                                 ],
                               ),
                             ),
-                            if (_showGameOverDialog)
+                            if (_showGameOverDialog &&
+                                context.read<GameProvider>().isOver)
                               Positioned.fill(
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(

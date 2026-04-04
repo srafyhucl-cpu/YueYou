@@ -513,7 +513,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
           SfxService.playMoveFeedback(2048);
         }
       }
-      if (!_isOver && _movesAvailable()) {
+      if (_movesAvailable()) {
         _isOver = false;
       }
       _schedulePersistState();
