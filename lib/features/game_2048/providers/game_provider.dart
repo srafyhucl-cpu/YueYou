@@ -491,6 +491,36 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     return false;
   }
 
+  /// 彩蛋机制：通过黑客手段强行抹除指定 ID 的数据块
+  void eliminateTileById(int id) {
+    bool removed = false;
+    for (int r = 0; r < size; r++) {
+      for (int c = 0; c < size; c++) {
+        if (_board[r][c]?.id == id) {
+          _board[r][c] = null;
+          removed = true;
+          break;
+        }
+      }
+      if (removed) break;
+    }
+
+    if (removed) {
+      if (_soundEnabled) {
+        if (_onPlayMerge != null) {
+          _onPlayMerge(2048);
+        } else {
+          SfxService.playMoveFeedback(2048);
+        }
+      }
+      if (!_isOver && _movesAvailable()) {
+        _isOver = false;
+      }
+      _schedulePersistState();
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _persistDebounceTimer?.cancel();

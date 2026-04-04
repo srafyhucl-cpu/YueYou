@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
@@ -6,22 +7,36 @@ import 'merge_particle.dart';
 
 /// 单个 2048 数字方块
 /// 合并动画：scale(1.0 → 1.15 → 1.0) + 光晕强化，120ms 完成
+/// 黑客后门彩蛋：连续点击 8 次触发崩塌消除动画
 class TileWidget extends StatefulWidget {
   final int value;
+  final int? id;
+  final VoidCallback? onEliminate;
 
-  const TileWidget({super.key, required this.value});
+  const TileWidget({
+    super.key,
+    required this.value,
+    this.id,
+    this.onEliminate,
+  });
 
   @override
   State<TileWidget> createState() => _TileWidgetState();
 }
 
-class _TileWidgetState extends State<TileWidget>
-    with SingleTickerProviderStateMixin {
+class _TileWidgetState extends State<TileWidget> with TickerProviderStateMixin {
   late AnimationController _mergeController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _glowAnimation;
+  late AnimationController _eliminateController;
+  late Animation<double> _eliminateScaleAnimation;
+  late Animation<double> _eliminateOpacityAnimation;
+  late Animation<double> _eliminateRotationAnimation;
+  Timer? _tapResetTimer;
   int _previousValue = 0;
   bool _showParticles = false;
+  int _tapCount = 0;
+  bool _isEliminating = false;
 
   @override
   void initState() {
@@ -57,6 +72,40 @@ class _TileWidgetState extends State<TileWidget>
         weight: 50,
       ),
     ]).animate(_mergeController);
+
+    // 崩塌消除动画：450ms，三段式视觉冲击
+    _eliminateController = AnimationController(
+      duration: const Duration(milliseconds: 450),
+      vsync: this,
+    );
+    // 先膨胀 (0→25%) 再坍缩至 0 (25→100%)，easeInBack 产生回弹感
+    _eliminateScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.3)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.3, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeInBack)),
+        weight: 75,
+      ),
+    ]).animate(_eliminateController);
+    // 前 60% 保持不透明，后 40% 快速消散
+    _eliminateOpacityAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1.0),
+        weight: 60,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 0.0),
+        weight: 40,
+      ),
+    ]).animate(_eliminateController);
+    // 坍缩时微微旋转，强化「被删除」的混乱感
+    _eliminateRotationAnimation = Tween<double>(begin: 0.0, end: 0.25)
+        .chain(CurveTween(curve: Curves.easeIn))
+        .animate(_eliminateController);
   }
 
   @override
@@ -72,8 +121,31 @@ class _TileWidgetState extends State<TileWidget>
 
   @override
   void dispose() {
+    _tapResetTimer?.cancel();
     _mergeController.dispose();
+    _eliminateController.dispose();
     super.dispose();
+  }
+
+  void _handleTap() {
+    if (_isEliminating) return;
+    _tapResetTimer?.cancel();
+    _tapCount++;
+    if (_tapCount < 8) {
+      _mergeController.forward(from: 0.3);
+      // 1.5s 内无后续点击则视为中断，计数清零
+      _tapResetTimer = Timer(const Duration(milliseconds: 1500), () {
+        if (mounted) setState(() => _tapCount = 0);
+      });
+    } else {
+      setState(() {
+        _isEliminating = true;
+        _showParticles = true;
+      });
+      _eliminateController.forward().then((_) {
+        widget.onEliminate?.call();
+      });
+    }
   }
 
   @override
@@ -82,65 +154,86 @@ class _TileWidgetState extends State<TileWidget>
       return const SizedBox.shrink();
     }
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // 主方块
-        AnimatedBuilder(
-          animation: _mergeController,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: _getTileGradient(widget.value),
-                  borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
-                  boxShadow:
-                      _getDynamicGlow(widget.value, _glowAnimation.value),
-                  border: Border.all(
-                    color: CyberColors.whiteFaint,
-                    width: 1,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${widget.value}',
-                  style: TextStyle(
-                    color: CyberColors.whiteHigh,
-                    fontSize: _getFontSize(widget.value),
-                    fontWeight: FontWeight.w900,
-                    fontFamily: CyberTextStyles.monoFont,
-                    shadows: const [
-                      Shadow(
-                        color: CyberColors.blackDim,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
+    return GestureDetector(
+      onTap: _handleTap,
+      child: AnimatedBuilder(
+        animation: _eliminateController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _eliminateScaleAnimation.value,
+            child: Transform.rotate(
+              angle: _eliminateRotationAnimation.value,
+              child: Opacity(
+                opacity: _eliminateOpacityAnimation.value,
+                child: child,
               ),
-            );
-          },
-        ),
-        // 粒子效果层
-        if (_showParticles)
-          Positioned.fill(
-            child: MergeParticle(
-              color: _getParticleColor(widget.value),
-              onComplete: () {
-                if (mounted) {
-                  setState(() => _showParticles = false);
-                }
+            ),
+          );
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // 主方块
+            AnimatedBuilder(
+              animation: _mergeController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _scaleAnimation.value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: _getTileGradient(widget.value),
+                      borderRadius:
+                          BorderRadius.circular(CyberDimensions.radiusM),
+                      boxShadow:
+                          _getDynamicGlow(widget.value, _glowAnimation.value),
+                      border: Border.all(
+                        color: CyberColors.whiteFaint,
+                        width: 1,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${widget.value}',
+                      style: TextStyle(
+                        color: CyberColors.whiteHigh,
+                        fontSize: _getFontSize(widget.value),
+                        fontWeight: FontWeight.w900,
+                        fontFamily: CyberTextStyles.monoFont,
+                        shadows: const [
+                          Shadow(
+                            color: CyberColors.blackDim,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
               },
             ),
-          ),
-      ],
+            // 粒子效果层
+            if (_showParticles)
+              Positioned.fill(
+                child: MergeParticle(
+                  color: _getParticleColor(widget.value),
+                  onComplete: () {
+                    if (mounted) {
+                      setState(() => _showParticles = false);
+                    }
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
   /// 获取粒子颜色（与光晕颜色一致）
+  /// 黑客消除时强制返回危险警告色
   Color _getParticleColor(int value) {
+    if (_isEliminating) return CyberColors.neonPink;
     if (value <= 16) return CyberColors.tileBlue;
     if (value <= 64) return CyberColors.neonPurple;
     if (value <= 256) return CyberColors.hotPink;

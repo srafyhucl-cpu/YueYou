@@ -372,7 +372,15 @@ class _SquareBoardState extends State<SquareBoard>
                                       top: pos.$1 * (cellSize + spacing),
                                       width: cellSize,
                                       height: cellSize,
-                                      child: TileWidget(value: tile.value),
+                                      child: TileWidget(
+                                        id: tile.id,
+                                        value: tile.value,
+                                        onEliminate: () {
+                                          context
+                                              .read<GameProvider>()
+                                              .eliminateTileById(tile.id);
+                                        },
+                                      ),
                                     );
                                   }),
                                 ],

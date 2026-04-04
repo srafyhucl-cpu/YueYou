@@ -3,6 +3,25 @@
 ---
 
 ### **2026-04-04**
+- **功能(2048 黑客后门彩蛋)**: 在 2048 游戏方块中植入「连续点击 8 次自毁」隐藏彩蛋，强化赛博朋克极客氛围。
+  - **核心逻辑（`GameProvider.eliminateTileById`）**:
+    - 遍历棋盘按 `id` 定位目标方块，置 `null` 并触发 2048 级最高音效作为「黑客成功」听觉奖励
+    - 消除后重新检查 `_movesAvailable()`，避免误判 GameOver；调用 `_schedulePersistState()` 防止存档丢失
+  - **触控层改造（`TileWidget`）**:
+    - 构造函数新增 `id`、`onEliminate` 可选参数；`SingleTickerProviderStateMixin` 升级为 `TickerProviderStateMixin` 以支持双 `AnimationController`
+    - 新增 `_tapResetTimer`（`dart:async`）：每次点击重置 1.5s 倒计时，超时则 `_tapCount = 0`，玩家中断操作后须重新从 1 开始
+    - 前 7 次点击复用 `_mergeController.forward(from: 0.3)` 产生「正在破解防火墙」的受击抖动反馈
+    - 第 8 次点击触发 `_eliminateController`（450ms 三段式）：
+      - **膨胀**（0→25%）: scale 1.0 → 1.3，`easeOut`，模拟被锤击的瞬间膨胀
+      - **坍缩**（25→100%）: scale 1.3 → 0.0，`easeInBack`，有回弹感的向心崩塌
+      - **消散**（60→100%）: opacity 1.0 → 0.0，最后 40% 时间快速淡出
+      - **旋转**（0→100%）: 微幅旋转 0 → 0.25 rad，`easeIn`，强化「数据被清除」混乱感
+    - 动画结束回调 `.then((_) { widget.onEliminate?.call(); })` 触发全局状态修改，严格遵循「先播动画 → 回调修改状态」解耦原则
+    - `_getParticleColor`：`_isEliminating` 时强制返回 `CyberColors.neonPink`（危险粉红粒子爆炸）
+  - **连线层（`SquareBoard`）**:
+    - `TileWidget` 调用处透传 `id: tile.id` 与 `onEliminate: () => provider.eliminateTileById(tile.id)`
+  - **验证结果**: `flutter analyze` 三个修改文件均 0 issues
+
 - **重构(音效引擎 V4)**: 基于旧版 Web 端已验证的 `playEffect('merge')` 音效精确移植到 Flutter 端，替换之前多次迭代但听感不佳的 V1-V3 版本。
   - **核心变更**:
     - 扫频方向从**下行**（高→低）改为**上行**（低→高），与旧版 Web 端 `440→880Hz exponentialRampToValueAtTime` 完全一致，听觉上更贴合"合并上升"的反馈感
