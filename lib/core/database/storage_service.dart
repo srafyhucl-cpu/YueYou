@@ -24,6 +24,7 @@ class StorageService {
   static const String _kSettingTtsRate = 'setting_tts_rate';
   static const String _kSettingAmbientVol = 'setting_ambient_vol';
   static const String _kSettingAmbientEnabled = 'setting_ambient_enabled';
+  static const String _kHasAgreedPrivacy = 'has_agreed_privacy';
 
   static SharedPreferences? _prefs;
 
@@ -219,4 +220,9 @@ class StorageService {
       _p.getBool(_kSettingAmbientEnabled) ?? true;
   static Future<void> setSettingAmbientEnabled(bool v) =>
       _p.setBool(_kSettingAmbientEnabled, v);
+
+  // ── 隐私协议同意状态 ──────────────────────────────────────────────────────
+  static bool hasAgreedPrivacy() => _p.getBool(_kHasAgreedPrivacy) ?? false;
+  static Future<void> setHasAgreedPrivacy(bool v) =>
+      _p.setBool(_kHasAgreedPrivacy, v);
 }

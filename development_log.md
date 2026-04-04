@@ -16,6 +16,46 @@
   - **零杂音保证**: 保留解析式 chirp 相位公式 `φ(t)=2π(f₀t+(f₁-f₀)t²/2T)`，连续可微，零相位突变
   - **验证结果**: `flutter analyze` 零问题，`flutter test` 32 测试全部通过
 
+- **发版(V1.0 商业化发版冲刺 Sprint)**: 按照 `v1_release_tasks.md` 依次完成全部 P0/P1 任务，将「阅游」从"内测 Demo"正式升级为"可上架各大应用市场的 V1.0 商业化产品"。
+  - **[P0] Task 1: 网络安全策略与 TTS 离线引擎降级兜底**
+    - Android `AndroidManifest.xml` 确认已有 `usesCleartextTraffic="true"`（无需修改）
+    - iOS `Info.plist` 新增 `NSAppTransportSecurity / NSAllowsArbitraryLoads = true`，解除 ATS 对 HTTP 明文流量的拦截
+    - `pubspec.yaml` 确认已有 `flutter_tts: ^3.8.5`（无需修改）
+    - 重构 `TtsEngineService` 降级架构：
+      - 新增 `TtsFallbackEngine` 可测试抽象接口 + `_FlutterTtsFallbackEngine` 生产实现（`FlutterTts` 封装，带 `Completer` 完成监听与超时保护）
+      - `_downloadTtsAudio()` 返回类型扩展为 `({String? filePath, int attempts, bool useFallback})`，区分降级场景（HTTP 5xx / 超时 / SocketException → `useFallback: true`；HTTP 400 / FormatException → 不降级）
+      - 预加载循环 `_startPrefetchLoop()` 在 `useFallback == true` 时自动调用 `_speakWithLocalTts()` 切换至系统原生 TTS 朗读
+      - 触发降级时通过 `_fallbackNotification` 字段通知 UI 层，`TtsErrorListener` 展示赛博青色 SnackBar（带霓虹边框）："云端神经网断开，已自动切换至本地仿生发声模块"
+      - 降级引擎初始化失败（测试环境 `MissingPluginException`）在独立 `try/catch` 中静默吞掉，不影响主初始化链
+    - **验证**: `flutter analyze` 零问题，与修改前相同的测试通过率（`+30 -5`，均为预存缺陷）
+  - **[P0] Task 2: 隐私合规与权限前置拦截**
+    - `StorageService` 新增 `hasAgreedPrivacy()` / `setHasAgreedPrivacy(bool)` 及持久化键 `has_agreed_privacy`
+    - 新建 `lib/features/settings/presentation/widgets/privacy_agreement_modal.dart`：
+      - 基于 `showCyberModal(barrierDismissible: false)` 强制拦截，用户必须主动选择
+      - 弹窗包含 4 个策略节（数据存储 / 云端 TTS / 存储权限 / 隐私承诺），正文区可滚动
+      - "同意接入"：霓虹青渐变主按钮；"拒绝并退出"：霓虹粉边框危险按钮 + 延迟 `exit(0)`
+    - `main.dart` `_BootstrapperState`：
+      - 新增 `GlobalKey<NavigatorState>` 注入 `MaterialApp.navigatorKey`，绕开 `_Bootstrapper.context` 无 `MaterialLocalizations` 的问题
+      - 将原 `_bootstrap()` 拆分为 `_checkPrivacyAndBootstrap()`：先检查隐私 → 同意后才执行书籍加载和网络初始化
+    - `CyberImportButton`：在调用系统文件选择器前通过 `showCyberConfirmDialog` 展示存储权限前置说明
+    - **Bug Fix**: 首次运行崩溃 `No MaterialLocalizations found`，根因为 `_BootstrapperState.context` 位于 `MaterialApp` 上层；改用 `_navigatorKey.currentContext`（addPostFrameCallback 后第一帧已渲染，Navigator 已初始化）解决
+    - **验证**: `flutter analyze` 四文件零问题
+  - **[P0] Task 3: 大文件内存硬阻断**
+    - `FileImportService` 顶层新增公开常量 `kMaxFileSizeMb = 15` 及内部字节阈值 `_kMaxFileSizeBytes`
+    - 新增 `FileTooLargeException implements Exception`，`toString()` 直接返回赛博提示文案（引用常量保证一致性）：`"V1.0 神经接驳器带宽有限，暂不支持超过 15MB 的超大型数据芯片，请分割后导入"`
+    - `importTxtFileStructured()` 在文件路径验证后、Isolate 启动前，立即 `File(filePath).lengthSync()` 校验文件大小，超限则 `throw const FileTooLargeException()`
+    - catch 块中 `if (error is FileTooLargeException) rethrow;`，使异常穿透到 UI 层
+    - `CyberImportButton` catch 块：`FileTooLargeException` 直接展示 `error.toString()`（无"导入失败:"前缀），其余错误保持原有格式
+    - **验证**: `flutter analyze` 两文件零问题
+  - **[P1] Task 4: 基础崩溃监控与热更新锚点**
+    - 新建 `lib/core/utils/cyber_logger.dart`：
+      - `recordFlutterError(FlutterErrorDetails)` 对接 `FlutterError.onError`，格式化输出 library / context / exception / stack
+      - `recordPlatformError(Object, StackTrace) → bool` 对接 `PlatformDispatcher.instance.onError`，返回 `false` 保持默认崩溃行为
+      - 预留 `// TODO: V1.1 接入 Sentry/Crashlytics` 注释占位，升级时只需替换 `_emit()` 实现
+    - `main()` 中在 `WidgetsFlutterBinding.ensureInitialized()` 之后、`runApp()` 之前注册两个全局钩子
+    - `DashboardScreen._DashboardScreenState` 新增 `initState`，通过 `addPostFrameCallback` 异步触发 `_checkAppUpdates()`（空实现存根），注释完整描述 V1.1 实现路径（GET 版本 JSON → 版本比对 → `showCyberConfirmDialog` → 强制更新开关）
+    - **验证**: `flutter analyze` 三文件零问题
+
 ### **2026-04-03**
 - **修复(TTS 联调与告警清理)**: 收口一批开发期告警，并为 TTS 新旧接口不匹配场景补充更明确的诊断信息。
   - **TTS 契约诊断增强**:

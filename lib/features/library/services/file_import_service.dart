@@ -9,6 +9,19 @@ import 'package:file_picker/file_picker.dart';
 import 'package:fast_gbk/fast_gbk.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 
+// V1.0 最大允许导入的文件大小（可配置常量）
+const int kMaxFileSizeMb = 15;
+const int _kMaxFileSizeBytes = kMaxFileSizeMb * 1024 * 1024;
+
+/// 文件超过 V1.0 最大导入限制时抛出
+class FileTooLargeException implements Exception {
+  const FileTooLargeException();
+
+  @override
+  String toString() =>
+      'V1.0 神经接驳器带宽有限，暂不支持超过 ${kMaxFileSizeMb}MB 的超大型数据芯片，请分割后导入';
+}
+
 // 导入结果数据类
 class FileImportResult {
   final String title;
@@ -70,9 +83,16 @@ class FileImportService {
 
       final String fileName = pickedFile.name;
 
+      // 🔥 Task 3：文件大小硬性校验，阻断超大文件撑爆内存
+      final int fileSize = File(filePath).lengthSync();
+      if (fileSize > _kMaxFileSizeBytes) {
+        throw const FileTooLargeException();
+      }
+
       // 🔥 2.1：只传文件路径给 Isolate，由 Isolate 内部流式读取
       return await _spawnParseIsolate(_ParseArgs(filePath, fileName));
     } catch (error, stackTrace) {
+      if (error is FileTooLargeException) rethrow;
       debugPrint(' TXT 导入失败: $error\n$stackTrace');
       return null;
     }

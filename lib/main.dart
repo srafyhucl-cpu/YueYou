@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
+import 'core/utils/cyber_logger.dart';
+import 'features/settings/presentation/widgets/privacy_agreement_modal.dart';
 import 'features/audio/services/sfx_service.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/game_2048/providers/game_provider.dart';
@@ -14,6 +17,11 @@ import 'widgets/tts_error_listener.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 全局错误捕获锚点（Task 4）
+  FlutterError.onError = CyberLogger.recordFlutterError;
+  PlatformDispatcher.instance.onError = CyberLogger.recordPlatformError;
+
   // 启动前初始化持久化层与音效引擎
   await StorageService.init();
   await SfxService.init();
@@ -128,11 +136,29 @@ class _Bootstrapper extends StatefulWidget {
 
 class _BootstrapperState extends State<_Bootstrapper> {
   bool _booted = false;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkPrivacyAndBootstrap());
+  }
+
+  Future<void> _checkPrivacyAndBootstrap() async {
+    if (!mounted) return;
+    if (!StorageService.hasAgreedPrivacy()) {
+      final navContext = _navigatorKey.currentContext;
+      if (navContext == null) return;
+      final agreed = await showPrivacyAgreementModal(navContext);
+      if (!mounted) return;
+      if (agreed) {
+        await StorageService.setHasAgreedPrivacy(true);
+      } else {
+        return;
+      }
+    }
+    await _bootstrap();
   }
 
   Future<void> _bootstrap() async {
@@ -166,6 +192,7 @@ class _BootstrapperState extends State<_Bootstrapper> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: '阅游 YueYou',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

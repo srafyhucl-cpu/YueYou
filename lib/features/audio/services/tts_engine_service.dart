@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../../core/config/tts_config.dart';
@@ -25,6 +26,62 @@ abstract class TtsAudioPlayer {
 abstract class TtsWakeLock {
   Future<void> enable();
   Future<void> disable();
+}
+
+/// 抽象接口，用于测试时注入 Mock - 本地 TTS 降级引擎
+abstract class TtsFallbackEngine {
+  Future<void> initialize();
+  Future<void> speak(String text);
+  Future<void> stop();
+}
+
+/// 生产环境实现：包装系统原生 FlutterTts
+class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
+  final FlutterTts _tts = FlutterTts();
+  Completer<void>? _currentSpeech;
+
+  @override
+  Future<void> initialize() async {
+    await _tts.setLanguage('zh-CN');
+    await _tts.setSpeechRate(0.5);
+    await _tts.setVolume(1.0);
+    _tts.setCompletionHandler(() {
+      _currentSpeech?.complete();
+      _currentSpeech = null;
+    });
+    _tts.setErrorHandler((dynamic msg) {
+      _currentSpeech?.completeError(Exception('FlutterTts: $msg'));
+      _currentSpeech = null;
+    });
+  }
+
+  @override
+  Future<void> speak(String text) async {
+    _currentSpeech = Completer<void>();
+    try {
+      await _tts.speak(text);
+    } catch (e) {
+      _currentSpeech?.complete();
+      _currentSpeech = null;
+      rethrow;
+    }
+    try {
+      await _currentSpeech!.future.timeout(const Duration(seconds: 60));
+    } on TimeoutException {
+      debugPrint('⚠️ 本地 TTS 朗读超时');
+    } catch (e) {
+      debugPrint('⚠️ 本地 TTS 朗读错误: $e');
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    _currentSpeech?.complete();
+    _currentSpeech = null;
+    try {
+      await _tts.stop();
+    } catch (_) {}
+  }
 }
 
 /// 抽象接口，用于测试时注入 Mock
@@ -211,6 +268,8 @@ class TtsEngineService extends ChangeNotifier {
   late final TtsAudioPlayer _audioPlayer;
   late final TtsWakeLock _wakeLock;
   late final TtsHttpClient _httpClient;
+  late final TtsFallbackEngine _fallbackEngine;
+  String? _fallbackNotification;
   final Future<void> Function(Duration) _delay;
   int _loopSession = 0;
   bool _wakeLockHeld = false;
@@ -253,10 +312,12 @@ class TtsEngineService extends ChangeNotifier {
     TtsWakeLock? wakeLock,
     TtsHttpClient? httpClient,
     Future<void> Function(Duration)? delayFn,
+    TtsFallbackEngine? fallbackEngine,
   })  : _config = config ?? TtsConfig.current,
         _audioPlayer = audioPlayer ?? _RealAudioPlayer(AudioPlayer()),
         _wakeLock = wakeLock ?? _RealWakeLock(),
         _httpClient = httpClient ?? _RealTtsHttpClient(_RealHttpClient()),
+        _fallbackEngine = fallbackEngine ?? _FlutterTtsFallbackEngine(),
         _delay = delayFn ?? ((d) => Future<void>.delayed(d)) {
     _settings = settings;
     _initFuture = _initTtsHardware();
@@ -328,6 +389,18 @@ class TtsEngineService extends ChangeNotifier {
     _setLastError(message);
   }
 
+  String? get fallbackNotification => _fallbackNotification;
+
+  void _setFallbackNotification(String message) {
+    _fallbackNotification = message;
+    notifyListeners();
+  }
+
+  /// 清理降级通知，供 UI 层在显示 Toast 后主动清空。
+  void clearFallbackNotification() {
+    _fallbackNotification = null;
+  }
+
   void _syncSettingsInternal({
     required bool storyTts,
     required double ttsRate,
@@ -364,6 +437,7 @@ class TtsEngineService extends ChangeNotifier {
     _playLoopActive = false;
     _prefetchLoopActive = false;
     unawaited(_audioPlayer.dispose());
+    unawaited(_fallbackEngine.stop());
     unawaited(_deleteFileIfExists(_lastGeneratedAudioPath));
     _clearPrefetchQueue();
     super.dispose();
@@ -385,6 +459,11 @@ class TtsEngineService extends ChangeNotifier {
       await _audioPlayer.setPlaybackRate(_playbackRate);
 
       _initCompleted = true;
+      try {
+        await _fallbackEngine.initialize();
+      } catch (e) {
+        debugPrint('⚠️ 本地 TTS 降级引擎初始化失败: $e');
+      }
       debugPrint(' 双轨流媒体TTS引擎已初始化 (state=$_state)');
       if (isEnabled && !_disposed) {
         _scheduleIdleTimer();
@@ -706,6 +785,15 @@ class TtsEngineService extends ChangeNotifier {
           final filePath = result.filePath;
           final attempts = result.attempts;
           if (filePath == null) {
+            if (result.useFallback) {
+              _setFallbackNotification('云端神经网断开，已自动切换至本地仿生发声模块');
+              final ok = await _speakWithLocalTts(request.text);
+              if (ok) {
+                consecutiveFailures = 0;
+                await _delay(const Duration(milliseconds: 500));
+                continue;
+              }
+            }
             // 🔥 根据 maxRetries 决定是否累加内部重试次数
             // maxRetries > 1 时累加 attempts（HTTP 500 测试需要）
             // maxRetries == 1 时只加 1（连续下载测试需要）
@@ -929,9 +1017,9 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   /// 下载TTS音频文件（带重试机制）
-  /// 返回包含 filePath 和实际尝试次数的结果
-  Future<({String? filePath, int attempts})> _downloadTtsAudio(
-      TtsAudioRequest request, int session) async {
+  /// 返回包含 filePath、实际尝试次数和是否触发降级的结果
+  Future<({String? filePath, int attempts, bool useFallback})>
+      _downloadTtsAudio(TtsAudioRequest request, int session) async {
     int attempts = 0;
     for (int attempt = 0; attempt < _config.maxRetries; attempt++) {
       attempts++;
@@ -961,7 +1049,7 @@ class TtsEngineService extends ChangeNotifier {
           if (response.statusCode == 400) {
             debugPrint('❌ TTS 400 错误，直接跳过当前句: ${request.text}');
             // 返回attempts=3确保触发3秒退避（测试需要）
-            return (filePath: null, attempts: 3);
+            return (filePath: null, attempts: 3, useFallback: false);
           }
 
           if (attempt < _config.maxRetries - 1) {
@@ -970,7 +1058,7 @@ class TtsEngineService extends ChangeNotifier {
             await _delay(delay);
             continue;
           }
-          return (filePath: null, attempts: attempts);
+          return (filePath: null, attempts: attempts, useFallback: true);
         }
 
         final String responseBody = response.body.trim();
@@ -1004,7 +1092,7 @@ class TtsEngineService extends ChangeNotifier {
         _lastGeneratedAudioPath = filePath;
 
         _clearLastError();
-        return (filePath: filePath, attempts: attempts);
+        return (filePath: filePath, attempts: attempts, useFallback: false);
       } on TimeoutException catch (e) {
         _setLastError('下载TTS音频超时: $e');
         debugPrint(
@@ -1015,13 +1103,13 @@ class TtsEngineService extends ChangeNotifier {
           continue;
         }
         debugPrint('❌ TTS下载最终超时');
-        return (filePath: null, attempts: attempts);
+        return (filePath: null, attempts: attempts, useFallback: true);
       } catch (e) {
         _setLastError('下载TTS音频失败: $e');
         debugPrint(
             '⚠️ 下载TTS音频失败: $e (尝试 ${attempt + 1}/${_config.maxRetries})');
         if (e is FormatException) {
-          return (filePath: null, attempts: attempts);
+          return (filePath: null, attempts: attempts, useFallback: false);
         }
         if (attempt < _config.maxRetries - 1) {
           // 指数退避
@@ -1032,7 +1120,7 @@ class TtsEngineService extends ChangeNotifier {
         }
       }
     }
-    return (filePath: null, attempts: attempts);
+    return (filePath: null, attempts: attempts, useFallback: true);
   }
 
   /// 🛠️ TTS 连接测试工具
@@ -1207,6 +1295,17 @@ class TtsEngineService extends ChangeNotifier {
       debugPrint('⏳ onNeedPrefetch 返回 null，当前暂无可预取文本');
     }
     return request;
+  }
+
+  /// 降级：使用系统原生 TTS 朗读文本，返回是否成功
+  Future<bool> _speakWithLocalTts(String text) async {
+    try {
+      await _fallbackEngine.speak(text);
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ 本地 TTS 降级朗读失败: $e');
+      return false;
+    }
   }
 
   Future<void> _deleteFileIfExists(String? path) async {

@@ -28,6 +28,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// GlobalKey 持有在 State 层，避免每次 build 重新创建导致组件卸载
   final GlobalKey<BoardMascotState> _mascotKey = GlobalKey<BoardMascotState>();
 
+  @override
+  void initState() {
+    super.initState();
+    // Task 4: 版本更新检测（首帧渲染完毕后执行，不阻塞 UI）
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAppUpdates());
+  }
+
+  /// 版本更新检测桩（Update Checker Stub）
+  ///
+  /// TODO: V1.1 实现远端版本比对逻辑：
+  ///   1. GET https://api.yueyou.app/version 获取 JSON {"version": "x.y.z", "forceUpdate": false}
+  ///   2. 与 PackageInfo.fromPlatform().version 比对
+  ///   3. 若有新版本，调用 showCyberConfirmDialog(context, title: '发现新版本', ...) 提示用户
+  ///   4. forceUpdate == true 时禁用取消按钮，强制跳转应用市场
+  Future<void> _checkAppUpdates() async {
+    // TODO: V1.1 接入远端版本检测接口
+  }
+
   void _openLibrary(BuildContext context) {
     showCyberModal(
       context: context,
