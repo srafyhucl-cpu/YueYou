@@ -1,5 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
@@ -102,13 +103,33 @@ class _PrivacyAgreementContent extends StatelessWidget {
           ),
           const SizedBox(height: CyberDimensions.spacingM),
 
-          // ── 提示 ────────────────────────────────────────────────
-          Text(
-            '同意后，您可在设置页面随时重新查看本协议',
-            textAlign: TextAlign.center,
-            style: CyberTextStyles.caption.copyWith(
-              color: CyberColors.whiteMuted,
-            ),
+          // ── 提示 + 隐私政策外链 ─────────────────────────────────
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                '同意后，您可在设置页面随时重新查看本协议· ',
+                textAlign: TextAlign.center,
+                style: CyberTextStyles.caption.copyWith(
+                  color: CyberColors.whiteMuted,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => launchUrl(
+                  Uri.parse('https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: Text(
+                  '阅读完整版《阅游隐私政策》',
+                  style: CyberTextStyles.caption.copyWith(
+                    color: CyberColors.neonCyan,
+                    decoration: TextDecoration.underline,
+                    decorationColor: CyberColors.neonCyan,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: CyberDimensions.spacingL),
 
@@ -120,10 +141,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
                 child: _DeclineButton(
                   onTap: () {
                     Navigator.of(context).pop(false);
-                    Future<void>.delayed(
-                      const Duration(milliseconds: 200),
-                      () => exit(0),
-                    );
+                    SystemNavigator.pop();
                   },
                 ),
               ),

@@ -16,6 +16,16 @@
   - **零杂音保证**: 保留解析式 chirp 相位公式 `φ(t)=2π(f₀t+(f₁-f₀)t²/2T)`，连续可微，零相位突变
   - **验证结果**: `flutter analyze` 零问题，`flutter test` 32 测试全部通过
 
+- **发版(Android 发版专项修复 + 图标替换)**:
+  - **应用名称**: `AndroidManifest.xml` 中 `android:label` 由 `"yueyou"` 修改为 `"阅游"`，桌面图标与应用管理页将正确显示中文名
+  - **退出方式规范化**: `privacy_agreement_modal.dart` 移除 `import 'dart:io'` 及 `exit(0)`，改用 `SystemNavigator.pop()` 符合 Android 生命周期规范；同步引入 `package:flutter/services.dart`
+  - **隐私政策外链**: 将弹窗底部提示文字改为 `Wrap` 布局，内嵌霓虹青下划线可点击文字"阅读完整版《阅游隐私政策》"，使用 `url_launcher` 以 `LaunchMode.externalApplication` 打开腾讯文档隐私政策页（`https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN`）
+    - `pubspec.yaml` 新增 `url_launcher: ^6.3.0`（已解析为 `6.3.1`）
+    - `AndroidManifest.xml` `<queries>` 补充 `https`/`http` scheme intent 声明（Android 11+ 必需）
+  - **应用图标替换**: 使用项目已有的赛博朋克霓虹方块图（`assets/icon.png`）替换默认 Flutter 图标
+    - `pubspec.yaml` 新增 `flutter_launcher_icons: ^0.14.3`（已解析为 `0.14.4`）并添加配置：`android: true, ios: false, adaptive_icon_background: '#0A0A0F'`
+    - `dart run flutter_launcher_icons` 一键生成：5 个 mipmap 尺寸（mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi）+ 5 个 adaptive foreground drawable + `mipmap-anydpi-v26/ic_launcher.xml` + `values/colors.xml`
+
 - **发版(V1.0 商业化发版冲刺 Sprint)**: 按照 `v1_release_tasks.md` 依次完成全部 P0/P1 任务，将「阅游」从"内测 Demo"正式升级为"可上架各大应用市场的 V1.0 商业化产品"。
   - **[P0] Task 1: 网络安全策略与 TTS 离线引擎降级兜底**
     - Android `AndroidManifest.xml` 确认已有 `usesCleartextTraffic="true"`（无需修改）
