@@ -152,11 +152,11 @@ class _BootstrapperState extends State<_Bootstrapper> {
     final chapters = rawChapters
         .map((e) => ChapterModel.fromJson(e as Map<String, dynamic>))
         .toList();
-    final String rawText = rawLines.join('\n');
+    final lines = rawLines.map((e) => e.toString()).toList();
     final int initialIndex = StorageService.getCurrentNovelIndex();
 
-    await reader.loadBook(
-      rawText,
+    await reader.loadPreparedBook(
+      lines,
       bookId: currentNovelId,
       chapters: chapters,
       initialIndex: initialIndex,

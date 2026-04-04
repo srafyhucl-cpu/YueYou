@@ -16,18 +16,12 @@ class TtsConfig {
 
   /// 开发环境配置（通过 --dart-define=TTS_SERVER_URL=http://your-server:3000/api/v1/tts/createStream 指定）
   static const TtsConfig development = TtsConfig(
-    serverUrl: String.fromEnvironment(
-      'TTS_SERVER_URL',
-      defaultValue: 'http://47.94.102.250:8080/api/v1/tts',
-    ),
+    serverUrl: 'http://47.94.102.250:8080/api/v1/tts',
   );
 
   /// 生产环境配置（通过 --dart-define=TTS_SERVER_URL 覆盖）
   static const TtsConfig production = TtsConfig(
-    serverUrl: String.fromEnvironment(
-      'TTS_SERVER_URL',
-      defaultValue: 'http://47.94.102.250:8080/api/v1/tts',
-    ),
+    serverUrl: 'http://47.94.102.250:8080/api/v1/tts',
   );
 
   /// 当前环境配置

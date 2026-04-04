@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -24,6 +25,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
   late AnimationController _ktvController;
   String _prevText = '';
   bool _prevIsPlaying = false;
+  double _prevPlaybackRate = 1.0;
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
   ReaderProvider? _reader;
@@ -136,11 +138,14 @@ class _TeleprompterViewState extends State<TeleprompterView>
     }
 
     final String text = reader.currentSentence ?? '';
-    final bool isPlaying = reader.ttsEngine.isSpeaking;
+    final bool isPlaying = reader.ttsEngine.state == TtsPlaybackState.playing;
+    final double playbackRate = reader.ttsEngine.playbackRate;
 
     // 🔥 关键修复：即使不播放，如果文字变了（如手动切句），也要重置提词器进度并预计算
     if (text != _prevText && text.isNotEmpty) {
-      _onSentenceChanged(text, reader.ttsEngine.playbackRate, start: isPlaying);
+      _onSentenceChanged(text, playbackRate, start: isPlaying);
+    } else if (text.isNotEmpty && playbackRate != _prevPlaybackRate) {
+      _onPlaybackRateChanged(text, playbackRate, isPlaying: isPlaying);
     }
 
     if (isPlaying && text.isNotEmpty) {
@@ -180,6 +185,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
   void _onSentenceChanged(String text, double playbackRate,
       {bool start = true}) {
     _prevText = text;
+    _prevPlaybackRate = playbackRate;
     // 新句子：预计算文字总宽度（只做一次，后续用线性插值）
     final tp = TextPainter(
       text: TextSpan(text: text, style: _readStyle),
@@ -199,6 +205,21 @@ class _TeleprompterViewState extends State<TeleprompterView>
     }
   }
 
+  void _onPlaybackRateChanged(String text, double playbackRate,
+      {required bool isPlaying}) {
+    _prevPlaybackRate = playbackRate;
+    final double currentProgress = _ktvController.value;
+    final speed = playbackRate.clamp(0.5, 3.0);
+    final ms = (text.length * (1000 / (speed * 3.5))).round().clamp(800, 10000);
+    _ktvController.duration = Duration(milliseconds: ms);
+
+    if (isPlaying) {
+      _ktvController.forward(from: currentProgress);
+    } else {
+      _ktvController.value = currentProgress;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ReaderProvider>(
@@ -211,7 +232,8 @@ class _TeleprompterViewState extends State<TeleprompterView>
         }
 
         final String text = reader.currentSentence ?? '';
-        final bool isPlaying = reader.ttsEngine.isSpeaking;
+        final bool isPlaying =
+            reader.ttsEngine.state == TtsPlaybackState.playing;
 
         return LayoutBuilder(
           builder: (context, constraints) {

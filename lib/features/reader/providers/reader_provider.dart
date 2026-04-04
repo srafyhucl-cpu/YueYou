@@ -28,9 +28,7 @@ class ReaderProvider with ChangeNotifier {
   String? _currentBookId;
   List<ChapterModel> _chapters = [];
   String? _lastTtsError;
-  bool _lastTtsEnabled = false;
-  bool _lastTtsSpeaking = false;
-  bool _lastTtsBuffering = false;
+  TtsPlaybackState _lastTtsState = TtsPlaybackState.disabled;
 
   // 🔥 章节标题正则（与 file_import_service 同步）
   static final RegExp _chapterRegex = RegExp(
@@ -69,9 +67,7 @@ class ReaderProvider with ChangeNotifier {
     Future<ParseResult> Function(String rawText)? parseBook,
   }) : _parseBook = parseBook ?? TextParser.parse {
     _lastTtsError = _ttsEngine.lastError;
-    _lastTtsEnabled = _ttsEngine.isEnabled;
-    _lastTtsSpeaking = _ttsEngine.isSpeaking;
-    _lastTtsBuffering = _ttsEngine.isBuffering;
+    _lastTtsState = _ttsEngine.state;
     _ttsEngine.addListener(_onTtsEngineChanged);
 
     // 生产者：为 TTS 引擎提供下一句有效文本
@@ -154,25 +150,6 @@ class ReaderProvider with ChangeNotifier {
         return;
       }
       if (_sentences.isEmpty) return;
-
-      // 从当前播放完成的真实行号开始，找下一个有效句子（噪音跳过，章节标题保留）
-      int nextIdx = item.lineIndex + 1;
-      int attempts = 0;
-      while (attempts < _sentences.length && nextIdx < _sentences.length) {
-        final text = _sentences[nextIdx].trim();
-        if (!_isNoise(text)) break;
-        nextIdx++;
-        attempts++;
-      }
-
-      if (nextIdx >= _sentences.length) {
-        nextIdx = _sentences.length - 1;
-      }
-
-      // 🔥 只更新 _currentIndex，不修改 _fetchIndex（避免干扰预加载循环）
-      _currentIndex = nextIdx;
-      notifyListeners();
-
       _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
     };
   }
@@ -199,21 +176,9 @@ class ReaderProvider with ChangeNotifier {
       changed = true;
     }
 
-    final nextEnabled = _ttsEngine.isEnabled;
-    if (nextEnabled != _lastTtsEnabled) {
-      _lastTtsEnabled = nextEnabled;
-      changed = true;
-    }
-
-    final nextSpeaking = _ttsEngine.isSpeaking;
-    if (nextSpeaking != _lastTtsSpeaking) {
-      _lastTtsSpeaking = nextSpeaking;
-      changed = true;
-    }
-
-    final nextBuffering = _ttsEngine.isBuffering;
-    if (nextBuffering != _lastTtsBuffering) {
-      _lastTtsBuffering = nextBuffering;
+    final nextState = _ttsEngine.state;
+    if (nextState != _lastTtsState) {
+      _lastTtsState = nextState;
       changed = true;
     }
 
@@ -247,8 +212,94 @@ class ReaderProvider with ChangeNotifier {
 
   /// 获取当前显示的句子内容
   String? get currentSentence {
+    final currentItem = _ttsEngine.currentItem;
+    if (currentItem != null &&
+        currentItem.session == _ttsEngine.currentSession &&
+        currentItem.text.trim().isNotEmpty) {
+      return currentItem.text;
+    }
     if (_sentences.isEmpty || _currentIndex >= _sentences.length) return null;
     return _sentences[_currentIndex];
+  }
+
+  Future<void> _applyLoadedBook({
+    required List<String> sentences,
+    required List<int> rawLineOrigins,
+    String? bookId,
+    List<ChapterModel>? chapters,
+    int? initialIndex,
+  }) async {
+    _sentences = sentences;
+    _currentBookId = bookId;
+
+    final Map<int, int> rawLineToSentIdx = {};
+    for (int i = 0; i < rawLineOrigins.length; i++) {
+      rawLineToSentIdx.putIfAbsent(rawLineOrigins[i], () => i);
+    }
+
+    final rawChapters = chapters ?? <ChapterModel>[];
+    _chapters = rawChapters.map((c) {
+      final cleaned = cleanChapterTitle(c.title);
+      final mappedIdx = rawLineToSentIdx[c.lineIndex] ?? c.lineIndex;
+      return ChapterModel(title: cleaned, lineIndex: mappedIdx);
+    }).toList();
+
+    int targetIndex = 0;
+    if (initialIndex != null) {
+      targetIndex = initialIndex;
+    } else if (bookId != null) {
+      final record = StorageService.getReadingRecord(bookId);
+      final total = (record['total'] as num?)?.toInt() ?? 0;
+      if (total > 1) {
+        targetIndex = (record['cursor'] as num?)?.toInt() ?? 0;
+      }
+    }
+
+    _currentIndex =
+        targetIndex.clamp(0, _sentences.isEmpty ? 0 : _sentences.length - 1);
+    _fetchIndex = _currentIndex;
+
+    await StorageService.setCurrentNovelId(bookId);
+
+    if (_ttsEngine.isEnabled) {
+      _ttsEngine.refreshSession();
+    }
+  }
+
+  Future<void> loadPreparedBook(
+    List<String> lines, {
+    String? bookId,
+    List<ChapterModel>? chapters,
+    int? initialIndex,
+  }) async {
+    if (_isParsing) return;
+
+    _isParsing = true;
+    notifyListeners();
+
+    try {
+      final List<String> sentences = lines
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList(growable: false);
+      final List<int> rawLineOrigins = List<int>.generate(
+        sentences.length,
+        (index) => index,
+        growable: false,
+      );
+      await _applyLoadedBook(
+        sentences: sentences,
+        rawLineOrigins: rawLineOrigins,
+        bookId: bookId,
+        chapters: chapters,
+        initialIndex: initialIndex,
+      );
+    } catch (e) {
+      debugPrint('ReaderProvider.loadPreparedBook error: $e');
+    } finally {
+      _isParsing = false;
+      notifyListeners();
+    }
   }
 
   /// 核心加载方法：加载书籍并解析
@@ -264,47 +315,13 @@ class ReaderProvider with ChangeNotifier {
 
     try {
       final parseResult = await _parseBook(rawText);
-      _sentences = parseResult.sentences;
-      _currentBookId = bookId;
-
-      // 🔥 构建原始行号 → sentences 索引的映射（取每个原始行产生的第一个 sentence）
-      final Map<int, int> rawLineToSentIdx = {};
-      for (int i = 0; i < parseResult.rawLineOrigins.length; i++) {
-        rawLineToSentIdx.putIfAbsent(parseResult.rawLineOrigins[i], () => i);
-      }
-
-      // 🔥 重建 chapter.lineIndex：从原始行号映射到 sentences 索引 + 清洗标题
-      final rawChapters = chapters ?? <ChapterModel>[];
-      _chapters = rawChapters.map((c) {
-        final cleaned = cleanChapterTitle(c.title);
-        final mappedIdx = rawLineToSentIdx[c.lineIndex] ?? c.lineIndex;
-        return ChapterModel(title: cleaned, lineIndex: mappedIdx);
-      }).toList();
-
-      // 恢复之前的阅读进度（对应 JS loadBookFromShelf 传入 cursor）
-      int targetIndex = 0;
-      if (initialIndex != null) {
-        targetIndex = initialIndex;
-      } else if (bookId != null) {
-        final record = StorageService.getReadingRecord(bookId);
-        final total = (record['total'] as num?)?.toInt() ?? 0;
-        if (total > 1) {
-          targetIndex = (record['cursor'] as num?)?.toInt() ?? 0;
-        } else if (initialIndex != null) {
-          targetIndex = initialIndex;
-        }
-      } else if (initialIndex != null) {
-        targetIndex = initialIndex;
-      }
-      _currentIndex =
-          targetIndex.clamp(0, _sentences.isEmpty ? 0 : _sentences.length - 1);
-      _fetchIndex = _currentIndex;
-
-      await StorageService.setCurrentNovelId(bookId);
-
-      if (_ttsEngine.isEnabled) {
-        _ttsEngine.refreshSession();
-      }
+      await _applyLoadedBook(
+        sentences: parseResult.sentences,
+        rawLineOrigins: parseResult.rawLineOrigins,
+        bookId: bookId,
+        chapters: chapters,
+        initialIndex: initialIndex,
+      );
     } catch (e) {
       debugPrint("� 神经数据加载异常 (ReaderProvider): $e");
     } finally {
@@ -320,13 +337,18 @@ class ReaderProvider with ChangeNotifier {
     if (_currentBookId == null || _sentences.isEmpty) {
       return TtsToggleResult.noContent;
     }
-    if (_ttsEngine.isSpeaking) {
+    final state = _ttsEngine.state;
+    if (state == TtsPlaybackState.playing ||
+        state == TtsPlaybackState.buffering) {
       _ttsEngine.pause();
       return TtsToggleResult.paused;
-    } else {
+    }
+    if (state == TtsPlaybackState.paused ||
+        state == TtsPlaybackState.disabled) {
       _ttsEngine.play();
       return TtsToggleResult.playing;
     }
+    return TtsToggleResult.playing;
   }
 
   /// 倍速切换桥接

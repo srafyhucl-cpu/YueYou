@@ -61,8 +61,8 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                           if (!context.mounted) return;
 
                           // 自动加载到提词器（对应 JS loadBookFromShelf）
-                          await context.read<ReaderProvider>().loadBook(
-                                result.lines.join('\n'),
+                          await context.read<ReaderProvider>().loadPreparedBook(
+                                result.lines,
                                 bookId: bookId.toString(),
                                 chapters: result.chapters,
                               );

@@ -249,7 +249,7 @@ class _BookCard extends StatelessWidget {
     if (!context.mounted) return;
 
     final List<dynamic> rawLines = content['lines'] as List<dynamic>? ?? [];
-    final String rawText = rawLines.join('\n');
+    final lines = rawLines.map((e) => e.toString()).toList();
 
     // 从存储内容中恢复章节列表
     final List<dynamic> rawChapters =
@@ -258,7 +258,7 @@ class _BookCard extends StatelessWidget {
         .map((e) => ChapterModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    await reader.loadBook(rawText,
+    await reader.loadPreparedBook(lines,
         bookId: book.id.toString(), chapters: chapters);
     if (!context.mounted) return;
     Navigator.of(context).pop();

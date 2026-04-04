@@ -228,7 +228,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
       if (_onPlayMerge != null) {
         _onPlayMerge(maxMergedValue);
       } else {
-        SfxService.playMerge(maxMergedValue);
+        SfxService.playMoveFeedback(maxMergedValue);
       }
     }
 
@@ -320,9 +320,9 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
       // 合并音效（对应 JS: if (result.mergedTiles.length > 0 && t.sound) l.playEffect('merge')）
       if (mergedTiles.isNotEmpty && _soundEnabled) {
         if (_onPlayMerge != null) {
-          _onPlayMerge(0);
+          _onPlayMerge(_lastMergedValue);
         } else {
-          SfxService.playMerge(0);
+          SfxService.playMerge(_lastMergedValue);
         }
       }
       _schedulePersistState();

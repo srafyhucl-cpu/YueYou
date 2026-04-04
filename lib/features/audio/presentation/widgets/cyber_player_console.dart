@@ -112,7 +112,8 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
                         child: Row(
                           children: [
                             VoiceWaveform(
-                              isActive: ttsEngine.isSpeaking,
+                              isActive:
+                                  ttsEngine.state == TtsPlaybackState.playing,
                               color: CyberColors.neonCyan,
                             ),
                             const SizedBox(width: 8),
@@ -166,8 +167,8 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
   }
 
   Widget _buildPlayButton(ReaderProvider reader, TtsEngineService ttsEngine) {
-    final bool isActive =
-        ttsEngine.isEnabled && (ttsEngine.isSpeaking || ttsEngine.isBuffering);
+    final bool isActive = ttsEngine.state == TtsPlaybackState.playing ||
+        ttsEngine.state == TtsPlaybackState.buffering;
 
     return GestureDetector(
       onTap: () {
