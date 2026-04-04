@@ -1,89 +1,178 @@
 # 阅游 (YueYou)
 
-**赛博朋克风格的沉浸式小说听读器 + 2048 游戏**
+**赛博朋克风格的沉浸式小说听读器 + 2048 游戏**  
+版本 `v1.0.0` · Flutter 3.x / Dart 3.x · 跨平台（Android / iOS / Windows / macOS / Linux / Web）
 
 [![Flutter CI](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml)
-
-基于 Flutter 构建的高性能跨平台应用，融合 KTV 提词器听书与益智游戏于一体。
 
 ---
 
 ## ✨ 核心特性
 
-### 📖 智能阅读引擎
-- **双轨流媒体 TTS**：生产者/消费者预加载架构，3 句缓冲，指数退避重试，无卡顿连续朗读
-- **赛博提词器**：KTV 逐字扫光动画 + `AnimationController` 驱动平滑滚动
-- **章节管理**：正序/倒序切换 + O(1) 定位当前章节
-- **空闲超时**：可配置自动暂停计时器，防止忘关耗电
-- **阅读进度**：实时持久化，重启恢复上次位置
+### 📖 阅读引擎
+- **云端 TTS（两步下载）**：POST 业务服务器获取 JSON `{"status":"success","url":"..."}` → GET 从 OSS/CDN 下载 `.mp3` → 本地缓存；客户端严格遵循分离下载契约，不直接消费响应体字节流
+- **本地 TTS 降级**：云端 HTTP 5xx / 超时 / 网络异常时自动切换至系统 `flutter_tts` 朗读，SnackBar 赛博青色通知用户
+- **生产者-消费者预加载**：最多 6 句缓冲队列，指数退避重试（最大 2 次，800ms 基础延迟），无卡顿连续朗读
+- **TTS 错误全局监听**：`TtsErrorListener` 通过 `MaterialApp.builder` 挂载根节点，统一展示霓虹边框 SnackBar
+- **KTV 提词器**：`TeleprompterView` 逐字扫光动画，`AnimationController` 驱动平滑滚动，高亮/暗色双轨渲染
+- **章节导航**：`ChapterListScreen` 正序/倒序切换，O(1) 定位当前章节
+- **空闲自动暂停**：可配置超时计时器（`idleTimeout`），防止忘关持续耗电
+- **阅读进度持久化**：实时存档，重启自动恢复至上次段落与滚动位置
+
+### 📚 书库管理
+- **文件导入**：`FileImportService` 基于 `Isolate.spawn` 流式读取，主线程仅传文件路径，内存零拷贝
+- **编码自动识别**：采样前 8KB → UTF-8 严格校验 → GBK 容错解码 → UTF-8 宽松兜底，三层覆盖
+- **BOM 跳过**：`File.openRead(3)` 直接偏移，无需内存拷贝
+- **大文件拦截**：超过 15MB 抛出 `FileTooLargeException`，Isolate 启动前即拦截
+- **取消导入**：令牌机制 `_activeImportToken`，取消时旧 Isolate 返回值自动丢弃，无脏状态
+- **级联删除**：删除书籍时联动停止 TTS、清空阅读进度，防止幽灵章节
 
 ### 🎮 2048 游戏
-- **赛博视觉**：动态霓虹光晕 + 渐变方块 + 棋盘 3D 倾斜手感
-- **游戏机制**：滑动合并 + Combo 连击 + 漂浮加分动画
-- **XIAOYO 吉祥物**：Canvas 自绘，眼球跟随方向 + 合并欢呼 + 游戏结束同情
-- **性能优化**：`RepaintBoundary` 隔离，60FPS 稳定
-- **🔓 黑客后门彩蛋**：连续点击同一方块 8 次，触发三段式崩塌消除动画（膨胀→坍缩→淡出）+ 粉红霓虹粒子爆炸；1.5s 无操作自动中断计数
+- **完整游戏逻辑**：`GameProvider` 完整复刻自旧版 Web 端 JS 引擎，滑动合并 + Combo 连击计分
+- **赛博视觉方块**：`TileWidget` 11 级渐变配色 + 动态霓虹光晕 + 合并弹性缩放（120ms，1.0→1.15→1.0）+ 粒子爆炸
+- **棋盘 3D 倾斜**：每次滑动触发 `Matrix4` 倾斜动画（约 5°），增强物理手感
+- **漂浮加分**：`FloatingScore` 组件，合并时数字飘出并淡出
+- **游戏结束雨幕**：`RainEffect` 在 Game Over 弹窗背景营造赛博朋克雨夜氛围
+- **棋盘重置动画**：`BoardResetAnimation` 在新局开始时触发翻转过渡动画
+- **XIAOYO 吉祥物**：`BoardMascot` Canvas 自绘，眼球实时跟随滑动方向，合并时欢呼，游戏结束时同情
+- **战绩分享**：Game Over 弹窗展示得分/最大棋子/最高连击/评级，一键复制战绩文案至剪贴板
+- **持久化防抖**：1 秒防抖合并多次写入，App 切后台时 `flushPersistState()` 强制落盘，防止丢档
+- **🔓 黑客后门彩蛋**：连续点击同一方块 8 次触发自毁程序——三段式崩塌动画（膨胀 1.0→1.3 + 坍缩 easeInBack + opacity 淡出 + 微旋转 0.25 rad）+ 粉红霓虹粒子爆炸，1.5s 无操作自动清零点击计数
 
-### 🎨 赛博朋克 UI
-- **毛玻璃效果**：`BackdropFilter` + 统一玻璃工具栏
-- **霓虹配色**：青色/粉色/紫色/绿色主题，零硬编码颜色
-- **微交互**：120ms 动画 + 触觉反馈分级震动
+### � 音效系统
+- **SfxService V4**：基于旧版 Web Audio API 解析式 Chirp 公式 `φ(t)=2π(f₀t+(f₁-f₀)t²/2T)` 移植，零相位突变，4 阶段递进（≤16 / ≤128 / ≤1024 / >1024），440→880Hz 上行扫频
+- **分级触觉反馈**：方块数值越高震动强度越大
+
+### ⚙️ 设置与合规
+- **隐私前置拦截**：首次启动强制展示 `PrivacyAgreementModal`（不可跳过），同意后才执行书籍加载与网络初始化
+- **TTS 参数**：语速（`ttsRate`）、音色选择（`voice`）
+- **游戏音效开关**：实时同步至 `GameProvider`
+- **环境音预留**：`ambientEnabled` / `ambientVol` 字段已持久化，播放器后端待接入
+
+### 🎨 设计系统
+- **全 Token 化**：所有颜色、字号、间距、圆角、模糊值均通过 `CyberColors` / `CyberTextStyles` / `CyberDimensions` 统一管理，零魔法数字
+- **毛玻璃弹窗**：`CyberModal` + `BackdropFilter`，支持 `barrierDismissible` 控制
+- **崩溃监控锚点**：`CyberLogger` 挂接 `FlutterError.onError` + `PlatformDispatcher.instance.onError`，预留 Sentry/Crashlytics 接入位
 
 ---
 
-## 🚧 开发中功能
+## 🚧 开发中 / 待完善
 
 | 功能 | 文件 | 状态 |
 |------|------|------|
-| XIAOYO Rive 动画版 | `board_mascot_rive.dart` + `assets/rive/xiaoyo.riv` | 集成中 |
-| 棋盘雨滴特效 | `rain_effect.dart` | 实现完成，待接入 |
-| 棋盘重置翻转动画 | `board_reset_animation.dart` | 实现完成，待接入 |
-| 环境背景音乐 | `SettingsProvider.ambientEnabled` | 预留字段，待实现 |
+| XIAOYO Rive 动画版 | `board_mascot_rive.dart` + `assets/rive/xiaoyo.riv` | Rive 文件已就位，UI 接入中 |
+| 环境背景音乐播放器 | `SettingsProvider.ambientEnabled` / `ambientVol` | 字段与持久化已实现，播放后端待接入 |
+| 崩溃上报（Sentry/Crashlytics） | `core/utils/cyber_logger.dart` | 钩子已注册，上报实现预留至 V1.1 |
+| 热更新版本检查 | `DashboardScreen._checkAppUpdates()` | 存根已注册，V1.1 实现 |
 
 ---
 
 ## 🏗️ 技术架构
 
 ### 核心技术栈
-- **Flutter 3.x / Dart 3.x** — 跨平台 UI 框架
-- **Provider 6.x** — 状态管理（ChangeNotifier + ProxyProvider）
-- **SharedPreferences** — 设置/游戏进度持久化
-- **File System / path_provider** — 小说正文文件存储
-- **audioplayers + http** — 流式 TTS 引擎
-- **Isolate (compute)** — 大文件解析后台隔离
-- **Rive 0.13.x** — XIAOYO 吉祥物动画（开发中）
-- **fast_gbk** — GBK 编码小说文件支持
-- **wakelock_plus** — 朗读时屏幕常亮
 
-### 架构模式
+| 层次 | 技术 | 用途 |
+|------|------|------|
+| UI 框架 | Flutter 3.x / Dart 3.x | 跨平台渲染 |
+| 状态管理 | Provider 6.x (`ChangeNotifier` + `ProxyProvider`) | 全局与局部状态 |
+| 本地持久化 | SharedPreferences | 设置、游戏存档 |
+| 文件存储 | path_provider + File System | 小说正文、TTS 音频缓存 |
+| 云端 TTS | http + audioplayers | 两步下载 + 流式播放 |
+| 本地 TTS | flutter_tts | 云端降级兜底 |
+| 大文件解析 | Isolate.spawn | 流式读取，主线程零阻塞 |
+| 吉祥物动画 | Rive 0.13.x | XIAOYO 骨骼动画（集成中） |
+| 编码支持 | fast_gbk | GBK 小说文件 |
+| 屏幕常亮 | wakelock_plus | TTS 朗读期间保持亮屏 |
+| 外链跳转 | url_launcher | 隐私政策等外部链接 |
+
+### 目录结构
+
 ```
 lib/
-├── core/                    # 核心层（严禁引入任何 feature 层代码）
-│   ├── theme/              # 主题系统（CyberColors / CyberTextStyles / CyberDimensions）
-│   ├── config/             # 环境配置（TtsConfig，dart-define 注入）
-│   ├── constants/          # 全局常量
-│   └── database/           # StorageService（SharedPreferences + 文件系统）
-├── features/               # 功能模块
-│   ├── reader/            # 阅读器
-│   │   ├── domain/        # 纯业务逻辑（TextParser，严禁引入 material.dart）
-│   │   ├── providers/     # 状态管理（ReaderProvider）
-│   │   └── presentation/  # UI 层（TeleprompterView）
-│   ├── audio/             # TTS 引擎（TtsEngineService / SfxService）
-│   ├── game_2048/         # 2048 游戏（GameProvider / BoardMascot / SquareBoard）
-│   ├── library/           # 书库管理（BookshelfProvider / LibraryScreen）
-│   ├── settings/          # 全局设置（SettingsProvider / SettingsScreen）
-│   └── dashboard/         # 主界面（DashboardScreen）
-└── shared/                # 共享无状态组件
+├── core/                          # 全局基础设施（严禁引入任何 feature 层代码）
+│   ├── config/
+│   │   └── tts_config.dart        # TTS 服务器地址（--dart-define 注入）
+│   ├── database/
+│   │   └── storage_service.dart   # 全局 SharedPreferences 封装
+│   ├── theme/
+│   │   ├── cyber_colors.dart      # 霓虹色板（零硬编码颜色）
+│   │   ├── cyber_dimensions.dart  # 间距、圆角、模糊值 token
+│   │   ├── cyber_shadows.dart     # 预设 BoxShadow 组合
+│   │   └── cyber_text_styles.dart # 字体样式 token
+│   └── utils/
+│       ├── cyber_logger.dart      # 全局崩溃钩子（预留上报接口）
+│       ├── safe_string.dart       # safeSubstring 防越界
+│       └── ...
+├── features/
+│   ├── audio/
+│   │   ├── services/
+│   │   │   ├── tts_engine_service.dart  # 云端 TTS 引擎（两步下载 + 降级）
+│   │   │   └── sfx_service.dart         # 游戏音效（V4 Chirp 公式）
+│   │   └── presentation/
+│   │       └── widgets/
+│   │           ├── cyber_player_console.dart  # 播放控制台
+│   │           ├── neon_progress_painter.dart # 霓虹进度条
+│   │           └── voice_waveform.dart        # 声波可视化
+│   ├── dashboard/
+│   │   └── presentation/
+│   │       └── dashboard_screen.dart    # 主界面（吉祥物 + 棋盘 + 控制台）
+│   ├── game_2048/
+│   │   ├── domain/
+│   │   │   └── tile_model.dart          # 方块数据模型
+│   │   ├── providers/
+│   │   │   └── game_provider.dart       # 游戏核心逻辑 + 持久化
+│   │   └── presentation/
+│   │       └── widgets/
+│   │           ├── square_board.dart         # 棋盘主组件（AnimatedPositioned）
+│   │           ├── tile_widget.dart          # 方块（合并动画 + 黑客彩蛋）
+│   │           ├── board_mascot.dart         # XIAOYO 吉祥物（Canvas）
+│   │           ├── board_mascot_rive.dart    # XIAOYO Rive 版（集成中）
+│   │           ├── merge_particle.dart       # 合并粒子特效
+│   │           ├── floating_score.dart       # 漂浮加分动画
+│   │           ├── rain_effect.dart          # Game Over 雨幕特效
+│   │           └── board_reset_animation.dart # 新局翻转动画
+│   ├── library/
+│   │   ├── domain/book_model.dart
+│   │   ├── services/
+│   │   │   └── file_import_service.dart  # Isolate 流式导入（GBK/UTF-8）
+│   │   ├── providers/
+│   │   │   └── bookshelf_provider.dart   # 书架状态 + 级联删除
+│   │   └── presentation/
+│   │       ├── screens/library_screen.dart
+│   │       └── widgets/cyber_import_button.dart
+│   ├── reader/
+│   │   ├── domain/
+│   │   │   └── text_parser.dart          # 智能断句（严禁引入 material.dart）
+│   │   ├── providers/
+│   │   │   └── reader_provider.dart      # 阅读状态 + TTS 调度
+│   │   └── presentation/
+│   │       ├── screens/chapter_list_screen.dart
+│   │       └── widgets/teleprompter_view.dart  # KTV 提词器
+│   └── settings/
+│       ├── providers/settings_provider.dart
+│       └── presentation/
+│           ├── screens/settings_screen.dart
+│           └── widgets/privacy_agreement_modal.dart  # 首次运行隐私弹窗
+├── shared/
+│   └── widgets/
+│       ├── cyber_modal.dart          # 毛玻璃弹窗基础组件
+│       ├── cyber_confirm_dialog.dart # 确认弹窗
+│       ├── neon_border_box.dart
+│       └── safe_padding_wrap.dart
+├── widgets/
+│   └── tts_error_listener.dart       # 全局 TTS 错误 SnackBar
+└── main.dart                         # 启动引导、Provider 树、隐私前置检查
 ```
 
 ### 数据流
+
 ```
-UI (Consumer/context.watch)
+UI (Consumer / context.watch)
     → Provider (ChangeNotifier)
         → Service / StorageService
-            → SharedPreferences / 文件系统
-                    ↑
-              domain/ 纯业务逻辑（Isolate 隔离）
+            → SharedPreferences / 文件系统 / OSS CDN
+                         ↑
+               domain/ 纯业务逻辑（Isolate 隔离大文件）
 ```
 
 ---
@@ -99,35 +188,38 @@ UI (Consumer/context.watch)
 flutter pub get
 ```
 
-### 运行项目（本地 TTS 服务器）
+### 运行（使用默认 TTS 服务器）
 ```bash
 flutter run
 ```
 
-### 运行项目（指定远端 TTS 服务器）
+### 运行（指定远端 TTS 服务器）
 ```bash
-flutter run --dart-define=TTS_SERVER_URL=http://your-tts-server:3000/api/v1/tts/createStream
+flutter run --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 ```
 
 ### VS Code / Windsurf 原生调试
-如需在 VS Code 或 Windsurf 中使用 Flutter 原生调试、热加载与热重启，并同时指定远端 TTS 服务地址，可在项目本地创建 `.vscode/launch.json`，为目标设备配置加入：
+在项目根目录创建 `.vscode/launch.json`：
 ```json
 {
-  "name": "yueyou (Flutter Device)",
-  "request": "launch",
-  "type": "dart",
-  "deviceId": "你的设备ID",
-  "toolArgs": [
-    "--dart-define=TTS_SERVER_URL=http://your-tts-server:3000/api/v1/tts/createStream"
+  "configurations": [
+    {
+      "name": "yueyou (Flutter Device)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "你的设备ID",
+      "toolArgs": [
+        "--dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts"
+      ]
+    }
   ]
 }
 ```
-之后从 IDE 的 `Run and Debug` 面板启动该配置，即可在同一调试会话中继续使用热加载与热重启，无需每次手动输入终端命令。
 
 ### 构建 Release APK
 ```bash
 flutter build apk --release \
-  --dart-define=TTS_SERVER_URL=http://your-tts-server:3000/api/v1/tts/createStream
+  --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 ```
 
 ### 代码检查
@@ -139,119 +231,151 @@ flutter analyze
 
 ## ✅ 测试与覆盖率
 
-### 运行单元测试
+### 运行测试
 ```bash
 flutter test
 ```
 
+当前覆盖 **219 个用例**，涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 等核心模块。
+
 ### 生成覆盖率报告
 ```bash
 flutter test --coverage
-```
-生成的覆盖率文件位于 `coverage/lcov.info`。如需查看 HTML 报告，可使用 lcov 的 `genhtml` 工具在本地生成：
-```bash
 genhtml coverage/lcov.info -o coverage/html
-# 打开 coverage/html/index.html 查看报告
+# 打开 coverage/html/index.html
 ```
 
 ### CI 集成
-- 仓库已配置 GitHub Actions 工作流 `.github/workflows/flutter-ci.yml`
-- 在 Push / PR 时自动执行：
-  - `flutter analyze`
-  - `flutter test --coverage`
-- 产出物：覆盖率文件 `coverage/lcov.info` 将作为 Artifact 上传
+仓库配置了 GitHub Actions（`.github/workflows/flutter-ci.yml`），Push / PR 时自动执行：
+- `flutter analyze`
+- `flutter test --coverage`
+
+覆盖率文件 `coverage/lcov.info` 作为 Artifact 上传。
 
 ### 测试约定
-- 所有持久化相关测试使用 `SharedPreferences.setMockInitialValues({})` 与 `StorageService.resetForTesting()` 保证隔离
-- 依赖 `audioplayers` 的 Provider/Widget 测试，通过 `MethodChannel` mock 避免 `MissingPluginException`
+- 持久化测试：`SharedPreferences.setMockInitialValues({})` + `StorageService.resetForTesting()` 保证隔离
+- 平台插件测试：通过 `test/utils/test_utils.dart` 集中初始化 6 组 `MethodChannel` mock（path_provider / audioplayers / wakelock / haptic / platform / system_sound）
+- 异步测试：`fake_async` + `mockito` 模拟 HTTP 客户端与音频播放器
 
 ---
 
 ## ⚙️ 服务器配置
 
-TTS 服务器地址通过编译期常量注入，**代码中不硬编码任何服务器 IP**。
+TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬编码任何服务器 IP**。
 
-| 变量 | 说明 | 默认值（开发） |
-|------|------|--------------|
-| `TTS_SERVER_URL` | TTS 流式接口地址 | `http://localhost:3000/api/v1/tts/createStream` |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `TTS_SERVER_URL` | TTS 业务接口（返回 JSON `{"status":"success","url":"..."}`) | `http://47.94.102.250:8080/api/v1/tts` |
 
-> 本地开发时默认指向 `localhost`，部署时通过 `--dart-define` 传入真实服务器地址。
+> 客户端拿到 `url` 字段后，再通过 GET 请求从 OSS/CDN 下载音频文件存入本地缓存。**禁止将 POST 响应体直接保存为音频文件。**
 
-### Android 明文流量（HTTP）
-如使用 HTTP 协议连接 TTS 服务器，需在 `android/app/src/main/AndroidManifest.xml` 中添加：
+### TTS 核心参数（`TtsConfig`）
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `requestTimeout` | 8s | 单次请求超时 |
+| `maxRetries` | 2 | 最大重试次数 |
+| `baseRetryDelay` | 800ms | 指数退避基础延迟 |
+| `maxPrefetchQueue` | 6 | 预加载队列上限 |
+
+### Android 明文流量
+使用 HTTP 协议时需在 `AndroidManifest.xml` 中配置：
 ```xml
 <application android:usesCleartextTraffic="true">
 ```
 
 ---
 
-## 📦 核心依赖
+## 📦 依赖清单
 
+### 运行时依赖
 ```yaml
-dependencies:
-  provider: ^6.1.5           # 状态管理
-  shared_preferences: ^2.3.3 # 本地持久化
-  file_picker: ^6.1.1        # 文件导入
-  http: ^1.6.0               # HTTP 请求（TTS）
-  audioplayers: ^6.4.0       # 流式音频播放
-  path_provider: ^2.1.5      # 文件路径（小说存储 + TTS 缓存）
-  fast_gbk: ^1.0.0           # GBK 编码支持
-  wakelock_plus: ^1.4.0      # 屏幕常亮
-  rive: ^0.13.14             # Rive 动画（XIAOYO 吉祥物）
-  marquee: ^2.3.0            # 跑马灯文字
-  equatable: ^2.0.8          # 值相等比较
+provider: ^6.1.5+1         # 状态管理
+shared_preferences: ^2.3.3 # 本地持久化
+file_picker: ^6.1.1        # 文件导入
+http: ^1.6.0               # TTS HTTP 请求
+dio: ^5.7.0                # 备用 HTTP 客户端
+audioplayers: ^6.4.0       # TTS 音频播放
+flutter_tts: ^3.8.5        # 本地 TTS 降级引擎
+path_provider: ^2.1.5      # 文件路径（存储 + 缓存）
+fast_gbk: ^1.0.0           # GBK 编码小说支持
+wakelock_plus: ^1.4.0      # 朗读时屏幕常亮
+rive: ^0.13.14             # XIAOYO 吉祥物动画
+marquee: ^2.3.0            # 跑马灯文字
+equatable: ^2.0.8          # 值对象相等比较
+url_launcher: ^6.3.0       # 外部链接（隐私政策）
+```
+
+### 开发依赖
+```yaml
+mockito: ^5.4.4            # Mock 对象
+fake_async: ^1.3.1         # 虚拟异步时间
+flutter_lints: ^4.0.0      # 代码规范
+flutter_launcher_icons: ^0.14.3  # 应用图标生成
 ```
 
 ---
 
 ## 🎨 主题系统
 
-### CyberColors 色板
+### `CyberColors` 色板
 ```dart
 // 霓虹主色
 neonCyan    #22D3EE  // 青色（主要交互）
-neonPink    #FE019A  // 粉色（强调/活跃）
+neonPink    #FE019A  // 粉色（强调 / 彩蛋危险色）
 neonPurple  #8B5CF6  // 紫色（次要）
 neonGreen   #00FF41  // 绿色（成功）
-hackerBlue  #00F3FF  // 骇客蓝（吉祥物/特效）
+hackerBlue  #00F3FF  // 骇客蓝（吉祥物 / 特效）
+tileGold    #FFD700  // 金色（传奇光晕）
 
-// 毛玻璃系统
-glassDark         rgba(10,10,15,0.85)  // 深底色
-panelBackground   #0D0E18              // 面板底色
-surface           #1A1B28             // 卡片表面
+// 毛玻璃底层
+background        #0A0A0F
+panelBackground   #0D0E18
+surface           #1A1B28
 
 // 语义化透明度
-whiteHigh/Medium/Dim/Muted/Subtle/Faint  // 白色系列
-blackOverlay/Shadow/Dim                   // 黑色系列
+whiteHigh / whiteMedium / whiteDim / whiteMuted / whiteFaint
+blackOverlay / blackShadow / blackDim
 ```
 
-### CyberTextStyles 字体
+### `CyberDimensions` 间距体系（4px 网格）
 ```dart
-CyberTextStyles.monoFont        // 等宽字体名（JetBrains Mono）
-CyberTextStyles.teleprompterActive  // 提词器高亮样式
-CyberTextStyles.teleprompterDim     // 提词器暗色样式
-CyberTextStyles.gameGridNumber      // 棋盘数字样式
+spacingXXS=2 / spacingXS=4 / spacingS=8 / spacingMS=12 / spacingM=16 / spacingL=24 / spacingXL=32
+radiusS=6 / radiusM=8 / radiusL=16 / radiusXL=24
+borderNormal=1.0 / borderThick=1.5
+blurLight=8 / blurStrong=16
 ```
 
-> **字体文件**：需将 JetBrains Mono `.ttf` 文件放入 `assets/fonts/`，并在 `pubspec.yaml` 中声明，否则回退系统默认字体。
+### `CyberTextStyles` 字体
+```dart
+CyberTextStyles.monoFont            // 等宽字体（JetBrains Mono）
+CyberTextStyles.teleprompterActive  // 提词器当前句高亮
+CyberTextStyles.teleprompterDim     // 提词器其余句暗色
+CyberTextStyles.dashboardCounter    // 主界面分数计数器
+CyberTextStyles.captionBold         // 说明文字加粗
+```
+
+> **字体文件**：将 JetBrains Mono `.ttf` 放入 `assets/fonts/` 并在 `pubspec.yaml` 中声明，否则回退系统默认字体。
 
 ---
 
 ## 🎯 开发规范
 
-项目遵循 `.agents/skills/` 和 `.windsurfrules` 定义的严格规范：
+项目遵循 `.windsurfrules` 与 `.agents/skills/` 定义的硬性红线：
 
-- ✅ **零硬编码颜色**：所有颜色集中在 `CyberColors`，字体名集中在 `CyberTextStyles.monoFont`
-- ✅ **UI 物理隔离**：`domain/` 下禁止引入 `material.dart`
-- ✅ **强制 Isolate**：大文件解析用 `compute`（参考 `TextParser.parse()`）
-- ✅ **build() 纯函数**：禁止在 `build()` 内调用有副作用的方法，副作用统一在 `didChangeDependencies + addListener` 中处理
-- ✅ **RepaintBoundary 覆盖**：棋盘、吉祥物、提词器全部隔离重绘
-- ✅ **服务器地址外置**：通过 `--dart-define` 注入，禁止硬编码
-- ✅ **会话锁模式**：异步循环用递增 `session` 防止切章污染（参考 `TtsEngineService._loopSession`）
-- ✅ **存储分级**：小数据用 SharedPreferences，大数据（小说正文）用文件系统
+- ✅ **零硬编码颜色/尺寸**：所有视觉 token 必须来自 `CyberColors` / `CyberDimensions` / `CyberTextStyles`
+- ✅ **domain 层纯 Dart**：`features/*/domain/` 下严禁引入 `flutter/material.dart`
+- ✅ **build() 纯函数**：禁止在 `build()` 或动画 `builder` 内产生副作用，须在 `initState` / `addListener` 中处理
+- ✅ **Transform 驱动动画**：禁止用改变宽高/边距做动画，必须使用 `Transform.scale` / `Transform.translate` / `Opacity`（GPU 加速）
+- ✅ **RepaintBoundary 隔离**：棋盘、吉祥物、提词器等高频重绘区域必须包裹 `RepaintBoundary`
+- ✅ **Isolate 大文件**：>100KB 文本解析必须通过 `Isolate.spawn`（参考 `FileImportService`）
+- ✅ **服务器地址外置**：通过 `--dart-define` 注入 `TtsConfig`，禁止硬编码 IP
+- ✅ **TTS 分离下载契约**：客户端只能 POST→JSON→GET 下载，严禁将响应体直接保存为音频
+- ✅ **纯本地用户数据**：阅读进度与设置严禁上传服务端，只存本地
+- ✅ **会话锁防竞态**：TTS 播放/预加载循环用递增 `_loopSession` 防止并发多循环
 
 ---
 
 ## 📄 许可证
 
-MIT License 
+MIT License
