@@ -19,6 +19,15 @@ class SfxService {
 
   static Future<void> init() async {
     _mergePlayer = AudioPlayer();
+    await _mergePlayer!.setAudioContext(
+      AudioContext(
+        android: const AudioContextAndroid(
+          audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+          contentType: AndroidContentType.sonification,
+          usageType: AndroidUsageType.assistanceSonification,
+        ),
+      ),
+    );
     await _mergePlayer!.setReleaseMode(ReleaseMode.stop);
     _tierWavs.clear();
 
