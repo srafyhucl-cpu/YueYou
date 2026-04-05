@@ -24,7 +24,13 @@ Future<void> main() async {
 
   // 启动前初始化持久化层与音效引擎
   await StorageService.init();
-  await SfxService.init();
+  try {
+    await SfxService.init();
+  } catch (e, st) {
+    CyberLogger.recordFlutterError(
+      FlutterErrorDetails(exception: e, stack: st, library: 'SfxService'),
+    );
+  }
   runApp(const YueYouApp());
 }
 
