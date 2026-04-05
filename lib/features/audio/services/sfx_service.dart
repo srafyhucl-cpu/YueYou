@@ -22,7 +22,7 @@ class SfxService {
     await _mergePlayer!.setAudioContext(
       AudioContext(
         android: const AudioContextAndroid(
-          audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+          audioFocus: AndroidAudioFocus.none,
           contentType: AndroidContentType.sonification,
           usageType: AndroidUsageType.assistanceSonification,
         ),
