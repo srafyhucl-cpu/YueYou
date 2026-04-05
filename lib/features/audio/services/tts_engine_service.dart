@@ -551,6 +551,7 @@ class TtsEngineService extends ChangeNotifier {
   void pause() {
     if (!isEnabled || isPaused) return;
     _audioPlayer.pause();
+    unawaited(_fallbackEngine.stop());
     _setState(TtsPlaybackState.paused);
   }
 
@@ -787,7 +788,25 @@ class TtsEngineService extends ChangeNotifier {
           if (filePath == null) {
             if (result.useFallback) {
               _setFallbackNotification('云端神经网断开，已自动切换至本地仿生发声模块');
+              final fallbackItem = TtsAudioItem(
+                id: DateTime.now().microsecondsSinceEpoch,
+                session: sessionSnapshot,
+                lineIndex: request.lineIndex,
+                text: request.text,
+                title: request.title,
+                estimatedDuration: const Duration(seconds: 5),
+              );
+              _currentItem = fallbackItem;
+              if (onItemStarted != null) {
+                unawaited(Future.microtask(() => onItemStarted!(fallbackItem)));
+              }
+              _setState(TtsPlaybackState.playing);
               final ok = await _speakWithLocalTts(request.text);
+              if (onItemFinished != null && ok) {
+                unawaited(
+                    Future.microtask(() => onItemFinished!(fallbackItem)));
+              }
+              _currentItem = null;
               if (ok) {
                 consecutiveFailures = 0;
                 await _delay(const Duration(milliseconds: 500));
@@ -1095,8 +1114,8 @@ class TtsEngineService extends ChangeNotifier {
         return (filePath: filePath, attempts: attempts, useFallback: false);
       } on TimeoutException catch (e) {
         _setLastError('下载TTS音频超时: $e');
-        debugPrint(
-            '⚠️ 下载TTS音频超时: $e (尝试 ${attempt + 1}/${_config.maxRetries})');
+        // ignore: avoid_print
+        print('[TTS][RELEASE] 请求超时 (尝试${attempt + 1}): $e');
         if (attempt < _config.maxRetries - 1) {
           final delay = _config.baseRetryDelay * (1 << attempt);
           await _delay(delay);
@@ -1106,8 +1125,8 @@ class TtsEngineService extends ChangeNotifier {
         return (filePath: null, attempts: attempts, useFallback: true);
       } catch (e) {
         _setLastError('下载TTS音频失败: $e');
-        debugPrint(
-            '⚠️ 下载TTS音频失败: $e (尝试 ${attempt + 1}/${_config.maxRetries})');
+        // ignore: avoid_print
+        print('[TTS][RELEASE] 下载失败 (尝试${attempt + 1}): $e');
         if (e is FormatException) {
           return (filePath: null, attempts: attempts, useFallback: false);
         }
