@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/theme/cyber_colors.dart';
-import '../core/theme/cyber_dimensions.dart';
-import '../features/audio/services/tts_engine_service.dart';
+import '../../core/theme/cyber_colors.dart';
+import '../../core/theme/cyber_dimensions.dart';
+import '../../features/audio/services/tts_engine_service.dart';
+import 'cyber_toast.dart';
 
 /// Wrap any screen or the whole app with this widget to automatically
 /// display a SnackBar whenever `TtsEngineService.lastError` becomes non-null.
@@ -37,24 +38,21 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
         if (err != null && err != _previousError) {
           _previousError = err;
           debugPrint(
-              '[TtsErrorListener] New error detected: $err, scheduling SnackBar');
+              '[TtsErrorListener] New error detected: $err, scheduling CyberToast');
           WidgetsBinding.instance.addPostFrameCallback((_) {
             debugPrint(
                 '[TtsErrorListener] Post frame callback executing, mounted=$mounted');
             if (!mounted) {
-              debugPrint('[TtsErrorListener] Not mounted, skipping SnackBar');
+              debugPrint('[TtsErrorListener] Not mounted, skipping CyberToast');
               return;
             }
             try {
-              final scaffold = ScaffoldMessenger.of(context);
               debugPrint(
-                  '[TtsErrorListener] Got ScaffoldMessenger, showing SnackBar');
-              scaffold
-                ..removeCurrentSnackBar()
-                ..showSnackBar(SnackBar(content: Text(err)));
-              debugPrint('[TtsErrorListener] SnackBar shown successfully');
+                  '[TtsErrorListener] Showing CyberToast for error: $err');
+              CyberToast.show(context, err, type: ToastType.error);
+              debugPrint('[TtsErrorListener] CyberToast shown successfully');
             } catch (e) {
-              debugPrint('[TtsErrorListener] ERROR showing SnackBar: $e');
+              debugPrint('[TtsErrorListener] ERROR showing CyberToast: $e');
             }
             tts.clearLastError();
           });
@@ -69,30 +67,10 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             try {
-              ScaffoldMessenger.of(context)
-                ..removeCurrentSnackBar()
-                ..showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      fallback,
-                      style: const TextStyle(color: CyberColors.neonCyan),
-                    ),
-                    backgroundColor: CyberColors.cardBackground,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(CyberDimensions.radiusS),
-                      side: const BorderSide(
-                        color: CyberColors.neonCyan,
-                        width: CyberDimensions.borderThin,
-                      ),
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
+              CyberToast.show(context, fallback, type: ToastType.info);
             } catch (e) {
               debugPrint(
-                  '[TtsErrorListener] ERROR showing fallback SnackBar: $e');
+                  '[TtsErrorListener] ERROR showing fallback CyberToast: $e');
             }
             tts.clearFallbackNotification();
           });

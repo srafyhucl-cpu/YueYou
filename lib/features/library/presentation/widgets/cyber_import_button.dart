@@ -8,6 +8,7 @@ import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/library/services/file_import_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
+import 'package:yueyou/shared/widgets/cyber_toast.dart';
 
 class CyberImportButton extends StatefulWidget {
   const CyberImportButton({super.key});
@@ -41,8 +42,6 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                 onTap: isBusy
                     ? null
                     : () async {
-                        final ScaffoldMessengerState messenger =
-                            ScaffoldMessenger.of(context);
                         try {
                           final granted = await showCyberConfirmDialog(
                             context: context,
@@ -78,16 +77,12 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                               );
                           if (!context.mounted) return;
 
-                          messenger.showSnackBar(
-                            const SnackBar(content: Text('档案注入成功')),
-                          );
+                          CyberToast.show(context, '档案注入成功', type: ToastType.success);
                         } catch (error) {
                           final String msg = error is FileTooLargeException
                               ? error.toString()
-                              : '导入失败: $error';
-                          messenger.showSnackBar(
-                            SnackBar(content: Text(msg)),
-                          );
+                              : '数据芯片解析失败，请检查文件格式';
+                          CyberToast.show(context, msg, type: ToastType.error);
                         }
                       },
                 borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
@@ -102,7 +97,7 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                     border: Border.all(
                       color:
                           isBusy ? CyberColors.neonPink : CyberColors.neonGreen,
-                      width: 1.4,
+                      width: CyberDimensions.borderThick,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -113,7 +108,7 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                         spreadRadius: 1,
                       ),
                       const BoxShadow(
-                        color: Color(0x66000000),
+                        color: CyberColors.blackShadow,
                         blurRadius: 18,
                         offset: Offset(0, 8),
                       ),
@@ -121,7 +116,7 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xCC1A1B28), Color(0x9913141E)],
+                      colors: [CyberColors.cardBackground, CyberColors.surface],
                     ),
                   ),
                   child: Center(

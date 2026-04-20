@@ -2,6 +2,24 @@
  
 ---
 
+### **2026-04-20**
+- **整改(错误提示统一与脱敏处理)**:
+  - **错误提示统一**：将所有错误提示统一使用 `CyberToast` 组件，显示在屏幕中上部，符合设计规范
+  - **错误信息脱敏**：修改 TTS 引擎错误信息，移除 IP 地址、端口号等敏感信息，使用赛博朋克风格的脱敏错误信息
+  - **代码质量优化**：清理 `tts_error_listener.dart` 中未使用的导入，更新注释以匹配实际代码
+  - **文件结构调整**：将 `tts_error_listener.dart` 从根目录移至 `shared/widgets` 目录，保持架构一致性
+
+- **整改(硬编码问题修复)**:
+  - **尺寸常量化**：将 `cyber_toast.dart`、`square_board.dart` 和 `cyber_import_button.dart` 中的硬编码尺寸替换为 `CyberDimensions` 中的对应常量
+  - **颜色常量化**：将 `cyber_toast.dart` 和 `cyber_import_button.dart` 中的硬编码颜色替换为 `CyberColors` 中的对应常量
+  - **服务器地址配置化**：修改 `TtsConfig` 类，使其从环境变量中读取服务器地址，避免硬编码 IP
+
+- **验证结果**：
+  - `flutter analyze` 零问题
+  - 所有错误提示现在统一显示在屏幕中上部
+  - 错误信息已脱敏，符合隐私合规要求
+  - 代码结构更加规范，符合架构设计
+
 ### **2026-04-04**
 - **功能(2048 黑客后门彩蛋)**: 在 2048 游戏方块中植入「连续点击 8 次自毁」隐藏彩蛋，强化赛博朋克极客氛围。
   - **核心逻辑（`GameProvider.eliminateTileById`）**:

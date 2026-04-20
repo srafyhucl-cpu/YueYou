@@ -8,6 +8,7 @@ import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_shadows.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
+import 'package:yueyou/shared/widgets/cyber_toast.dart';
 import 'tile_widget.dart';
 import 'board_reset_animation.dart';
 import 'rain_effect.dart';
@@ -129,19 +130,7 @@ class _SquareBoardState extends State<SquareBoard>
   Future<void> _copyToClipboard(String text, BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '战绩已复制到剪贴板',
-            style: TextStyle(
-              color: CyberColors.whiteHigh,
-              fontSize: 14,
-            ),
-          ),
-          backgroundColor: CyberColors.surface,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      CyberToast.show(context, '战绩已复制到剪贴板', type: ToastType.success);
     }
   }
 
@@ -306,8 +295,8 @@ class _SquareBoardState extends State<SquareBoard>
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final boardSize = constraints.maxWidth;
-                  const padding = 20.0;
-                  const spacing = 12.0;
+                  const padding = CyberDimensions.spacingML;
+                  const spacing = CyberDimensions.spacingMS;
                   final cellSize = (boardSize - padding * 2 - spacing * 3) / 4;
 
                   return Selector<GameProvider, List<List<TileModel?>>>(
