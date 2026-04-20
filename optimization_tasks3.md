@@ -5,15 +5,16 @@
 
 **执行要求**：请作为资深 Flutter 架构师，严格按照以下 3 个 Task 顺序执行。必须深刻理解现有的 `TtsEngineService` 预加载工作流，采用「熔断与降级」机制修复问题。
 
----
+***
 
 ## Task 1: TTS 熔断机制与“二重唱”彻底修复
 
 **文件**：`lib/features/audio/services/tts_engine_service.dart`
 **问题根因**：当前降级方案中，`flutter_tts` 发声时，未正确阻塞队列；且预加载的远端音频可能在本地发声时异步触发播放，导致双音轨。
 **重构步骤**：
+
 1. **引入降级锁**：在类中新增状态变量 `bool _isDegradedToLocal = false;`。在 `stop()` 和 `init()` 中将其重置为 `false`。
-2. **改造 _startPlayLoop (工作流对齐)**：
+2. **改造 \_startPlayLoop (工作流对齐)**：
    - 每次准备播放新句子前，首先检查 `_isDegradedToLocal`。
    - 如果为 `true`，直接跳过远端请求，调用 `flutter_tts` 播放。
    - 如果为 `false`，尝试获取远端音频。如果远端发生 `TimeoutException` 或任何错误 -> **触发熔断**：
@@ -25,12 +26,13 @@
    - 在使用 `flutter_tts.speak()` 时，由于其 `await` 不会等待语音结束，你必须使用 `Completer<void>` 结合 `_fallbackTts.setCompletionHandler`，确保在播放本地语音时，`_startPlayLoop` 的 `while` 循环被严格阻塞，直到本地语音彻底读完才允许进入下一句。
 4. **生命周期双重静音**：在 `pause()` 和 `stop()` 方法中，必须强制同时调用 `await _audioPlayer.stop();` 和 `await _fallbackTts.stop();`，防止残音。
 
----
+***
 
 ## Task 2: 建立全局单例 CyberToast (提示交互收敛)
 
 **目标**：消除项目中散落的 `SnackBar` 和突兀的 `showCyberModal`，统一应用级别的通知规范。
 **重构步骤**：
+
 1. **创建组件**：在 `lib/shared/widgets/cyber_toast.dart` 中，利用 `Overlay` 和 `OverlayEntry` 机制实现一个静态的全局 Toast 工具类。
    - **视觉规范**：展示在屏幕中上部（SafeArea 顶部往下 40px），背景为 `CyberColors.blackGlass` (带毛玻璃 filter)，边框根据类型（info/error/success）展现不同颜色的霓虹发光效果。文字使用 `CyberTextStyles.teleprompterActive`，字号适中。
    - **交互规范**：从顶部轻微滑入并淡入（Fade + Slide），停留 2.5 秒后渐隐消失。如果短时间内连续触发，必须移除上一个 OverlayEntry，保证屏幕上永远只有一个 Toast。
@@ -39,12 +41,13 @@
    - 全局搜索 `ScaffoldMessenger.of(context).showSnackBar`，替换为 `CyberToast.show(context, message, type: ToastType.info)`。
    - 重点替换位置：图书导入成功/失败、设置页 TTS 连接测试、网络断开等。
 
----
+***
 
 ## Task 3: 隐私合规与异常信息脱敏翻译
 
 **目标**：严格保护隐私，绝不向用户界面暴露 `http://` 链接、IP 地址、`/data/user/0/...` 物理路径或原始的 `Exception` 堆栈。
 **重构步骤**：
+
 1. **重构连接测试 (SettingsScreen)**：
    - 定位 `_testConnection` 方法。
    - 成功时：只使用 `CyberToast` 提示“神经网关握手成功，语音链路通畅”，彻底删除 `\nURL: ${_config.serverUrl}` 等代码暴露。
@@ -53,6 +56,7 @@
    - 拦截由于超大文件或格式损坏引发的异常。向外抛出或传递给 UI 的 message 必须是脱敏的：“数据芯片解析失败，请检查文件格式”。杜绝抛出携带本地绝对路径的异常文案。
 3. **全局文案排查**：确保经过前两步重构后，所有的 UI 提示文案（无论成功失败）都符合赛博朋克世界观，并且对普通用户友好、不含有任何代码层面的 Debug 信息。
 
----
-**给 Windsurf 的执行纪律**：
+***
+
+**执行纪律**：
 请先从 **Task 1** 开始，着重实现 `_isDegradedToLocal` 熔断机制和基于 `Completer` 的阻塞锁。完成 Task 1 的代码修改并确认无误后，向我简要汇报逻辑，再进入 Task 2 的 UI 构建。

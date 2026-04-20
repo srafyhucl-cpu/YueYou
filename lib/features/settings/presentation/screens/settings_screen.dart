@@ -3,10 +3,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
-import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
-import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
+import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/shared/widgets/cyber_toast.dart';
 
 /// 设置界面
 /// 完整复刻旧版 modal-settings：声音/TTS/发声人/空闲超时
@@ -399,12 +400,7 @@ class _TtsTestButtonState extends State<_TtsTestButton> {
       if (!mounted) return;
       setState(() => _isTesting = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('测试失败: $e'),
-          backgroundColor: CyberColors.neonPink,
-        ),
-      );
+      CyberToast.show(context, '测试失败: 远端神经节点无响应，请检查链路配置', type: ToastType.error);
     }
   }
 }
@@ -446,7 +442,7 @@ class _TtsTestResultDialog extends StatelessWidget {
                 const SizedBox(width: CyberDimensions.spacingMS),
                 Expanded(
                   child: Text(
-                    success ? 'TTS 连接成功' : 'TTS 连接失败',
+                    success ? '神经网关握手成功' : '神经网关连接失败',
                     style: CyberTextStyles.dialogTitle.copyWith(
                       color: success
                           ? CyberColors.neonGreen
@@ -455,12 +451,6 @@ class _TtsTestResultDialog extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: CyberDimensions.spacingM),
-            // 服务器地址
-            Text(
-              '服务器: ${result['serverUrl']}',
-              style: CyberTextStyles.caption,
             ),
             const SizedBox(height: CyberDimensions.spacingM),
             // 测试步骤
@@ -480,7 +470,9 @@ class _TtsTestResultDialog extends StatelessWidget {
                 ),
               ),
               child: Text(
-                result['message'] as String,
+                success 
+                    ? '语音链路通畅，可正常使用赛博朗读功能' 
+                    : '远端神经节点无响应，请检查链路配置',
                 style: CyberTextStyles.captionComfortable.copyWith(
                   color: success ? CyberColors.neonGreen : CyberColors.neonPink,
                 ),
@@ -515,7 +507,16 @@ class _TtsTestResultDialog extends StatelessWidget {
     final status = step['status'] as String;
     final stepNumber = step['step'] as int;
     final name = step['name'] as String;
-    final message = step['message'] as String;
+    var message = step['message'] as String;
+
+    // 脱敏处理：移除敏感信息
+    if (stepNumber == 1 || stepNumber == 2) {
+      // 步骤 1 和 2 可能包含服务器地址，进行脱敏
+      message = '神经网关地址配置正常';
+    } else if (message.contains('写入文件失败') || message.contains('成功写入:')) {
+      // 步骤 5 可能包含本地文件路径，进行脱敏
+      message = '音频数据传输正常';
+    }
 
     Color statusColor;
     IconData statusIcon;
