@@ -124,42 +124,43 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: 0,
+      top: MediaQuery.of(context).padding.top + CyberDimensions.spacingM,
       left: 0,
       right: 0,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(top: CyberDimensions.spacingM),
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: CyberDimensions.spacingML),
-                  decoration: BoxDecoration(
-                    color: CyberColors.glassDark,
-                    borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-                    border: Border.all(
-                      color: _getBorderColor(),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _getBorderColor().withOpacity(0.3),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: IntrinsicWidth(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.85,
+                ),
+                margin: const EdgeInsets.symmetric(horizontal: CyberDimensions.spacingML),
+                decoration: BoxDecoration(
+                  color: CyberColors.glassDark,
+                  borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+                  border: Border.all(
+                    color: _getBorderColor(),
+                    width: CyberDimensions.borderThick,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getBorderColor().withOpacity(0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -222,7 +223,6 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
                               ),
                             ),
                           ],
-                        ),
                       ),
                     ),
                   ),

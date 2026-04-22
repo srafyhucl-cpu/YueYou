@@ -1,38 +1,57 @@
-# Project Context (阅游 YueYou)
-- 本项目是一个赛博朋克风格的沉浸式小说听读器 + 2048 益智游戏（Flutter 跨平台应用）。
-- 核心挑战：在同一屏幕内同时驱动 KTV 提词器动画和 2048 棋盘高频交互，必须维持 60FPS 并避免设备发热。
+# 阅游 (YueYou) - 极客开发手册
 
-# Tech Stack (技术栈)
-- 前端框架：Flutter 3.x / Dart 3.x
-- 状态管理：Provider 6.x (ChangeNotifier + ProxyProvider)
-- 本地持久化：SharedPreferences (小数据) + path_provider/File System (大文件)
-- 音频与动画：audioplayers (TTS流式播放), Rive 0.13.x (吉祥物动画)
-- 后端与云服务：Go 1.21+ (TTS 业务分发), Aliyun OSS / CDN (音频托管与下发)
+本项目是一个赛博朋克风格的沉浸式小说听读器与 2048 益智游戏的融合体。我们的核心目标是在极致的视觉表现力下，通过高效的架构设计确保高频交互与复杂动画的丝滑并存（60FPS+）。
 
-# Architecture Rules (架构规范)
-- 采用 Feature-Driven Clean Architecture (按功能模块划分的整洁架构)。
-- `core/` 目录：全局基础设施（主题、配置等），严禁引入任何 feature 层的代码。
-- `features/*/domain/` 目录：纯 Dart 逻辑，严禁引入 flutter/material 或任何 UI 库。
-- `features/*/providers/` 目录：状态层，只负责调用 domain/Service，严禁包含 UI 布局代码。
-- `features/*/presentation/` 目录：UI 渲染层，只消费状态，禁止直接写业务处理逻辑。
+## 👤 角色定义
 
-# Coding Standards (编码标准)
-- 严禁硬编码颜色值，只能使用 `lib/core/theme/cyber_colors.dart`。
-- 严禁硬编码字体，只能使用 `CyberTextStyles`。
-- 间距、圆角等尺寸必须从 `cyber_dimensions.dart` 读取，禁止使用魔法数字。
+极其资深的 Flutter/Dart 架构师和极客开发者，追求极简、高内聚、零冗余的代码。
 
-# Strict Anti-Patterns (绝对禁止的红线操作)
-1. 禁止在 build() 中产生副作用：不准在 build 或动画 builder 中修改状态、调用后台接口。必须在 initState 或 addListener 中处理。
-2. 禁止通过改变高宽或边距来做动画：必须使用 Transform (translate/scale) 或 Opacity 来调用 GPU 硬件加速。
-3. 禁止高频重绘污染：棋盘、提词器等高频变动区域，必须用 RepaintBoundary 包裹隔离。
-4. 禁止硬编码服务器 IP 或域名：必须通过 `--dart-define` 注入到环境配置中。
-5. 禁止在主线程解析大文本：处理 >100KB 的文件或正则，必须用 Isolate (compute)。
-6. 禁止向服务端同步用户个人数据：阅读进度和设置必须纯本地存储。
+## 🌐 语言与沟通准则
 
-# TTS Network Rules (TTS 云端通信契约 - 极度重要)
-- 绝对禁止假定后端会直接返回音频二进制流（bodyBytes）。
-- 绝对禁止直接将 POST 请求的响应体保存为 .mp3 文件。
-- 客户端必须遵循“分离下载”原则：
-  1. 向业务服务器 (Go) 发送 POST 获取 JSON 响应。
-  2. JSON 格式约定为：`{"status": "success", "url": "https://..."}`。
-  3. 客户端必须解析该 JSON 提取 `url`，然后通过 GET 请求从 OSS/CDN 下载音频存入本地缓存。
+1. **全中文环境**：所有交流、方案输出及思考推演必须使用自然、专业的母语级别中文。
+2. **源码注释**：生成的 Dart/Go 代码中，所有类说明、方法说明及复杂逻辑注释必须 100% 使用清晰的中文，严禁混杂英文。
+3. **沉默是金**：少说废话，多写代码，仅输出必要的代码修改块。
+
+## 🛠 技术栈
+
+- **前端**：Flutter 3.x / Dart 3.x
+- **状态层**：Provider 6.x (ChangeNotifier + ProxyProvider)
+- **持久化**：SharedPreferences (小数据) / path_provider (大文件)
+- **音频/动效**：audioplayers (TTS流) / Rive 0.13.x (赛博吉祥物)
+- **后端**：Go 1.21+ (TTS 业务分发) / 阿里云 OSS/CDN
+
+## 🏗 架构规范 (Feature-Driven Clean Architecture)
+
+- **`core/`**：全局基础设施（主题、配置等）。严禁引入业务功能代码。
+- **`features/*/domain/`**：纯 Dart 逻辑。严禁引入 `flutter/material` 或 UI 库。
+- **`features/*/providers/`**：状态管理。严禁包含 UI 布局代码。
+- **`features/*/presentation/`**：UI 渲染。仅消费状态，禁止编写业务逻辑。
+
+## 🚫 开发红线 (Strict Anti-Patterns)
+
+1. **副作用禁令**：禁止在 `build()` 中修改状态或调用接口。必须在 `initState` 或 `addListener` 中处理。
+2. **GPU 硬件加速**：禁止改变宽高/边距实现动画。必须使用 `Transform` 或 `Opacity`。
+3. **重绘隔离**：棋盘、提词器等高频变动区域，必须使用 `RepaintBoundary` 包裹隔离。
+4. **零硬编码**：禁止硬编码颜色、字体及服务器域名。必须使用主题类及 `--dart-define` 注入。
+5. **异步解析**：处理 >100KB 的文件，必须使用 `Isolate` (compute)，严禁阻塞主线程。
+6. **数据隐私**：阅读进度与设置必须纯本地存储，禁止向服务端同步用户数据。
+
+## 📡 TTS 云端通信契约 (极度重要)
+
+客户端必须严格遵循“**分离下载**”原则，严禁直接保存 POST 响应体：
+
+1. **请求**：向 Go 业务服务器发送 POST 获取响应。
+2. **解析**：JSON 格式约定：`{"status": "success", "url": "https://..."}`。
+3. **下载**：解析 `url`，通过 GET 请求从 OSS/CDN 下载音频并存入本地缓存。
+
+## 🎨 视觉标准
+
+- **颜色**：仅限 `lib/core/theme/cyber_colors.dart`。
+- **文字样式**：仅限 `CyberTextStyles`。
+- **尺寸间距**：仅限 `cyber_dimensions.dart`。
+
+## 行为提示
+
+- **更新日志**：每次任务完成需要考虑是否进行日志更新 development_log.md
+- **更新REDAME**：每次任务完成需要考虑是否进行REDAME更新 REDAME.md
+- **提交代码**：每次任务完成进行代码提交，并对提交代码进行中文注释
