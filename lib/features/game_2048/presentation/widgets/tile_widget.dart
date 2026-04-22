@@ -194,10 +194,9 @@ class _TileWidgetState extends State<TileWidget> with TickerProviderStateMixin {
                     alignment: Alignment.center,
                     child: Text(
                       '${widget.value}',
-                      style: TextStyle(
+                      style: CyberTextStyles.gameGridNumber.copyWith(
                         color: CyberColors.whiteHigh,
                         fontSize: _getFontSize(widget.value),
-                        fontWeight: FontWeight.w900,
                         fontFamily: CyberTextStyles.monoFont,
                         shadows: const [
                           Shadow(

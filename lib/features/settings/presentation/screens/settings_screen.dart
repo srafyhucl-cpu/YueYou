@@ -8,6 +8,7 @@ import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
+import 'package:yueyou/core/constants/cyber_error_messages.dart';
 
 /// 设置界面
 /// 完整复刻旧版 modal-settings：声音/TTS/发声人/空闲超时
@@ -400,7 +401,7 @@ class _TtsTestButtonState extends State<_TtsTestButton> {
       if (!mounted) return;
       setState(() => _isTesting = false);
 
-      CyberToast.show(context, '测试失败: 远端神经节点无响应，请检查链路配置', type: ToastType.error);
+      CyberToast.show(context, CyberErrorMessages.testFailedUnresponsive, type: ToastType.error);
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 
 /// 漂浮加分特效组件
 /// 当产生合并得分时，显示 +Score 的赛博字体，带有向上漂浮并淡出的动画
@@ -67,7 +68,10 @@ class _FloatingScoreState extends State<FloatingScore>
           child: Opacity(
             opacity: _opacityAnimation.value,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: CyberDimensions.spacingMS,
+                vertical: CyberDimensions.spacingS - CyberDimensions.spacingXXS,
+              ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -75,7 +79,7 @@ class _FloatingScoreState extends State<FloatingScore>
                     CyberColors.neonPurple.withOpacity(0.8),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
                 boxShadow: [
                   BoxShadow(
                     color: CyberColors.pinkGlow.withOpacity(0.6),
@@ -86,12 +90,11 @@ class _FloatingScoreState extends State<FloatingScore>
               ),
               child: Text(
                 '+${widget.score}',
-                style: const TextStyle(
+                style: CyberTextStyles.gameGridNumber.copyWith(
                   color: CyberColors.whiteHigh,
                   fontSize: 20,
-                  fontWeight: FontWeight.w900,
                   fontFamily: CyberTextStyles.monoFont,
-                  shadows: [
+                  shadows: const [
                     Shadow(
                       color: CyberColors.blackDim,
                       blurRadius: 4,

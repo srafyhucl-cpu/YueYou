@@ -127,7 +127,7 @@ class _BookCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => _loadBook(context),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: const EdgeInsets.only(bottom: CyberDimensions.spacingMS),
         height: 110,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
@@ -154,9 +154,8 @@ class _BookCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   book.coverChar,
-                  style: const TextStyle(
+                  style: CyberTextStyles.screenTitle.copyWith(
                     fontSize: 72,
-                    fontWeight: FontWeight.bold,
                     color: CyberColors.whiteFaint,
                     height: 1,
                   ),
@@ -171,7 +170,7 @@ class _BookCard extends StatelessWidget {
                   filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
                   child: Container(
                     color: CyberColors.background.withOpacity(0.25),
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(CyberDimensions.spacingMS),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -194,7 +193,7 @@ class _BookCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(2),
+                              borderRadius: BorderRadius.circular(CyberDimensions.radiusXS),
                               child: LinearProgressIndicator(
                                 value: percent / 100,
                                 backgroundColor: CyberColors.whiteSubtle,

@@ -18,12 +18,12 @@ class TtsConfig {
 
   /// 开发环境配置（通过 --dart-define=TTS_SERVER_URL=http://your-server:3000/api/v1/tts/createStream 指定）
   static const TtsConfig development = TtsConfig(
-    serverUrl: 'http://localhost:8080/api/v1/tts',
+    serverUrl: 'https://hclstudio.cn/api/v1/tts',
   );
 
   /// 生产环境配置（通过 --dart-define=TTS_SERVER_URL 覆盖）
   static const TtsConfig production = TtsConfig(
-    serverUrl: 'http://localhost:8080/api/v1/tts',
+    serverUrl: 'https://hclstudio.cn/api/v1/tts',
   );
 
   /// 当前环境配置

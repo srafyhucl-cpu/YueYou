@@ -37,9 +37,8 @@ class _PrivacyAgreementContent extends StatelessWidget {
           const SizedBox(height: CyberDimensions.spacingS),
           Text(
             '神经接驳协议',
-            style: CyberTextStyles.screenTitle.copyWith(
+            style: CyberTextStyles.dialogTitle.copyWith(
               color: CyberColors.neonCyan,
-              fontSize: 20,
             ),
           ),
           const SizedBox(height: CyberDimensions.spacingXS),
@@ -54,7 +53,9 @@ class _PrivacyAgreementContent extends StatelessWidget {
 
           // ── 协议正文（可滚动）────────────────────────────────────
           Container(
-            constraints: const BoxConstraints(maxHeight: 280),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+            ),
             decoration: BoxDecoration(
               color: CyberColors.whiteFaint,
               borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
@@ -109,7 +110,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                '同意后，您可在设置页面随时重新查看本协议· ',
+                '同意后，您可在设置页面随时重新查看本协议 ',
                 textAlign: TextAlign.center,
                 style: CyberTextStyles.caption.copyWith(
                   color: CyberColors.whiteMuted,
@@ -117,7 +118,10 @@ class _PrivacyAgreementContent extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () => launchUrl(
-                  Uri.parse('https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN'),
+                  Uri.parse(const String.fromEnvironment(
+                    'PRIVACY_POLICY_URL',
+                    defaultValue: 'https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN',
+                  )),
                   mode: LaunchMode.externalApplication,
                 ),
                 child: Text(
@@ -179,14 +183,17 @@ class _PolicySection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(icon, style: const TextStyle(fontSize: 14)),
+            Text(
+              icon,
+              style: CyberTextStyles.bodySmall.copyWith(
+                fontSize: 14,
+              ),
+            ),
             const SizedBox(width: CyberDimensions.spacingXS),
             Text(
               title,
-              style: const TextStyle(
+              style: CyberTextStyles.bodySmallBold.copyWith(
                 color: CyberColors.neonCyan,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -194,10 +201,8 @@ class _PolicySection extends StatelessWidget {
         const SizedBox(height: CyberDimensions.spacingXS),
         Text(
           body,
-          style: const TextStyle(
+          style: CyberTextStyles.captionComfortable.copyWith(
             color: CyberColors.whiteMedium,
-            fontSize: 12,
-            height: 1.55,
           ),
         ),
       ],
@@ -225,13 +230,11 @@ class _DeclineButton extends StatelessWidget {
             width: CyberDimensions.borderNormal,
           ),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
             '拒绝并退出',
-            style: TextStyle(
+            style: CyberTextStyles.buttonLabel.copyWith(
               color: CyberColors.neonPink,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -260,12 +263,11 @@ class _AgreeButton extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
             '同意接入',
-            style: TextStyle(
+            style: CyberTextStyles.buttonLabel.copyWith(
               color: CyberColors.background,
-              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),

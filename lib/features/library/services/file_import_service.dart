@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fast_gbk/fast_gbk.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
+import 'package:yueyou/core/constants/cyber_error_messages.dart';
 
 // V1.0 最大允许导入的文件大小（可配置常量）
 const int kMaxFileSizeMb = 15;
@@ -18,8 +19,7 @@ class FileTooLargeException implements Exception {
   const FileTooLargeException();
 
   @override
-  String toString() =>
-      'V1.0 神经接驳器带宽有限，暂不支持超过 ${kMaxFileSizeMb}MB 的超大型数据芯片，请分割后导入';
+  String toString() => CyberErrorMessages.importFileTooLarge(kMaxFileSizeMb);
 }
 
 // 导入结果数据类
@@ -78,7 +78,7 @@ class FileImportService {
       final PlatformFile pickedFile = result.files.single;
       final String? filePath = pickedFile.path;
       if (filePath == null || filePath.isEmpty) {
-        throw const FileSystemException('无法读取所选 TXT 文件路径');
+        throw const FileSystemException(CyberErrorMessages.importReadPathFailed);
       }
 
       final String fileName = pickedFile.name;

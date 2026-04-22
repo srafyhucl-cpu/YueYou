@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:yueyou/core/constants/cyber_error_messages.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -46,11 +47,15 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
     await _tts.setSpeechRate(0.5);
     await _tts.setVolume(1.0);
     _tts.setCompletionHandler(() {
-      _currentSpeech?.complete();
+      if (_currentSpeech?.isCompleted == false) {
+        _currentSpeech?.complete();
+      }
       _currentSpeech = null;
     });
     _tts.setErrorHandler((dynamic msg) {
-      _currentSpeech?.completeError(Exception('FlutterTts: $msg'));
+      if (_currentSpeech?.isCompleted == false) {
+        _currentSpeech?.completeError(Exception('FlutterTts: $msg'));
+      }
       _currentSpeech = null;
     });
   }
@@ -61,7 +66,9 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
     try {
       await _tts.speak(text);
     } catch (e) {
-      _currentSpeech?.complete();
+      if (_currentSpeech?.isCompleted == false) {
+        _currentSpeech?.complete();
+      }
       _currentSpeech = null;
       rethrow;
     }
@@ -76,7 +83,9 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
 
   @override
   Future<void> stop() async {
-    _currentSpeech?.complete();
+    if (_currentSpeech?.isCompleted == false) {
+      _currentSpeech?.complete();
+    }
     _currentSpeech = null;
     try {
       await _tts.stop();
@@ -358,14 +367,14 @@ class TtsEngineService extends ChangeNotifier {
 
   void _safeSetPlaybackRate(double rate) {
     unawaited(_audioPlayer.setPlaybackRate(rate).catchError((Object e) {
-      _setLastError('音频参数调整失败');
+      _setLastError(CyberErrorMessages.ttsAudioParamFailed);
       debugPrint('设置播放倍速失败: $e');
     }));
   }
 
   void _safeSetVolume(double volume) {
     unawaited(_audioPlayer.setVolume(volume).catchError((Object e) {
-      _setLastError('音频参数调整失败');
+      _setLastError(CyberErrorMessages.ttsAudioParamFailed);
       debugPrint('设置音量失败: $e');
     }));
   }
@@ -552,10 +561,12 @@ class TtsEngineService extends ChangeNotifier {
     _scheduleIdleTimer();
   }
 
-  void pause() {
+  Future<void> pause() async {
     if (!isEnabled || isPaused) return;
-    _audioPlayer.pause();
-    _fallbackEngine.stop();
+    await Future.wait([
+      _audioPlayer.pause(),
+      _fallbackEngine.stop(),
+    ]);
     _setState(TtsPlaybackState.paused);
   }
 
@@ -564,7 +575,7 @@ class TtsEngineService extends ChangeNotifier {
     // Check if there is book content before enabling TTS
     if (enabled && onNeedPrefetch == null) {
       debugPrint(' 无法开启 TTS：当前没有书籍内容 (onNeedPrefetch 未绑定)');
-      _setLastError('无法开启 TTS：请先导入书籍');
+      _setLastError(CyberErrorMessages.ttsRequireBookFirst);
       return;
     }
     // If enabling, check if onNeedPrefetch returns null (indicating no content)
@@ -656,18 +667,20 @@ class TtsEngineService extends ChangeNotifier {
     _idleTimer = Timer(Duration(minutes: minutes), () {
       if (isEnabled && !_disposed) {
         debugPrint(' 空闲超时 ${minutes}min，自动暂停 TTS');
-        _setLastError('空闲超时，自动暂停 TTS');
+        _setLastError(CyberErrorMessages.ttsIdleTimeout);
         setEnabled(false);
         _settings.setStoryTts(false);
       }
     });
   }
 
-  void stopAll() {
+  Future<void> stopAll() async {
     _loopSession++;
     _idleTimer?.cancel();
-    _audioPlayer.stop();
-    _fallbackEngine.stop();
+    await Future.wait([
+      _audioPlayer.stop(),
+      _fallbackEngine.stop(),
+    ]);
     _currentItem = null;
     _clearPrefetchQueue();
     _playLoopActive = false;
@@ -750,9 +763,10 @@ class TtsEngineService extends ChangeNotifier {
           continue;
         }
 
-        // 队列已满或未启用，等待
+        // 队列已满、未启用或已降级，等待
         if (!isEnabled ||
             isPaused ||
+            _isDegradedToLocal ||
             _prefetchedItems.length >= _config.maxPrefetchQueue) {
           await _delay(const Duration(milliseconds: 500));
           continue;
@@ -766,7 +780,7 @@ class TtsEngineService extends ChangeNotifier {
           // 如果连续多次返回 null，可能是没有书籍内容，停止 TTS
           if (noContentCount > 10) {
             debugPrint('⚠️ 连续 $noContentCount 次 onNeedPrefetch 返回 null，停止 TTS');
-            _setLastError('无法继续 TTS：没有可读取的内容，请先导入书籍');
+            _setLastError(CyberErrorMessages.ttsNoContentRequiresBook);
             // 延迟关闭，给监听器留出显示错误的时间
             Future.microtask(() {
               if (!_disposed) setEnabled(false);
@@ -793,7 +807,7 @@ class TtsEngineService extends ChangeNotifier {
           final attempts = result.attempts;
           if (filePath == null) {
             if (result.useFallback) {
-              _setFallbackNotification('云端神经网断开，已自动切换至本地仿生发声模块');
+              _setFallbackNotification(CyberErrorMessages.ttsFallbackDisconnected);
               final fallbackItem = TtsAudioItem(
                 id: DateTime.now().microsecondsSinceEpoch,
                 session: sessionSnapshot,
@@ -1033,10 +1047,10 @@ class TtsEngineService extends ChangeNotifier {
           // 触发熔断
           _isDegradedToLocal = true;
           _clearPrefetchQueue();
-          _setFallbackNotification('远端连接失败，已无缝降级至本地音频');
+          _setFallbackNotification(CyberErrorMessages.ttsFallbackTimeout);
           // 使用本地 TTS 播放当前句子
           await _speakWithLocalTts(prefetched.text);
-          _setLastError('音频加载超时，已降级至本地音频');
+          _setLastError(CyberErrorMessages.ttsAudioLoadTimeout);
           _setState(TtsPlaybackState.buffering);
           continue;
         } catch (e) {
@@ -1045,7 +1059,7 @@ class TtsEngineService extends ChangeNotifier {
           // 触发熔断
           _isDegradedToLocal = true;
           _clearPrefetchQueue();
-          _setFallbackNotification('远端连接失败，已无缝降级至本地音频');
+          _setFallbackNotification(CyberErrorMessages.ttsFallbackTimeout);
           // 使用本地 TTS 播放当前句子
           await _speakWithLocalTts(prefetched.text);
           if (isEnabled && !isPaused) {
@@ -1117,7 +1131,7 @@ class TtsEngineService extends ChangeNotifier {
 
         if (response.statusCode != 200) {
           final errorBody = response.body;
-          _setLastError('远端神经节点无响应，请检查链路配置');
+          _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
           debugPrint(
               '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})\n响应: $errorBody');
 
@@ -1142,18 +1156,18 @@ class TtsEngineService extends ChangeNotifier {
             '🔴 TTS 服务器原始响应内容: ${responseBody.length > 100 ? responseBody.substring(0, 100) : responseBody}');
         if (!(responseBody.startsWith('{') || responseBody.startsWith('['))) {
           throw const FormatException(
-            'TTS 接口返回的不是 JSON。当前地址可能指向旧版直出音频接口，请改为返回 {"status":"success","url":"..."} 的业务接口。',
+            CyberErrorMessages.ttsInvalidFormat,
           );
         }
 
         final dynamic decoded = jsonDecode(responseBody);
         if (decoded is! Map<String, dynamic>) {
-          throw const FormatException('TTS 响应不是合法 JSON 对象');
+          throw const FormatException(CyberErrorMessages.ttsNotJsonObject);
         }
         final String status = (decoded['status'] as String? ?? '').trim();
         final String audioUrl = (decoded['url'] as String? ?? '').trim();
         if (status != 'success' || audioUrl.isEmpty) {
-          throw FormatException('TTS 响应缺少有效 url: $responseBody');
+          throw FormatException(CyberErrorMessages.ttsMissingUrl(responseBody));
         }
 
         debugPrint('[TTS URL] $audioUrl');
@@ -1170,7 +1184,7 @@ class TtsEngineService extends ChangeNotifier {
         _clearLastError();
         return (filePath: filePath, attempts: attempts, useFallback: false);
       } on TimeoutException catch (e) {
-        _setLastError('远端神经节点无响应，请检查链路配置');
+        _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
         // ignore: avoid_print
         print('[TTS][RELEASE] 请求超时 (尝试${attempt + 1}): $e');
         if (attempt < _config.maxRetries - 1) {
@@ -1181,7 +1195,7 @@ class TtsEngineService extends ChangeNotifier {
         debugPrint('❌ TTS下载最终超时');
         return (filePath: null, attempts: attempts, useFallback: true);
       } catch (e) {
-        _setLastError('远端神经节点无响应，请检查链路配置');
+        _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
         // ignore: avoid_print
         print('[TTS][RELEASE] 下载失败 (尝试${attempt + 1}): $e');
         if (e is FormatException) {
@@ -1245,12 +1259,12 @@ class TtsEngineService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
         if (decoded is! Map<String, dynamic>) {
-          throw const FormatException('TTS 响应不是合法 JSON 对象');
+          throw const FormatException(CyberErrorMessages.ttsNotJsonObject);
         }
         final String status = (decoded['status'] as String? ?? '').trim();
         final String audioUrl = (decoded['url'] as String? ?? '').trim();
         if (status != 'success' || audioUrl.isEmpty) {
-          throw FormatException('响应缺少有效 url: ${response.body}');
+          throw FormatException(CyberErrorMessages.ttsMissingUrlTest(response.body));
         }
 
         result['steps'].add({
@@ -1305,8 +1319,8 @@ class TtsEngineService extends ChangeNotifier {
           'message': '服务器返回错误: ${response.statusCode}\n响应: ${response.body}',
         });
         result['statusCode'] = response.statusCode;
-        result['message'] = '服务器返回错误: ${response.statusCode}';
-        _setLastError('远端神经节点无响应，请检查链路配置');
+        result['message'] = CyberErrorMessages.ttsServerErrorCode(response.statusCode);
+        _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
       }
     } on TimeoutException catch (e) {
       result['steps'].add({
@@ -1315,8 +1329,8 @@ class TtsEngineService extends ChangeNotifier {
         'status': 'error',
         'message': '请求超时: $e',
       });
-      result['message'] = '请求超时，请检查网络连接或服务器状态';
-      _setLastError('远端神经节点无响应，请检查链路配置');
+      result['message'] = CyberErrorMessages.ttsRequestTimeout;
+      _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
     } on SocketException catch (e) {
       result['steps'].add({
         'step': 3,
@@ -1324,8 +1338,8 @@ class TtsEngineService extends ChangeNotifier {
         'status': 'error',
         'message': '网络错误: $e',
       });
-      result['message'] = '无法连接到服务器，请检查：\n1. 服务器是否启动\n2. 防火墙设置\n3. 网络连接';
-      _setLastError('远端神经节点无响应，请检查链路配置');
+      result['message'] = CyberErrorMessages.ttsConnectTimeout;
+      _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
     } catch (e) {
       result['steps'].add({
         'step': 3,
@@ -1334,7 +1348,7 @@ class TtsEngineService extends ChangeNotifier {
         'message': '未知错误: $e',
       });
       result['message'] = '测试失败: $e';
-      _setLastError('远端神经节点无响应，请检查链路配置');
+      _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
     }
 
     return result;

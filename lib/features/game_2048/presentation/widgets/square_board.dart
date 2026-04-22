@@ -9,6 +9,7 @@ import 'package:yueyou/core/theme/cyber_shadows.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
+import '../../../../core/theme/cyber_text_styles.dart';
 import 'tile_widget.dart';
 import 'board_reset_animation.dart';
 import 'rain_effect.dart';
@@ -141,7 +142,10 @@ class _SquareBoardState extends State<SquareBoard>
   }) {
     return Container(
       width: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CyberDimensions.spacingS,
+        vertical: CyberDimensions.spacingS - CyberDimensions.spacingXXS,
+      ),
       decoration: BoxDecoration(
         color: CyberColors.surface.withOpacity(0.48),
         borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
@@ -157,7 +161,7 @@ class _SquareBoardState extends State<SquareBoard>
           Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: CyberTextStyles.caption.copyWith(
               color: CyberColors.whiteMuted.withOpacity(0.9),
               fontSize: 10,
               fontWeight: FontWeight.w500,
@@ -169,9 +173,8 @@ class _SquareBoardState extends State<SquareBoard>
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: CyberTextStyles.bodySmallBold.copyWith(
               color: valueColor ?? CyberColors.whiteHigh,
-              fontSize: 13,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.2,
             ),
@@ -390,7 +393,7 @@ class _SquareBoardState extends State<SquareBoard>
                                     child: Container(
                                       color: CyberColors.blackOverlay
                                           .withOpacity(0.78),
-                                      padding: const EdgeInsets.all(12),
+                                      padding: const EdgeInsets.all(CyberDimensions.spacingMS),
                                       child: LayoutBuilder(
                                         builder: (context, overlayConstraints) {
                                           return Center(
@@ -411,9 +414,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                   ),
                                                   // 弹窗内容层
                                                   Container(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            12),
+                                                    padding: const EdgeInsets.all(CyberDimensions.spacingMS),
                                                     decoration: BoxDecoration(
                                                       gradient: LinearGradient(
                                                         begin:
@@ -454,7 +455,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                       children: [
                                                         Text(
                                                           '游戏结束',
-                                                          style: TextStyle(
+                                                          style: CyberTextStyles.dialogTitle.copyWith(
                                                             color: CyberColors
                                                                 .neonPink,
                                                             fontSize: 24,
@@ -474,9 +475,9 @@ class _SquareBoardState extends State<SquareBoard>
                                                         ),
                                                         const SizedBox(
                                                             height: 4),
-                                                        const Text(
+                                                        Text(
                                                           '本局已无可移动棋子，是否重新开局？',
-                                                          style: TextStyle(
+                                                          style: CyberTextStyles.caption.copyWith(
                                                             color: CyberColors
                                                                 .whiteHigh,
                                                             fontSize: 11,
@@ -494,7 +495,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                             Text(
                                                               '${endTime.month.toString().padLeft(2, '0')}-${endTime.day.toString().padLeft(2, '0')} ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
                                                               style:
-                                                                  const TextStyle(
+                                                                  CyberTextStyles.caption.copyWith(
                                                                 color: CyberColors
                                                                     .whiteMuted,
                                                                 fontSize: 10,
@@ -531,13 +532,10 @@ class _SquareBoardState extends State<SquareBoard>
                                                               child: Text(
                                                                 rating,
                                                                 style:
-                                                                    TextStyle(
+                                                                    CyberTextStyles.captionBold.copyWith(
                                                                   color:
                                                                       ratingColor,
                                                                   fontSize: 10,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
                                                                 ),
                                                               ),
                                                             ),
@@ -619,10 +617,10 @@ class _SquareBoardState extends State<SquareBoard>
                                                                 color: CyberColors
                                                                     .neonGreen,
                                                               ),
-                                                              label: const Text(
+                                                              label: Text(
                                                                 '复制',
                                                                 style:
-                                                                    TextStyle(
+                                                                    CyberTextStyles.buttonLabel.copyWith(
                                                                   color: CyberColors
                                                                       .neonGreen,
                                                                   fontSize: 11,
@@ -685,10 +683,10 @@ class _SquareBoardState extends State<SquareBoard>
                                                                   vertical: 8,
                                                                 ),
                                                               ),
-                                                              child: const Text(
+                                                              child: Text(
                                                                 '取消',
                                                                 style:
-                                                                    TextStyle(
+                                                                    CyberTextStyles.buttonLabel.copyWith(
                                                                   fontSize: 11,
                                                                 ),
                                                               ),
@@ -723,14 +721,11 @@ class _SquareBoardState extends State<SquareBoard>
                                                                   vertical: 8,
                                                                 ),
                                                               ),
-                                                              child: const Text(
+                                                              child: Text(
                                                                 '重新开始',
                                                                 style:
-                                                                    TextStyle(
+                                                                    CyberTextStyles.buttonLabel.copyWith(
                                                                   fontSize: 11,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
                                                                 ),
                                                               ),
                                                             ),

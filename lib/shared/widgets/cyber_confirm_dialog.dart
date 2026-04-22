@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/shared/widgets/cyber_modal.dart';
 
 /// 赛博朋克风格确认对话框
@@ -22,9 +23,8 @@ Future<bool> showCyberConfirmDialog({
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: CyberTextStyles.dialogTitle.copyWith(
               color: CyberColors.whiteHigh,
-              fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -34,7 +34,7 @@ Future<bool> showCyberConfirmDialog({
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: CyberTextStyles.bodySmall.copyWith(
                   color: CyberColors.whiteMedium,
                   fontSize: 14,
                   height: 1.5,
@@ -106,9 +106,8 @@ class _CyberButton extends StatelessWidget {
         child: Center(
           child: Text(
             text,
-            style: const TextStyle(
+            style: CyberTextStyles.buttonLabel.copyWith(
               color: CyberColors.whiteHigh,
-              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),

@@ -1,4 +1,4 @@
-package com.dimension.library2048
+package cn.hclstudio.yueyou
 
 import io.flutter.embedding.android.FlutterActivity
 
