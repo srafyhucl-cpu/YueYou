@@ -9,6 +9,7 @@ import 'package:yueyou/features/library/services/file_import_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
+import 'package:yueyou/core/constants/cyber_error_messages.dart';
 
 class CyberImportButton extends StatefulWidget {
   const CyberImportButton({super.key});
@@ -81,7 +82,7 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                         } catch (error) {
                           final String msg = error is FileTooLargeException
                               ? error.toString()
-                              : '数据芯片解析失败，请检查文件格式';
+                              : CyberErrorMessages.importFormatFailed;
                           CyberToast.show(context, msg, type: ToastType.error);
                         }
                       },

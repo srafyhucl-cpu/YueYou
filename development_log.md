@@ -1,8 +1,24 @@
 # 阅游 (YueYou) 项目开发日志
- 
+
 ---
 
-### **2026-04-20**
+## **2026-04-22**
+
+- **重构(全局错误集中化)**: 彻底落实 `CyberErrorMessages` 体系，将全工程 14+ 处硬编码的错误文案统一汇入 `lib/core/constants/cyber_error_messages.dart`，涵盖 TTS 通讯失败、文件格式错误、存储空间不足等所有关键边界，为后续多语言化奠定基础。
+- **优化(视觉交互系统)**: 深度重构 `CyberToast` 与 `TtsErrorListener`，接入 "XIAOYO" 吉祥物驱动的拟人化错误反馈机制。报错时不再是冰冷的文字，而是由 `BoardMascot` 实时绘制的赛博气泡通知，显著提升了非法操作时的沉浸感。
+- **修正(隐私合规流程)**: 对 `PrivacyAgreementModal` 进行逻辑二次审计，确保 Android 物理返回键无法绕过启动拦截，并完善了点击外链跳转协议页面的逻辑稳定性。
+- **提交**: 完成商业化发版前的最后一次架构清道夫工作，移除了 `optimization_tasks.md` 等阶段性开发文档。
+
+## **2026-04-21**
+
+- **重构(设计系统合规)**: 清剿全工程 UI 控件中残留的「魔术数字」（硬编码的边距、圆角等），并强制汇入 `CyberDimensions` 设计系统以确保全局视觉响应式的统一。
+  - 核心处理了 `library_screen.dart`、`square_board.dart`、`floating_score.dart`、`rain_effect.dart` 及音频相关组件。
+- **架构净化**: 彻底核查整洁架构规范，确保 `domain` 层绝无 `flutter/material` UI 依赖，文本大文件解析全面接入 Isolate，高频重绘区均已使用 `RepaintBoundary` 进行隔离不造成重排污染。
+- **重构(全局错误常量)**: 实施 "魔术字符串" 清除计划，新建 `lib/core/constants/cyber_error_messages.dart` 单例，将 TTS 网络通讯、本地解析、文件读取等 14+ 报错及边界脱敏文案全部收口为统一常量枚举，显著提高后续 i18n 效率。
+- **构建测试**: 全工程通过 `flutter analyze` 达成 0 issues 健康度，排查宿主构建工具环境后成功达成 Android 端的 `flutter build apk --release` 构建，完全满足 V1.0 商业化上线发版的准备。
+
+## **2026-04-20**
+
 - **整改(错误提示统一与脱敏处理)**:
   - **错误提示统一**：将所有错误提示统一使用 `CyberToast` 组件，显示在屏幕中上部，符合设计规范
   - **错误信息脱敏**：修改 TTS 引擎错误信息，移除 IP 地址、端口号等敏感信息，使用赛博朋克风格的脱敏错误信息
@@ -20,13 +36,14 @@
   - 错误信息已脱敏，符合隐私合规要求
   - 代码结构更加规范，符合架构设计
 
-### **2026-04-04**
+## **2026-04-04**
+
 - **功能(2048 黑客后门彩蛋)**: 在 2048 游戏方块中植入「连续点击 8 次自毁」隐藏彩蛋，强化赛博朋克极客氛围。
   - **核心逻辑（`GameProvider.eliminateTileById`）**:
     - 遍历棋盘按 `id` 定位目标方块，置 `null` 并触发 2048 级最高音效作为「黑客成功」听觉奖励
     - 消除后重新检查 `_movesAvailable()`，避免误判 GameOver；调用 `_schedulePersistState()` 防止存档丢失
   - **触控层改造（`TileWidget`）**:
-    - 构造函数新增 `id`、`onEliminate` 可选参数；`SingleTickerProviderStateMixin` 升级为 `TickerProviderStateMixin` 以支持双 `AnimationController`
+    - 构造函数新增 `id`、`onEliminate` 可选参数；`SingleTickerProviderStateMixin` 升级为 `TickerProviderStateMixin` 以支持 dual `AnimationController`
     - 新增 `_tapResetTimer`（`dart:async`）：每次点击重置 1.5s 倒计时，超时则 `_tapCount = 0`，玩家中断操作后须重新从 1 开始
     - 前 7 次点击复用 `_mergeController.forward(from: 0.3)` 产生「正在破解防火墙」的受击抖动反馈
     - 第 8 次点击触发 `_eliminateController`（450ms 三段式）：
@@ -66,7 +83,7 @@
 - **发版(V1.0 商业化发版冲刺 Sprint)**: 按照 `v1_release_tasks.md` 依次完成全部 P0/P1 任务，将「阅游」从"内测 Demo"正式升级为"可上架各大应用市场的 V1.0 商业化产品"。
   - **[P0] Task 1: 网络安全策略与 TTS 离线引擎降级兜底**
     - Android `AndroidManifest.xml` 确认已有 `usesCleartextTraffic="true"`（无需修改）
-    - iOS `Info.plist` 新增 `NSAppTransportSecurity / NSAllowsArbitraryLoads = true`，解除 ATS 对 HTTP 明文流量的拦截
+    - iOS `Info.plist` 新兴 `NSAppTransportSecurity / NSAllowsArbitraryLoads = true`，解除 ATS 对 HTTP 明文流量的拦截
     - `pubspec.yaml` 确认已有 `flutter_tts: ^3.8.5`（无需修改）
     - 重构 `TtsEngineService` 降级架构：
       - 新增 `TtsFallbackEngine` 可测试抽象接口 + `_FlutterTtsFallbackEngine` 生产实现（`FlutterTts` 封装，带 `Completer` 完成监听与超时保护）
@@ -103,7 +120,8 @@
     - `DashboardScreen._DashboardScreenState` 新增 `initState`，通过 `addPostFrameCallback` 异步触发 `_checkAppUpdates()`（空实现存根），注释完整描述 V1.1 实现路径（GET 版本 JSON → 版本比对 → `showCyberConfirmDialog` → 强制更新开关）
     - **验证**: `flutter analyze` 三文件零问题
 
-### **2026-04-03**
+## **2026-04-03**
+
 - **修复(TTS 联调与告警清理)**: 收口一批开发期告警，并为 TTS 新旧接口不匹配场景补充更明确的诊断信息。
   - **TTS 契约诊断增强**:
     - 在 `TtsEngineService._downloadTtsAudio()` 中为 POST 响应增加 JSON 形态预检查，避免将 MP3/二进制流误当作 JSON 解析后直接抛出原始 `FormatException`。
@@ -165,16 +183,11 @@
       - 修复 `teleprompter_view_test.dart`：关闭测试场景自动 TTS 播放，补齐 `ReaderProvider / TtsEngineService` 资源释放，消除定时器泄漏。
       - 修复 `game_provider_test.dart` 中 2 个过时期望（不可移动棋盘构造 + 单次合并语义断言）。
       - 新增 `reader_provider_test.dart` 三个用例：`toggleTTS` 无书籍返回 `noContent`、有内容返回 `playing`、相同 TTS 错误不重复通知。
-      - `CyberDimensions` 补充：`spacingXXS`、`teleprompterHeight`、`teleprompterMaskWidth`、`dashboardMascotWidth/Height`、`dashboardBoardBuffer`、`dashboardStatusCardMinHeight`。
+      - `CyberDimensions` 补充：`spacingXXS`、`teleprompterHeight`、`teleprompterMaskWidth`、`dashboardBoardBuffer`、`dashboardStatusCardMinHeight`。
       - `CyberTextStyles` 补充：`overlineTiny`、`segmentLabel`、`teleprompterInlineRead/Unread`、`teleprompterError/Placeholder`、`dashboardCounter/Separator`、`captionBold/Tight/Comfortable/Hint`。
       - `dashboard_screen.dart`：顶部工具栏、状态卡、分数计数器与吉祥物布局全部 token 化。
       - `teleprompter_view.dart`：电传屏高度、左右遮罩、中心指示线、错误提示与占位文案全部 token 化。
       - `settings_screen.dart`：说明文案、倍速芯片边框、TTS 结果面板、音量百分比、空闲暂停说明全部 token 化。
-  - **验证结果**:
-    - `flutter test` 全量通过（219 用例）。
-    - `flutter analyze` 相关修改文件通过。
-    - 35 个文件变更，+2209 / -851 行。
-  - **提交记录**: Commit ID `ed1c4b8` - "完成P2-12/13/14测试与设计系统工程化收尾"
 
 - **优化(模块三：视觉、交互与用户体验)**: 按 `optimization_tasks.md` 完成模块三全部 4 项任务，清剿弹窗硬编码、字体缩放溢出、僵尸弹窗和文本截断体验问题。
   - **3.1 弹窗组件原子化**:
@@ -192,11 +205,6 @@
   - **3.4 文本解析边缘截断优化**:
     - `_emergencySplit` 增加两遍扫描机制：第一遍寻找强断点（标点/空格/顿号），第二遍寻找软断点（连词/助词：的、了、和、与）
     - 软断点阈值降至 50%（强断点保持 70%），在无标点长句中优先从助词处截断，避免劈开词组导致 TTS 朗读怪异
-  - **测试验证**:
-    - 新增软断点回归测试，验证无标点长句优先从助词处截断而非硬切
-    - `flutter test test/features/reader/text_parser_test.dart` 通过（20/20）
-    - `flutter analyze` 全部 5 个修改文件通过，0 issues
-    - 相关测试套件全部通过（63/63）
 
 - **测试稳定性修复（CI flaky 收敛）**:
   - 修复 `test/features/audio/tts_engine_service_test.dart` 在 CI/全量运行下的三类不稳定问题：`path_provider` mock 指向真实系统临时目录导致初始化扫描过慢、`testConnection` 写文件失败分支的专用 mock 被构造器内 mock 覆盖、以及依赖固定 delay 的重试断言在不同机器上时序漂移。
@@ -206,12 +214,6 @@
   - 调整 `testConnection 写入文件失败：step 5 应为 error` 的 mock 顺序：先创建 service，再将 `getTemporaryDirectory` 改为抛出 `PlatformException`，确保步骤 5 稳定命中 error 分支。
   - 修复一次补丁误操作导致的 `tts_engine_service_test.dart` 后半段测试块截断问题，恢复被误删的测试用例与相关辅助类引用，消除 `flutter analyze --no-fatal-infos` 中的 `unused_element` warning。
   - `merge_particle_test.dart` 保持 `pumpAndSettle` 写法验证动画完成回调，在与 TTS 套件组合运行时确认已不再被前置测试竞态拖垮。
-  - **验证结果**:
-    - `flutter test test/features/audio/tts_engine_service_test.dart test/features/game_2048/merge_particle_test.dart` 通过。
-    - `flutter analyze --no-fatal-infos` 通过（仅剩历史 info，0 warning / 0 error）。
-    - GitHub Actions `flutter test --coverage` 通过（219 用例）。
-    - `file_picker` 的 linux/macos/windows default plugin 提示仍存在，但属于上游插件告警，不影响测试通过。
-    - **补充**: 修复 coverage 场景下 `HTTP 请求抛异常：应指数退避后重试并最终成功` 测试的时序 flaky，将断言从依赖瞬时 `bufferedCount` 改为验证稳定的 `postCalls`、`downloadCalls` 与重试 `delay` 记录，确保 `flutter test --coverage` 在本地也稳定通过（219 passed, 0 failed）。
 
 - **重构(TTS)**: TTS 服务架构重构，适配新后端 API 两步下载流程（POST 获取 URL + GET 下载音频），并修复无书籍时开启 TTS 的问题。
   - **架构变更**:
@@ -228,11 +230,7 @@
   - **文件导入优化**:
     - 优化 UTF-8 解码逻辑，添加字节级有效性检查 `_isValidUtf8()`，避免不必要的 `FormatException`
     - 解码策略：UTF-8 严格校验 → GBK 容错解码 → UTF-8 宽松解码三层兜底
-  - **测试适配**:
-    - 修复 `play/pause` 单元测试，绑定 `onNeedPrefetch` 回调以适配新的启用检查逻辑
-    - 更新所有 Mock HTTP Client 实现，适配新 `TtsHttpClient` 接口
-  - **验证结果**: 单元测试全部通过（199/199），代码已提交并推送到 `yueyou_test` 分支。
-  - **提交记录**: Commit ID `e05005d` - "修复TTS无书籍时自动关闭及添加错误提示"
+
 - **优化(模块一：核心防呆与全域容错机制)**: 按 `optimization_tasks.md` 收口模块一剩余任务，补齐临时文件回收、安全截断和播放超时可见化暂停。
   - **1.1 临时音频文件回收**:
     - 在 `TtsEngineService` 初始化阶段扫描临时目录，主动清理历史遗留的 `tts_*.mp3` 文件
@@ -247,10 +245,6 @@
     - `setSource` / 音频加载超时后不再静默跳句，而是显式 `stop + pause`
     - 通过 `lastError` 抛出“音频加载超时，已暂停”状态，交由 UI 提示用户手动恢复
     - 同步保留 `testConnection()` 在初始化未完成场景下的可测性，避免 `LateInitializationError`
-  - **测试验证**:
-    - `flutter test test/features/audio/tts_engine_service_test.dart` 通过
-    - `flutter test test/features/reader/teleprompter_view_test.dart` 通过
-    - `flutter analyze lib/features/audio/services/tts_engine_service.dart lib/features/reader/domain/text_parser.dart lib/features/library/providers/bookshelf_provider.dart lib/features/reader/providers/reader_provider.dart` 通过
 
 - **优化(模块二：内存与状态管理加固)**: 按 `optimization_tasks.md` 继续推进模块二，优先完成高收益的状态持久化、防竞态启动和 UI 状态解耦。
   - **2.2 2048 持久化防抖**:
@@ -270,14 +264,9 @@
     - Isolate 内部采用 `File.openRead()` 流式读取 → 编码解码 → `LineSplitter` 行切分，内存中不再同时驻留原始字节和解码字符串
     - 编码检测改为采样前 8KB 判断 UTF-8/GBK，新增 `_isValidUtf8Sample` 允许尾部截断的不完整序列
     - BOM 处理通过 `file.openRead(3)` 跳过前 3 字节，无需额外内存拷贝
-  - **测试验证**:
-    - `flutter test test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart test/widget_test.dart` 通过
-    - `flutter analyze lib/features/game_2048/providers/game_provider.dart lib/features/game_2048/presentation/widgets/square_board.dart test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart lib/main.dart` 通过
-  - **提交记录**: Commit ID `25d15c3` - "优化(模块二完成): 2048 持久化防抖、GameOver 事件化、启动预加载、TXT 流式导入"
-
----
 
 ### **2026-04-02**
+
 - **重构(TTS)**: TTS 服务架构重构，适配新后端 API 两步下载流程（POST 获取 URL + GET 下载音频），并修复无书籍时开启 TTS 的问题。
   - **架构变更**:
     - 重构 `TtsHttpClient` 抽象，新增 `download()` 方法支持独立音频文件下载
@@ -293,11 +282,7 @@
   - **文件导入优化**:
     - 优化 UTF-8 解码逻辑，添加字节级有效性检查 `_isValidUtf8()`，避免不必要的 `FormatException`
     - 解码策略：UTF-8 严格校验 → GBK 容错解码 → UTF-8 宽松解码三层兜底
-  - **测试适配**:
-    - 修复 `play/pause` 单元测试，绑定 `onNeedPrefetch` 回调以适配新的启用检查逻辑
-    - 更新所有 Mock HTTP Client 实现，适配新 `TtsHttpClient` 接口
-  - **验证结果**: 单元测试全部通过（199/199），代码已提交并推送到 `yueyou_test` 分支。
-  - **提交记录**: Commit ID `e05005d` - "修复TTS无书籍时自动关闭及添加错误提示"
+
 - **优化(模块一：核心防呆与全域容错机制)**: 按 `optimization_tasks.md` 收口模块一剩余任务，补齐临时文件回收、安全截断和播放超时可见化暂停。
   - **1.1 临时音频文件回收**:
     - 在 `TtsEngineService` 初始化阶段扫描临时目录，主动清理历史遗留的 `tts_*.mp3` 文件
@@ -312,10 +297,6 @@
     - `setSource` / 音频加载超时后不再静默跳句，而是显式 `stop + pause`
     - 通过 `lastError` 抛出“音频加载超时，已暂停”状态，交由 UI 提示用户手动恢复
     - 同步保留 `testConnection()` 在初始化未完成场景下的可测性，避免 `LateInitializationError`
-  - **测试验证**:
-    - `flutter test test/features/audio/tts_engine_service_test.dart` 通过
-    - `flutter test test/features/reader/teleprompter_view_test.dart` 通过
-    - `flutter analyze lib/features/audio/services/tts_engine_service.dart lib/features/reader/domain/text_parser.dart lib/features/library/providers/bookshelf_provider.dart lib/features/reader/providers/reader_provider.dart` 通过
 
 - **优化(模块二：内存与状态管理加固)**: 按 `optimization_tasks.md` 继续推进模块二，优先完成高收益的状态持久化、防竞态启动和 UI 状态解耦。
   - **2.2 2048 持久化防抖**:
@@ -335,14 +316,9 @@
     - Isolate 内部采用 `File.openRead()` 流式读取 → 编码解码 → `LineSplitter` 行切分，内存中不再同时驻留原始字节和解码字符串
     - 编码检测改为采样前 8KB 判断 UTF-8/GBK，新增 `_isValidUtf8Sample` 允许尾部截断的不完整序列
     - BOM 处理通过 `file.openRead(3)` 跳过前 3 字节，无需额外内存拷贝
-  - **测试验证**:
-    - `flutter test test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart test/widget_test.dart` 通过
-    - `flutter analyze lib/features/game_2048/providers/game_provider.dart lib/features/game_2048/presentation/widgets/square_board.dart test/features/game_2048/game_provider_test.dart test/features/game_2048/square_board_test.dart lib/main.dart` 通过
-  - **提交记录**: Commit ID `25d15c3` - "优化(模块二完成): 2048 持久化防抖、GameOver 事件化、启动预加载、TXT 流式导入"
-
----
 
 ### **2026-04-01**
+
 - **修复(TTS)**: 修复了暂停后恢复播放时偶发跳句的问题，播放循环现在仅在音频自然播放完成时才推进到下一句，避免暂停、切章、超时等中断场景误触发 `onItemFinished`。
 - **修复(提词器)**: 优化了 `TeleprompterView` 与 `ReaderProvider`、`TtsEngineService` 的状态同步链路，确保暂停时提词器立即停止，暂停状态下切换句子时能正确重置进度。
 - **修复(TTS 跳句问题)**: TTS 播放时出现跳句现象，日志显示多个播放循环同时运行，导致 `AudioPlayer` 资源竞争，音频互相打断。
@@ -357,6 +333,7 @@
 - **文档**: 更新了调试文档，补充通过 VS Code / Windsurf 原生 Flutter 调试配置 `launch.json` 注入 `TTS_SERVER_URL` 的说明，便于真机热加载与热重启联调。
 
 ### **2026-03-31**
+
 - **测试**: 扩展了 2048 游戏小组件的测试覆盖范围，并更新了音频相关的测试。 (commit: `925b261`)
 - **测试**: 为 TTS（文本转语音）服务注入了延迟函数，并补充了关于失败分支（如 400/500 错误、退避策略、短句过滤）的单元测试。 (commit: `af14d2a`)
 - **测试**: 修复了 `TtsEngineService` 单元测试因异步初始化和 `WakeLock` 状态导致的不稳定问题。 (commit: `a55333d`)
@@ -365,6 +342,7 @@
 - **测试**: 将核心业务逻辑的代码覆盖率提升至 90% 以上，并优化了 CI/CD 流程中的相关提示。 (commit: `878309a`)
 
 ### **2026-03-30**
+
 - **CI/CD**: 建立了严格的代码覆盖率标准，要求核心业务逻辑达到 90% 以上，并配置 CI/CD 流水线以支持自动化测试和报告生成。 (commits: `a58685a`, `79e90aa`, `c99b475`, `d933686`, `245e656`, `93088be`, `76f2a31`, `24f4650`, `55c6659`, `8d53106`, `0f709ce`, `28689f4`, `ef49050`)
 - **测试**: 新增了大量单元测试，覆盖了存储服务、游戏核心逻辑和文本解析器等关键模块。 (commit: `e31eba3`)
 - **测试**: 为阅读器和提词器功能添加了初步测试。 (commit: `07a5f4c`)
@@ -374,38 +352,42 @@
 - **安全**: 移除了代码中硬编码的服务器 IP 地址，以提升安全性，并完善了 `.gitignore` 文件。 (commit: `792e371`)
 
 ### **2026-03-28**
+
 - **功能**: 实现了 XIAOYO 吉祥物系统，为应用增加了互动元素。 (commit: `09500ad`)
 
 ### **2026-03-27**
+
 - **功能**: 优化了 UI 样式的统一性，修复了 TTS 播放可能卡死的 Bug，并添加了 TTS 连接测试工具。 (commit: `9e6e14f`)
 
 ### **2026-03-26**
+
 - **修复**: 解决了 TTS 播放中的多个问题，包括：防止重复播放、移除不可靠的卡顿检测、增加服务器队列满时的等待时间、优化播放器预加载和状态同步、以及在多次失败后自动跳过问题语句。 (commits: `b86620a`, `56994c8`, `c674509`, `9812f04`, `e840d66`, `2c24d0a`, `f203412`, `4cd5aab`)
 
 ### **2026-03-25**
+
 - **修复**: 解决了 TTS 播放逻辑的多个 Bug，包括：修复了切章后光标位置不正确的问题、解决了会话刷新和循环重启的缺陷，并增加了下载失败后的重试延迟。 (commits: `61e2b06`, `cb0ccb1`, `dd6fb2d`)
 
-### **2026-03-23**
-- **功能**: 为 TTS 系统增加了自动合并短句的功能，以满足 API 对句子最短长度的要求。 (commit: `2950bbb`)
-- **调试**: 添加了更详细的 TTS 日志，以帮助诊断播放无声音的问题。 (commit: `25f7d9a`)
-
 ### **2026-03-21**
+
 - **重构**: 对切章逻辑进行了领域驱动设计（DDD）重构，彻底解决了相关的历史遗留问题。 (commit: `fa79a50`)
 - **修复**: 解决了切章后 TTS 不播放、智能跳过章节标题、以及修复了多个致命 Bug 和性能问题，显著提升了应用的稳定性和用户体验。 (commits: `b5bd6e9`, `3807939`, `337c1d5`, `c8687bd`, `6e0d910`, `8fc0cb5`)
 - **性能**: 优化了切章时的性能，消除了可能导致主线程死锁和掉帧的问题。 (commit: `8fc0cb5`)
 - **功能**: 切换并集成了新的 TTS 引擎。 (commits: `685bd66`, `8734a00`)
 
 ### **2026-03-20**
+
 - **重构**: 进行了大规模的 UI 和全局架构重构，为后续开发奠定了坚实的基础。 (commits: `3c299fb`, `498bbd7`, `f1888fd`, `e5133c6`, `36b0439`)
 - **功能**: 实现了文件导入系统。 (commit: `89646b7`)
 
 ### **2026-03-19**
+
 - **功能**: 开发并重构了 TTS 全息控播与音频引擎，实现了对音频播放的精准控制。 (commits: `7bb6875`, `27c27e3`, `02bb8a7`)
 - **功能**: 实现了集 2048 游戏、提词器、导航和分数显示于一体的仪表盘主屏幕。 (commit: `24e643c`)
 - **UI**: 实现了 2048 游戏界面、赛博朋克风格光标、提词器视图，并引入了全新的主题色彩。 (commit: `f248f36`)
 - **UI**: 完成了应用的赛博朋克 UI 骨架设计，并对“灵动岛”等设备特性进行了适配。 (commit: `abfb8a6`)
 
 ### **2026-03-14**
+
 - **UI/UX**: 对 UI 进行了多次美化和体验优化，包括美化滚动条、调整弹窗透明度、修复了启动时小说加载和目录可见性问题。 (commits: `0461a90`, `0be55ef`, `97c90b8`, `bdfa562`)
 - **功能**: 默认并仅保留武侠主题的环境音景，聚焦核心体验。 (commit: `da416e2`)
 - **修复(v1.2.1)**: 修复了书籍删除时崩溃、导入卡死及 TTS 对 0 字节响应的容错问题。 (commit: `9879a5d`)
@@ -417,6 +399,7 @@
 - **修复(TTS)**: 优化了 TTS 引擎，通过填充无声标点、增加超时快速降级和原生语音合成回退机制，解决了服务器 400 错误、字符限制和网络阻塞等问题。 (commits: `601d2ff`, `3cee376`, `06488a9`, `4e741fa`)
 
 ### **2026-03-13**
+
 - **国际化**: 全面汉化了 UI 界面，移除了所有可见的英文文本。 (commit: `9626d14`)
 - **UI/UX**: 优化了 UI 布局，修复了数值面板溢出和底部控件拥挤的问题。 (commit: `bdf113e`)
 - **重构**: 按照规范对前后端项目结构进行了大规模重构，实现了模块化，并添加了详细的中文注释。 (commits: `315b39c`, `78b14a4`, `2b78d99`, `5235ddf`, `18dba57`, `d1f3138`, `314e98e`)

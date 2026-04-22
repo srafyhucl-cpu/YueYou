@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 
 /// 声纹跳动动画组件
 /// 用于灵动岛内部，当 TTS 播报时显示动态声纹
@@ -58,7 +59,7 @@ class _VoiceWaveformState extends State<VoiceWaveform>
               margin: const EdgeInsets.symmetric(horizontal: 1.5),
               decoration: BoxDecoration(
                 color: widget.color.withOpacity(widget.isActive ? 0.9 : 0.3),
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusXS),
               ),
             );
           }),

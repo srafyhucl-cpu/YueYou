@@ -10,6 +10,7 @@
 ## ✨ 核心特性
 
 ### 📖 阅读引擎
+
 - **云端 TTS（两步下载）**：POST 业务服务器获取 JSON `{"status":"success","url":"..."}` → GET 从 OSS/CDN 下载 `.mp3` → 本地缓存；客户端严格遵循分离下载契约，不直接消费响应体字节流
 - **本地 TTS 降级**：云端 HTTP 5xx / 超时 / 网络异常时自动切换至系统 `flutter_tts` 朗读，CyberToast 赛博青色通知用户
 - **生产者-消费者预加载**：最多 6 句缓冲队列，指数退避重试（最大 2 次，800ms 基础延迟），无卡顿连续朗读
@@ -20,6 +21,7 @@
 - **阅读进度持久化**：实时存档，重启自动恢复至上次段落与滚动位置
 
 ### 📚 书库管理
+
 - **文件导入**：`FileImportService` 基于 `Isolate.spawn` 流式读取，主线程仅传文件路径，内存零拷贝
 - **编码自动识别**：采样前 8KB → UTF-8 严格校验 → GBK 容错解码 → UTF-8 宽松兜底，三层覆盖
 - **BOM 跳过**：`File.openRead(3)` 直接偏移，无需内存拷贝
@@ -28,6 +30,7 @@
 - **级联删除**：删除书籍时联动停止 TTS、清空阅读进度，防止幽灵章节
 
 ### 🎮 2048 游戏
+
 - **完整游戏逻辑**：`GameProvider` 完整复刻自旧版 Web 端 JS 引擎，滑动合并 + Combo 连击计分
 - **赛博视觉方块**：`TileWidget` 11 级渐变配色 + 动态霓虹光晕 + 合并弹性缩放（120ms，1.0→1.15→1.0）+ 粒子爆炸
 - **棋盘 3D 倾斜**：每次滑动触发 `Matrix4` 倾斜动画（约 5°），增强物理手感
@@ -39,27 +42,32 @@
 - **持久化防抖**：1 秒防抖合并多次写入，App 切后台时 `flushPersistState()` 强制落盘，防止丢档
 - **🔓 黑客后门彩蛋**：连续点击同一方块 8 次触发自毁程序——三段式崩塌动画（膨胀 1.0→1.3 + 坍缩 easeInBack + opacity 淡出 + 微旋转 0.25 rad）+ 粉红霓虹粒子爆炸，1.5s 无操作自动清零点击计数
 
-### � 音效系统
+### 🔊 音效系统
+
 - **SfxService V4**：基于旧版 Web Audio API 解析式 Chirp 公式 `φ(t)=2π(f₀t+(f₁-f₀)t²/2T)` 移植，零相位突变，4 阶段递进（≤16 / ≤128 / ≤1024 / >1024），440→880Hz 上行扫频
 - **分级触觉反馈**：方块数值越高震动强度越大
 
 ### ⚙️ 设置与合规
+
 - **隐私前置拦截**：首次启动强制展示 `PrivacyAgreementModal`（不可跳过），同意后才执行书籍加载与网络初始化
 - **TTS 参数**：语速（`ttsRate`）、音色选择（`voice`）
 - **游戏音效开关**：实时同步至 `GameProvider`
 - **环境音预留**：`ambientEnabled` / `ambientVol` 字段已持久化，播放器后端待接入
 
 ### 🎨 设计系统
-- **全 Token 化**：所有颜色、字号、间距、圆角、模糊值均通过 `CyberColors` / `CyberTextStyles` / `CyberDimensions` 统一管理，零魔法数字
-- **毛玻璃弹窗**：`CyberModal` + `BackdropFilter`，支持 `barrierDismissible` 控制
-- **崩溃监控锚点**：`CyberLogger` 挂接 `FlutterError.onError` + `PlatformDispatcher.instance.onError`，预留 Sentry/Crashlytics 接入位
+
+- **全 Token 化**：所有颜色、字号、间距、圆角、模糊值均通过 `CyberColors` / `CyberTextStyles` / `CyberDimensions` 统一管理。
+- **全域错误集中化**：通过 `CyberErrorMessages` 全局收口所有报错文本，移除魔法字符串，支持极致脱敏与拟人化表达。
+- **沉浸式反馈系统**：`CyberToast` 深度集成 XIAOYO 吉祥物 PFP，将系统通知转化为拟人化对话气泡，强化赛博朋克极客交互氛围。
+- **毛玻璃弹窗**：`CyberModal` + `BackdropFilter`，支持 `barrierDismissible` 控制。
+- **崩溃监控锚点**：`CyberLogger` 挂接 `FlutterError.onError` + `PlatformDispatcher.instance.onError`，预留 Sentry/Crashlytics 接入位。
 
 ---
 
 ## 🚧 开发中 / 待完善
 
 | 功能 | 文件 | 状态 |
-|------|------|------|
+| :--- | :--- | :--- |
 | XIAOYO Rive 动画版 | `board_mascot_rive.dart` + `assets/rive/xiaoyo.riv` | Rive 文件已就位，UI 接入中 |
 | 环境背景音乐播放器 | `SettingsProvider.ambientEnabled` / `ambientVol` | 字段与持久化已实现，播放后端待接入 |
 | 崩溃上报（Sentry/Crashlytics） | `core/utils/cyber_logger.dart` | 钩子已注册，上报实现预留至 V1.1 |
@@ -72,7 +80,7 @@
 ### 核心技术栈
 
 | 层次 | 技术 | 用途 |
-|------|------|------|
+| :--- | :--- | :--- |
 | UI 框架 | Flutter 3.x / Dart 3.x | 跨平台渲染 |
 | 状态管理 | Provider 6.x (`ChangeNotifier` + `ProxyProvider`) | 全局与局部状态 |
 | 本地持久化 | SharedPreferences | 设置、游戏存档 |
@@ -87,7 +95,7 @@
 
 ### 目录结构
 
-```
+```text
 lib/
 ├── core/                          # 全局基础设施（严禁引入任何 feature 层代码）
 │   ├── config/
@@ -166,7 +174,7 @@ lib/
 
 ### 数据流
 
-```
+```text
 UI (Consumer / context.watch)
     → Provider (ChangeNotifier)
         → Service / StorageService
@@ -180,26 +188,32 @@ UI (Consumer / context.watch)
 ## 🚀 快速开始
 
 ### 环境要求
+
 - Flutter SDK ≥ 3.5.0
 - Dart SDK ≥ 3.5.0
 
 ### 安装依赖
+
 ```bash
 flutter pub get
 ```
 
 ### 运行（使用默认 TTS 服务器）
+
 ```bash
 flutter run
 ```
 
 ### 运行（指定远端 TTS 服务器）
+
 ```bash
 flutter run --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 ```
 
 ### VS Code / Windsurf 原生调试
+
 在项目根目录创建 `.vscode/launch.json`：
+
 ```json
 {
   "configurations": [
@@ -217,12 +231,14 @@ flutter run --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 ```
 
 ### 构建 Release APK
+
 ```bash
 flutter build apk --release \
   --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 ```
 
 ### 代码检查
+
 ```bash
 flutter analyze
 ```
@@ -232,6 +248,7 @@ flutter analyze
 ## ✅ 测试与覆盖率
 
 ### 运行测试
+
 ```bash
 flutter test
 ```
@@ -239,6 +256,7 @@ flutter test
 当前覆盖 **219 个用例**，涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 等核心模块。
 
 ### 生成覆盖率报告
+
 ```bash
 flutter test --coverage
 genhtml coverage/lcov.info -o coverage/html
@@ -246,13 +264,16 @@ genhtml coverage/lcov.info -o coverage/html
 ```
 
 ### CI 集成
+
 仓库配置了 GitHub Actions（`.github/workflows/flutter-ci.yml`），Push / PR 时自动执行：
+
 - `flutter analyze`
 - `flutter test --coverage`
 
 覆盖率文件 `coverage/lcov.info` 作为 Artifact 上传。
 
 ### 测试约定
+
 - 持久化测试：`SharedPreferences.setMockInitialValues({})` + `StorageService.resetForTesting()` 保证隔离
 - 平台插件测试：通过 `test/utils/test_utils.dart` 集中初始化 6 组 `MethodChannel` mock（path_provider / audioplayers / wakelock / haptic / platform / system_sound）
 - 异步测试：`fake_async` + `mockito` 模拟 HTTP 客户端与音频播放器
@@ -264,7 +285,7 @@ genhtml coverage/lcov.info -o coverage/html
 TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬编码任何服务器 IP**。
 
 | 变量 | 说明 | 默认值 |
-|------|------|--------|
+| :--- | :--- | :--- |
 | `TTS_SERVER_URL` | TTS 业务接口（返回 JSON `{"status":"success","url":"..."}`) | `http://47.94.102.250:8080/api/v1/tts` |
 
 > 客户端拿到 `url` 字段后，再通过 GET 请求从 OSS/CDN 下载音频文件存入本地缓存。**禁止将 POST 响应体直接保存为音频文件。**
@@ -272,14 +293,16 @@ TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬
 ### TTS 核心参数（`TtsConfig`）
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| :--- | :--- | :--- |
 | `requestTimeout` | 8s | 单次请求超时 |
 | `maxRetries` | 2 | 最大重试次数 |
 | `baseRetryDelay` | 800ms | 指数退避基础延迟 |
 | `maxPrefetchQueue` | 6 | 预加载队列上限 |
 
 ### Android 明文流量
+
 使用 HTTP 协议时需在 `AndroidManifest.xml` 中配置：
+
 ```xml
 <application android:usesCleartextTraffic="true">
 ```
@@ -289,6 +312,7 @@ TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬
 ## 📦 依赖清单
 
 ### 运行时依赖
+
 ```yaml
 provider: ^6.1.5+1         # 状态管理
 shared_preferences: ^2.3.3 # 本地持久化
@@ -307,6 +331,7 @@ url_launcher: ^6.3.0       # 外部链接（隐私政策）
 ```
 
 ### 开发依赖
+
 ```yaml
 mockito: ^5.4.4            # Mock 对象
 fake_async: ^1.3.1         # 虚拟异步时间
@@ -319,6 +344,7 @@ flutter_launcher_icons: ^0.14.3  # 应用图标生成
 ## 🎨 主题系统
 
 ### `CyberColors` 色板
+
 ```dart
 // 霓虹主色
 neonCyan    #22D3EE  // 青色（主要交互）
@@ -339,6 +365,7 @@ blackOverlay / blackShadow / blackDim
 ```
 
 ### `CyberDimensions` 间距体系（4px 网格）
+
 ```dart
 spacingXXS=2 / spacingXS=4 / spacingS=8 / spacingMS=12 / spacingM=16 / spacingL=24 / spacingXL=32
 radiusS=6 / radiusM=8 / radiusL=16 / radiusXL=24
@@ -347,6 +374,7 @@ blurLight=8 / blurStrong=16
 ```
 
 ### `CyberTextStyles` 字体
+
 ```dart
 CyberTextStyles.monoFont            // 等宽字体（JetBrains Mono）
 CyberTextStyles.teleprompterActive  // 提词器当前句高亮

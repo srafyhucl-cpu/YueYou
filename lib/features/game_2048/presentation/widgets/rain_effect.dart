@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 
 /// 赛博朋克风格下雨特效
 /// 用于 Game Over 弹窗，营造失败时的氛围感
@@ -51,7 +52,7 @@ class _RainEffectState extends State<RainEffect>
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {

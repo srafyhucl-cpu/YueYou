@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'dart:isolate';
 import '../../../core/utils/safe_string.dart';
 
 /// 解析结果：句子列表 + 每句对应的原始行号
@@ -15,7 +15,7 @@ class ParseResult {
 class TextParser {
   /// 主解析入口：使用 Isolate.run (通过 compute 封装) 确保解析过程不卡顿 UI
   static Future<ParseResult> parse(String rawText) async {
-    return await compute(_internalParse, rawText);
+    return await Isolate.run(() => _internalParse(rawText));
   }
 
   /// 内部原子解析逻辑（运行在独立线程）

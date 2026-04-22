@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yueyou/core/constants/cyber_error_messages.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -57,7 +58,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
         final String chapterName = reader.currentChapterTitle;
 
         return Padding(
-          padding: const EdgeInsets.only(top: 15),
+          padding: const EdgeInsets.only(top: CyberDimensions.spacingM),
           child: Stack(
             children: [
               GestureDetector(
@@ -128,7 +129,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
                                     '《$novelTitle》',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: CyberTextStyles.caption.copyWith(
                                       color: CyberColors.whiteMedium,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w500,
@@ -140,10 +141,9 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
                                     chapterName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style:
+                                        CyberTextStyles.bodySmallBold.copyWith(
                                       color: CyberColors.whiteHigh,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
                                       height: 1.2,
                                     ),
                                   ),
@@ -174,7 +174,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
       onTap: () {
         final result = reader.toggleTTS();
         if (result == TtsToggleResult.noContent) {
-          ttsEngine.setLastError('未检测到有效数据块，请先导入书籍');
+          ttsEngine.setLastError(CyberErrorMessages.ttsRequireBookFirst);
         }
       },
       behavior: HitTestBehavior.opaque,
@@ -222,7 +222,9 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
       onTap: () => reader.cycleSpeed(),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+            horizontal: CyberDimensions.spacingMS,
+            vertical: CyberDimensions.spacingS),
         decoration: BoxDecoration(
           color: CyberColors.whiteBorder,
           borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
@@ -233,9 +235,8 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
         ),
         child: Text(
           '${ttsEngine.playbackRate.toStringAsFixed(1)}x',
-          style: const TextStyle(
+          style: CyberTextStyles.captionBold.copyWith(
             color: CyberColors.neonCyan,
-            fontSize: 12,
             fontWeight: FontWeight.w900,
             fontFamily: CyberTextStyles.monoFont,
           ),

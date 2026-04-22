@@ -37,12 +37,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
   static const Duration _errorDisplayDuration = Duration(seconds: 3);
   static const Duration _errorFadeDuration = Duration(milliseconds: 300);
 
-  static final TextStyle _readStyle = TextStyle(
-    color: CyberTextStyles.teleprompterInlineRead.color,
-    fontSize: CyberTextStyles.teleprompterInlineRead.fontSize,
-    fontWeight: CyberTextStyles.teleprompterInlineRead.fontWeight,
-    letterSpacing: CyberTextStyles.teleprompterInlineRead.letterSpacing,
-    height: CyberTextStyles.teleprompterInlineRead.height,
+  static final TextStyle _readStyle = CyberTextStyles.teleprompterInlineRead.copyWith(
     shadows: [
       Shadow(
         color: CyberColors.hackerBlue.withOpacity(0.5),
@@ -51,13 +46,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
     ],
   );
 
-  static final TextStyle _unreadStyle = TextStyle(
-    color: CyberTextStyles.teleprompterInlineUnread.color,
-    fontSize: CyberTextStyles.teleprompterInlineUnread.fontSize,
-    fontWeight: CyberTextStyles.teleprompterInlineUnread.fontWeight,
-    letterSpacing: CyberTextStyles.teleprompterInlineUnread.letterSpacing,
-    height: CyberTextStyles.teleprompterInlineUnread.height,
-  );
+  static const TextStyle _unreadStyle = CyberTextStyles.teleprompterInlineUnread;
 
   @override
   void initState() {
