@@ -4,6 +4,11 @@
 
 ## **2026-04-22**
 
+- **重构(Dart 3 模式匹配)**: 全面引入 Dart 3.11 最新的穷尽式 Switch 表达式（Switch Expressions）与模式匹配语法：
+  - 重构 `CyberToast` 中的 `_getBorderColor()` 方法，将传统的 `switch-case` 简化为单行表达式。
+  - 重构 `TtsEngineService` 中的 `_setLastError()`，利用类型模式与关系模式（如 `>= 500`）替代冗长的 `if-else` 分支。
+  - 提升了代码紧凑度与可读性，并获得编译期的穷尽性检查（Exhaustiveness checking）安全保障。
+
 - **重构(Flutter SDK 3.41 迁移)**: 圆满完成从 Flutter 3.24.0 到 3.41.7 的全域 API 升级与适配。
   - **核心渲染 API 迁移**: 彻底清缴全工程中弃用的 `withOpacity` 调用，全面替换为 Flutter 3.41+ 推荐的 `.withValues(alpha: ...)` 规范，涉及 `SquareBoard`、`BoardMascot`、`DashboardScreen`、`FloatingScore`、`MergeParticle` 及所有音频视觉组件。
   - **组件库合规化**: 修复了 `SettingsScreen` 中 `SwitchListTile` 的 `activeColor` 弃用警告，迁移至最新的 `activeThumbColor` 属性。
