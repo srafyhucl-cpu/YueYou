@@ -4,6 +4,13 @@
 
 ## **2026-04-22**
 
+- **重构(Flutter SDK 3.41 迁移)**: 圆满完成从 Flutter 3.24.0 到 3.41.7 的全域 API 升级与适配。
+  - **核心渲染 API 迁移**: 彻底清缴全工程中弃用的 `withOpacity` 调用，全面替换为 Flutter 3.41+ 推荐的 `.withValues(alpha: ...)` 规范，涉及 `SquareBoard`、`BoardMascot`、`DashboardScreen`、`FloatingScore`、`MergeParticle` 及所有音频视觉组件。
+  - **组件库合规化**: 修复了 `SettingsScreen` 中 `SwitchListTile` 的 `activeColor` 弃用警告，迁移至最新的 `activeThumbColor` 属性。
+  - **设计系统对齐**: 借此契约升级机会，进一步收拢了动态颜色透明度的计算逻辑，所有 alpha 通道操作现在均符合最新的着色器性能优化规范。
+  - **环境契约更新**: 同步更新 `README.md`，将最低 Flutter SDK 版本要求上调至 3.41.0，确保开发环境与代码特性对齐。
+  - **工程质量验证**: 运行 `dart analyze --fatal-infos` 达成 0 issues 全绿通过，确保了在 3.41.7 稳定版下的全域类型安全与规范合规。
+
 - **重构(全域提示系统)**: 对 `CyberToast` 进行 UI 适配与视觉重构。彻底移除了硬编码的顶部偏移，改用动态获取的安全区高度；引入 `BackdropFilter` 实现毛玻璃效果，适配拟人化圆角和边框系统；支持通过 `IntrinsicWidth` 实现长文本的自动换行，并完善了单例 Overlay 的防堆叠管理机制。
 - **重构(错误链路加固)**: 深度优化 `TtsErrorListener`，引入基于时间戳的防抖处理（1000ms），彻底解决同一错误信息在极端场景下的重复弹出问题；并在 Toast 触发后立即同步执行 `clearLastError`，避免 Widget 重绘导致的 Consumer 反复触发。
 - **重构(业务信息映射)**: 在 `TtsEngineService` 中收口并升级了 `_setLastError`。针对原始异常（超时、网络断开等）与 HTTP 网络错误代码实施了严格的中文化和业务化映射，将其转化为用户可理解的自然语言提示（如"接入链路波动"、"服务器维护中"等），确保了错误堆栈完全对终端用户屏蔽。

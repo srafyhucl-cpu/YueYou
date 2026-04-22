@@ -189,7 +189,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
           ),
           boxShadow: [
             BoxShadow(
-              color: CyberColors.hotPink.withOpacity(0.3),
+              color: CyberColors.hotPink.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )

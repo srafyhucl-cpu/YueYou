@@ -189,7 +189,7 @@ UI (Consumer / context.watch)
 
 ### 环境要求
 
-- Flutter SDK ≥ 3.5.0
+- Flutter SDK ≥ 3.41.0
 - Dart SDK ≥ 3.5.0
 
 ### 安装依赖
