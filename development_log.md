@@ -9,6 +9,12 @@
   - 重构 `TtsEngineService` 中的 `_setLastError()`，利用类型模式与关系模式（如 `>= 500`）替代冗长的 `if-else` 分支。
   - 提升了代码紧凑度与可读性，并获得编译期的穷尽性检查（Exhaustiveness checking）安全保障。
 
+- **修正(Android 构建系统与 IDE 环境)**: 彻底解决了 IDE 中的 Java 17 环境缺失报错及 Gradle 构建链路漏洞。
+  - **环境对齐**: 识别到系统 PATH 默认 JDK 为 1.8 导致现代 AGP 同步失败，已通过 `.vscode/settings.json` 及 `gradle.properties` 强制指定 `D:\Work\Android Studio\jbr` (JDK 21) 为工程构建环境。
+  - **构建协议升级**: 将 Android Gradle Plugin (AGP) 从 8.4.2 升级至 8.7.3，完美适配 Gradle 8.7，消除了过期警告。
+  - **SDK 合规性**: 针对 `package_info_plus` 等插件的最新要求，将 `compileSdk` 升级至 36，并同步更新了 `suppressUnsupportedCompileSdk` 配置。
+  - **IDE 噪点屏蔽**: 配置 VS Code Java 扩展排除 `android` 目录解析，根治了虚假的 JRE 缺失错误提示。
+
 - **重构(Flutter SDK 3.41 迁移)**: 圆满完成从 Flutter 3.24.0 到 3.41.7 的全域 API 升级与适配。
   - **核心渲染 API 迁移**: 彻底清缴全工程中弃用的 `withOpacity` 调用，全面替换为 Flutter 3.41+ 推荐的 `.withValues(alpha: ...)` 规范，涉及 `SquareBoard`、`BoardMascot`、`DashboardScreen`、`FloatingScore`、`MergeParticle` 及所有音频视觉组件。
   - **组件库合规化**: 修复了 `SettingsScreen` 中 `SwitchListTile` 的 `activeColor` 弃用警告，迁移至最新的 `activeThumbColor` 属性。
