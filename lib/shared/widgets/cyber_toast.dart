@@ -110,16 +110,11 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
     super.dispose();
   }
 
-  Color _getBorderColor() {
-    switch (widget.type) {
-      case ToastType.error:
-        return CyberColors.neonPink;
-      case ToastType.success:
-        return CyberColors.neonGreen;
-      case ToastType.info:
-        return CyberColors.neonCyan;
-    }
-  }
+  Color _getBorderColor() => switch (widget.type) {
+        ToastType.error => CyberColors.neonPink,
+        ToastType.success => CyberColors.neonGreen,
+        ToastType.info => CyberColors.neonCyan,
+      };
 
   @override
   Widget build(BuildContext context) {

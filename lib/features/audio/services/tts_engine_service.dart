@@ -382,30 +382,20 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   void _setLastError(dynamic error) {
-    String message;
-    if (error is String) {
-      message = error;
-    } else if (error is TimeoutException) {
-      message = '接入链路波动，请检查网络';
-    } else if (error is SocketException) {
-      message = '网络连接失败，请检查网络设置';
-    } else if (error is HttpException) {
-      message = '服务器连接异常，请稍后重试';
-    } else if (error is FormatException) {
-      message = '数据解析失败，请联系管理员';
-    } else if (error is int) {
-      if (error == 404) {
-        message = '请求的资源不存在，请检查后重试';
-      } else if (error >= 500) {
-        message = '服务器维护中，请稍后再试';
-      } else if (error >= 400) {
-        message = '请求参数异常，请稍后重试';
-      } else {
-        message = '网络请求异常 ($error)';
-      }
-    } else {
-      message = '系统服务异常，请稍后重试';
-    }
+    final message = switch (error) {
+      String msg => msg,
+      TimeoutException _ => '接入链路波动，请检查网络',
+      SocketException _ => '网络连接失败，请检查网络设置',
+      HttpException _ => '服务器连接异常，请稍后重试',
+      FormatException _ => '数据解析失败，请联系管理员',
+      int code => switch (code) {
+        404 => '请求的资源不存在，请检查后重试',
+        >= 500 => '服务器维护中，请稍后再试',
+        >= 400 => '请求参数异常，请稍后重试',
+        _ => '网络请求异常 ($code)',
+      },
+      _ => '系统服务异常，请稍后重试',
+    };
     
     _lastError = message;
     _errorTimestamp = DateTime.now().millisecondsSinceEpoch;
