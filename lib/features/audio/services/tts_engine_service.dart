@@ -379,7 +379,32 @@ class TtsEngineService extends ChangeNotifier {
     }));
   }
 
-  void _setLastError(String message) {
+  void _setLastError(dynamic error) {
+    String message;
+    if (error is String) {
+      message = error;
+    } else if (error is TimeoutException) {
+      message = '接入链路波动，请检查网络';
+    } else if (error is SocketException) {
+      message = '网络连接失败，请检查网络设置';
+    } else if (error is HttpException) {
+      message = '服务器连接异常，请稍后重试';
+    } else if (error is FormatException) {
+      message = '数据解析失败，请联系管理员';
+    } else if (error is int) {
+      if (error == 404) {
+        message = '请求的资源不存在，请检查后重试';
+      } else if (error >= 500) {
+        message = '服务器维护中，请稍后再试';
+      } else if (error >= 400) {
+        message = '请求参数异常，请稍后重试';
+      } else {
+        message = '网络请求异常 ($error)';
+      }
+    } else {
+      message = '系统服务异常，请稍后重试';
+    }
+    
     if (_lastError == message) return;
     _lastError = message;
     notifyListeners();
@@ -397,8 +422,8 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   /// 设置 TTS 错误信息，供外部模块（如 ReaderProvider 前置拦截）使用。
-  void setLastError(String message) {
-    _setLastError(message);
+  void setLastError(dynamic error) {
+    _setLastError(error);
   }
 
   String? get fallbackNotification => _fallbackNotification;
@@ -1131,7 +1156,7 @@ class TtsEngineService extends ChangeNotifier {
 
         if (response.statusCode != 200) {
           final errorBody = response.body;
-          _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
+          _setLastError(response.statusCode);
           debugPrint(
               '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})\n响应: $errorBody');
 
@@ -1184,7 +1209,7 @@ class TtsEngineService extends ChangeNotifier {
         _clearLastError();
         return (filePath: filePath, attempts: attempts, useFallback: false);
       } on TimeoutException catch (e) {
-        _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
+        _setLastError(e);
         // ignore: avoid_print
         print('[TTS][RELEASE] 请求超时 (尝试${attempt + 1}): $e');
         if (attempt < _config.maxRetries - 1) {
@@ -1195,7 +1220,7 @@ class TtsEngineService extends ChangeNotifier {
         debugPrint('❌ TTS下载最终超时');
         return (filePath: null, attempts: attempts, useFallback: true);
       } catch (e) {
-        _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
+        _setLastError(e);
         // ignore: avoid_print
         print('[TTS][RELEASE] 下载失败 (尝试${attempt + 1}): $e');
         if (e is FormatException) {
@@ -1320,7 +1345,7 @@ class TtsEngineService extends ChangeNotifier {
         });
         result['statusCode'] = response.statusCode;
         result['message'] = CyberErrorMessages.ttsServerErrorCode(response.statusCode);
-        _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
+        _setLastError(response.statusCode);
       }
     } on TimeoutException catch (e) {
       result['steps'].add({
@@ -1330,7 +1355,7 @@ class TtsEngineService extends ChangeNotifier {
         'message': '请求超时: $e',
       });
       result['message'] = CyberErrorMessages.ttsRequestTimeout;
-      _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
+      _setLastError(e);
     } on SocketException catch (e) {
       result['steps'].add({
         'step': 3,
@@ -1339,7 +1364,7 @@ class TtsEngineService extends ChangeNotifier {
         'message': '网络错误: $e',
       });
       result['message'] = CyberErrorMessages.ttsConnectTimeout;
-      _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
+      _setLastError(e);
     } catch (e) {
       result['steps'].add({
         'step': 3,
@@ -1348,7 +1373,7 @@ class TtsEngineService extends ChangeNotifier {
         'message': '未知错误: $e',
       });
       result['message'] = '测试失败: $e';
-      _setLastError(CyberErrorMessages.ttsNodeUnresponsive);
+      _setLastError(e);
     }
 
     return result;
