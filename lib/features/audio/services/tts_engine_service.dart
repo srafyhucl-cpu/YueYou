@@ -270,6 +270,7 @@ class TtsEngineService extends ChangeNotifier {
   late double _volume;
   TtsPlaybackState _state = TtsPlaybackState.disabled;
   String? _lastError;
+  int _errorTimestamp = 0;
   double _playbackRate = 1.0;
   final List<double> _speedTiers = [1.0, 1.2, 1.5, 2.0, 2.5, 0.7];
 
@@ -310,6 +311,7 @@ class TtsEngineService extends ChangeNotifier {
   bool get isBuffering => _state == TtsPlaybackState.buffering;
   bool get isPaused => _state == TtsPlaybackState.paused;
   String? get lastError => _lastError;
+  int get errorTimestamp => _errorTimestamp;
   double get playbackRate => _playbackRate;
   int get currentSession => _loopSession;
   int get bufferedCount => _prefetchedItems.length;
@@ -405,8 +407,8 @@ class TtsEngineService extends ChangeNotifier {
       message = '系统服务异常，请稍后重试';
     }
     
-    if (_lastError == message) return;
     _lastError = message;
+    _errorTimestamp = DateTime.now().millisecondsSinceEpoch;
     notifyListeners();
   }
 

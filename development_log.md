@@ -11,6 +11,13 @@
 - **优化(视觉交互系统)**: 深度重构 `CyberToast` 与 `TtsErrorListener`，接入 "XIAOYO" 吉祥物驱动的拟人化错误反馈机制。报错时不再是冰冷的文字，而是由 `BoardMascot` 实时绘制的赛博气泡通知，显著提升了非法操作时的沉浸感。
 - **修正(隐私合规流程)**: 对 `PrivacyAgreementModal` 进行逻辑二次审计，确保 Android 物理返回键无法绕过启动拦截，并完善了点击外链跳转协议页面的逻辑稳定性。
 - **提交**: 完成商业化发版前的最后一次架构清道夫工作，移除了 `optimization_tasks.md` 等阶段性开发文档。
+- **重构(全局上下文与提示系统分离)**:
+  - 在 `main.dart` 顶层引入 `globalNavigatorKey` 并挂载至 `MaterialApp`，实现路由与 Overlay 查找的全局单例化。
+  - 彻底重构 `CyberToast`，移除 `BuildContext context` 依赖，采用 `globalNavigatorKey.currentState?.overlay` 定位顶层图层，并加入空指针保护机制（`if (overlay == null) return;`），解决了真机环境下的静默崩溃（Overlay 寻址失败）问题。
+- **重构(状态与事件解耦)**:
+  - 针对 `TtsErrorListener` 防抖逻辑与领域状态冲突的问题，在 `TtsEngineService` 中引入了独立于错误字符串的状态字段 `_errorTimestamp`。
+  - 修改 `_setLastError`：在赋值错误字符串的同时，强制更新 `_errorTimestamp`，使相同的错误信息（State）通过时间戳（Event）被系统识别为新的触发。
+  - 优化全局错误监听器 `_TtsErrorListenerState`，将基于字符串比较的防抖策略重构为基于 `_errorTimestamp` 变更的触发策略（`if (err != null && tts.errorTimestamp != _previousErrorTime)`），去除了硬编码的 1000ms 时间差判断，实现了防抖与领域状态彻底解耦。
 - **修正(提示系统漏洞与状态同步)**:
   - 修复了无书籍开启 TTS 时的静默问题，强制将 `noContent` 状态映射并上报给全局错误池。
   - 修复了 `TtsErrorListener` 中的 UI 闪烁问题，移除了越权的 `clearLastError` 操作，保持领域层状态的纯洁性。

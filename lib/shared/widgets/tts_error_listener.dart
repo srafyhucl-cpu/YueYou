@@ -14,8 +14,7 @@ class TtsErrorListener extends StatefulWidget {
 }
 
 class _TtsErrorListenerState extends State<TtsErrorListener> {
-  String? _previousError;
-  int _lastErrorTimestamp = 0;
+  int _previousErrorTime = 0;
   String? _previousFallback;
   int _lastFallbackTimestamp = 0;
 
@@ -23,7 +22,7 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Ensure we start with fresh snapshot when dependencies change
-    _previousError = context.read<TtsEngineService>().lastError;
+    _previousErrorTime = context.read<TtsEngineService>().errorTimestamp;
     _previousFallback = context.read<TtsEngineService>().fallbackNotification;
   }
 
@@ -33,30 +32,19 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
     return Consumer<TtsEngineService>(
       builder: (context, tts, child) {
         final err = tts.lastError;
-        final currentTimestamp = DateTime.now().millisecondsSinceEpoch;
         
-        debugPrint(
-            '[TtsErrorListener] Consumer builder called, lastError=$err, _previousError=$_previousError');
-        if (err == null) {
-          _previousError = null;
-        } else {
-          final isSameError = err == _previousError;
-          final isThrottled = isSameError && (currentTimestamp - _lastErrorTimestamp < 1000);
-          
-          if (!isThrottled) {
-            _previousError = err;
-            _lastErrorTimestamp = currentTimestamp;
-            debugPrint(
-                '[TtsErrorListener] New error detected: $err, scheduling CyberToast');
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              try {
-                CyberToast.show(context, err, type: ToastType.error);
-              } catch (e) {
-                debugPrint('[TtsErrorListener] ERROR showing CyberToast: $e');
-              }
-            });
-          }
+        if (err != null && tts.errorTimestamp != _previousErrorTime) {
+          _previousErrorTime = tts.errorTimestamp;
+          debugPrint(
+              '[TtsErrorListener] New error detected: $err, scheduling CyberToast');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            try {
+              CyberToast.show(err, type: ToastType.error);
+            } catch (e) {
+              debugPrint('[TtsErrorListener] ERROR showing CyberToast: $e');
+            }
+          });
         }
 
         final fallback = tts.fallbackNotification;
@@ -72,7 +60,7 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
               try {
-                CyberToast.show(context, fallback, type: ToastType.info);
+                CyberToast.show(fallback, type: ToastType.info);
               } catch (e) {
                 debugPrint(
                     '[TtsErrorListener] ERROR showing fallback CyberToast: $e');
