@@ -15,6 +15,8 @@ import 'features/reader/providers/reader_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'shared/widgets/tts_error_listener.dart';
 
+final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -142,7 +144,6 @@ class _Bootstrapper extends StatefulWidget {
 
 class _BootstrapperState extends State<_Bootstrapper> {
   bool _booted = false;
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -154,7 +155,7 @@ class _BootstrapperState extends State<_Bootstrapper> {
   Future<void> _checkPrivacyAndBootstrap() async {
     if (!mounted) return;
     if (!StorageService.hasAgreedPrivacy()) {
-      final navContext = _navigatorKey.currentContext;
+      final navContext = globalNavigatorKey.currentContext;
       if (navContext == null) return;
       final agreed = await showPrivacyAgreementModal(navContext);
       if (!mounted) return;
@@ -198,7 +199,7 @@ class _BootstrapperState extends State<_Bootstrapper> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: _navigatorKey,
+      navigatorKey: globalNavigatorKey,
       title: '阅游 YueYou',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

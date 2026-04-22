@@ -401,7 +401,7 @@ class _TtsTestButtonState extends State<_TtsTestButton> {
       if (!mounted) return;
       setState(() => _isTesting = false);
 
-      CyberToast.show(context, CyberErrorMessages.testFailedUnresponsive, type: ToastType.error);
+      CyberToast.show(CyberErrorMessages.testFailedUnresponsive, type: ToastType.error);
     }
   }
 }

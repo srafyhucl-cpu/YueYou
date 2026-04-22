@@ -5,6 +5,7 @@ import '../../../core/theme/cyber_colors.dart';
 import '../../../core/theme/cyber_dimensions.dart';
 import '../../../core/theme/cyber_text_styles.dart';
 import '../../../features/game_2048/presentation/widgets/board_mascot.dart';
+import '../../../main.dart';
 
 enum ToastType {
   info,
@@ -17,7 +18,6 @@ class CyberToast {
   static Timer? _currentTimer;
 
   static void show(
-    BuildContext context,
     String message,
     {ToastType type = ToastType.info,
     Duration duration = const Duration(seconds: 2, milliseconds: 500)}
@@ -26,7 +26,8 @@ class CyberToast {
     _removeCurrentEntry();
 
     // 创建新的 OverlayEntry
-    final overlay = Overlay.of(context);
+    final overlay = globalNavigatorKey.currentState?.overlay;
+    if (overlay == null) return;
     final entry = OverlayEntry(
       builder: (context) => _CyberToastWidget(
         message: message,
