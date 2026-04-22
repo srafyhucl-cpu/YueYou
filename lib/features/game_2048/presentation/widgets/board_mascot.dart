@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
+import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 
 /// 棋盘吉祥物 —— 趴在棋盘上方，眼球跟随玩家滑动方向
 /// 合成大棋子时欢呼跳跃，失败时陪你一起难过
@@ -53,6 +54,9 @@ class BoardMascotState extends State<BoardMascot>
   int _lastMergedValue = -1;
   bool _lastIsOver = false;
   bool _lastMoveNoMerge = false;
+
+  TtsEngineService? _watchedTtsProvider;
+  bool _hasTtsError = false;
 
   /// 合并欢呼阈值（合成 ≥ 128 的棋子才欢呼）
   static const int _celebrateThreshold = 128;
@@ -149,6 +153,30 @@ class BoardMascotState extends State<BoardMascot>
       _watchedProvider?.removeListener(_onGameChanged);
       _watchedProvider = provider;
       _watchedProvider!.addListener(_onGameChanged);
+    }
+    final ttsProvider = context.read<TtsEngineService>();
+    if (_watchedTtsProvider != ttsProvider) {
+      _watchedTtsProvider?.removeListener(_onTtsChanged);
+      _watchedTtsProvider = ttsProvider;
+      _watchedTtsProvider!.addListener(_onTtsChanged);
+      _hasTtsError = ttsProvider.lastError != null;
+    }
+  }
+
+  void _onTtsChanged() {
+    if (!mounted) return;
+    final hasError = _watchedTtsProvider!.lastError != null;
+    if (_hasTtsError != hasError) {
+      setState(() {
+        _hasTtsError = hasError;
+      });
+      if (hasError) {
+        _setExpression(-1.0);
+      } else {
+        if (!(_watchedProvider?.isOver ?? false)) {
+          _setExpression(0.0);
+        }
+      }
     }
   }
 
@@ -278,6 +306,7 @@ class BoardMascotState extends State<BoardMascot>
   @override
   void dispose() {
     _watchedProvider?.removeListener(_onGameChanged);
+    _watchedTtsProvider?.removeListener(_onTtsChanged);
     _eyeController.dispose();
     _bodyController.dispose();
     _expressionController.dispose();
@@ -347,6 +376,7 @@ class BoardMascotState extends State<BoardMascot>
                     blinkScale: _blinkAnimation.value,
                     expressionValue: _expressionAnimation.value,
                     pulseValue: _pulseAnimation.value,
+                    hasError: _hasTtsError,
                   ),
                 ),
               ),
@@ -369,6 +399,7 @@ class _MascotFacePainter extends CustomPainter {
   final double blinkScale;
   final double expressionValue;
   final double pulseValue;
+  final bool hasError;
 
   static const double _mW = 68.0;
   static const double _mH = 84.0;
@@ -378,6 +409,7 @@ class _MascotFacePainter extends CustomPainter {
     required this.blinkScale,
     required this.expressionValue,
     required this.pulseValue,
+    required this.hasError,
   });
 
   @override
@@ -403,6 +435,7 @@ class _MascotFacePainter extends CustomPainter {
   void _drawPulseWave(Canvas canvas, double cx, double coreCy, double coreR) {
     final center = Offset(cx, coreCy);
     final fade = 1.0 - pulseValue; // 1.0→0.0 逐渐消失
+    final themeColor = hasError ? CyberColors.neonPink : CyberColors.hackerBlue;
 
     // 第一圈（最外层，扩散最远）
     final r1 = coreR * (1.0 + pulseValue * 2.2);
@@ -410,7 +443,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       r1,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(fade * 0.5)
+        ..color = themeColor.withOpacity(fade * 0.5)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
@@ -422,7 +455,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       r2,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(fade * 0.75)
+        ..color = themeColor.withOpacity(fade * 0.75)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
@@ -434,7 +467,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       r3,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(fade * 0.9)
+        ..color = themeColor.withOpacity(fade * 0.9)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
@@ -446,6 +479,7 @@ class _MascotFacePainter extends CustomPainter {
     final tentacleTop = coreCy + coreR * 0.8;
     final tentacleBottom = offsetY + _mH;
     final spacing = coreR * 0.85;
+    final themeColor = hasError ? CyberColors.neonPink : CyberColors.hackerBlue;
 
     for (final side in [-1.0, 1.0]) {
       final tx = cx + side * spacing;
@@ -466,14 +500,14 @@ class _MascotFacePainter extends CustomPainter {
         Offset(bottomX, tentacleBottom),
         12.0,
         Paint()
-          ..color = CyberColors.hackerBlue.withOpacity(0.15)
+          ..color = themeColor.withOpacity(0.15)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
       canvas.drawCircle(
         Offset(bottomX, tentacleBottom),
         6.0,
         Paint()
-          ..color = CyberColors.hackerBlue.withOpacity(0.3)
+          ..color = themeColor.withOpacity(0.3)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       );
 
@@ -481,7 +515,7 @@ class _MascotFacePainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = CyberColors.hackerBlue.withOpacity(0.3)
+          ..color = themeColor.withOpacity(0.3)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 8.0
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
@@ -491,7 +525,7 @@ class _MascotFacePainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = CyberColors.hackerBlue
+          ..color = themeColor
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.5
           ..strokeCap = StrokeCap.round,
@@ -508,7 +542,7 @@ class _MascotFacePainter extends CustomPainter {
           Offset(nodeX, nodeY),
           5.0,
           Paint()
-            ..color = CyberColors.hackerBlue.withOpacity(0.2)
+            ..color = themeColor.withOpacity(0.2)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
         );
         // 外发光
@@ -516,14 +550,14 @@ class _MascotFacePainter extends CustomPainter {
           Offset(nodeX, nodeY),
           3.5,
           Paint()
-            ..color = CyberColors.hackerBlue.withOpacity(0.5)
+            ..color = themeColor.withOpacity(0.5)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
         );
         // 核心点
         canvas.drawCircle(
           Offset(nodeX, nodeY),
           1.8,
-          Paint()..color = CyberColors.hackerBlue,
+          Paint()..color = themeColor,
         );
         // 高光
         canvas.drawCircle(
@@ -539,13 +573,14 @@ class _MascotFacePainter extends CustomPainter {
   void _drawCore(Canvas canvas, double cx, double coreCy, double coreR) {
     final center = Offset(cx, coreCy);
     final rect = Rect.fromCircle(center: center, radius: coreR);
+    final themeColor = hasError ? CyberColors.neonPink : CyberColors.hackerBlue;
 
     // 外外层光晕（远距离辐射）
     canvas.drawCircle(
       center,
       coreR + 12,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(0.08)
+        ..color = themeColor.withOpacity(0.08)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
     );
 
@@ -554,18 +589,18 @@ class _MascotFacePainter extends CustomPainter {
       center,
       coreR + 6,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(0.2)
+        ..color = themeColor.withOpacity(0.2)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
 
-    // 主体渐变（深黑到半透明青）
+    // 主体渐变（深黑到半透明青或粉）
     final shader = RadialGradient(
       center: const Alignment(-0.2, -0.3),
       radius: 0.9,
       colors: [
         CyberColors.surface,
         CyberColors.background,
-        CyberColors.hackerBlue.withOpacity(0.15),
+        themeColor.withOpacity(hasError ? 0.25 : 0.15),
       ],
       stops: const [0.0, 0.6, 1.0],
     ).createShader(rect);
@@ -576,7 +611,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       coreR + 0.5,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(0.3)
+        ..color = themeColor.withOpacity(0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0,
     );
@@ -584,7 +619,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       coreR,
       Paint()
-        ..color = CyberColors.hackerBlue
+        ..color = themeColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.8,
     );
@@ -595,7 +630,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       pulseR,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(0.4)
+        ..color = themeColor.withOpacity(0.4)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2,
     );
@@ -605,7 +640,7 @@ class _MascotFacePainter extends CustomPainter {
       Offset(cx - coreR * 0.15, coreCy - coreR * 0.2),
       coreR * 0.08,
       Paint()
-        ..color = CyberColors.hackerBlue
+        ..color = themeColor
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
     );
   }
@@ -616,6 +651,7 @@ class _MascotFacePainter extends CustomPainter {
     final spacing = coreR * 0.50;
     final eyeR = coreR * 0.12;
     final maxOff = coreR * 0.15;
+    final themeColor = hasError ? CyberColors.neonPink : CyberColors.hackerBlue;
 
     for (final side in [-1.0, 1.0]) {
       final ex = cx + side * spacing;
@@ -637,7 +673,7 @@ class _MascotFacePainter extends CustomPainter {
         canvas.drawPath(
           arcPath,
           Paint()
-            ..color = CyberColors.hackerBlue.withOpacity(0.4)
+            ..color = themeColor.withOpacity(0.4)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 4.0
             ..strokeCap = StrokeCap.round
@@ -647,16 +683,18 @@ class _MascotFacePainter extends CustomPainter {
         canvas.drawPath(
           arcPath,
           Paint()
-            ..color = CyberColors.hackerBlue
+            ..color = themeColor
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.0
             ..strokeCap = StrokeCap.round,
         );
       } else {
-        // 普通：发光圆点（跟随滑动）
+        // 错误状态闭眼或跟随滑动
+        final double currentBlink = hasError ? 0.1 : blinkScale.clamp(0.1, 1.0);
+        // 普通/错误：发光圆点（跟随滑动）
         canvas.save();
         canvas.translate(ex, eyeY);
-        canvas.scale(1.0, blinkScale.clamp(0.1, 1.0));
+        canvas.scale(1.0, currentBlink);
 
         final po = Offset(
           eyeOffset.dx.clamp(-maxOff, maxOff),
@@ -668,7 +706,7 @@ class _MascotFacePainter extends CustomPainter {
           po,
           eyeR + 5,
           Paint()
-            ..color = CyberColors.hackerBlue.withOpacity(0.25)
+            ..color = themeColor.withOpacity(0.25)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
         );
 
@@ -677,7 +715,7 @@ class _MascotFacePainter extends CustomPainter {
           po,
           eyeR + 3,
           Paint()
-            ..color = CyberColors.hackerBlue.withOpacity(0.5)
+            ..color = themeColor.withOpacity(0.5)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
         );
 
@@ -685,7 +723,7 @@ class _MascotFacePainter extends CustomPainter {
         canvas.drawCircle(
           po,
           eyeR,
-          Paint()..color = CyberColors.hackerBlue,
+          Paint()..color = themeColor,
         );
 
         // 高光（更亮）
@@ -705,6 +743,7 @@ class _MascotFacePainter extends CustomPainter {
     final my = coreCy + coreR * 0.35;
     final hw = coreR * 0.35;
     final curvature = expressionValue * coreR * 0.22;
+    final themeColor = hasError ? CyberColors.neonPink : CyberColors.hackerBlue;
 
     final mouthPath = Path()
       ..moveTo(cx - hw, my)
@@ -721,7 +760,7 @@ class _MascotFacePainter extends CustomPainter {
     canvas.drawPath(
       mouthPath,
       Paint()
-        ..color = CyberColors.hackerBlue.withOpacity(0.4)
+        ..color = themeColor.withOpacity(0.4)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4.0
         ..strokeCap = StrokeCap.round
@@ -732,7 +771,7 @@ class _MascotFacePainter extends CustomPainter {
     canvas.drawPath(
       mouthPath,
       Paint()
-        ..color = CyberColors.hackerBlue
+        ..color = themeColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.8
         ..strokeCap = StrokeCap.round,
@@ -744,5 +783,6 @@ class _MascotFacePainter extends CustomPainter {
       old.eyeOffset != eyeOffset ||
       old.blinkScale != blinkScale ||
       old.expressionValue != expressionValue ||
-      old.pulseValue != pulseValue;
+      old.pulseValue != pulseValue ||
+      old.hasError != hasError;
 }
