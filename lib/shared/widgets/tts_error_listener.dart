@@ -32,6 +32,7 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
     return Consumer<TtsEngineService>(
       builder: (context, tts, child) {
         final err = tts.lastError;
+        final currentTimestamp = DateTime.now().millisecondsSinceEpoch;
         
         if (err != null && tts.errorTimestamp != _previousErrorTime) {
           _previousErrorTime = tts.errorTimestamp;
