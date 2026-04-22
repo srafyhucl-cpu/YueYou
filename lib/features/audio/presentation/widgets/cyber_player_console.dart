@@ -174,7 +174,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
       onTap: () {
         final result = reader.toggleTTS();
         if (result == TtsToggleResult.noContent) {
-          ttsEngine.setLastError(CyberErrorMessages.ttsRequireBookFirst);
+          context.read<TtsEngineService>().setLastError('无法开启 TTS：请先导入书籍');
         }
       },
       behavior: HitTestBehavior.opaque,

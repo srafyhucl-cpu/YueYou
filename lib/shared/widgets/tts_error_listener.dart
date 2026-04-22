@@ -55,11 +55,6 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
               } catch (e) {
                 debugPrint('[TtsErrorListener] ERROR showing CyberToast: $e');
               }
-              tts.clearLastError();
-            });
-          } else {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              tts.clearLastError();
             });
           }
         }
@@ -82,11 +77,6 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
                 debugPrint(
                     '[TtsErrorListener] ERROR showing fallback CyberToast: $e');
               }
-              tts.clearFallbackNotification();
-            });
-          } else {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              tts.clearFallbackNotification();
             });
           }
         }

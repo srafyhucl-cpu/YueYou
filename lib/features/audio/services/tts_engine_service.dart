@@ -1416,6 +1416,7 @@ class TtsEngineService extends ChangeNotifier {
   Future<bool> _speakWithLocalTts(String text) async {
     try {
       await _fallbackEngine.speak(text);
+      _clearLastError();
       return true;
     } catch (e) {
       debugPrint('⚠️ 本地 TTS 降级朗读失败: $e');

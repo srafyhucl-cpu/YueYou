@@ -29,13 +29,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
   ReaderProvider? _reader;
-  String? _errorMessage;
-  bool _errorVisible = false;
-  Timer? _errorHideTimer;
-  Timer? _errorCleanupTimer;
-
-  static const Duration _errorDisplayDuration = Duration(seconds: 3);
-  static const Duration _errorFadeDuration = Duration(milliseconds: 300);
 
   static final TextStyle _readStyle = CyberTextStyles.teleprompterInlineRead.copyWith(
     shadows: [
@@ -58,48 +51,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
     _ktvController.addListener(_syncScroll);
   }
 
-  void _onErrorChanged(String? message) {
-    if (_errorMessage == message && _errorVisible) {
-      return;
-    }
-
-    _errorHideTimer?.cancel();
-    _errorCleanupTimer?.cancel();
-
-    if (message == null || message.isEmpty) {
-      _hideErrorTip();
-      return;
-    }
-
-    setState(() {
-      _errorMessage = message;
-      _errorVisible = true;
-    });
-
-    _errorHideTimer = Timer(_errorDisplayDuration, _hideErrorTip);
-  }
-
-  void _hideErrorTip() {
-    if (!mounted) return;
-    if (!_errorVisible && _errorMessage == null) return;
-
-    setState(() {
-      _errorVisible = false;
-    });
-
-    _errorCleanupTimer = Timer(_errorFadeDuration, () {
-      if (!mounted || _errorVisible) return;
-      setState(() {
-        _errorMessage = null;
-      });
-    });
-  }
-
-  void _onErrorTipTap() {
-    _hideErrorTip();
-    _reader?.clearTtsError();
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -115,8 +66,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
   void _onReaderChanged() {
     final reader = _reader;
     if (!mounted || reader == null) return;
-
-    _onErrorChanged(reader.ttsErrorMessage);
 
     if (reader.isParsing || reader.sentences.isEmpty) {
       if (_prevIsPlaying) {
@@ -164,8 +113,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
   @override
   void dispose() {
     _reader?.removeListener(_onReaderChanged);
-    _errorHideTimer?.cancel();
-    _errorCleanupTimer?.cancel();
     _ktvController.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -378,42 +325,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
                         ),
                       ),
 
-                      if (_errorMessage != null)
-                        Positioned(
-                          top: CyberDimensions.spacingXS,
-                          left: CyberDimensions.spacingS,
-                          right: CyberDimensions.spacingS,
-                          child: AnimatedOpacity(
-                            duration: _errorFadeDuration,
-                            opacity: _errorVisible ? 1.0 : 0.0,
-                            child: GestureDetector(
-                              key: const ValueKey('teleprompter_error_tip'),
-                              onTap: _onErrorTipTap,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: CyberDimensions.spacingS,
-                                  vertical: CyberDimensions.spacingXS,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: CyberColors.panelBackground,
-                                  borderRadius: BorderRadius.circular(
-                                      CyberDimensions.radiusS),
-                                  border: Border.all(
-                                    color:
-                                        CyberColors.neonPink.withOpacity(0.7),
-                                    width: CyberDimensions.borderNormal,
-                                  ),
-                                ),
-                                child: Text(
-                                  _errorMessage!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: CyberTextStyles.teleprompterError,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
