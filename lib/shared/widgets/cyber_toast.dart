@@ -117,7 +117,6 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
       case ToastType.success:
         return CyberColors.neonGreen;
       case ToastType.info:
-      default:
         return CyberColors.neonCyan;
     }
   }
@@ -149,7 +148,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _getBorderColor().withOpacity(0.3),
+                      color: _getBorderColor().withValues(alpha: 0.3),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -171,14 +170,14 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
                               height: 44,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: CyberColors.background.withOpacity(0.8),
+                                color: CyberColors.background.withValues(alpha: 0.8),
                                 border: Border.all(
-                                  color: _getBorderColor().withOpacity(0.7),
+                                  color: _getBorderColor().withValues(alpha: 0.7),
                                   width: 1,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: _getBorderColor().withOpacity(0.5),
+                                    color: _getBorderColor().withValues(alpha: 0.5),
                                     blurRadius: 8,
                                   )
                                 ],

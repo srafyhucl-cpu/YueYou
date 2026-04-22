@@ -32,7 +32,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
   static final TextStyle _readStyle = CyberTextStyles.teleprompterInlineRead.copyWith(
     shadows: [
       Shadow(
-        color: CyberColors.hackerBlue.withOpacity(0.5),
+        color: CyberColors.hackerBlue.withValues(alpha: 0.5),
         blurRadius: 8,
       ),
     ],
@@ -188,7 +188,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusL),
                     border: Border.all(
-                      color: CyberColors.neonCyan.withOpacity(0.3),
+                      color: CyberColors.neonCyan.withValues(alpha: 0.3),
                       width: CyberDimensions.borderNormal,
                     ),
                     boxShadow: CyberShadows.floating,
@@ -224,7 +224,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
                                           text, charIndex, text.length),
                                       style: _unreadStyle.copyWith(
                                         color: CyberColors.whiteMuted
-                                            .withOpacity(
+                                            .withValues(alpha: 
                                                 isPlaying ? 0.4 : 0.65),
                                       ),
                                     ),
@@ -251,16 +251,16 @@ class _TeleprompterViewState extends State<TeleprompterView>
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  CyberColors.neonCyan.withOpacity(0.0),
+                                  CyberColors.neonCyan.withValues(alpha: 0.0),
                                   CyberColors.neonCyan,
                                   CyberColors.neonCyan,
-                                  CyberColors.neonCyan.withOpacity(0.0),
+                                  CyberColors.neonCyan.withValues(alpha: 0.0),
                                 ],
                                 stops: const [0.0, 0.25, 0.75, 1.0],
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: CyberColors.neonCyan.withOpacity(0.7),
+                                  color: CyberColors.neonCyan.withValues(alpha: 0.7),
                                   blurRadius: 8,
                                   spreadRadius: 1,
                                 ),
@@ -289,7 +289,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
                               end: Alignment.centerRight,
                               colors: [
                                 CyberColors.glassDark,
-                                CyberColors.glassDark.withOpacity(0),
+                                CyberColors.glassDark.withValues(alpha: 0),
                               ],
                             ),
                           ),
@@ -317,7 +317,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
                               end: Alignment.centerLeft,
                               colors: [
                                 CyberColors.glassDark,
-                                CyberColors.glassDark.withOpacity(0),
+                                CyberColors.glassDark.withValues(alpha: 0),
                               ],
                             ),
                           ),
@@ -342,7 +342,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
         child: Text(
           msg,
           style: CyberTextStyles.teleprompterPlaceholder.copyWith(
-            color: CyberColors.whiteMuted.withOpacity(0.5),
+            color: CyberColors.whiteMuted.withValues(alpha: 0.5),
           ),
         ),
       ),

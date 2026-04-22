@@ -147,10 +147,10 @@ class _SquareBoardState extends State<SquareBoard>
         vertical: CyberDimensions.spacingS - CyberDimensions.spacingXXS,
       ),
       decoration: BoxDecoration(
-        color: CyberColors.surface.withOpacity(0.48),
+        color: CyberColors.surface.withValues(alpha: 0.48),
         borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
         border: Border.all(
-          color: CyberColors.neonCyan.withOpacity(0.2),
+          color: CyberColors.neonCyan.withValues(alpha: 0.2),
           width: 0.8,
         ),
       ),
@@ -162,7 +162,7 @@ class _SquareBoardState extends State<SquareBoard>
             label,
             textAlign: TextAlign.center,
             style: CyberTextStyles.caption.copyWith(
-              color: CyberColors.whiteMuted.withOpacity(0.9),
+              color: CyberColors.whiteMuted.withValues(alpha: 0.9),
               fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
@@ -324,17 +324,17 @@ class _SquareBoardState extends State<SquareBoard>
                       return Container(
                         clipBehavior: Clip.none,
                         decoration: BoxDecoration(
-                          color: CyberColors.background.withOpacity(0.75),
+                          color: CyberColors.background.withValues(alpha: 0.75),
                           borderRadius:
                               BorderRadius.circular(CyberDimensions.radiusXL),
                           border: Border.all(
-                            color: CyberColors.neonCyan.withOpacity(0.4),
+                            color: CyberColors.neonCyan.withValues(alpha: 0.4),
                             width: CyberDimensions.borderThick,
                           ),
                           boxShadow: [
                             ...CyberShadows.elevated,
                             BoxShadow(
-                              color: CyberColors.neonCyan.withOpacity(0.12),
+                              color: CyberColors.neonCyan.withValues(alpha: 0.12),
                               blurRadius: 16,
                               spreadRadius: -4,
                               offset: const Offset(0, 0),
@@ -392,7 +392,7 @@ class _SquareBoardState extends State<SquareBoard>
                                     ),
                                     child: Container(
                                       color: CyberColors.blackOverlay
-                                          .withOpacity(0.78),
+                                          .withValues(alpha: 0.78),
                                       padding: const EdgeInsets.all(CyberDimensions.spacingMS),
                                       child: LayoutBuilder(
                                         builder: (context, overlayConstraints) {
@@ -425,7 +425,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                           CyberColors
                                                               .whiteFaint,
                                                           CyberColors.whiteFaint
-                                                              .withOpacity(
+                                                              .withValues(alpha: 
                                                                   0.03),
                                                         ],
                                                       ),
@@ -436,14 +436,14 @@ class _SquareBoardState extends State<SquareBoard>
                                                       border: Border.all(
                                                         color: CyberColors
                                                             .neonCyan
-                                                            .withOpacity(0.2),
+                                                            .withValues(alpha: 0.2),
                                                         width: 1.6,
                                                       ),
                                                       boxShadow: [
                                                         BoxShadow(
                                                           color: CyberColors
                                                               .neonCyan
-                                                              .withOpacity(0.1),
+                                                              .withValues(alpha: 0.1),
                                                           blurRadius: 12,
                                                           spreadRadius: 0,
                                                         ),
@@ -466,7 +466,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                               Shadow(
                                                                 color: CyberColors
                                                                     .neonPink
-                                                                    .withOpacity(
+                                                                    .withValues(alpha: 
                                                                         0.55),
                                                                 blurRadius: 16,
                                                               ),
@@ -515,7 +515,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                               decoration:
                                                                   BoxDecoration(
                                                                 color: ratingColor
-                                                                    .withOpacity(
+                                                                    .withValues(alpha: 
                                                                         0.2),
                                                                 borderRadius:
                                                                     BorderRadius
@@ -524,7 +524,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                                 border:
                                                                     Border.all(
                                                                   color: ratingColor
-                                                                      .withOpacity(
+                                                                      .withValues(alpha: 
                                                                           0.5),
                                                                   width: 0.8,
                                                                 ),
@@ -636,7 +636,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                                     BorderSide(
                                                                   color: CyberColors
                                                                       .neonGreen
-                                                                      .withOpacity(
+                                                                      .withValues(alpha: 
                                                                           0.5),
                                                                   width: 1,
                                                                 ),
@@ -671,7 +671,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                                     BorderSide(
                                                                   color: CyberColors
                                                                       .whiteMedium
-                                                                      .withOpacity(
+                                                                      .withValues(alpha: 
                                                                           0.6),
                                                                   width: 1,
                                                                 ),
@@ -774,7 +774,7 @@ class _SquareBoardState extends State<SquareBoard>
             height: cellSize,
             child: Container(
               decoration: BoxDecoration(
-                color: CyberColors.surface.withOpacity(0.4),
+                color: CyberColors.surface.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
               ),
             ),

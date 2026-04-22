@@ -81,7 +81,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
             sigmaY: CyberDimensions.blurLight),
         child: Container(
           height: CyberDimensions.headerHeight,
-          color: CyberColors.panelBackground.withOpacity(0.8),
+          color: CyberColors.panelBackground.withValues(alpha: 0.8),
           child: Row(
             children: [
               const SizedBox(width: CyberDimensions.spacingM),
@@ -128,7 +128,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           padding: const EdgeInsets.symmetric(
               horizontal: CyberDimensions.spacingM,
               vertical: CyberDimensions.spacingS),
-          color: CyberColors.panelBackground.withOpacity(0.13),
+          color: CyberColors.panelBackground.withValues(alpha: 0.13),
           child: Text(
             '共 $total 章 | 阅读进度 $percent%',
             style: CyberTextStyles.caption,
@@ -235,10 +235,10 @@ class _ChapterItem extends StatelessWidget {
             vertical: CyberDimensions.spacingMS),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: CyberColors.whiteFaint.withOpacity(0.4)),
+            bottom: BorderSide(color: CyberColors.whiteFaint.withValues(alpha: 0.4)),
           ),
           color: isActive
-              ? CyberColors.neonPink.withOpacity(0.1)
+              ? CyberColors.neonPink.withValues(alpha: 0.1)
               : CyberColors.transparent,
         ),
         child: Row(

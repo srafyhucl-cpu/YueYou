@@ -60,7 +60,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
               color: CyberColors.whiteFaint,
               borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
               border: Border.all(
-                color: CyberColors.neonCyan.withOpacity(0.2),
+                color: CyberColors.neonCyan.withValues(alpha: 0.2),
                 width: CyberDimensions.borderThin,
               ),
             ),
@@ -223,10 +223,10 @@ class _DeclineButton extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
         decoration: BoxDecoration(
-          color: CyberColors.neonPink.withOpacity(0.08),
+          color: CyberColors.neonPink.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
           border: Border.all(
-            color: CyberColors.neonPink.withOpacity(0.5),
+            color: CyberColors.neonPink.withValues(alpha: 0.5),
             width: CyberDimensions.borderNormal,
           ),
         ),

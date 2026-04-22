@@ -46,12 +46,12 @@ class CyberShadows {
   }) {
     return [
       BoxShadow(
-        color: color.withOpacity(0.6 * intensity),
+        color: color.withValues(alpha: 0.6 * intensity),
         blurRadius: 12 * intensity,
         spreadRadius: 2 * intensity,
       ),
       BoxShadow(
-        color: color.withOpacity(0.3 * intensity),
+        color: color.withValues(alpha: 0.3 * intensity),
         blurRadius: 18 * intensity,
         spreadRadius: 0,
       ),

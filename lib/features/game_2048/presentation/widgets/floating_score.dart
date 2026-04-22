@@ -75,14 +75,14 @@ class _FloatingScoreState extends State<FloatingScore>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    CyberColors.neonPink.withOpacity(0.8),
-                    CyberColors.neonPurple.withOpacity(0.8),
+                    CyberColors.neonPink.withValues(alpha: 0.8),
+                    CyberColors.neonPurple.withValues(alpha: 0.8),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
                 boxShadow: [
                   BoxShadow(
-                    color: CyberColors.pinkGlow.withOpacity(0.6),
+                    color: CyberColors.pinkGlow.withValues(alpha: 0.6),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),

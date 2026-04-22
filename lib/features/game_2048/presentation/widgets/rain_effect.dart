@@ -129,9 +129,9 @@ class _RainPainter extends CustomPainter {
           end: Alignment.bottomCenter,
           colors: [
             CyberColors.neonCyan
-                .withOpacity(drop.opacity * 0.2 * fadeMultiplier),
+                .withValues(alpha: drop.opacity * 0.2 * fadeMultiplier),
             CyberColors.neonCyan
-                .withOpacity(drop.opacity * 0.8 * fadeMultiplier),
+                .withValues(alpha: drop.opacity * 0.8 * fadeMultiplier),
           ],
         ).createShader(Rect.fromLTRB(x - 1, yStart, x + 1, yEnd))
         ..strokeWidth = dropWidth

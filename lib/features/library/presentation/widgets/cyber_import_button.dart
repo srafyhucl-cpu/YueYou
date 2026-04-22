@@ -94,7 +94,7 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                   decoration: BoxDecoration(
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusL),
-                    color: CyberColors.cardBackground.withOpacity(0.8),
+                    color: CyberColors.cardBackground.withValues(alpha: 0.8),
                     border: Border.all(
                       color:
                           isBusy ? CyberColors.neonPink : CyberColors.neonGreen,

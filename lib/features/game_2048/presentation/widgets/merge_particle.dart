@@ -109,7 +109,7 @@ class _ParticlePainter extends CustomPainter {
 
       // 绘制圆形光点
       final paint = Paint()
-        ..color = color.withOpacity(opacity * 0.8)
+        ..color = color.withValues(alpha: opacity * 0.8)
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(
@@ -120,7 +120,7 @@ class _ParticlePainter extends CustomPainter {
 
       // 外层光晕
       final glowPaint = Paint()
-        ..color = color.withOpacity(opacity * 0.3)
+        ..color = color.withValues(alpha: opacity * 0.3)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
 
       canvas.drawCircle(

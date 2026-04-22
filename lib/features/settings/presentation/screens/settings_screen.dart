@@ -43,7 +43,7 @@ class SettingsScreen extends StatelessWidget {
             sigmaY: CyberDimensions.blurLight),
         child: Container(
           height: CyberDimensions.headerHeight,
-          color: CyberColors.panelBackground.withOpacity(0.8),
+          color: CyberColors.panelBackground.withValues(alpha: 0.8),
           child: Row(
             children: [
               const SizedBox(width: CyberDimensions.spacingM),
@@ -183,7 +183,7 @@ class _ToggleTile extends StatelessWidget {
         subtitle: Text(subtitle, style: CyberTextStyles.tileSubtitle),
         value: value,
         onChanged: onChanged,
-        activeColor: CyberColors.neonGreen,
+        activeThumbColor: CyberColors.neonGreen,
         inactiveThumbColor: CyberColors.whiteMuted,
         inactiveTrackColor: CyberColors.whiteFaint,
       ),
@@ -220,7 +220,7 @@ class _SpeedSelector extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: selected
-                  ? CyberColors.neonPink.withOpacity(0.18)
+                  ? CyberColors.neonPink.withValues(alpha: 0.18)
                   : CyberColors.surface,
               borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
               border: Border.all(
@@ -319,7 +319,7 @@ class _TtsTestButtonState extends State<_TtsTestButton> {
         color: CyberColors.surface,
         borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
         border: Border.all(
-          color: CyberColors.neonCyan.withOpacity(0.3),
+          color: CyberColors.neonCyan.withValues(alpha: 0.3),
           width: CyberDimensions.borderNormal,
         ),
       ),
@@ -462,8 +462,8 @@ class _TtsTestResultDialog extends StatelessWidget {
               padding: const EdgeInsets.all(CyberDimensions.spacingMS),
               decoration: BoxDecoration(
                 color: success
-                    ? CyberColors.neonGreen.withOpacity(0.1)
-                    : CyberColors.neonPink.withOpacity(0.1),
+                    ? CyberColors.neonGreen.withValues(alpha: 0.1)
+                    : CyberColors.neonPink.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
                 border: Border.all(
                   color: success ? CyberColors.neonGreen : CyberColors.neonPink,
@@ -559,7 +559,7 @@ class _TtsTestResultDialog extends StatelessWidget {
                 Text(
                   message,
                   style: CyberTextStyles.captionTight.copyWith(
-                    color: statusColor.withOpacity(0.8),
+                    color: statusColor.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -601,7 +601,7 @@ class _VolumeSlider extends StatelessWidget {
                 activeTrackColor: CyberColors.neonCyan,
                 inactiveTrackColor: CyberColors.whiteFaint,
                 thumbColor: CyberColors.neonCyan,
-                overlayColor: CyberColors.neonCyan.withOpacity(0.12),
+                overlayColor: CyberColors.neonCyan.withValues(alpha: 0.12),
                 trackHeight: 2.0,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
               ),

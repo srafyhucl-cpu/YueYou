@@ -39,12 +39,12 @@ Future<T?> showCyberModal<T>({
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusL),
                     border: Border.all(
-                      color: CyberColors.neonCyan.withOpacity(0.4),
+                      color: CyberColors.neonCyan.withValues(alpha: 0.4),
                       width: CyberDimensions.borderThick,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: CyberColors.neonCyan.withOpacity(0.25),
+                        color: CyberColors.neonCyan.withValues(alpha: 0.25),
                         blurRadius: 30,
                         spreadRadius: 2,
                       ),

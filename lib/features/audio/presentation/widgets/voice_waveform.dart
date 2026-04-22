@@ -58,7 +58,7 @@ class _VoiceWaveformState extends State<VoiceWaveform>
               height: 16 * height,
               margin: const EdgeInsets.symmetric(horizontal: 1.5),
               decoration: BoxDecoration(
-                color: widget.color.withOpacity(widget.isActive ? 0.9 : 0.3),
+                color: widget.color.withValues(alpha: widget.isActive ? 0.9 : 0.3),
                 borderRadius: BorderRadius.circular(CyberDimensions.radiusXS),
               ),
             );

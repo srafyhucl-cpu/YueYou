@@ -443,7 +443,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       r1,
       Paint()
-        ..color = themeColor.withOpacity(fade * 0.5)
+        ..color = themeColor.withValues(alpha: fade * 0.5)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
@@ -455,7 +455,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       r2,
       Paint()
-        ..color = themeColor.withOpacity(fade * 0.75)
+        ..color = themeColor.withValues(alpha: fade * 0.75)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
@@ -467,7 +467,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       r3,
       Paint()
-        ..color = themeColor.withOpacity(fade * 0.9)
+        ..color = themeColor.withValues(alpha: fade * 0.9)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
@@ -500,14 +500,14 @@ class _MascotFacePainter extends CustomPainter {
         Offset(bottomX, tentacleBottom),
         12.0,
         Paint()
-          ..color = themeColor.withOpacity(0.15)
+          ..color = themeColor.withValues(alpha: 0.15)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
       canvas.drawCircle(
         Offset(bottomX, tentacleBottom),
         6.0,
         Paint()
-          ..color = themeColor.withOpacity(0.3)
+          ..color = themeColor.withValues(alpha: 0.3)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       );
 
@@ -515,7 +515,7 @@ class _MascotFacePainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = themeColor.withOpacity(0.3)
+          ..color = themeColor.withValues(alpha: 0.3)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 8.0
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
@@ -542,7 +542,7 @@ class _MascotFacePainter extends CustomPainter {
           Offset(nodeX, nodeY),
           5.0,
           Paint()
-            ..color = themeColor.withOpacity(0.2)
+            ..color = themeColor.withValues(alpha: 0.2)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
         );
         // 外发光
@@ -550,7 +550,7 @@ class _MascotFacePainter extends CustomPainter {
           Offset(nodeX, nodeY),
           3.5,
           Paint()
-            ..color = themeColor.withOpacity(0.5)
+            ..color = themeColor.withValues(alpha: 0.5)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
         );
         // 核心点
@@ -580,7 +580,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       coreR + 12,
       Paint()
-        ..color = themeColor.withOpacity(0.08)
+        ..color = themeColor.withValues(alpha: 0.08)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
     );
 
@@ -589,7 +589,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       coreR + 6,
       Paint()
-        ..color = themeColor.withOpacity(0.2)
+        ..color = themeColor.withValues(alpha: 0.2)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
 
@@ -600,7 +600,7 @@ class _MascotFacePainter extends CustomPainter {
       colors: [
         CyberColors.surface,
         CyberColors.background,
-        themeColor.withOpacity(hasError ? 0.25 : 0.15),
+        themeColor.withValues(alpha: hasError ? 0.25 : 0.15),
       ],
       stops: const [0.0, 0.6, 1.0],
     ).createShader(rect);
@@ -611,7 +611,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       coreR + 0.5,
       Paint()
-        ..color = themeColor.withOpacity(0.3)
+        ..color = themeColor.withValues(alpha: 0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0,
     );
@@ -630,7 +630,7 @@ class _MascotFacePainter extends CustomPainter {
       center,
       pulseR,
       Paint()
-        ..color = themeColor.withOpacity(0.4)
+        ..color = themeColor.withValues(alpha: 0.4)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2,
     );
@@ -673,7 +673,7 @@ class _MascotFacePainter extends CustomPainter {
         canvas.drawPath(
           arcPath,
           Paint()
-            ..color = themeColor.withOpacity(0.4)
+            ..color = themeColor.withValues(alpha: 0.4)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 4.0
             ..strokeCap = StrokeCap.round
@@ -706,7 +706,7 @@ class _MascotFacePainter extends CustomPainter {
           po,
           eyeR + 5,
           Paint()
-            ..color = themeColor.withOpacity(0.25)
+            ..color = themeColor.withValues(alpha: 0.25)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
         );
 
@@ -715,7 +715,7 @@ class _MascotFacePainter extends CustomPainter {
           po,
           eyeR + 3,
           Paint()
-            ..color = themeColor.withOpacity(0.5)
+            ..color = themeColor.withValues(alpha: 0.5)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
         );
 
@@ -760,7 +760,7 @@ class _MascotFacePainter extends CustomPainter {
     canvas.drawPath(
       mouthPath,
       Paint()
-        ..color = themeColor.withOpacity(0.4)
+        ..color = themeColor.withValues(alpha: 0.4)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4.0
         ..strokeCap = StrokeCap.round

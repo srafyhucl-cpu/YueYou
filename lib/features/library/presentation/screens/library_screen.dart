@@ -54,7 +54,7 @@ class LibraryScreen extends StatelessWidget {
             sigmaY: CyberDimensions.blurLight),
         child: Container(
           height: CyberDimensions.headerHeight,
-          color: CyberColors.panelBackground.withOpacity(0.8),
+          color: CyberColors.panelBackground.withValues(alpha: 0.8),
           child: Row(
             children: [
               const SizedBox(width: CyberDimensions.spacingM),
@@ -138,7 +138,7 @@ class _BookCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: colors[0].withOpacity(0.3),
+              color: colors[0].withValues(alpha: 0.3),
               blurRadius: CyberDimensions.spacingM,
               offset: const Offset(0, 6),
             ),
@@ -169,7 +169,7 @@ class _BookCard extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
                   child: Container(
-                    color: CyberColors.background.withOpacity(0.25),
+                    color: CyberColors.background.withValues(alpha: 0.25),
                     padding: const EdgeInsets.all(CyberDimensions.spacingMS),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +221,7 @@ class _BookCard extends StatelessWidget {
                       horizontal: CyberDimensions.spacingMS,
                       vertical: CyberDimensions.spacingXS),
                   decoration: BoxDecoration(
-                    color: CyberColors.background.withOpacity(0.45),
+                    color: CyberColors.background.withValues(alpha: 0.45),
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusS),
                     border: Border.all(

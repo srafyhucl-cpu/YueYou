@@ -82,9 +82,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     center: Alignment.topCenter,
                     radius: 1.5,
                     colors: [
-                      CyberColors.neonCyan.withOpacity(0.03),
+                      CyberColors.neonCyan.withValues(alpha: 0.03),
                       CyberColors.background,
-                      CyberColors.neonPurple.withOpacity(0.02),
+                      CyberColors.neonPurple.withValues(alpha: 0.02),
                     ],
                   ),
                 ),
@@ -304,17 +304,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               end: Alignment.bottomRight,
               colors: [
                 CyberColors.whiteFaint,
-                CyberColors.whiteFaint.withOpacity(0.03),
+                CyberColors.whiteFaint.withValues(alpha: 0.03),
               ],
             ),
             borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
             border: Border.all(
-              color: CyberColors.neonCyan.withOpacity(0.2),
+              color: CyberColors.neonCyan.withValues(alpha: 0.2),
               width: CyberDimensions.borderThick,
             ),
             boxShadow: [
               BoxShadow(
-                color: CyberColors.neonCyan.withOpacity(0.1),
+                color: CyberColors.neonCyan.withValues(alpha: 0.1),
                 blurRadius: 12,
                 spreadRadius: 0,
               ),
@@ -327,7 +327,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Text(
                 title,
                 style: CyberTextStyles.overlineTiny.copyWith(
-                  color: CyberColors.neonCyan.withOpacity(0.6),
+                  color: CyberColors.neonCyan.withValues(alpha: 0.6),
                 ),
               ),
               const SizedBox(
@@ -362,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         size: CyberDimensions.iconM,
                       ),
                       style: IconButton.styleFrom(
-                        backgroundColor: CyberColors.neonCyan.withOpacity(0.15),
+                        backgroundColor: CyberColors.neonCyan.withValues(alpha: 0.15),
                         padding: const EdgeInsets.all(CyberDimensions.spacingS),
                       ),
                     ),
@@ -388,12 +388,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             shadows: [
               if (isCombo)
                 Shadow(
-                  color: CyberColors.pinkGlow.withOpacity(0.6),
+                  color: CyberColors.pinkGlow.withValues(alpha: 0.6),
                   blurRadius: 12,
                 )
               else
                 Shadow(
-                  color: CyberColors.neonCyan.withOpacity(0.5),
+                  color: CyberColors.neonCyan.withValues(alpha: 0.5),
                   blurRadius: 8,
                 ),
             ],
@@ -437,7 +437,7 @@ class _SegButtonState extends State<_SegButton> {
             const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
         decoration: BoxDecoration(
           color: _isPressed
-              ? CyberColors.neonCyan.withOpacity(0.12)
+              ? CyberColors.neonCyan.withValues(alpha: 0.12)
               : CyberColors.transparent,
         ),
         child: Row(
@@ -445,7 +445,7 @@ class _SegButtonState extends State<_SegButton> {
           children: [
             Icon(
               widget.item.icon,
-              color: CyberColors.neonCyan.withOpacity(0.8),
+              color: CyberColors.neonCyan.withValues(alpha: 0.8),
               size: CyberDimensions.iconS,
             ),
             const SizedBox(

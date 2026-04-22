@@ -270,12 +270,12 @@ class _TileWidgetState extends State<TileWidget> with TickerProviderStateMixin {
 
     return [
       BoxShadow(
-        color: glowColor.withOpacity(0.6),
+        color: glowColor.withValues(alpha: 0.6),
         blurRadius: intensity * glowMultiplier,
         spreadRadius: 2 * glowMultiplier,
       ),
       BoxShadow(
-        color: glowColor.withOpacity(0.3),
+        color: glowColor.withValues(alpha: 0.3),
         blurRadius: intensity * 1.5 * glowMultiplier,
         spreadRadius: 0,
       ),

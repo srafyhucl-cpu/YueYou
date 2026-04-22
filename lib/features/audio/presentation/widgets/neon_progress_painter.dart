@@ -56,7 +56,7 @@ class NeonProgressPainter extends CustomPainter {
 
     // 外层光晕（呼吸效果）
     final outerGlowPaint = Paint()
-      ..color = color.withOpacity(0.15 * breathIntensity)
+      ..color = color.withValues(alpha: 0.15 * breathIntensity)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth + 8
       ..strokeCap = StrokeCap.round
@@ -64,7 +64,7 @@ class NeonProgressPainter extends CustomPainter {
 
     // 中层光晕
     final middleGlowPaint = Paint()
-      ..color = color.withOpacity(0.3 * breathIntensity)
+      ..color = color.withValues(alpha: 0.3 * breathIntensity)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth + 4
       ..strokeCap = StrokeCap.round
@@ -75,7 +75,7 @@ class NeonProgressPainter extends CustomPainter {
       ..shader = LinearGradient(
         colors: [
           color,
-          color.withOpacity(0.8),
+          color.withValues(alpha: 0.8),
           color,
         ],
         stops: const [0.0, 0.5, 1.0],
