@@ -63,8 +63,10 @@ Future<T?> showCyberModal<T>({
                           sigmaX: CyberDimensions.blurStrong,
                           sigmaY: CyberDimensions.blurStrong),
                       child: Container(
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: CyberColors.glassDark,
+                          borderRadius:
+                              BorderRadius.circular(CyberDimensions.radiusL),
                         ),
                         child: ClipRRect(
                           borderRadius:
