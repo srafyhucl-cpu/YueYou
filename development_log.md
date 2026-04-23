@@ -9,6 +9,10 @@
   - 在 `TtsEngineService` 中，利用类型检查模式与关系模式（如 `>= 500`）彻底重构了 `_setLastError()` 中的多层 `if-else`，显著提升了错误处理的紧凑性与安全性。
   - 经 `flutter analyze` 验证代码实现零告警。
 
+- **框架升级(Flutter 3.41 API 迁移)**: 针对全库组件（重点关注 `CyberImportButton` 等交互式 Widget）执行 `MaterialState` 废弃审查。
+  - 经全局扫描，确认所有底层状态交互均已基于 `InkWell` 与 `AnimatedContainer` 定制，无残留的 `MaterialStateProperty` 或 `ButtonStyle` 技术债务。
+  - `flutter analyze` 输出全量零警告，完成零技术债务平滑过波。
+
 - **优化(Impeller 渲染性能)**: 针对 Impeller 引擎完成 `BackdropFilter` 渲染裁剪约束。
   - 在 `cyber_toast.dart` 与 `cyber_modal.dart` 中，将模糊滤镜与透明颜色图层嵌套分离，并确保内部图层的 `borderRadius` 严格对齐外部 `ClipRRect` 的 `CyberDimensions.radiusL` 约束，避免全屏重绘及边缘溢出引发的 GPU 功耗飙升。
 

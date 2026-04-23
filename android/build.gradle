@@ -2,11 +2,13 @@ ext.flutter = [
         compileSdkVersion: 36,
         targetSdkVersion : 35,
         minSdkVersion    : 24,
-        ndkVersion       : "26.1.10909125"
+        ndkVersion       : "28.2.13676358"
 ]
 
 allprojects {
     repositories {
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
         google()
         mavenCentral()
     }
