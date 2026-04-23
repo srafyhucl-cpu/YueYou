@@ -643,9 +643,11 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 切章核心：同步递增 session，立即停播，清空队列，重启循环
   void refreshSession() {
-    final TtsPlaybackState resumeState = isEnabled
-        ? (isPaused ? TtsPlaybackState.paused : TtsPlaybackState.buffering)
-        : TtsPlaybackState.disabled;
+    final TtsPlaybackState resumeState = switch ((isEnabled, isPaused)) {
+      (false, _) => TtsPlaybackState.disabled,
+      (true, true) => TtsPlaybackState.paused,
+      (true, false) => TtsPlaybackState.buffering,
+    };
     _loopSession++;
     debugPrint(' refreshSession: session=$_loopSession');
     _audioPlayer.stop();
@@ -1102,15 +1104,12 @@ class TtsEngineService extends ChangeNotifier {
           if (!preservePausedItem && _currentItem?.id == startItem.id) {
             _currentItem = null;
           }
-          if (!isEnabled) {
-            _setState(TtsPlaybackState.disabled);
-          } else if (isPaused) {
-            _setState(TtsPlaybackState.paused);
-          } else if (_currentItem != null) {
-            _setState(TtsPlaybackState.playing);
-          } else {
-            _setState(TtsPlaybackState.buffering);
-          }
+          _setState(switch ((isEnabled, isPaused, _currentItem != null)) {
+            (false, _, _) => TtsPlaybackState.disabled,
+            (true, true, _) => TtsPlaybackState.paused,
+            (true, false, true) => TtsPlaybackState.playing,
+            (true, false, false) => TtsPlaybackState.buffering,
+          });
         }
       }
     } catch (e) {
@@ -1431,9 +1430,11 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 强制重启循环，用于解决卡顿问题
   void forceRestartLoops() {
-    final TtsPlaybackState resumeState = isEnabled
-        ? (isPaused ? TtsPlaybackState.paused : TtsPlaybackState.buffering)
-        : TtsPlaybackState.disabled;
+    final TtsPlaybackState resumeState = switch ((isEnabled, isPaused)) {
+      (false, _) => TtsPlaybackState.disabled,
+      (true, true) => TtsPlaybackState.paused,
+      (true, false) => TtsPlaybackState.buffering,
+    };
     debugPrint('🔄 强制重启循环 (Session=$_loopSession -> ${_loopSession + 1})');
     // 🔥 增加 session 是最彻底的停止旧循环并启动新循环的方法
     _loopSession++;

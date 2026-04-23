@@ -17,11 +17,9 @@ class CyberToast {
   static OverlayEntry? _currentEntry;
   static Timer? _currentTimer;
 
-  static void show(
-    String message,
-    {ToastType type = ToastType.info,
-    Duration duration = const Duration(seconds: 2, milliseconds: 500)}
-  ) {
+  static void show(String message,
+      {ToastType type = ToastType.info,
+      Duration duration = const Duration(seconds: 2, milliseconds: 500)}) {
     // 移除之前的 Toast
     _removeCurrentEntry();
 
@@ -71,7 +69,8 @@ class _CyberToastWidget extends StatefulWidget {
   __CyberToastWidgetState createState() => __CyberToastWidgetState();
 }
 
-class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTickerProviderStateMixin {
+class __CyberToastWidgetState extends State<_CyberToastWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
@@ -110,11 +109,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
     super.dispose();
   }
 
-  Color _getBorderColor() => switch (widget.type) {
-        ToastType.error => CyberColors.neonPink,
-        ToastType.success => CyberColors.neonGreen,
-        ToastType.info => CyberColors.neonCyan,
-      };
+  Color _getBorderColor() => switch (widget.type) { ToastType.error => CyberColors.neonPink, ToastType.success => CyberColors.neonGreen, ToastType.info => CyberColors.neonCyan };
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +128,8 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.85,
                 ),
-                margin: const EdgeInsets.symmetric(horizontal: CyberDimensions.spacingML),
+                margin: const EdgeInsets.symmetric(
+                    horizontal: CyberDimensions.spacingML),
                 decoration: BoxDecoration(
                   color: CyberColors.glassDark,
                   borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
@@ -154,70 +150,73 @@ class __CyberToastWidgetState extends State<_CyberToastWidget> with SingleTicker
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // XIAOYO Avatar PFP
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: CyberColors.background.withValues(alpha: 0.8),
-                                border: Border.all(
-                                  color: _getBorderColor().withValues(alpha: 0.7),
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _getBorderColor().withValues(alpha: 0.5),
-                                    blurRadius: 8,
-                                  )
-                                ],
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // XIAOYO Avatar PFP
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color:
+                                  CyberColors.background.withValues(alpha: 0.8),
+                              border: Border.all(
+                                color: _getBorderColor().withValues(alpha: 0.7),
+                                width: 1,
                               ),
-                              child: ClipOval(
-                                child: Transform.scale(
-                                  scale: 0.65,
-                                  // Transform.translate 去微调位置以确保脸部在圆圈正中心
-                                  child: Transform.translate(
-                                    offset: const Offset(0, -5),
-                                    child: const IgnorePointer(
-                                      child: BoardMascot(),
-                                    ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      _getBorderColor().withValues(alpha: 0.5),
+                                  blurRadius: 8,
+                                )
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Transform.scale(
+                                scale: 0.65,
+                                // Transform.translate 去微调位置以确保脸部在圆圈正中心
+                                child: Transform.translate(
+                                  offset: const Offset(0, -5),
+                                  child: const IgnorePointer(
+                                    child: BoardMascot(),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 14),
-                            // Text Section
-                            Flexible(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'XIAOYO SYSTEM',
-                                    style: CyberTextStyles.captionBold.copyWith(
-                                      color: _getBorderColor(),
-                                      fontSize: 10,
-                                      letterSpacing: 1.2,
-                                    ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Text Section
+                          Flexible(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'XIAOYO',
+                                  style: CyberTextStyles.captionBold.copyWith(
+                                    color: _getBorderColor(),
+                                    fontSize: 10,
+                                    letterSpacing: 1.2,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    widget.message,
-                                    style: CyberTextStyles.bodySmallBold.copyWith(
-                                      color: CyberColors.whiteHigh,
-                                      height: 1.3,
-                                    ),
-                                    softWrap: true,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.message,
+                                  style: CyberTextStyles.bodySmallBold.copyWith(
+                                    color: CyberColors.whiteHigh,
+                                    height: 1.3,
                                   ),
-                                ],
-                              ),
+                                  softWrap: true,
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
