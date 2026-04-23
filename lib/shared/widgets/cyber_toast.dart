@@ -131,7 +131,6 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                 margin: const EdgeInsets.symmetric(
                     horizontal: CyberDimensions.spacingML),
                 decoration: BoxDecoration(
-                  color: CyberColors.glassDark,
                   borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
                   border: Border.all(
                     color: _getBorderColor(),
@@ -149,7 +148,12 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                   borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Padding(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: CyberColors.glassDark,
+                        borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+                      ),
+                      child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       child: Row(
@@ -226,6 +230,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
           ),
         ),
       ),
+    ),
     );
   }
 }
