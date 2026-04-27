@@ -253,7 +253,7 @@ flutter analyze
 flutter test
 ```
 
-当前覆盖 **219 个用例**，涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 等核心模块。
+当前覆盖 **220 个用例**，涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 等核心模块。
 
 ### 生成覆盖率报告
 

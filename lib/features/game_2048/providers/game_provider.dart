@@ -108,7 +108,8 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     final saved = StorageService.loadGameState();
     if (saved != null) {
       try {
-        final boardRaw = saved['board_data'] as String?;
+        final rawValue = saved['board_data'];
+        final boardRaw = rawValue is String ? rawValue : null;
         if (boardRaw != null) {
           {
             final List<dynamic> rows = List<dynamic>.from(
