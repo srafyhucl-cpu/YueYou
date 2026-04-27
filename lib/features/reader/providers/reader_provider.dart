@@ -150,6 +150,19 @@ class ReaderProvider with ChangeNotifier {
         return;
       }
       if (_sentences.isEmpty) return;
+
+      // 🔥 自动步进：跳过噪音行并推进 currentIndex
+      int nextIdx = _currentIndex + 1;
+      while (nextIdx < _sentences.length && _isNoise(_sentences[nextIdx])) {
+        nextIdx++;
+      }
+
+      if (nextIdx < _sentences.length) {
+        _currentIndex = nextIdx;
+        _fetchIndex = nextIdx; // 同步预取指针
+        notifyListeners();
+      }
+
       _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
     };
   }

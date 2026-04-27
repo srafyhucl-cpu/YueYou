@@ -4,9 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'package:yueyou/features/game_2048/presentation/widgets/square_board.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
+import 'package:yueyou/main.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -53,12 +56,24 @@ void main() {
   });
 
   Widget createTestableWidget(GameProvider provider) {
+    // 为 Mascot 提供必要的依赖
+    final settings = SettingsProvider();
+    final ttsEngine = TtsEngineService(settings);
+
     return MaterialApp(
-      home: Scaffold(
-        body: ChangeNotifierProvider<GameProvider>.value(
-          value: provider,
-          child: const SquareBoard(),
-        ),
+      navigatorKey: globalNavigatorKey,
+      builder: (context, child) {
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider<GameProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+            ChangeNotifierProvider<TtsEngineService>.value(value: ttsEngine),
+          ],
+          child: child!,
+        );
+      },
+      home: const Scaffold(
+        body: SquareBoard(),
       ),
     );
   }
@@ -115,8 +130,9 @@ void main() {
       await tester.pump();
 
       // 模拟向左滑动
-      // 使用 GestureDetector 而不是 SquareBoard 以确保命中
-      await tester.drag(find.byType(GestureDetector), const Offset(-100, 0));
+      // 显式锁定主手势区 Key
+      final boardGesture = find.byKey(const ValueKey('square_board_gesture'));
+      await tester.drag(boardGesture, const Offset(-100, 0));
       await tester.pump(const Duration(milliseconds: 500)); // 等待动画完成
 
       // 检查方块是否移动到左边
@@ -153,10 +169,14 @@ void main() {
       final copyBtn = find.text('复制');
       expect(copyBtn, findsOneWidget);
       await tester.tap(copyBtn);
-      await tester.pump(const Duration(milliseconds: 100));
+      // CyberToast 有 300ms 进场动画，pump 500ms 确保完全显示
+      await tester.pump(const Duration(milliseconds: 500));
 
       // 验证提示复制成功的 SnackBar
       expect(find.text('战绩已复制到剪贴板'), findsOneWidget);
+
+      // 🧹 等待 Toast 自动消失，避免 Pending Timers 错误
+      await tester.pump(const Duration(seconds: 3));
     });
 
     testWidgets('点击重新开始按钮重置游戏', (tester) async {
