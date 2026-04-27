@@ -262,6 +262,7 @@ class _SquareBoardState extends State<SquareBoard>
       child: BoardResetAnimation(
         triggerReset: provider.score == 0 && provider.combo == 0,
         child: GestureDetector(
+          key: const ValueKey('square_board_gesture'),
           onPanStart: (d) {
             _accumulatedDx = 0;
             _accumulatedDy = 0;

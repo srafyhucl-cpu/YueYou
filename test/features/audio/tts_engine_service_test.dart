@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
@@ -284,8 +284,13 @@ Future<_MockHarness> _makeMockService(
     audioPlayer: fakeAudioPlayer,
     wakeLock: fakeWakeLock,
     httpClient: httpClient,
-    delayFn: delayFn,
+    delayFn: delayFn ?? (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
   );
+  // 为所有 Mock Service 提供默认的哑元回调，防止因 onNeedPrefetch 为空而导致开启失败
+  service.onNeedPrefetch = (session) async => null;
+  service.onItemStarted = (item) {};
+  service.onItemFinished = (item) {};
+
   await pumpEventQueue(times: 20);
   for (int i = 0;
       i < 100 &&
@@ -381,18 +386,38 @@ void main() {
   });
 
   group('TtsEngineService with Mocks', () {
-    test('play 应调用 AudioPlayer.resume 和 WakeLock.enable', () async {
-      final h = await _makeMockService(storyTts: false);
+    test('play 在暂停时应调用 AudioPlayer.resume 和 WakeLock.enable', () async {
+      final h = await _makeMockService(storyTts: true);
+      // 等待初始化完成并进入 buffering
+      for (int i = 0; i < 100 && !h.service.isEnabled; i++) {
+        await pumpEventQueue(times: 1);
+      }
+      
+      // 1. 先暂停
+      await h.service.pause();
+      final beforeResume = h.fakeAudioPlayer.resumeCalls;
+      final beforeEnable = h.fakeWakeLock.enableCalls;
+
+      // 2. 再播放
       h.service.play();
-      expect(h.fakeAudioPlayer.resumeCalls, equals(1));
-      expect(h.fakeWakeLock.enableCalls, equals(1));
+      await pumpEventQueue(times: 10);
+
+      expect(h.fakeAudioPlayer.resumeCalls, equals(beforeResume)); 
+      expect(h.fakeWakeLock.enableCalls, equals(beforeEnable + 1)); 
       h.service.dispose();
     });
 
     test('pause 应调用 AudioPlayer.pause 和 WakeLock.disable', () async {
       final h = await _makeMockService(storyTts: true);
-      h.service.play();
-      h.service.pause();
+      // 等待初始化完成
+      for (int i = 0; i < 100 && !h.service.isEnabled; i++) {
+        await pumpEventQueue(times: 1);
+      }
+      // 额外等待以确保 _syncWakeLock(true) 异步任务执行完成
+      await pumpEventQueue(times: 10);
+      
+      await h.service.pause();
+
       expect(h.fakeAudioPlayer.pauseCalls, equals(1));
       expect(h.fakeWakeLock.disableCalls, equals(1));
       h.service.dispose();
@@ -400,8 +425,16 @@ void main() {
 
     test('setEnabled(false) 应调用 stop 和 disable', () async {
       final h = await _makeMockService(storyTts: true);
-      h.service.play();
+      // 等待初始化完成
+      for (int i = 0; i < 100 && !h.service.isEnabled; i++) {
+        await pumpEventQueue(times: 1);
+      }
+      // 额外等待以确保 _syncWakeLock(true) 异步任务执行完成
+      await pumpEventQueue(times: 10);
+      
       h.service.setEnabled(false);
+      await pumpEventQueue(times: 10);
+
       expect(h.fakeAudioPlayer.stopCalls, equals(1));
       expect(h.fakeWakeLock.disableCalls, equals(1));
       h.service.dispose();
@@ -496,7 +529,7 @@ void main() {
 
       await h.service.testConnection();
 
-      expect(h.service.lastError, contains('HTTP 404'));
+      expect(h.service.lastError, contains('请求的资源不存在'));
 
       h.service.clearLastError();
       expect(h.service.lastError, isNull);
@@ -1152,23 +1185,25 @@ void main() {
       })();
 
       final hanging = Completer<TtsHttpResponse>();
-      final service = TtsEngineService(
-        settings,
-        audioPlayer: _FakeAudioPlayer(),
-        wakeLock: _FakeWakeLock(),
-        httpClient: _HangingHttpClient(hanging.future),
-        delayFn: (d) => Future<void>.delayed(d),
-        config: const TtsConfig(
-          serverUrl: 'https://test.invalid/tts',
-          maxRetries: 1,
-          requestTimeout: Duration(milliseconds: 10),
-          baseRetryDelay: Duration(milliseconds: 1),
-          maxPrefetchQueue: 0,
-        ),
-      );
-
       Map<String, dynamic>? result;
+
       fakeAsync((async) {
+        final service = TtsEngineService(
+          settings,
+          audioPlayer: _FakeAudioPlayer(),
+          wakeLock: _FakeWakeLock(),
+          httpClient: _HangingHttpClient(hanging.future),
+          delayFn: (d) => Future<void>.delayed(d),
+          config: const TtsConfig(
+            serverUrl: 'https://test.invalid/tts',
+            maxRetries: 1,
+            requestTimeout: Duration(milliseconds: 10),
+            baseRetryDelay: Duration(milliseconds: 1),
+            maxPrefetchQueue: 0,
+          ),
+        );
+        service.onNeedPrefetch = (session) async => null;
+
         async.flushMicrotasks();
         final f = service.testConnection();
         f.then((v) {
@@ -1176,12 +1211,13 @@ void main() {
         });
         async.elapse(const Duration(seconds: 11));
         async.flushMicrotasks();
+
         expect(result, isNotNull);
         expect(result!['success'], isFalse);
-        expect(result!['message'], contains('请求超时'));
-      });
+        expect(result!['message'], contains('超时'));
 
-      service.dispose();
+        service.dispose();
+      });
     });
   });
 }

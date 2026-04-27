@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -43,6 +44,7 @@ class BoardMascotState extends State<BoardMascot>
   // ── 眨眼层（独立随机循环，与其他层完全解耦）──
   late AnimationController _blinkController;
   late Animation<double> _blinkAnimation;
+  Timer? _blinkTimer;
 
   // ── 点击能量脉冲层 ──
   late AnimationController _pulseController;
@@ -134,8 +136,9 @@ class BoardMascotState extends State<BoardMascot>
 
   /// 随机间隔眨眼（2.5s ~ 5.5s）
   void _scheduleNextBlink() {
+    _blinkTimer?.cancel();
     final delay = Duration(milliseconds: 2500 + math.Random().nextInt(3000));
-    Future.delayed(delay, () {
+    _blinkTimer = Timer(delay, () {
       if (!mounted) return;
       // 开心时眼睛已是弧形，跳过眨眼避免视觉冲突
       if (_expressionAnimation.value < 0.5) {
@@ -305,6 +308,7 @@ class BoardMascotState extends State<BoardMascot>
 
   @override
   void dispose() {
+    _blinkTimer?.cancel();
     _watchedProvider?.removeListener(_onGameChanged);
     _watchedTtsProvider?.removeListener(_onTtsChanged);
     _eyeController.dispose();

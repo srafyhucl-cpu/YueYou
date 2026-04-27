@@ -266,6 +266,8 @@ class TtsEngineService extends ChangeNotifier {
   final TtsConfig _config;
 
   // 核心状态
+  bool _disposed = false;
+
   late String _voice;
   late double _volume;
   TtsPlaybackState _state = TtsPlaybackState.disabled;
@@ -299,7 +301,6 @@ class TtsEngineService extends ChangeNotifier {
   // 空闲超时计时器
   Timer? _idleTimer;
 
-  bool _disposed = false;
   late final Future<void> _initFuture;
   bool _initCompleted = false;
   String? _lastGeneratedAudioPath;
@@ -480,9 +481,9 @@ class TtsEngineService extends ChangeNotifier {
       _voice = _settings.voice;
       _volume = _settings.ambientVol;
       _playbackRate = _settings.ttsRate;
-      _state = _settings.storyTts
+      _setState(_settings.storyTts
           ? TtsPlaybackState.buffering
-          : TtsPlaybackState.disabled;
+          : TtsPlaybackState.disabled);
 
       await _audioPlayer.setVolume(_volume.clamp(0.0, 1.0));
       await _audioPlayer.setPlaybackRate(_playbackRate);
@@ -822,6 +823,12 @@ class TtsEngineService extends ChangeNotifier {
         try {
           debugPrint('⬇️ 开始下载音频: ${request.text}');
           final result = await _downloadTtsAudio(request, sessionSnapshot);
+          if (_disposed || !isEnabled) {
+            if (result.filePath != null) {
+              unawaited(_deleteFileIfExists(result.filePath));
+            }
+            return;
+          }
           final filePath = result.filePath;
           final attempts = result.attempts;
           if (filePath == null) {
@@ -841,6 +848,7 @@ class TtsEngineService extends ChangeNotifier {
               }
               _setState(TtsPlaybackState.playing);
               final ok = await _speakWithLocalTts(request.text);
+              if (_disposed || !isEnabled) return;
               if (onItemFinished != null && ok) {
                 unawaited(
                     Future.microtask(() => onItemFinished!(fallbackItem)));
@@ -921,6 +929,7 @@ class TtsEngineService extends ChangeNotifier {
         if (_isDegradedToLocal) {
           // 直接使用本地 TTS 播放
           final request = await _requestNextSentence(sessionAtStep);
+          if (_disposed || !isEnabled) return;
           if (request == null) {
             await _delay(const Duration(milliseconds: 200));
             continue;
@@ -945,6 +954,7 @@ class TtsEngineService extends ChangeNotifier {
           
           // 使用本地 TTS 播放
           final ok = await _speakWithLocalTts(request.text);
+          if (_disposed || !isEnabled) return;
           
           // 播放结束时触发回调
           if (ok && _currentItem?.id == startItem.id && onItemFinished != null) {
@@ -1017,6 +1027,7 @@ class TtsEngineService extends ChangeNotifier {
               throw TimeoutException('setSource timeout');
             },
           );
+          if (_disposed || !isEnabled) return;
 
           final completer = Completer<void>();
           final sub = _audioPlayer.onPlayerComplete.listen((_) {
@@ -1025,6 +1036,7 @@ class TtsEngineService extends ChangeNotifier {
 
           try {
             _audioPlayer.resume();
+            if (_disposed || !isEnabled) return;
             debugPrint('✅ AudioPlayer 已启动，倍速: $_playbackRate');
 
             // 🔥 播放超时保护：增加暂停感知
@@ -1069,6 +1081,7 @@ class TtsEngineService extends ChangeNotifier {
           _setFallbackNotification(CyberErrorMessages.ttsFallbackTimeout);
           // 使用本地 TTS 播放当前句子
           await _speakWithLocalTts(prefetched.text);
+          if (_disposed || !isEnabled) return;
           _setLastError(CyberErrorMessages.ttsAudioLoadTimeout);
           _setState(TtsPlaybackState.buffering);
           continue;
@@ -1081,6 +1094,7 @@ class TtsEngineService extends ChangeNotifier {
           _setFallbackNotification(CyberErrorMessages.ttsFallbackTimeout);
           // 使用本地 TTS 播放当前句子
           await _speakWithLocalTts(prefetched.text);
+          if (_disposed || !isEnabled) return;
           if (isEnabled && !isPaused) {
             _setState(TtsPlaybackState.buffering);
           }
@@ -1136,16 +1150,18 @@ class TtsEngineService extends ChangeNotifier {
 
         // 发送HTTP POST请求 (JSON格式以匹配服务器校验逻辑)
         debugPrint('📡 发送 TTS 请求: ${request.text}');
-        final response = await _httpClient.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'text': request.text,
-            'voice': _voice,
-          }),
-        );
+          final response = await _httpClient.post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'text': request.text,
+              'voice': _initCompleted ? _voice : _settings.voice,
+            }),
+          );
+        if (_disposed || !isEnabled) return (filePath: null, attempts: attempts, useFallback: false);
 
         if (response.statusCode != 200) {
+          if (_disposed) return (filePath: null, attempts: attempts, useFallback: false);
           final errorBody = response.body;
           _setLastError(response.statusCode);
           debugPrint(
@@ -1162,11 +1178,13 @@ class TtsEngineService extends ChangeNotifier {
             // 指数退避
             final delay = _config.baseRetryDelay * (1 << attempt);
             await _delay(delay);
+            if (_disposed) return (filePath: null, attempts: attempts, useFallback: false);
             continue;
           }
           return (filePath: null, attempts: attempts, useFallback: true);
         }
 
+        if (_disposed) return (filePath: null, attempts: attempts, useFallback: false);
         final String responseBody = response.body.trim();
         debugPrint(
             '🔴 TTS 服务器原始响应内容: ${responseBody.length > 100 ? responseBody.substring(0, 100) : responseBody}');
@@ -1194,6 +1212,10 @@ class TtsEngineService extends ChangeNotifier {
         final filePath = '${tempDir.path}/tts_$timestamp.mp3';
         debugPrint('📥 开始下载音频文件到: $filePath');
         await _httpClient.download(Uri.parse(audioUrl), filePath);
+        if (_disposed) {
+          unawaited(_deleteFileIfExists(filePath));
+          return (filePath: null, attempts: attempts, useFallback: false);
+        }
         debugPrint('[Local Path] $filePath');
         _lastGeneratedAudioPath = filePath;
 
@@ -1206,6 +1228,7 @@ class TtsEngineService extends ChangeNotifier {
         if (attempt < _config.maxRetries - 1) {
           final delay = _config.baseRetryDelay * (1 << attempt);
           await _delay(delay);
+          if (_disposed) return (filePath: null, attempts: attempts, useFallback: false);
           continue;
         }
         debugPrint('❌ TTS下载最终超时');
@@ -1221,6 +1244,7 @@ class TtsEngineService extends ChangeNotifier {
           // 指数退避
           final delay = _config.baseRetryDelay * (1 << attempt);
           await _delay(delay);
+          if (_disposed) return (filePath: null, attempts: attempts, useFallback: false);
         } else {
           debugPrint('❌ TTS下载最终失败');
         }
@@ -1267,7 +1291,7 @@ class TtsEngineService extends ChangeNotifier {
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'text': testText, 'voice': voice}),
-      );
+      ).timeout(_config.requestTimeout);
 
       result['statusCode'] = response.statusCode;
       result['responseSize'] = response.body.length;
@@ -1371,9 +1395,11 @@ class TtsEngineService extends ChangeNotifier {
   }
 
   void _setState(TtsPlaybackState nextState) {
+    if (_disposed) return;
     final bool changed = _state != nextState;
     _state = nextState;
-    _syncWakeLock(_state == TtsPlaybackState.playing);
+    // 正常业务逻辑：播放中或缓冲中均应持有 WakeLock 防止屏幕熄灭
+    _syncWakeLock(_state == TtsPlaybackState.playing || _state == TtsPlaybackState.buffering);
     if (changed) {
       notifyListeners();
     }
@@ -1397,6 +1423,7 @@ class TtsEngineService extends ChangeNotifier {
       return null;
     }
     final request = await onNeedPrefetch!(session);
+    if (_disposed || !isEnabled) return null;
     if (request == null) {
       debugPrint('⏳ onNeedPrefetch 返回 null，当前暂无可预取文本');
     }

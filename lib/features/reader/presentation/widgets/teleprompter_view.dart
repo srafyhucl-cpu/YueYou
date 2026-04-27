@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +29,8 @@ class _TeleprompterViewState extends State<TeleprompterView>
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
   ReaderProvider? _reader;
+  Timer? _errorTimer;
+  bool _showError = false;
 
   static final TextStyle _readStyle = CyberTextStyles.teleprompterInlineRead.copyWith(
     shadows: [
@@ -97,6 +100,20 @@ class _TeleprompterViewState extends State<TeleprompterView>
         _prevIsPlaying = false;
       }
     }
+
+    // 🔥 错误提示自动清理逻辑 (Task 5)
+    if (reader.ttsErrorMessage != null && !_showError) {
+      setState(() => _showError = true);
+      _errorTimer?.cancel();
+      _errorTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() => _showError = false);
+        }
+      });
+    } else if (reader.ttsErrorMessage == null) {
+      _showError = false;
+      _errorTimer?.cancel();
+    }
   }
 
   void _syncScroll() {
@@ -111,6 +128,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
   @override
   void dispose() {
+    _errorTimer?.cancel();
     _reader?.removeListener(_onReaderChanged);
     _ktvController.dispose();
     _scrollCtrl.dispose();
@@ -323,7 +341,32 @@ class _TeleprompterViewState extends State<TeleprompterView>
                           ),
                         ),
                       ),
-
+                      // ── 错误提示浮层 (Task 5) ──────────────────────────────
+                      if (_showError && reader.ttsErrorMessage != null)
+                        Positioned.fill(
+                          key: const ValueKey('teleprompter_error_tip'),
+                          child: GestureDetector(
+                            onTap: () {
+                              _errorTimer?.cancel();
+                              setState(() => _showError = false);
+                              reader.clearTtsError();
+                            },
+                            child: Container(
+                              color: CyberColors.background.withValues(alpha: 0.9),
+                              child: Center(
+                                child: Text(
+                                  '数据链路中断: ${reader.ttsErrorMessage}',
+                                  textAlign: TextAlign.center,
+                                  style: CyberTextStyles.caption.copyWith(
+                                    color: CyberColors.neonPink,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
