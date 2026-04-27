@@ -176,7 +176,9 @@ class StorageService {
     try {
       final file = await _bookFile(bookId);
       if (!await file.exists()) return null;
-      return jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final content = await file.readAsString();
+      if (content.trim().isEmpty) return null;
+      return jsonDecode(content) as Map<String, dynamic>;
     } catch (e, st) {
       debugPrint('StorageService.loadBookContent error: $e\n$st');
       return null;

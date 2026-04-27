@@ -40,7 +40,10 @@ void _mockAudioChannels() {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(global, (MethodCall call) async => null);
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(player, (MethodCall call) async => null);
+      .setMockMethodCallHandler(player, (MethodCall call) async {
+    if (call.method == 'getCurrentPosition') return 0;
+    return null;
+  });
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(haptic, (MethodCall call) async => null);
 }
