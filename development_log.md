@@ -1,5 +1,10 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-04-28**
+- **修复(TTS 引擎异常恢复机制)**: 修复了 `TtsEngineService` 播放循环中的时序竞争缺陷。
+  - 优化 `TimeoutException` 与普通异常的捕获分支，在 `_audioPlayer.stop()` 之后立即加入生命周期检查守卫 `if (_disposed || !isEnabled || _loopSession != sessionAtStep) return;`。
+  - 解决了引擎在被手动禁用后，因抛出异常仍会盲目执行降级与本地朗读的缺陷，使流程完全符合安全、正规的业务控制逻辑。
+
 ## **2026-04-27**
 - **迁移(Flutter 3.41 API)**: 完成了从 `MaterialState` 到 `WidgetState` 的全量底层迁移。
   - 全局替换 `MaterialStateProperty` -> `WidgetStateProperty`。

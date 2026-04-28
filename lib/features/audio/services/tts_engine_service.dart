@@ -1075,26 +1075,34 @@ class TtsEngineService extends ChangeNotifier {
         } on TimeoutException catch (e) {
           debugPrint('⚠️ 音频加载超时: $e');
           await _audioPlayer.stop();
+          if (_disposed || !isEnabled || _loopSession != sessionAtStep) return;
+          
           // 触发熔断
           _isDegradedToLocal = true;
           _clearPrefetchQueue();
           _setFallbackNotification(CyberErrorMessages.ttsFallbackTimeout);
+          
           // 使用本地 TTS 播放当前句子
           await _speakWithLocalTts(prefetched.text);
-          if (_disposed || !isEnabled) return;
+          if (_disposed || !isEnabled || _loopSession != sessionAtStep) return;
+          
           _setLastError(CyberErrorMessages.ttsAudioLoadTimeout);
           _setState(TtsPlaybackState.buffering);
           continue;
         } catch (e) {
           debugPrint('⚠️ 播放异常，跳过当前项继续: $e');
           await _audioPlayer.stop();
+          if (_disposed || !isEnabled || _loopSession != sessionAtStep) return;
+          
           // 触发熔断
           _isDegradedToLocal = true;
           _clearPrefetchQueue();
           _setFallbackNotification(CyberErrorMessages.ttsFallbackTimeout);
+          
           // 使用本地 TTS 播放当前句子
           await _speakWithLocalTts(prefetched.text);
-          if (_disposed || !isEnabled) return;
+          if (_disposed || !isEnabled || _loopSession != sessionAtStep) return;
+          
           if (isEnabled && !isPaused) {
             _setState(TtsPlaybackState.buffering);
           }
