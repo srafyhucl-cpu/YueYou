@@ -24,7 +24,13 @@ jobs:
         run: flutter pub get
 
       - name: 静态检查
-        run: flutter analyze --no-fatal-infos
+        run: |
+          if ! flutter analyze --no-fatal-infos; then
+            echo "## ❌ 静态检查失败" >> $GITHUB_STEP_SUMMARY
+            echo "请在本地执行 \`flutter analyze\` 修复所有 error/warning 后再推送。" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "## ✅ 静态检查通过" >> $GITHUB_STEP_SUMMARY
 
       - name: 运行测试并生成覆盖率
         run: flutter test --coverage
@@ -250,11 +256,18 @@ jobs:
           PASS=$(awk -v pct="$CORE_PCT" -v thr="$THRESHOLD" 'BEGIN { if (pct+0 >= thr) print "yes"; else print "no" }')
           if [ "$PASS" != "yes" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **未达标（仅警告，不阻断 CI）**：业务核心覆盖率 ${CORE_PCT}% < ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
-            echo "建议：优先为上方表格中**覆盖率最低**的模块补单元测试（覆盖关键分支/异常分支）。" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ 覆盖率未达标 — 本次 CI 失败，禁止合并" >> $GITHUB_STEP_SUMMARY
+            echo "- **当前业务核心覆盖率**：${CORE_PCT}%" >> $GITHUB_STEP_SUMMARY
+            echo "- **目标阈值**：≥ ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**修复建议**：优先为上方表格中覆盖率最低的模块补充单元测试（覆盖关键分支/异常分支）。" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "> ⚠️ 覆盖率门槛由 CI 强制执行，未达标时 **PR 无法合并**。请补充测试后重新提交。" >> $GITHUB_STEP_SUMMARY
+            exit 1
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "✅ **达标**：业务核心覆盖率 ${CORE_PCT}% ≥ ${THRESHOLD}%。" >> $GITHUB_STEP_SUMMARY
+            echo "## ✅ 覆盖率达标：${CORE_PCT}% ≥ ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: 发布覆盖率评论
