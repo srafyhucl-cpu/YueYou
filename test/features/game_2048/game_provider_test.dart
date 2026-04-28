@@ -568,4 +568,277 @@ void main() {
       // 不论是否 isOver，只要 moved 为 true 且执行了 _movesAvailable 即可。
     });
   });
+
+  // ── eliminateTileById ────────────────────────────────────────────────────
+
+  group('GameProvider - eliminateTileById()', () {
+    test('按 id 清除指定方块', () {
+      final p = _newProvider();
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 42, value: 256),
+            null,
+            null,
+            null,
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      p.eliminateTileById(42);
+      expect(p.board[0][0], isNull);
+    });
+
+    test('清除不存在 id 时不崩溃且棋盘不变', () {
+      final p = _newProvider();
+      p.setStateForTesting(
+        board: [
+          [const TileModel(id: 1, value: 2), null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      expect(() => p.eliminateTileById(9999), returnsNormally);
+      expect(p.board[0][0]?.id, 1);
+    });
+
+    test('清除后有空位，isOver 重置为 false', () {
+      final p = _newProvider();
+      int id = 0;
+      p.setStateForTesting(
+        isOver: true,
+        board: [
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2)
+          ],
+          [
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4)
+          ],
+          [
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2),
+            TileModel(id: id++, value: 4),
+            TileModel(id: id++, value: 2)
+          ],
+        ],
+      );
+      // 清除 id=0 的方块，棋盘出现空位，应脱离 game over
+      p.eliminateTileById(0);
+      expect(p.isOver, isFalse);
+    });
+
+    test('彩蛋音效注入路径：传入 onPlayMerge 时被调用', () {
+      int? playedValue;
+      final p = GameProvider(
+        onPlayMerge: (v) => playedValue = v,
+        autoLoadState: false,
+      )..soundEnabled = true;
+      p.setStateForTesting(
+        board: [
+          [const TileModel(id: 99, value: 512), null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      p.eliminateTileById(99);
+      expect(playedValue, 2048);
+    });
+  });
+
+  // ── lastMoveNoMerge ──────────────────────────────────────────────────────
+
+  group('GameProvider - lastMoveNoMerge', () {
+    test('有效移动但无合并时 lastMoveNoMerge 为 true', () {
+      final p = _newProvider();
+      p.setStateForTesting(
+        board: [
+          [null, null, null, const TileModel(id: 1, value: 2)],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      p.move(Direction.left);
+      expect(p.lastMoveNoMerge, isTrue);
+    });
+
+    test('发生合并时 lastMoveNoMerge 为 false', () {
+      final p = _newProvider();
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 4),
+            const TileModel(id: 2, value: 4),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      p.move(Direction.left);
+      expect(p.lastMoveNoMerge, isFalse);
+    });
+  });
+
+  // ── maxCombo 更新 ─────────────────────────────────────────────────────────
+
+  group('GameProvider - maxCombo', () {
+    test('combo 超过历史最大时 maxCombo 更新', () {
+      final p = _newProvider();
+      p.setStateForTesting(combo: 0);
+      // 连续两次合并以积累 combo
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 8),
+            const TileModel(id: 2, value: 8),
+            null,
+            null
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+        combo: 0,
+      );
+      p.move(Direction.left);
+      // combo 应 >= 1
+      expect(p.combo, greaterThanOrEqualTo(1));
+      // maxCombo 应跟上
+      expect(p.maxCombo, greaterThanOrEqualTo(p.combo));
+    });
+
+    test('无合并移动后 combo 归零但 maxCombo 保持', () {
+      final p = _newProvider();
+      p.setStateForTesting(combo: 5);
+      // 设置无合并场景
+      p.setStateForTesting(
+        board: [
+          [null, null, null, const TileModel(id: 1, value: 2)],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+        combo: 5,
+      );
+      final maxBefore = p.maxCombo;
+      p.move(Direction.left); // 移动无合并
+      expect(p.combo, 0);
+      // maxCombo 不因 combo 归零而减少
+      expect(p.maxCombo, greaterThanOrEqualTo(maxBefore));
+    });
+  });
+
+  // ── soundEnabled setter 不变量 ───────────────────────────────────────────
+
+  group('GameProvider - soundEnabled setter', () {
+    test('soundEnabled 赋同值时不触发 notifyListeners（无副作用）', () {
+      final p = _newProvider(); // soundEnabled 默认 false
+      int notifyCount = 0;
+      p.addListener(() => notifyCount++);
+      p.soundEnabled = false; // 赋同值
+      expect(notifyCount, 0);
+    });
+
+    test('soundEnabled 赋不同值时触发 notifyListeners', () {
+      final p = _newProvider(); // soundEnabled = false
+      int notifyCount = 0;
+      p.addListener(() => notifyCount++);
+      p.soundEnabled = true; // 改变值
+      expect(notifyCount, 1);
+    });
+  });
+
+  // ── 存档行数不匹配降级 ───────────────────────────────────────────────────
+
+  group('GameProvider - 存档行数不匹配降级', () {
+    test('board_data 行数不为 4 时降级新局', () async {
+      // 构造一个 3 行的存档（不合法）
+      final badBoard = [
+        [{"id": 1, "value": 2}, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ];
+      SharedPreferences.setMockInitialValues({
+        'local_save_data': '{"board_data":"${_encodeBoard(badBoard)}","score":0}',
+      });
+      StorageService.resetForTesting();
+      await StorageService.init();
+
+      final p = _newProvider();
+      // 降级为新局，方块数 = 2
+      expect(_tileCount(p), 2);
+    });
+
+    test('board_data 为空字符串时降级新局', () async {
+      SharedPreferences.setMockInitialValues({
+        'local_save_data': '{"board_data":"","score":0}',
+      });
+      StorageService.resetForTesting();
+      await StorageService.init();
+
+      final p = _newProvider();
+      expect(_tileCount(p), 2);
+    });
+  });
+
+  // ── flushPersistState ────────────────────────────────────────────────────
+
+  group('GameProvider - flushPersistState()', () {
+    test('flushPersistState 不崩溃', () {
+      final p = _newProvider();
+      expect(() => p.flushPersistState(), returnsNormally);
+    });
+
+    test('flushPersistState 后再次调用不崩溃', () {
+      final p = _newProvider();
+      p.flushPersistState();
+      expect(() => p.flushPersistState(), returnsNormally);
+    });
+  });
+
+  // ── lastMoveDirection ────────────────────────────────────────────────────
+
+  group('GameProvider - lastMoveDirection', () {
+    test('初始 lastMoveDirection 为 null', () {
+      final p = _newProvider();
+      expect(p.lastMoveDirection, isNull);
+    });
+
+    test('移动后 lastMoveDirection 记录方向', () {
+      final p = _newProvider();
+      p.move(Direction.up);
+      expect(p.lastMoveDirection, Direction.up);
+      p.move(Direction.right);
+      expect(p.lastMoveDirection, Direction.right);
+    });
+  });
 }
+
+/// 辅助：将棋盘列表编码为 JSON 字符串（用于构造 SharedPreferences mock 数据）
+String _encodeBoard(List<List<dynamic>> board) {
+  return board
+      .map((row) => '[${row.map((c) => c == null ? 'null' : '{"id":${c["id"]},"value":${c["value"]}}').join(',')}]')
+      .join(',')
+      .replaceAll('[', '[')
+      .replaceAll(']', ']');
+}
+
