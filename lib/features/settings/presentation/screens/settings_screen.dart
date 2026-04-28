@@ -7,6 +7,7 @@ import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/features/audio/services/ambient_service.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
 
@@ -95,9 +96,6 @@ class SettingsScreen extends StatelessWidget {
           },
         ),
         const SizedBox(height: CyberDimensions.spacingMS),
-        const _LabelRow(label: '朗读音量'),
-        _VolumeSlider(settings: settings),
-        const SizedBox(height: CyberDimensions.spacingMS),
         const _LabelRow(label: '播报倍速'),
         _SpeedSelector(settings: settings),
         const SizedBox(height: CyberDimensions.spacingMS),
@@ -117,7 +115,35 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: CyberDimensions.spacingMS),
         const _TtsTestButton(),
+        const SizedBox(height: CyberDimensions.spacingML),
+        // ── 环境氛围 ──────────────────────────────────────────────
+        const _SectionTitle(title: '环境氛围'),
+        _ToggleTile(
+          label: '背景氛围音',
+          subtitle: '赛博朋克城市电子环境音，营造沉浸感',
+          value: settings.ambientEnabled,
+          onChanged: (v) async {
+            await settings.setAmbientEnabled(v);
+            await AmbientService.setEnabled(v);
+          },
+        ),
         const SizedBox(height: CyberDimensions.spacingMS),
+        AnimatedOpacity(
+          opacity: settings.ambientEnabled ? 1.0 : 0.4,
+          duration: const Duration(milliseconds: 250),
+          child: IgnorePointer(
+            ignoring: !settings.ambientEnabled,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _LabelRow(label: '环境音量'),
+                _AmbientVolumeSlider(settings: settings),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: CyberDimensions.spacingML),
+        // ── 省电管理 ──────────────────────────────────────────────
         const _SectionTitle(title: '省电管理'),
         _IdleTimeoutSelector(settings: settings),
       ],
@@ -571,10 +597,10 @@ class _TtsTestResultDialog extends StatelessWidget {
   }
 }
 
-/// 朗读音量滑块（对应 ambientVol，0.0 ~ 1.0）
-class _VolumeSlider extends StatelessWidget {
+/// 环境音量滑块（绑定 ambientVol + AmbientService.setVolume）
+class _AmbientVolumeSlider extends StatelessWidget {
   final SettingsProvider settings;
-  const _VolumeSlider({required this.settings});
+  const _AmbientVolumeSlider({required this.settings});
 
   @override
   Widget build(BuildContext context) {
@@ -593,17 +619,22 @@ class _VolumeSlider extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.volume_down,
-              color: CyberColors.whiteMuted, size: CyberDimensions.iconS),
+          const Icon(
+            Icons.music_note,
+            color: CyberColors.neonPurple,
+            size: CyberDimensions.iconS,
+          ),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
-                activeTrackColor: CyberColors.neonCyan,
+                activeTrackColor: CyberColors.neonPurple,
                 inactiveTrackColor: CyberColors.whiteFaint,
-                thumbColor: CyberColors.neonCyan,
-                overlayColor: CyberColors.neonCyan.withValues(alpha: 0.12),
+                thumbColor: CyberColors.neonPurple,
+                overlayColor:
+                    CyberColors.neonPurple.withValues(alpha: 0.12),
                 trackHeight: 2.0,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                thumbShape:
+                    const RoundSliderThumbShape(enabledThumbRadius: 7),
               ),
               child: Slider(
                 value: settings.ambientVol,
@@ -612,17 +643,21 @@ class _VolumeSlider extends StatelessWidget {
                 divisions: 10,
                 onChanged: (v) async {
                   await settings.setAmbientVol(v);
+                  await AmbientService.setVolume(v);
                 },
               ),
             ),
           ),
-          const Icon(Icons.volume_up,
-              color: CyberColors.whiteMuted, size: CyberDimensions.iconS),
+          const Icon(
+            Icons.music_note,
+            color: CyberColors.whiteMuted,
+            size: CyberDimensions.iconS,
+          ),
           const SizedBox(width: CyberDimensions.spacingS),
           Text(
             '${(settings.ambientVol * 100).round()}%',
             style: CyberTextStyles.captionBold.copyWith(
-              color: CyberColors.neonCyan,
+              color: CyberColors.neonPurple,
               fontFamily: CyberTextStyles.monoFont,
             ),
           ),
