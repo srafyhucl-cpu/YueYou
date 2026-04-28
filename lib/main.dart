@@ -5,6 +5,7 @@ import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
 import 'core/utils/cyber_logger.dart';
 import 'features/settings/presentation/widgets/privacy_agreement_modal.dart';
+import 'features/audio/services/ambient_service.dart';
 import 'features/audio/services/sfx_service.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/game_2048/providers/game_provider.dart';
@@ -31,6 +32,15 @@ Future<void> main() async {
   } catch (e, st) {
     CyberLogger.recordFlutterError(
       FlutterErrorDetails(exception: e, stack: st, library: 'SfxService'),
+    );
+  }
+
+  // 初始化环境背景音服务
+  try {
+    await AmbientService.init();
+  } catch (e, st) {
+    CyberLogger.recordFlutterError(
+      FlutterErrorDetails(exception: e, stack: st, library: 'AmbientService'),
     );
   }
 
@@ -146,14 +156,55 @@ class _Bootstrapper extends StatefulWidget {
   State<_Bootstrapper> createState() => _BootstrapperState();
 }
 
-class _BootstrapperState extends State<_Bootstrapper> {
+class _BootstrapperState extends State<_Bootstrapper>
+    with WidgetsBindingObserver {
   bool _booted = false;
+
+  /// 记录上一次 SettingsProvider 的 ambient 状态，用于增量对比
+  bool? _lastAmbientEnabled;
+  double? _lastAmbientVol;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance
-        .addPostFrameCallback((_) => _checkPrivacyAndBootstrap());
+      ..addObserver(this)
+      ..addPostFrameCallback((_) => _checkPrivacyAndBootstrap());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 每当 SettingsProvider 变化时同步 AmbientService
+    final settings = context.watch<SettingsProvider>();
+    _syncAmbient(settings);
+  }
+
+  /// 同步 SettingsProvider 的 ambient 设置到 AmbientService
+  void _syncAmbient(SettingsProvider settings) {
+    if (settings.ambientEnabled != _lastAmbientEnabled) {
+      _lastAmbientEnabled = settings.ambientEnabled;
+      AmbientService.setEnabled(settings.ambientEnabled);
+    }
+    if (settings.ambientVol != _lastAmbientVol) {
+      _lastAmbientVol = settings.ambientVol;
+      AmbientService.setVolume(settings.ambientVol);
+    }
+  }
+
+  /// App 生命周期：切后台暂停，切前台恢复
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        AmbientService.pause();
+      case AppLifecycleState.resumed:
+        AmbientService.resume();
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        AmbientService.dispose();
+    }
   }
 
   Future<void> _checkPrivacyAndBootstrap() async {
@@ -198,6 +249,12 @@ class _BootstrapperState extends State<_Bootstrapper> {
       chapters: chapters,
       initialIndex: initialIndex,
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
