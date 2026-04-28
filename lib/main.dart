@@ -20,7 +20,7 @@ final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>()
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 全局错误捕获锚点（Task 4）
+  // 全局错误捕获锚点（先注册，确保 Sentry 初始化前的错误也能记录）
   FlutterError.onError = CyberLogger.recordFlutterError;
   PlatformDispatcher.instance.onError = CyberLogger.recordPlatformError;
 
@@ -33,8 +33,12 @@ Future<void> main() async {
       FlutterErrorDetails(exception: e, stack: st, library: 'SfxService'),
     );
   }
-  runApp(const YueYouApp());
+
+  // 通过 CyberLogger 初始化 Sentry 并启动 App
+  // DSN 通过 --dart-define=SENTRY_DSN=https://... 注入，空时静默跳过
+  await CyberLogger.initSentry(() async => runApp(const YueYouApp()));
 }
+
 
 class _AppBootstrapData {
   final SettingsProvider settings;
