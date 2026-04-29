@@ -260,6 +260,15 @@ class _RealTtsHttpClient implements TtsHttpClient {
 
 enum TtsPlaybackState { disabled, paused, buffering, playing }
 
+/// TTS 缓冲队列健康状态
+///
+/// - [healthy]：缓冲充足（已缓冲 ≥ 60% 上限），系统运行流畅
+/// - [warning]：缓冲偏低（已缓冲 33%–60%），触发加速预加载
+/// - [critical]：缓冲危险（已缓冲 < 33%，且引擎已启用），
+///             可能出现卡顿，已触发紧急预加载
+/// - [idle]：引擎未启用或队列监控无意义
+enum TtsBufferStatus { healthy, warning, critical, idle }
+
 /// 阅游双轨流媒体 TTS 引擎
 /// 架构：生产者/消费者双轨预加载模型
 class TtsEngineService extends ChangeNotifier {
@@ -317,6 +326,27 @@ class TtsEngineService extends ChangeNotifier {
   int get currentSession => _loopSession;
   int get bufferedCount => _prefetchedItems.length;
   TtsAudioItem? get currentItem => _currentItem;
+
+  /// 缓冲队列上限（来自 TtsConfig.maxPrefetchQueue，默认 6）
+  int get maxBufferedCount => _config.maxPrefetchQueue;
+
+  /// 缓冲健康比例（0.0 = 空，1.0 = 满），供 UI 层绘制进度条
+  double get bufferHealthRatio {
+    if (_config.maxPrefetchQueue <= 0) return 1.0;
+    return (_prefetchedItems.length / _config.maxPrefetchQueue).clamp(0.0, 1.0);
+  }
+
+  /// 缓冲健康状态（枚举，供 UI 层条件渲染）
+  TtsBufferStatus get bufferStatus {
+    if (!isEnabled) return TtsBufferStatus.idle;
+    final ratio = bufferHealthRatio;
+    if (ratio >= 0.6) return TtsBufferStatus.healthy;
+    if (ratio >= 0.33) return TtsBufferStatus.warning;
+    return TtsBufferStatus.critical;
+  }
+
+  /// 低缓冲上次上报时间（毫秒时间戳），用于防抖，避免高频日志
+  int _lastLowBufferLogMs = 0;
 
   late SettingsProvider _settings;
 
@@ -790,6 +820,22 @@ class TtsEngineService extends ChangeNotifier {
             _prefetchedItems.length >= _config.maxPrefetchQueue) {
           await _delay(const Duration(milliseconds: 500));
           continue;
+        }
+
+        // ── 缓冲监控：低缓冲时记录日志，防抖 30s ────────────────────
+        if (isEnabled && !isPaused) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final isCritical = bufferStatus == TtsBufferStatus.critical;
+          final shouldLog = (now - _lastLowBufferLogMs) > 30000;
+
+          if (isCritical && shouldLog) {
+            _lastLowBufferLogMs = now;
+            debugPrint(
+              '[TTS 缓冲监控] ⚠️ 缓冲危险 '
+              '(${_prefetchedItems.length}/${_config.maxPrefetchQueue} 句，'
+              '${(bufferHealthRatio * 100).round()}%，正在加速预加载)',
+            );
+          }
         }
 
         // 🔥 获取下一句文本，确保顺序
