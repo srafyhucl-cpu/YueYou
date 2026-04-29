@@ -13,11 +13,11 @@ YueYou 项目开发侧优化任务（MD格式）
 
 ### 2.1 补充测试覆盖度
 
-| 测试类型 | 优先级 | 覆盖范围 |
-| --- | --- | --- |
-| 单元测试 | 🔴 高 | domain 层纯业务逻辑（TextParser、TileModel） |
-| Widget 测试 | 🟡 中 | 核心 UI 组件（TileWidget、TeleprompterView） |
-| 集成测试 | 🟡 中 | 核心流程（听书 / 游戏合并） |
+| 测试类型 | 优先级 | 覆盖范围 | 状态 |
+| --- | --- | --- | --- |
+| 单元测试 | 🔴 高 | domain 层纯业务逻辑（TextParser、TileModel） | ✅ 已完成 |
+| Widget 测试 | 🟡 中 | 核心 UI 组件（TileWidget、TeleprompterView） | ✅ 已完成 |
+| 集成测试 | 🟡 中 | 核心流程（听书 / 游戏合并） | ✅ 已完成（game_flow_integration_test / reader_flow_integration_test）|
 
 ### 2.2 解决测试遗留问题
 
