@@ -200,7 +200,7 @@ void main() {
 
     test('生成的 WAV 总字节数与 3 秒预期一致', () {
       // 3s × 44100 × 2 bytes + 44 bytes header = 264644 bytes
-      final expected = 44 + 44100 * 3 * 2;
+      const expected = 44 + 44100 * 3 * 2;
       expect(wav.length, expected);
     });
 
