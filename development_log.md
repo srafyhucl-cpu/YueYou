@@ -2,10 +2,12 @@
 
 ## **2026-04-29**
 - **优化(TTS 缓冲监控与缓存智能化清理)**:
-  - 新增 `TtsBufferStatus` 缓冲健康状态监控，支持动态预加载与平滑降级。
+  - 新增 `TtsBufferStatus` 缓冲健康状态监控，支持动态预加载与平滑降级.
   - 新增 `TtsCacheManager` 独立缓存管理模块，实现基于大小淘汰（500MB / 回收到 70%）与时间淘汰（24 小时）双重熔断策略。
 - **功能(动画性能等级判定与自适应)**:
   - 实现 `CyberPerformanceDetector` 模块，通过 100 万次 CPU 微基准计算 + `ProcessInfo.currentRss` 常驻内存指标，量化出高、中、低三档 `CyberAnimationLevel`，支持 UI 特效无缝自适应。
+- **架构(Riverpod 状态管理迁移方案设计)**: 
+  - 制定 `docs/riverpod_migration_plan.md`，明确渐进式替换 Provider 的规划图、兼容过渡手段及独立测试边界。
 
 ## **2026-04-28**
 
