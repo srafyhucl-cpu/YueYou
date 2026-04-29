@@ -10,6 +10,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../../core/config/tts_config.dart';
 import '../../../core/utils/safe_string.dart';
+import '../../../core/utils/tts_cache_manager.dart';
 
 /// 抽象接口，用于测试时注入 Mock
 abstract class TtsAudioPlayer {
@@ -494,6 +495,7 @@ class TtsEngineService extends ChangeNotifier {
     _disposed = true;
     _settings.removeListener(_onSettingsChanged);
     _idleTimer?.cancel();
+    TtsCacheManager.instance.stopPeriodicClean(); // 停止缓存清理定时器
     _playLoopActive = false;
     _prefetchLoopActive = false;
     unawaited(_audioPlayer.dispose());
@@ -543,6 +545,10 @@ class TtsEngineService extends ChangeNotifier {
   Future<void> init() async {
     // 流媒体引擎无需额外初始化
     _isDegradedToLocal = false;
+    // 启动缓存定期清理（30 分钟间隔，跳过当前播放文件）
+    TtsCacheManager.instance.startPeriodicClean(
+      excludeActivePath: () => _lastGeneratedAudioPath,
+    );
   }
 
   /// 任务 1.1：遍历临时目录，清理所有 tts_*.mp3 残留文件
@@ -584,6 +590,21 @@ class TtsEngineService extends ChangeNotifier {
       {'name': '活力女声', 'locale': 'zh-CN'},
       {'name': '磁性男声', 'locale': 'zh-CN'},
     ];
+  }
+
+  /// 手动触发 TTS 缓存清理（供设置页「清理缓存」按钮调用）
+  ///
+  /// 执行双重判定清理：超过 24 小时的文件 + 总大小超过 500MB 时按旧删。
+  /// 跳过当前正在播放的文件，幂等安全。
+  Future<TtsCacheCleanResult> cleanCacheNow() {
+    return TtsCacheManager.instance.cleanNow(
+      excludePath: _lastGeneratedAudioPath,
+    );
+  }
+
+  /// 查询当前 TTS 缓存占用信息（不执行清理）
+  Future<TtsCacheStat> getCacheStat() {
+    return TtsCacheManager.instance.getStat();
   }
 
   Future<TtsAudioRequest?> Function(int session)? onNeedPrefetch;
