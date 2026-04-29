@@ -23,7 +23,7 @@ void main() {
     });
 
     test('缺省字段使用安全默认值，不抛异常', () {
-      final info = UpdateInfo.fromJson({});
+      final info = UpdateInfo.fromJson(const {});
       expect(info.version, '0.0.0');
       expect(info.buildNumber, 0);
       expect(info.forceUpdate, isFalse);
@@ -32,17 +32,17 @@ void main() {
     });
 
     test('forceUpdate 缺省为 false', () {
-      final info = UpdateInfo.fromJson({'version': '1.0.0', 'buildNumber': 1});
+      final info = UpdateInfo.fromJson(const {'version': '1.0.0', 'buildNumber': 1});
       expect(info.forceUpdate, isFalse);
     });
 
     test('buildNumber 为浮点数时向下取整', () {
-      final info = UpdateInfo.fromJson({'version': '1.0.0', 'buildNumber': 3.9});
+      final info = UpdateInfo.fromJson(const {'version': '1.0.0', 'buildNumber': 3.9});
       expect(info.buildNumber, 3);
     });
 
     test('字段类型错误时返回默认值（宽松解析）', () {
-      final info = UpdateInfo.fromJson({
+      final info = UpdateInfo.fromJson(const {
         'version': null,
         'buildNumber': null,
         'forceUpdate': null,
