@@ -12,8 +12,11 @@ import '../../audio/presentation/widgets/cyber_player_console.dart';
 import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
 import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
+import 'package:yueyou/features/update/domain/update_info.dart';
+import 'package:yueyou/features/update/services/update_service.dart';
 import 'package:yueyou/shared/widgets/cyber_modal.dart';
 import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
@@ -35,15 +38,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkAppUpdates());
   }
 
-  /// 版本更新检测桩（Update Checker Stub）
+  /// 版本更新检测（首帧渲染完毕后执行，不阻塞 UI）
   ///
-  /// TODO: V1.1 实现远端版本比对逻辑：
-  ///   1. GET https://api.yueyou.app/version 获取 JSON {"version": "x.y.z", "forceUpdate": false}
-  ///   2. 与 PackageInfo.fromPlatform().version 比对
-  ///   3. 若有新版本，调用 showCyberConfirmDialog(context, title: '发现新版本', ...) 提示用户
-  ///   4. forceUpdate == true 时禁用取消按钮，强制跳转应用市场
+  /// 流程：
+  /// 1. 调用 [UpdateService.checkForUpdate] 获取服务端版本信息
+  /// 2. 有新版本时弹出 [_UpdateDialog]，区分强制/可选更新
+  /// 3. 强制更新：禁用「跳过」按钮，用户必须跳转应用市场
+  /// 4. API 未配置或请求失败时静默忽略，不影响用户
   Future<void> _checkAppUpdates() async {
-    // TODO: V1.1 接入远端版本检测接口
+    final update = await UpdateService.checkForUpdate();
+    if (update == null) return;
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !update.forceUpdate, // 强制更新时禁止点背景关闭
+      builder: (ctx) => _UpdateDialog(info: update),
+    );
   }
 
   void _openLibrary(BuildContext context) {
@@ -458,5 +469,143 @@ class _SegButtonState extends State<_SegButton> {
         ),
       ),
     );
+  }
+}
+
+
+/// 版本更新提示对话框（赛博朋克风格）
+///
+/// - [forceUpdate] = true：隐藏「暂不更新」按钮，用户必须跳转
+/// - [forceUpdate] = false：显示「暂不更新」按钮，可关闭对话框
+class _UpdateDialog extends StatelessWidget {
+  final UpdateInfo info;
+  const _UpdateDialog({required this.info});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: CyberColors.panelBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+        side: BorderSide(
+          color: info.forceUpdate ? CyberColors.neonPink : CyberColors.neonCyan,
+          width: 2,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(CyberDimensions.spacingML),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  info.forceUpdate ? Icons.system_update : Icons.new_releases_outlined,
+                  color: info.forceUpdate ? CyberColors.neonPink : CyberColors.neonCyan,
+                  size: CyberDimensions.iconL,
+                ),
+                const SizedBox(width: CyberDimensions.spacingMS),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        info.forceUpdate ? '发现重要更新' : '发现新版本',
+                        style: CyberTextStyles.dialogTitle.copyWith(
+                          color: info.forceUpdate ? CyberColors.neonPink : CyberColors.neonCyan,
+                        ),
+                      ),
+                      Text(
+                        'v${info.version}',
+                        style: CyberTextStyles.captionBold.copyWith(
+                          color: CyberColors.whiteMuted,
+                          fontFamily: CyberTextStyles.monoFont,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: CyberDimensions.spacingM),
+            if (info.releaseNotes.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(CyberDimensions.spacingMS),
+                decoration: BoxDecoration(
+                  color: CyberColors.surface,
+                  borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+                  border: Border.all(color: CyberColors.whiteFaint, width: CyberDimensions.borderNormal),
+                ),
+                child: Text(
+                  info.releaseNotes,
+                  style: CyberTextStyles.captionComfortable.copyWith(color: CyberColors.whiteDim),
+                ),
+              ),
+              const SizedBox(height: CyberDimensions.spacingM),
+            ],
+            if (info.forceUpdate)
+              Padding(
+                padding: const EdgeInsets.only(bottom: CyberDimensions.spacingMS),
+                child: Text(
+                  '⚠ 此版本包含关键安全修复，必须更新后方可继续使用。',
+                  style: CyberTextStyles.captionTight.copyWith(
+                    color: CyberColors.neonPink.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+            Row(
+              children: [
+                if (!info.forceUpdate) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: CyberColors.whiteMuted,
+                        side: const BorderSide(color: CyberColors.whiteSubtle),
+                        padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+                        ),
+                      ),
+                      child: const Text('暂不更新', style: CyberTextStyles.buttonLabel),
+                    ),
+                  ),
+                  const SizedBox(width: CyberDimensions.spacingMS),
+                ],
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _launchUpdate(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: info.forceUpdate ? CyberColors.neonPink : CyberColors.neonCyan,
+                      foregroundColor: CyberColors.background,
+                      padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+                      ),
+                    ),
+                    child: const Text('立即更新', style: CyberTextStyles.buttonLabel),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUpdate(BuildContext context) async {
+    final url = info.downloadUrl.isNotEmpty
+        ? info.downloadUrl
+        : 'https://play.google.com/store/apps/details?id=com.yueyou.app';
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    if (context.mounted && !info.forceUpdate) {
+      Navigator.of(context).pop();
+    }
   }
 }
