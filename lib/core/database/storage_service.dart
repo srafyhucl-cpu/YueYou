@@ -25,6 +25,7 @@ class StorageService {
   static const String _kSettingAmbientVol = 'setting_ambient_vol';
   static const String _kSettingAmbientEnabled = 'setting_ambient_enabled';
   static const String _kHasAgreedPrivacy = 'has_agreed_privacy';
+  static const String _kSettingAnimationQuality = 'setting_animation_quality';
 
   static SharedPreferences? _prefs;
 
@@ -222,6 +223,11 @@ class StorageService {
       _p.getBool(_kSettingAmbientEnabled) ?? true;
   static Future<void> setSettingAmbientEnabled(bool v) =>
       _p.setBool(_kSettingAmbientEnabled, v);
+
+  static String getSettingAnimationQuality() =>
+      _p.getString(_kSettingAnimationQuality) ?? 'auto';
+  static Future<void> setSettingAnimationQuality(String v) =>
+      _p.setString(_kSettingAnimationQuality, v);
 
   // ── 隐私协议同意状态 ──────────────────────────────────────────────────────
   static bool hasAgreedPrivacy() => _p.getBool(_kHasAgreedPrivacy) ?? false;

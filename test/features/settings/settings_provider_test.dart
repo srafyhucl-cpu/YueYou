@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import '../../utils/test_utils.dart';
+
 
 void main() {
   setUp(() async {
@@ -68,6 +70,15 @@ void main() {
 
       await p.setAmbientEnabled(false);
       expect(StorageService.getSettingAmbientEnabled(), isFalse);
+
+      // 验证动画性能配置
+      expect(p.animationQualitySetting, 'auto');
+      expect(p.currentAnimationLevel, isNotNull);
+
+      await p.setAnimationQualitySetting('low');
+      expect(p.animationQualitySetting, 'low');
+      expect(p.currentAnimationLevel, CyberAnimationLevel.low);
+      expect(StorageService.getSettingAnimationQuality(), 'low');
     });
   });
 }
