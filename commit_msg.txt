@@ -1,9 +1,7 @@
-修复(测试): 消除 tts_engine_service_test 跨文件 path_provider mock 竞态
+文档: 标记 Riverpod 迁移方案全部验收标准为已完成
 
-- tts_contract_test.dart: setUp 调用 _mockPathProviderChannel() 后加 tearDown 恢复到
-  systemTemp，防止污染串行运行时后续 tts_engine_service_test 的 mock 状态
-- tts_engine_service_test.dart: play loop branches group 加 setUp 恢复 _testTempDir
-  mock，双重防御确保每个用例前 path_provider 指向正确目录
-- CI flutter-ci.yml: flutter test 加 --concurrency=1 消除并发测试文件间的 mock 竞态
-
-全量 451 个测试 --concurrency=1 串行通过，0 失败，满足迁移方案验收标准
+- 验收标准四项全部由 [ ] 改为 [x]
+- flutter test --concurrency=1 全量 451 个用例通过
+- flutter analyze 零 warning/error
+- CI 已更新消除并发 mock 竞态
+- 迁移方案标注完结日期 2026-04-30
