@@ -14,6 +14,7 @@ import 'features/library/providers/bookshelf_provider.dart';
 import 'features/library/domain/book_model.dart';
 import 'features/reader/providers/reader_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'shared/widgets/tts_error_listener.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
@@ -46,73 +47,29 @@ Future<void> main() async {
 
   // 通过 CyberLogger 初始化 Sentry 并启动 App
   // DSN 通过 --dart-define=SENTRY_DSN=https://... 注入，空时静默跳过
-  await CyberLogger.initSentry(() async => runApp(const YueYouApp()));
+  await CyberLogger.initSentry(() async => runApp(
+        const riverpod.ProviderScope(
+          child: YueYouApp(),
+        ),
+      ));
 }
 
 
-class _AppBootstrapData {
-  final SettingsProvider settings;
-  final BookshelfProvider bookshelf;
-
-  const _AppBootstrapData({
-    required this.settings,
-    required this.bookshelf,
-  });
-}
-
-class YueYouApp extends StatefulWidget {
+class YueYouApp extends riverpod.ConsumerWidget {
   const YueYouApp({super.key});
 
   @override
-  State<YueYouApp> createState() => _YueYouAppState();
-}
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final settings = ref.watch(settingsProvider.notifier);
+    final bookshelf = ref.watch(bookshelfProvider.notifier);
 
-class _YueYouAppState extends State<YueYouApp> {
-  late final Future<_AppBootstrapData> _bootstrapFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _bootstrapFuture = _loadBootstrapData();
-  }
-
-  Future<_AppBootstrapData> _loadBootstrapData() async {
-    final settings = SettingsProvider();
-    final bookshelf = BookshelfProvider();
-
-    await Future.wait<void>([
-      Future<void>(() => settings.loadFromStorage()),
-      Future<void>(() => bookshelf.loadFromStorage()),
-    ]);
-
-    return _AppBootstrapData(settings: settings, bookshelf: bookshelf);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<_AppBootstrapData>(
-      future: _bootstrapFuture,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: Scaffold(
-              backgroundColor: CyberColors.background,
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          );
-        }
-
-        final bootstrap = snapshot.data!;
-        return MultiProvider(
+    return MultiProvider(
           providers: [
             ChangeNotifierProvider<SettingsProvider>.value(
-              value: bootstrap.settings,
+              value: settings,
             ),
             ChangeNotifierProvider<BookshelfProvider>.value(
-              value: bootstrap.bookshelf,
+              value: bookshelf,
             ),
             ChangeNotifierProxyProvider<SettingsProvider, TtsEngineService>(
               create: (ctx) {
@@ -143,8 +100,6 @@ class _YueYouAppState extends State<YueYouApp> {
             ),
           ],
           child: const _Bootstrapper(),
-        );
-      },
     );
   }
 }

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/storage_service.dart';
 import '../../../core/utils/cyber_performance_detector.dart';
+
+/// 供 Riverpod 使用的全局设置 Provider
+final settingsProvider = ChangeNotifierProvider<SettingsProvider>((ref) {
+  final p = SettingsProvider();
+  p.loadFromStorage();
+  return p;
+});
 
 /// 全局设置 Provider
 /// 完整复刻旧版 main.js 的 `t` 设置对象 + localStorage 持久化逻辑

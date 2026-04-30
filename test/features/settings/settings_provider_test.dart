@@ -3,6 +3,7 @@ import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import '../../utils/test_utils.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 
 void main() {
@@ -12,7 +13,8 @@ void main() {
 
   group('SettingsProvider', () {
     test('loadFromStorage 能加载默认值', () {
-      final p = SettingsProvider();
+      final container = ProviderContainer();
+      final p = container.read(settingsProvider.notifier);
       p.loadFromStorage();
 
       expect(p.sound, isTrue);
@@ -25,7 +27,8 @@ void main() {
     });
 
     test('setSound 持久化并 notifyListeners', () async {
-      final p = SettingsProvider();
+      final container = ProviderContainer();
+      final p = container.read(settingsProvider.notifier);
       p.loadFromStorage();
 
       int notified = 0;
@@ -38,7 +41,8 @@ void main() {
     });
 
     test('setStoryTts 持久化并 notifyListeners', () async {
-      final p = SettingsProvider();
+      final container = ProviderContainer();
+      final p = container.read(settingsProvider.notifier);
       p.loadFromStorage();
 
       int notified = 0;
@@ -53,7 +57,8 @@ void main() {
     test(
         'setVoice / setIdleTimeout / setTtsRate / setAmbientVol / setAmbientEnabled 持久化',
         () async {
-      final p = SettingsProvider();
+      final container = ProviderContainer();
+      final p = container.read(settingsProvider.notifier);
       p.loadFromStorage();
 
       await p.setVoice('zh-CN-YunxiNeural');

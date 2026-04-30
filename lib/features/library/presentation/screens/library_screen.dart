@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
@@ -12,11 +13,12 @@ import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 
 /// 书库界面
 /// 完整复刻旧版 modal-library：书架卡片列表、渐变封面、阅读进度条、删除、导入按钮
-class LibraryScreen extends StatelessWidget {
+class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shelf = ref.watch(bookshelfProvider);
     return Scaffold(
       backgroundColor: CyberColors.panelBackground,
       body: SafeArea(
@@ -24,8 +26,8 @@ class LibraryScreen extends StatelessWidget {
           children: [
             _buildHeader(context),
             Expanded(
-              child: Consumer<BookshelfProvider>(
-                builder: (context, shelf, _) {
+              child: Builder(
+                builder: (context) {
                   if (shelf.isEmpty) {
                     return _buildEmptyState();
                   }
@@ -98,7 +100,7 @@ class LibraryScreen extends StatelessWidget {
   }
 }
 
-class _BookCard extends StatelessWidget {
+class _BookCard extends ConsumerWidget {
   final BookModel book;
   final int index;
 
@@ -119,13 +121,13 @@ class _BookCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final double percent =
-        context.watch<BookshelfProvider>().getReadingPercent(book.id);
+        ref.watch(bookshelfProvider).getReadingPercent(book.id);
     final colors = _coverGradient();
 
     return GestureDetector(
-      onTap: () => _loadBook(context),
+      onTap: () => _loadBook(context, ref),
       child: Container(
         margin: const EdgeInsets.only(bottom: CyberDimensions.spacingMS),
         height: 110,
@@ -215,7 +217,7 @@ class _BookCard extends StatelessWidget {
               right: CyberDimensions.spacingMS,
               bottom: CyberDimensions.spacingMS,
               child: GestureDetector(
-                onTap: () => _confirmDelete(context),
+                onTap: () => _confirmDelete(context, ref),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: CyberDimensions.spacingMS,
@@ -239,8 +241,8 @@ class _BookCard extends StatelessWidget {
   }
 
   /// 对应 JS loadBookFromShelf(id, title, cursor)
-  Future<void> _loadBook(BuildContext context) async {
-    final shelf = context.read<BookshelfProvider>();
+  Future<void> _loadBook(BuildContext context, WidgetRef ref) async {
+    final shelf = ref.read(bookshelfProvider);
     final reader = context.read<ReaderProvider>();
 
     final content = await shelf.loadBookContent(book.id);
@@ -264,7 +266,7 @@ class _BookCard extends StatelessWidget {
   }
 
   /// 对应 JS deleteBook — 弹确认框再删
-  Future<void> _confirmDelete(BuildContext context) async {
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await showCyberConfirmDialog(
       context: context,
       title: '初始化抹除？',
@@ -274,9 +276,7 @@ class _BookCard extends StatelessWidget {
     );
     if (confirmed == true && context.mounted) {
       final reader = context.read<ReaderProvider>();
-      await context
-          .read<BookshelfProvider>()
-          .deleteBook(book.id, reader: reader);
+      await ref.read(bookshelfProvider).deleteBook(book.id, reader: reader);
     }
   }
 }

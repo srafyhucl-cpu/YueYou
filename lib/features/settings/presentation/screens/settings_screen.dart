@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
@@ -13,11 +14,12 @@ import 'package:yueyou/core/constants/cyber_error_messages.dart';
 
 /// 设置界面
 /// 完整复刻旧版 modal-settings：声音/TTS/发声人/空闲超时
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
     return Scaffold(
       backgroundColor: CyberColors.panelBackground,
       body: SafeArea(
@@ -25,10 +27,7 @@ class SettingsScreen extends StatelessWidget {
           children: [
             _buildHeader(context),
             Expanded(
-              child: Consumer<SettingsProvider>(
-                builder: (context, settings, _) =>
-                    _buildBody(context, settings),
-              ),
+              child: _buildBody(context, ref, settings),
             ),
           ],
         ),
@@ -66,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, SettingsProvider settings) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, SettingsProvider settings) {
     return ListView(
       padding: const EdgeInsets.all(CyberDimensions.spacingM),
       children: [

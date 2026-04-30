@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
@@ -45,7 +46,8 @@ void main() {
     });
 
     test('addBook 后 shelf 包含新书且排在首位', () async {
-      final provider = BookshelfProvider();
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
       await provider.addBook(
         id: 1,
         title: '测试小说',
@@ -59,7 +61,8 @@ void main() {
     });
 
     test('addBook 同名书替换旧书', () async {
-      final provider = BookshelfProvider();
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
       await provider.addBook(
         id: 1,
         title: '重复书',
@@ -78,7 +81,8 @@ void main() {
     });
 
     test('deleteBook 从 shelf 移除并通知', () async {
-      final provider = BookshelfProvider();
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
       await provider.addBook(
         id: 42,
         title: '待删除',
@@ -107,7 +111,8 @@ void main() {
           bookId: '99', initialIndex: 0, forceIndex: true);
       expect(reader.currentBookId, '99');
 
-      final provider = BookshelfProvider();
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
       await provider.addBook(
         id: 99,
         title: '级联书',
@@ -123,7 +128,8 @@ void main() {
     });
 
     test('deleteBook 不存在的 id 不影响 shelf', () async {
-      final provider = BookshelfProvider();
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
       await provider.addBook(
         id: 1,
         title: '保留书',
@@ -138,7 +144,8 @@ void main() {
     });
 
     test('getReadingPercent 和 getReadingCursor 返回默认值', () {
-      final provider = BookshelfProvider();
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
       expect(provider.getReadingPercent(1), 0.0);
       expect(provider.getReadingCursor(1), 0);
     });
