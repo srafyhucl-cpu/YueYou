@@ -17,17 +17,12 @@ allprojects {
 rootProject.buildDir = "../build"
 subprojects {
     // 🔥 仅对同盘符的 :app 模块重定向 buildDir
-    // 跨盘符插件（如 C 盘的 Pub Cache）保留默认路径，避免 "different roots" 异常
     afterEvaluate { project ->
         if (project.projectDir.absolutePath.startsWith(rootProject.projectDir.absolutePath)) {
             project.buildDir = "${rootProject.buildDir}/${project.name}"
         }
-    }
-    project.evaluationDependsOn(":app")
-}
 
-subprojects {
-    afterEvaluate { project ->
+        // 强制对齐 Java 编译版本（仅限 Android 项目）
         if (project.hasProperty('android')) {
             project.android {
                 compileOptions {
@@ -38,6 +33,7 @@ subprojects {
         }
     }
 
+    // 强制对齐 Kotlin 编译版本（任务级配置，对已评估项目也有效）
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
         kotlinOptions {
             languageVersion = "1.8"
@@ -45,6 +41,9 @@ subprojects {
             jvmTarget = "17"
         }
     }
+
+    // ⚠️ 注意：此行可能触发 :app 的提前评估，必须放在 subprojects 块的最后
+    project.evaluationDependsOn(":app")
 }
 
 tasks.register("clean", Delete) {
