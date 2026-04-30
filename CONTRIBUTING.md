@@ -1,0 +1,81 @@
+# 贡献指南 (CONTRIBUTING)
+
+欢迎参与阅游 (YueYou) 项目开发！本项目采用极为严格的“极客开发规范”。无论是团队成员还是 AI 编程助手，都必须完全遵守以下协作与开发标准。
+
+## 1. 代码规范与架构约束
+
+### 1.1 Clean Architecture (整洁架构)
+本项目严格按照 Feature-Driven Clean Architecture 组织代码。
+- **Core (`lib/core/`)**：只允许存放全局通用组件（如主题、性能分析、存储服务抽象），严禁包含具体业务代码。
+- **Features (`lib/features/`)**：业务模块按特性隔离。每个 Feature 必须包含以下结构：
+  - `domain/`：纯 Dart 逻辑，**严禁引入 Flutter UI 库**。
+  - `providers/`：状态管理与业务逻辑连接点。
+  - `presentation/`：纯渲染层。**禁止在 Widget 中编写复杂的业务逻辑代码**，必须通过消费 Provider 驱动状态。
+
+### 1.2 零硬编码原则
+所有视觉元素（颜色、间距、字体）必须从 `lib/core/theme/` 中读取。例如：
+- 颜色使用 `CyberColors.xxx`。
+- 尺寸使用 `cyber_dimensions.dart`。
+
+### 1.3 语言与注释
+- 所有代码注释、类与方法说明**必须 100% 使用中文**。
+- 复杂算法（如长句截断、动画粒子计算）必须详细说明核心思路和步骤。
+
+## 2. 代码提交规范 (Commit Convention)
+
+本项目严格遵循 Conventional Commits 规范。每次提交的格式如下：
+
+```
+<type>(<scope>): <subject>
+
+[optional body]
+```
+
+### 2.1 允许的提交类型 (`type`)
+- `feat`: 新增功能 (feature)
+- `fix`: 修复 bug
+- `docs`: 文档更新 (如修改 README、task.md)
+- `style`: 代码格式化（不影响运行逻辑的代码变动）
+- `refactor`: 重构（既不新增功能，也不是修复 bug 的代码变动）
+- `perf`: 性能优化
+- `test`: 增加或修改测试用例
+- `chore`: 构建过程或辅助工具的变动
+
+### 2.2 典型提交示例 (10+)
+1. `feat(tts): 新增智能缓冲队列以实现平滑预加载`
+2. `feat(game): 增加 2048 棋盘吉祥物交互反馈`
+3. `fix(audio): 修复切换章节时导致 AudioPlayer 资源泄漏的问题`
+4. `fix(parser): 修复包含连续特殊符号时长句解析崩溃的 bug`
+5. `docs(arch): 补充核心业务流程的 PlantUML 时序图`
+6. `style(ui): 统一所有对话框的赛博朋克霓虹边框样式`
+7. `refactor(provider): 抽象 IStorageService 接口实现依赖倒置`
+8. `refactor(error): 集中错误常量至 CyberErrorMessages`
+9. `perf(ui): 使用 RepaintBoundary 隔离提词器高频重绘区域`
+10. `test(game): 补充 2048 游戏初始化与移动状态的集成测试`
+11. `chore(deps): 升级 flutter_riverpod 至最新稳定版`
+
+## 3. 分支管理策略 (Git Flow)
+
+本项目采用标准的 Git Flow 工作流：
+
+- **`master`** / **`main`**：生产环境稳定分支，仅允许通过 Merge Request / Pull Request 合并。
+- **`dev`** / **`yueyou_test`**：日常开发与集成测试主分支。
+- **`feature/*`**：新功能分支。从开发分支切出，命名如 `feature/tts-optimize`，完成后合并回开发分支并删除。
+- **`hotfix/*`**：紧急修复分支。直接从 `master` 切出，修复完成后必须同时合并回 `master` 和开发分支。
+
+### 3.1 分支创建与合并规范
+- 开发前必须确保拉取最新的分支代码。
+- 在发起 MR/PR 前，必须在本地通过所有的代码检查与测试（见下文）。
+
+## 4. 测试与验收规范
+
+提交代码前必须强制执行本地验收流：
+1. **静态分析**：`flutter analyze` 必须零警告、零错误。
+2. **测试覆盖**：执行 `flutter test`，必须保证现有的（400+）单元、Widget 和集成测试用例 **100% 绿色通过**。
+3. **不可抗退化**：任何新功能提交必须携带对应的测试代码，严禁降低全局测试覆盖率。
+
+## 5. AI 编程助手注意事项
+
+- **沉默是金**：开发过程中，请直奔主题输出必要的代码块，拒绝寒暄与多余的废话。
+- **任务文档一致性**：完成或开始任务时，必须动态维护 `task.md` 以及 `DevelopmentPlan/` 下的任务状态文件。
+- **隔离与依赖边界**：在实现新需求前，必须阅读 `DevelopmentPlan/MODULE_DEPENDENCIES.md` 确保不会引入反模式或破坏性的模块耦合。
