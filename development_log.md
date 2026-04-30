@@ -11,6 +11,9 @@
   - **彻底移除 `provider` 依赖**：从 `pubspec.yaml` 删除 `provider: ^6.1.5+1`，全项目无任何 `context.read<T>()` / `context.watch<T>()` 残留。
   - 测试层适配：`square_board_test`、`chapter_list_screen_test`、`teleprompter_view_test`、`widget_test` 全部迁移至 `ProviderScope` 覆盖注入，移除 `MultiProvider`。
   - `flutter analyze: No issues found`，单文件测试 100% 通过。
+- **修复(Android 构建故障修复 - Kotlin 版本对齐)**:
+  - 针对 Kotlin 2.2.0 编译器不再支持 1.6 语言版本的问题（报错 `:sentry_flutter:compileDebugKotlin`），在 `android/build.gradle` 中注入全局配置。
+  - 强制所有子项目（subprojects）的 Kotlin 编译选项使用 `languageVersion = "1.8"`、`apiVersion = "1.8"` 及 `jvmTarget = "17"`，确保第三方插件（如 `sentry_flutter`）在现代编译器环境下正常构建。
 - **重构(V1.1 架构升级 - Riverpod Phase 1)**:
   - 引入 `flutter_riverpod` 构建新状态机。
   - 完成 `SettingsProvider` 与 `BookshelfProvider` 迁移。
