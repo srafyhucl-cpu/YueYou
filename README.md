@@ -389,7 +389,12 @@ CyberTextStyles.captionBold         // 说明文字加粗
 
 ## 🎯 开发规范
 
-项目遵循 `.windsurfrules` 与 `.agents/skills/` 定义的硬性红线：
+为了保持代码质量，项目严格遵循以下文档：
+- [核心业务流程 (CORE_WORKFLOWS.md)](DevelopmentPlan/CORE_WORKFLOWS.md)
+- [模块依赖边界 (MODULE_DEPENDENCIES.md)](DevelopmentPlan/MODULE_DEPENDENCIES.md)
+- [贡献指南 (CONTRIBUTING.md)](CONTRIBUTING.md)
+
+项目同时遵循 `.windsurfrules` 与 `.agents/skills/` 定义的硬性红线：
 
 - ✅ **零硬编码颜色/尺寸**：所有视觉 token 必须来自 `CyberColors` / `CyberDimensions` / `CyberTextStyles`
 - ✅ **domain 层纯 Dart**：`features/*/domain/` 下严禁引入 `flutter/material.dart`

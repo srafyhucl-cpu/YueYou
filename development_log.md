@@ -1,13 +1,21 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-04-30**
+- **文档(规范与协作)**:
+  - 补充核心流程文档 (`CORE_WORKFLOWS.md`)，使用 PlantUML 梳理 TTS 朗读、书籍解析、2048 游戏时序图。
+  - 补充模块依赖文档 (`MODULE_DEPENDENCIES.md`)，明晰业务包边界与依赖隔离原则。
+  - 新增 `CONTRIBUTING.md` 贡献指南，规范 Conventional Commits 提交格式、Git Flow 工作流与零退化验收标准。
+- **测试(集成测试闭环)**:
+  - 新增 `game_flow_integration_test.dart`（16 个用例），覆盖 2048 游戏全生命周期与持久化逻辑。
+  - 新增 `reader_flow_integration_test.dart`（20 个用例），覆盖听书解析、章节导航、状态重置全链路。
+  - 全局测试用例达 451 个，保持 100% 覆盖与 0 analyze 报错。
+
 ## **2026-04-29**
 - **优化(TTS 缓冲监控与缓存智能化清理)**:
-  - 新增 `TtsBufferStatus` 缓冲健康状态监控，支持动态预加载与平滑降级.
+  - 新增 `TtsBufferStatus` 缓冲健康状态监控，支持动态预加载与平滑降级。
   - 新增 `TtsCacheManager` 独立缓存管理模块，实现基于大小淘汰（500MB / 回收到 70%）与时间淘汰（24 小时）双重熔断策略。
 - **功能(动画性能等级判定与自适应)**:
   - 实现 `CyberPerformanceDetector` 模块，通过 100 万次 CPU 微基准计算 + `ProcessInfo.currentRss` 常驻内存指标，量化出高、中、低三档 `CyberAnimationLevel`，支持 UI 特效无缝自适应。
-- **架构(Riverpod 状态管理迁移方案设计)**: 
-  - 制定 `docs/riverpod_migration_plan.md`，明确渐进式替换 Provider 的规划图、兼容过渡手段及独立测试边界。
 
 ## **2026-04-28**
 
