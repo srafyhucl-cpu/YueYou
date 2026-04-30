@@ -14,7 +14,8 @@
 - **修复(Android 构建故障修复 - Kotlin 版本对齐)**:
   - 针对 Kotlin 2.2.0 编译器不再支持 1.6 语言版本的问题（报错 `:sentry_flutter:compileDebugKotlin`），在 `android/build.gradle` 中注入全局配置。
   - 强制所有子项目（subprojects）的 Kotlin 编译选项使用 `languageVersion = "1.8"`、`apiVersion = "1.8"` 及 `jvmTarget = "17"`。
-  - **对齐 JVM 目标版本**：解决 Java (1.8) 与 Kotlin (17) 目标版本不一致导致的 `:audioplayers_android:compileDebugKotlin` 失败问题，强制所有插件的 `compileOptions` 统一使用 Java 17。
+  - **对齐 JVM 目标版本**：解决 Java (1.8) 与 Kotlin (17) 目标版本不一致导致的失败问题，强制所有插件的 `compileOptions` 统一使用 Java 17。
+  - **修复评估时序异常**：合并多个 `subprojects` 块，并调整 `evaluationDependsOn(":app")` 的位置，解决了因提前触发子项目评估而导致的 `Cannot run Project.afterEvaluate` 报错。
 - **重构(V1.1 架构升级 - Riverpod Phase 1)**:
   - 引入 `flutter_riverpod` 构建新状态机。
   - 完成 `SettingsProvider` 与 `BookshelfProvider` 迁移。
