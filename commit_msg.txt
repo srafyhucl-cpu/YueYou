@@ -1,0 +1,8 @@
+重构(架构): 完成 Riverpod 全域迁移，彻底移除 provider 依赖
+
+- 迁移 SquareBoard/BoardMascot/BoardMascotRive 至 ConsumerStatefulWidget
+- 迁移 settings_screen 子组件至 ConsumerWidget/ConsumerStatefulWidget
+- 迁移 library_screen/cyber_import_button 使用 ref.read(readerProvider)
+- 重构 main.dart _Bootstrapper 至 ConsumerStatefulWidget，移除 MultiProvider
+- 更新全部 widget 测试：MultiProvider 替换为 ProviderScope overrides
+- 从 pubspec.yaml 删除 provider 依赖，flutter analyze: No issues found
