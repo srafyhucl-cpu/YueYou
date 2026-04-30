@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
@@ -11,14 +12,14 @@ import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
 
-class CyberImportButton extends StatefulWidget {
+class CyberImportButton extends ConsumerStatefulWidget {
   const CyberImportButton({super.key});
 
   @override
-  State<CyberImportButton> createState() => _CyberImportButtonState();
+  ConsumerState<CyberImportButton> createState() => _CyberImportButtonState();
 }
 
-class _CyberImportButtonState extends State<CyberImportButton> {
+class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
   @override
   void dispose() {
     FileImportService.cancelImport();
@@ -27,9 +28,8 @@ class _CyberImportButtonState extends State<CyberImportButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReaderProvider>(
-      builder: (context, reader, child) {
-        final bool isBusy = reader.isParsing;
+    final reader = context.watch<ReaderProvider>();
+    final bool isBusy = reader.isParsing;
         return ClipRRect(
           borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
           child: BackdropFilter(
@@ -62,7 +62,7 @@ class _CyberImportButtonState extends State<CyberImportButton> {
                               DateTime.now().millisecondsSinceEpoch;
 
                           // 写入书架（对应 JS LocalDB.saveBook + shelf.unshift）
-                          await context.read<BookshelfProvider>().addBook(
+                          await ref.read(bookshelfProvider).addBook(
                                 id: bookId,
                                 title: result.title,
                                 lines: result.lines,
@@ -143,7 +143,5 @@ class _CyberImportButtonState extends State<CyberImportButton> {
             ),
           ),
         );
-      },
-    );
   }
 }

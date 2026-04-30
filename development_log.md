@@ -1,6 +1,11 @@
 # 阅游 (YueYou) - 开发日志
 
 ## **2026-04-30**
+- **重构(V1.1 架构升级 - Riverpod Phase 1)**:
+  - 引入 `flutter_riverpod` 构建新状态机。
+  - 完成 `SettingsProvider` 与 `BookshelfProvider` 迁移。
+  - 重构 `library_screen`、`settings_screen`、`cyber_import_button` UI 逻辑，与 Provider 平滑共存。
+  - 完善 `bookshelf_provider_test` 用例容器切换，维持 100% 测试通过率。
 - **文档(规范与协作)**:
   - 补充核心流程文档 (`CORE_WORKFLOWS.md`)，使用 PlantUML 梳理 TTS 朗读、书籍解析、2048 游戏时序图。
   - 补充模块依赖文档 (`MODULE_DEPENDENCIES.md`)，明晰业务包边界与依赖隔离原则。

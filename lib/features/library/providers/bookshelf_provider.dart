@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/storage_service.dart';
 import '../domain/book_model.dart';
 import '../../reader/providers/reader_provider.dart';
+
+/// 供 Riverpod 使用的全局书架 Provider
+final bookshelfProvider = ChangeNotifierProvider<BookshelfProvider>((ref) {
+  final p = BookshelfProvider();
+  p.loadFromStorage();
+  return p;
+});
 
 /// 书架状态管理 Provider
 /// 完整复刻旧版 local_bookshelf + ProgressManager + LocalDB.js 的业务闭环

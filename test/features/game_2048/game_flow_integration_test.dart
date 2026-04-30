@@ -1,8 +1,6 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yueyou/core/database/storage_service.dart';
-import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import '../../utils/test_utils.dart';
 
@@ -19,19 +17,7 @@ int _tileCount(GameProvider gp) {
   return count;
 }
 
-/// 找到第一个合法的可滑动方向（向左/右/上/下中任选一个能使棋盘状态改变的方向）
-Direction? _firstMoveableDirection(GameProvider gp) {
-  for (final dir in Direction.values) {
-    // 模拟移动：捕获棋盘快照
-    final before = gp.grid.expand((r) => r).toList();
-    gp.move(dir);
-    final after = gp.grid.expand((r) => r).toList();
-    // 复位：不能复位，所以只能事先判断——此方法只用于初始局面中
-    // 由于我们需要真实滑动，直接返回第一个已经滑动的结果
-    if (!_listsEqual(before, after)) return null; // 已经移动了，无需再用
-  }
-  return null;
-}
+
 
 bool _listsEqual(List<int> a, List<int> b) {
   if (a.length != b.length) return false;
