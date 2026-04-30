@@ -13,9 +13,22 @@ import '../../../core/utils/safe_string.dart';
 import '../../../core/utils/tts_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// TTS 引擎全局 Provider（Riverpod 生命周期托管版）
+///
+/// - 通过 [ref.watch] 声明式依赖 [settingsProvider]，实现配置热更新
+/// - 通过 [ref.onDispose] 自动回收引擎资源，消除手动 dispose 调用
+/// - 通过 [ref.listen] 响应设置变更，替代手动 addListener/removeListener
 final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
   final settings = ref.read(settingsProvider);
-  return TtsEngineService(settings);
+  final svc = TtsEngineService(settings, externalSettingsListener: false);
+  // 注册 Riverpod 自动销毁钩子，消除双调用风险（幂等守卫见 dispose()）
+  ref.onDispose(svc.dispose);
+  // 监听设置变更，推送给引擎同步（替代 addListener 手动管理）
+  ref.listen<SettingsProvider>(
+    settingsProvider,
+    (_, next) => svc.syncSettingsFromProvider(next),
+  );
+  return svc;
 });
 
 /// 抽象接口，用于测试时注入 Mock
@@ -269,7 +282,16 @@ class _RealTtsHttpClient implements TtsHttpClient {
   }
 }
 
-enum TtsPlaybackState { disabled, paused, buffering, playing }
+/// TTS 音频播放状态机
+///
+/// Dart 3 模式匹配要求：所有 switch 必须穷尽以下 5 个分支：
+/// - [disabled]：引擎关闭，不进行任何音频活动
+/// - [paused]：已暂停，音频流挂起
+/// - [buffering]：正在预加载下一句音频
+/// - [playing]：正在播放音频
+/// - [error]：引擎遭遇不可恢复错误（网络中断、格式异常等），
+///            需用户手动恢复或等待自动降级
+enum TtsPlaybackState { disabled, paused, buffering, playing, error }
 
 /// TTS 缓冲队列健康状态
 ///
@@ -327,11 +349,18 @@ class TtsEngineService extends ChangeNotifier {
   String? _lastGeneratedAudioPath;
 
   TtsPlaybackState get state => _state;
+  /// 引擎是否处于「已启用」状态（包含 error，待用户手动恢复）
   bool get isEnabled => _state != TtsPlaybackState.disabled;
+  /// 是否正在播放
   bool get isPlaying => _state == TtsPlaybackState.playing;
+  /// 同义词：与 isPlaying 完全等价
   bool get isSpeaking => _state == TtsPlaybackState.playing;
+  /// 是否正在缓冲
   bool get isBuffering => _state == TtsPlaybackState.buffering;
+  /// 是否已暂停
   bool get isPaused => _state == TtsPlaybackState.paused;
+  /// 是否处于错误状态（可由 clearLastError()+play() 恢复）
+  bool get isError => _state == TtsPlaybackState.error;
   String? get lastError => _lastError;
   int get errorTimestamp => _errorTimestamp;
   double get playbackRate => _playbackRate;
@@ -370,6 +399,10 @@ class TtsEngineService extends ChangeNotifier {
     TtsHttpClient? httpClient,
     Future<void> Function(Duration)? delayFn,
     TtsFallbackEngine? fallbackEngine,
+    /// [externalSettingsListener]：是否由外部（Riverpod ref.listen）接管设置监听。
+    /// - true（默认）：TtsEngineService 内部自行 addListener 监听 settings 变更（非 Riverpod 场景）。
+    /// - false：由 ttsEngineProvider 的 ref.listen 统一推送，避免双重注册。
+    bool externalSettingsListener = true,
   })  : _config = config ?? TtsConfig.current,
         _audioPlayer = audioPlayer ?? _RealAudioPlayer(AudioPlayer()),
         _wakeLock = wakeLock ?? _RealWakeLock(),
@@ -393,7 +426,18 @@ class TtsEngineService extends ChangeNotifier {
       ),
     ));
     _initFuture = _initTtsHardware();
-    _listenToSettings();
+    // 非 Riverpod 场景（如测试直接构造），仍使用内部监听器
+    if (externalSettingsListener) {
+      _listenToSettings();
+    }
+  }
+
+  /// 供 Riverpod ref.listen 调用：接收最新 SettingsProvider 实例并同步配置
+  /// 替代手动 addListener，实现声明式依赖解耦。
+  void syncSettingsFromProvider(SettingsProvider newSettings) {
+    // 更新内部 settings 引用（Riverpod 可能重建 SettingsProvider）
+    _settings = newSettings;
+    _onSettingsChanged();
   }
 
   void _listenToSettings() {
@@ -518,6 +562,8 @@ class TtsEngineService extends ChangeNotifier {
 
   @override
   void dispose() {
+    // 幂等守卫：防止 Riverpod ref.onDispose + 外部手动 dispose 双调用
+    if (_disposed) return;
     _disposed = true;
     _settings.removeListener(_onSettingsChanged);
     _idleTimer?.cancel();
@@ -717,10 +763,16 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 切章核心：同步递增 session，立即停播，清空队列，重启循环
   void refreshSession() {
-    final TtsPlaybackState resumeState = switch ((isEnabled, isPaused)) {
-      (false, _) => TtsPlaybackState.disabled,
-      (true, true) => TtsPlaybackState.paused,
-      (true, false) => TtsPlaybackState.buffering,
+    // 穷尽 switch：依据当前状态决定恢复目标状态
+    final TtsPlaybackState resumeState = switch ((isEnabled, isPaused, isError)) {
+      // 引擎已关闭
+      (false, _, _) => TtsPlaybackState.disabled,
+      // 引擎已暂停
+      (true, true, _) => TtsPlaybackState.paused,
+      // 引擎处于错误状态 → 尝试缓冲重启
+      (true, false, true) => TtsPlaybackState.buffering,
+      // 引擎正常播放 → 缓冲
+      (true, false, false) => TtsPlaybackState.buffering,
     };
     _loopSession++;
     debugPrint(' refreshSession: session=$_loopSession');
@@ -1209,11 +1261,17 @@ class TtsEngineService extends ChangeNotifier {
           if (!preservePausedItem && _currentItem?.id == startItem.id) {
             _currentItem = null;
           }
-          _setState(switch ((isEnabled, isPaused, _currentItem != null)) {
-            (false, _, _) => TtsPlaybackState.disabled,
-            (true, true, _) => TtsPlaybackState.paused,
-            (true, false, true) => TtsPlaybackState.playing,
-            (true, false, false) => TtsPlaybackState.buffering,
+          _setState(switch ((isEnabled, isPaused, isError, _currentItem != null)) {
+            // 引擎已关闭
+            (false, _, _, _) => TtsPlaybackState.disabled,
+            // 引擎已暂停
+            (true, true, _, _) => TtsPlaybackState.paused,
+            // 引擎处于错误状态
+            (true, false, true, _) => TtsPlaybackState.error,
+            // 有当前播放项 → 播放中
+            (true, false, false, true) => TtsPlaybackState.playing,
+            // 无当前播放项 → 缓冲中
+            (true, false, false, false) => TtsPlaybackState.buffering,
           });
         }
       }
@@ -1548,10 +1606,14 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 强制重启循环，用于解决卡顿问题
   void forceRestartLoops() {
-    final TtsPlaybackState resumeState = switch ((isEnabled, isPaused)) {
-      (false, _) => TtsPlaybackState.disabled,
-      (true, true) => TtsPlaybackState.paused,
-      (true, false) => TtsPlaybackState.buffering,
+    // 穷尽 switch：依据当前状态决定恢复目标状态
+    final TtsPlaybackState resumeState = switch ((isEnabled, isPaused, isError)) {
+      // 引擎已关闭
+      (false, _, _) => TtsPlaybackState.disabled,
+      // 引擎已暂停
+      (true, true, _) => TtsPlaybackState.paused,
+      // 引擎错误或正常播放 → 强制缓冲重启
+      (true, false, _) => TtsPlaybackState.buffering,
     };
     debugPrint('🔄 强制重启循环 (Session=$_loopSession -> ${_loopSession + 1})');
     // 🔥 增加 session 是最彻底的停止旧循环并启动新循环的方法

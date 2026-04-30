@@ -5,9 +5,17 @@ import '../../audio/services/tts_engine_service.dart';
 import '../../library/domain/book_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// 阻读器全局 Provider（Riverpod 生命周期托管版）
+///
+/// - 通过 [ref.read] 获取 [ttsEngineProvider]，避免不必要的重建
+/// - 通过 [ref.onDispose] 自动回收阻读器资源
+/// - 不使用 ref.watch(ttsEngineProvider)，避免 TTS 变化触发 ReaderProvider 重建
 final readerProvider = ChangeNotifierProvider<ReaderProvider>((ref) {
   final tts = ref.read(ttsEngineProvider);
-  return ReaderProvider(tts);
+  final rp = ReaderProvider(tts);
+  // 注册 Riverpod 自动销毁钩子
+  ref.onDispose(rp.dispose);
+  return rp;
 });
 
 /// TTS 切换操作的领域结果
@@ -360,23 +368,37 @@ class ReaderProvider with ChangeNotifier {
 
   /// 切换播放/暂停状态
   /// 返回领域结果，由 UI 层决定如何展示提示
+  ///
+  /// 使用 Dart 3 穷尽 switch 表达式，确保 [TtsPlaybackState] 所有
+  /// 状态分支在编译期得到穷尽性检查，消除静默失败风险。
   TtsToggleResult toggleTTS() {
-    // 🔥 任务 1.2：前置拦截——未导入书籍或数据为空时，禁止触发 TTS
+    // 前置拦截——未导入书籍或数据为空时，禁止触发 TTS
     if (_currentBookId == null || _sentences.isEmpty) {
       return TtsToggleResult.noContent;
     }
-    final state = _ttsEngine.state;
-    if (state == TtsPlaybackState.playing ||
-        state == TtsPlaybackState.buffering) {
-      _ttsEngine.pause();
-      return TtsToggleResult.paused;
-    }
-    if (state == TtsPlaybackState.paused ||
-        state == TtsPlaybackState.disabled) {
-      _ttsEngine.play();
-      return TtsToggleResult.playing;
-    }
-    return TtsToggleResult.playing;
+    // 穷尽 switch：覆盖 TtsPlaybackState 全部 5 个分支
+    return switch (_ttsEngine.state) {
+      // 播放中 / 缓冲中 → 暂停
+      TtsPlaybackState.playing ||
+      TtsPlaybackState.buffering =>
+        () {
+          _ttsEngine.pause();
+          return TtsToggleResult.paused;
+        }(),
+      // 已暂停 / 已关闭 → 播放
+      TtsPlaybackState.paused ||
+      TtsPlaybackState.disabled =>
+        () {
+          _ttsEngine.play();
+          return TtsToggleResult.playing;
+        }(),
+      // 错误状态 → 清除错误后尝试恢复播放
+      TtsPlaybackState.error => () {
+          _ttsEngine.clearLastError();
+          _ttsEngine.play();
+          return TtsToggleResult.playing;
+        }(),
+    };
   }
 
   /// 倍速切换桥接
