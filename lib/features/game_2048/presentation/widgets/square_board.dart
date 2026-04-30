@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_shadows.dart';
@@ -16,14 +16,14 @@ import 'rain_effect.dart';
 
 /// 2048 棋盘主组件
 /// 物理引擎重构：Stack + AnimatedPositioned 实现丝滑滑动动画
-class SquareBoard extends StatefulWidget {
+class SquareBoard extends ConsumerStatefulWidget {
   const SquareBoard({super.key});
 
   @override
-  State<SquareBoard> createState() => _SquareBoardState();
+  ConsumerState<SquareBoard> createState() => _SquareBoardState();
 }
 
-class _SquareBoardState extends State<SquareBoard>
+class _SquareBoardState extends ConsumerState<SquareBoard>
     with SingleTickerProviderStateMixin {
   double _accumulatedDx = 0;
   double _accumulatedDy = 0;
@@ -197,7 +197,7 @@ class _SquareBoardState extends State<SquareBoard>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final provider = context.read<GameProvider>();
+    final provider = ref.read(gameProvider);
     if (!identical(_provider, provider)) {
       _gameOverSubscription?.cancel();
       _provider = provider;
@@ -245,7 +245,7 @@ class _SquareBoardState extends State<SquareBoard>
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<GameProvider>();
+    final provider = ref.watch(gameProvider);
 
     return AnimatedBuilder(
       animation: _tiltController,
@@ -303,9 +303,7 @@ class _SquareBoardState extends State<SquareBoard>
                   const spacing = CyberDimensions.spacingMS;
                   final cellSize = (boardSize - padding * 2 - spacing * 3) / 4;
 
-                  return Selector<GameProvider, List<List<TileModel?>>>(
-                    selector: (context, provider) => provider.board,
-                    builder: (context, board, _) {
+                  final board = provider.board;
                       var maxTile = 0;
                       for (final row in board) {
                         for (final tile in row) {
@@ -369,8 +367,8 @@ class _SquareBoardState extends State<SquareBoard>
                                         id: tile.id,
                                         value: tile.value,
                                         onEliminate: () {
-                                          context
-                                              .read<GameProvider>()
+                                          ref
+                                              .read(gameProvider)
                                               .eliminateTileById(tile.id);
                                         },
                                       ),
@@ -379,8 +377,7 @@ class _SquareBoardState extends State<SquareBoard>
                                 ],
                               ),
                             ),
-                            if (_showGameOverDialog &&
-                                context.read<GameProvider>().isOver)
+                            if (_showGameOverDialog && provider.isOver)
                               Positioned.fill(
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(
@@ -700,10 +697,7 @@ class _SquareBoardState extends State<SquareBoard>
                                                                   _showGameOverDialog =
                                                                       false;
                                                                 });
-                                                                context
-                                                                    .read<
-                                                                        GameProvider>()
-                                                                    .reset();
+                                                                ref.read(gameProvider).reset();
                                                               },
                                                               style:
                                                                   ElevatedButton
@@ -748,8 +742,6 @@ class _SquareBoardState extends State<SquareBoard>
                           ],
                         ),
                       );
-                    },
-                  );
                 },
               ),
             ),

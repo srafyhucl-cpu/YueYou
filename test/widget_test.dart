@@ -3,9 +3,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/features/game_2048/presentation/widgets/square_board.dart';
-import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/core/config/tts_config.dart';
 import 'utils/test_utils.dart';
 
@@ -15,9 +14,8 @@ void main() {
 
     // 构建简化的测试环境
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => GameProvider(),
-        child: const MaterialApp(
+      const ProviderScope(
+        child: MaterialApp(
           home: Scaffold(
             body: SquareBoard(),
           ),

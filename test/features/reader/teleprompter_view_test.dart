@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/config/tts_config.dart' as config;
 import 'package:yueyou/core/database/storage_service.dart';
@@ -100,9 +100,10 @@ Future<ReaderProvider> _makeReader({TtsHttpClient? httpClient}) async {
 }
 
 Widget _wrapWithProviders(ReaderProvider reader) {
-  return MultiProvider(
-    providers: [
-      ChangeNotifierProvider.value(value: reader),
+  return ProviderScope(
+    overrides: [
+      readerProvider.overrideWith((ref) => reader),
+      ttsEngineProvider.overrideWith((ref) => reader.ttsEngine),
     ],
     child: const MaterialApp(home: Scaffold(body: TeleprompterView())),
   );
@@ -119,8 +120,6 @@ void main() {
     final reader = await _makeReader();
     final service = reader.ttsEngine;
     addTearDown(() {
-      reader.dispose();
-      service.dispose();
     });
     await tester.pumpWidget(_wrapWithProviders(reader));
 
@@ -131,8 +130,6 @@ void main() {
     final reader = await _makeReader();
     final service = reader.ttsEngine;
     addTearDown(() {
-      reader.dispose();
-      service.dispose();
     });
     await tester.runAsync(() async {
       await reader.loadBook(
@@ -160,8 +157,8 @@ void main() {
     );
     final service = reader.ttsEngine;
     addTearDown(() {
-      reader.dispose();
-      service.dispose();
+      
+      
     });
 
     await tester.runAsync(() async {
@@ -195,8 +192,8 @@ void main() {
     );
     final service = reader.ttsEngine;
     addTearDown(() {
-      reader.dispose();
-      service.dispose();
+      
+      
     });
 
     await tester.runAsync(() async {

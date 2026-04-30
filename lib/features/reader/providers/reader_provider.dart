@@ -3,6 +3,14 @@ import '../../../core/database/storage_service.dart';
 import 'package:yueyou/features/reader/domain/text_parser.dart';
 import '../../audio/services/tts_engine_service.dart';
 import '../../library/domain/book_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final readerProvider = ChangeNotifierProvider<ReaderProvider>((ref) {
+  final tts = ref.watch(ttsEngineProvider);
+  final rp = ReaderProvider(tts);
+  ref.onDispose(rp.dispose);
+  return rp;
+});
 
 /// TTS 切换操作的领域结果
 enum TtsToggleResult {

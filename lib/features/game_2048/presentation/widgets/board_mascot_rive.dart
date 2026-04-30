@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rive/rive.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
@@ -15,14 +15,14 @@ import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 /// 布局约束：
 /// - 尺寸固定 68×84，爪子位置在 73px 处
 /// - 通过 LayoutBuilder 精确定位到棋盘上边框
-class BoardMascotRive extends StatefulWidget {
+class BoardMascotRive extends ConsumerStatefulWidget {
   const BoardMascotRive({super.key});
 
   @override
-  State<BoardMascotRive> createState() => _BoardMascotRiveState();
+  ConsumerState<BoardMascotRive> createState() => _BoardMascotRiveState();
 }
 
-class _BoardMascotRiveState extends State<BoardMascotRive> {
+class _BoardMascotRiveState extends ConsumerState<BoardMascotRive> {
   // Rive 核心控制器
   Artboard? _riveArtboard;
   StateMachineController? _controller;
@@ -50,7 +50,7 @@ class _BoardMascotRiveState extends State<BoardMascotRive> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final provider = context.read<GameProvider>();
+    final provider = ref.read(gameProvider);
     if (_watchedProvider != provider) {
       _watchedProvider?.removeListener(_onGameChanged);
       _watchedProvider = provider;

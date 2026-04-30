@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/audio/services/tts_engine_service.dart';
 import 'cyber_toast.dart';
 
 /// Wrap any screen or the whole app with this widget to automatically
 /// display a SnackBar whenever `TtsEngineService.lastError` becomes non-null.
-class TtsErrorListener extends StatefulWidget {
+class TtsErrorListener extends ConsumerStatefulWidget {
   final Widget child;
   const TtsErrorListener({super.key, required this.child});
 
   @override
-  State<TtsErrorListener> createState() => _TtsErrorListenerState();
+  ConsumerState<TtsErrorListener> createState() => _TtsErrorListenerState();
 }
 
-class _TtsErrorListenerState extends State<TtsErrorListener> {
+class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
   int _previousErrorTime = 0;
   String? _previousFallback;
   int _lastFallbackTimestamp = 0;
@@ -22,16 +22,15 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Ensure we start with fresh snapshot when dependencies change
-    _previousErrorTime = context.read<TtsEngineService>().errorTimestamp;
-    _previousFallback = context.read<TtsEngineService>().fallbackNotification;
+    _previousErrorTime = ref.read(ttsEngineProvider).errorTimestamp;
+    _previousFallback = ref.read(ttsEngineProvider).fallbackNotification;
   }
 
   @override
   Widget build(BuildContext context) {
     debugPrint('[TtsErrorListener] building, will listen to TtsEngineService');
-    return Consumer<TtsEngineService>(
-      builder: (context, tts, child) {
-        final err = tts.lastError;
+    final tts = ref.watch(ttsEngineProvider);
+    final err = tts.lastError;
         final currentTimestamp = DateTime.now().millisecondsSinceEpoch;
         
         if (err != null && tts.errorTimestamp != _previousErrorTime) {
@@ -71,8 +70,5 @@ class _TtsErrorListenerState extends State<TtsErrorListener> {
         }
 
         return widget.child;
-      },
-      child: widget.child,
-    );
   }
 }

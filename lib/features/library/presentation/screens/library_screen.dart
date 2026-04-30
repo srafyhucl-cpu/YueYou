@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -243,7 +243,7 @@ class _BookCard extends ConsumerWidget {
   /// 对应 JS loadBookFromShelf(id, title, cursor)
   Future<void> _loadBook(BuildContext context, WidgetRef ref) async {
     final shelf = ref.read(bookshelfProvider);
-    final reader = context.read<ReaderProvider>();
+    final reader = ref.read(readerProvider);
 
     final content = await shelf.loadBookContent(book.id);
     if (content == null) return;
@@ -275,7 +275,7 @@ class _BookCard extends ConsumerWidget {
       cancelText: '取消',
     );
     if (confirmed == true && context.mounted) {
-      final reader = context.read<ReaderProvider>();
+      final reader = ref.read(readerProvider);
       await ref.read(bookshelfProvider).deleteBook(book.id, reader: reader);
     }
   }

@@ -11,6 +11,14 @@ import '../../settings/providers/settings_provider.dart';
 import '../../../core/config/tts_config.dart';
 import '../../../core/utils/safe_string.dart';
 import '../../../core/utils/tts_cache_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
+  final settings = ref.watch(settingsProvider);
+  final svc = TtsEngineService(settings);
+  ref.onDispose(svc.dispose);
+  return svc;
+});
 
 /// 抽象接口，用于测试时注入 Mock
 abstract class TtsAudioPlayer {

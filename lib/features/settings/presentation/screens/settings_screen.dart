@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -85,7 +85,7 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: '自动播报当前小说内容',
           value: settings.storyTts,
           onChanged: (v) async {
-            final tts = context.read<TtsEngineService>();
+            final tts = ref.read(ttsEngineProvider);
             await settings.setStoryTts(v);
             if (v) {
               tts.refreshSession();
@@ -217,21 +217,21 @@ class _ToggleTile extends StatelessWidget {
 }
 
 /// 倍速选择器（对应 JS cycleTTSpeed 的六档）
-class _SpeedSelector extends StatelessWidget {
+class _SpeedSelector extends ConsumerWidget {
   final SettingsProvider settings;
   static const List<double> _speeds = [0.7, 1.0, 1.2, 1.5, 2.0, 2.5];
 
   const _SpeedSelector({required this.settings});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Wrap(
       spacing: CyberDimensions.spacingS,
       children: _speeds.map((s) {
         final bool selected = (settings.ttsRate - s).abs() < 0.01;
         return GestureDetector(
           onTap: () async {
-            final tts = context.read<TtsEngineService>();
+            final tts = ref.read(ttsEngineProvider);
             await settings.setTtsRate(s);
             final double hardwareRate = (0.5 * (s / 1.0)).clamp(0.1, 1.0);
             tts.syncSpeedFromSettings(s, hardwareRate);
@@ -271,7 +271,7 @@ class _SpeedSelector extends StatelessWidget {
 }
 
 /// 发声人选择器（对应 JS tts-voice-select）
-class _VoiceSelector extends StatelessWidget {
+class _VoiceSelector extends ConsumerWidget {
   final SettingsProvider settings;
 
   static const Map<String, String> _voices = {
@@ -285,7 +285,7 @@ class _VoiceSelector extends StatelessWidget {
   const _VoiceSelector({required this.settings});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: CyberDimensions.spacingMS,
@@ -314,7 +314,7 @@ class _VoiceSelector extends StatelessWidget {
         }).toList(),
         onChanged: (v) async {
           if (v == null) return;
-          final tts = context.read<TtsEngineService>();
+          final tts = ref.read(ttsEngineProvider);
           await settings.setVoice(v);
           if (settings.storyTts) {
             tts.refreshSession();
@@ -327,14 +327,14 @@ class _VoiceSelector extends StatelessWidget {
 
 /// 空闲超时选择器（对应 JS idle-timeout 0-5 分钟）
 /// TTS 连接测试按钮
-class _TtsTestButton extends StatefulWidget {
+class _TtsTestButton extends ConsumerStatefulWidget {
   const _TtsTestButton();
 
   @override
-  State<_TtsTestButton> createState() => _TtsTestButtonState();
+  ConsumerState<_TtsTestButton> createState() => _TtsTestButtonState();
 }
 
-class _TtsTestButtonState extends State<_TtsTestButton> {
+class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
   bool _isTesting = false;
 
   @override
@@ -408,7 +408,7 @@ class _TtsTestButtonState extends State<_TtsTestButton> {
   }
 
   Future<void> _testTtsConnection() async {
-    final tts = context.read<TtsEngineService>();
+    final tts = ref.read(ttsEngineProvider);
 
     setState(() => _isTesting = true);
 

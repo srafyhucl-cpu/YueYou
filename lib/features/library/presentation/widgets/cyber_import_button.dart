@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -28,7 +28,7 @@ class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
 
   @override
   Widget build(BuildContext context) {
-    final reader = context.watch<ReaderProvider>();
+    final reader = ref.watch(readerProvider);
     final bool isBusy = reader.isParsing;
         return ClipRRect(
           borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
@@ -71,7 +71,7 @@ class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
                           if (!context.mounted) return;
 
                           // 自动加载到提词器（对应 JS loadBookFromShelf）
-                          await context.read<ReaderProvider>().loadPreparedBook(
+                          await ref.read(readerProvider).loadPreparedBook(
                                 result.lines,
                                 bookId: bookId.toString(),
                                 chapters: result.chapters,

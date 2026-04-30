@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
@@ -10,17 +10,17 @@ import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 /// 合成大棋子时欢呼跳跃，失败时陪你一起难过
 ///
 /// 架构设计：纯渲染组件，不处理手势，通过 onTap 回调接收点击事件
-class BoardMascot extends StatefulWidget {
+class BoardMascot extends ConsumerStatefulWidget {
   /// 点击回调（由父组件 DashboardScreen 触发）
   final VoidCallback? onTap;
 
   const BoardMascot({super.key, this.onTap});
 
   @override
-  State<BoardMascot> createState() => BoardMascotState();
+  ConsumerState<BoardMascot> createState() => BoardMascotState();
 }
 
-class BoardMascotState extends State<BoardMascot>
+class BoardMascotState extends ConsumerState<BoardMascot>
     with TickerProviderStateMixin {
   // ── 眼球方向层（可随时打断，从当前值插值，绝不跳变）──
   late AnimationController _eyeController;
@@ -151,13 +151,13 @@ class BoardMascotState extends State<BoardMascot>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final provider = context.read<GameProvider>();
+    final provider = ref.read(gameProvider);
     if (_watchedProvider != provider) {
       _watchedProvider?.removeListener(_onGameChanged);
       _watchedProvider = provider;
       _watchedProvider!.addListener(_onGameChanged);
     }
-    final ttsProvider = context.read<TtsEngineService>();
+    final ttsProvider = ref.read(ttsEngineProvider);
     if (_watchedTtsProvider != ttsProvider) {
       _watchedTtsProvider?.removeListener(_onTtsChanged);
       _watchedTtsProvider = ttsProvider;
