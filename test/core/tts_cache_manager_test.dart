@@ -292,7 +292,7 @@ void main() {
       expect(() {
         mgr.startPeriodicClean();
         mgr.startPeriodicClean();
-      }, returnsNormally);
+      }, returnsNormally,);
       mgr.stopPeriodicClean();
     });
 

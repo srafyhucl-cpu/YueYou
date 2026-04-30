@@ -104,7 +104,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // 主内容
             Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: CyberDimensions.spacingM),
+                  horizontal: CyberDimensions.spacingM,),
               child: Column(
                 children: [
                   const SizedBox(height: CyberDimensions.spacingM),
@@ -200,15 +200,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _SegItem(
           icon: Icons.menu_book_rounded,
           label: '书架',
-          onTap: () => _openLibrary(context)),
+          onTap: () => _openLibrary(context),),
       _SegItem(
           icon: Icons.list_rounded,
           label: '目录',
-          onTap: () => _openChapterList(context)),
+          onTap: () => _openChapterList(context),),
       _SegItem(
           icon: Icons.tune_rounded,
           label: '设置',
-          onTap: () => _openSettings(context)),
+          onTap: () => _openSettings(context),),
     ];
 
     return ClipRRect(
@@ -253,7 +253,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Expanded(
           child: _buildInfoCard(
             context,
-            title: "当前得分 | 连击",
+            title: '当前得分 | 连击',
             score: provider.score,
             combo: provider.combo,
             showReset: true, // 🔥 找回重置按钮
@@ -275,7 +275,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Expanded(
               child: _buildInfoCard(
                 context,
-                title: "最高得分 | 最高连击",
+                title: '最高得分 | 最高连击',
                 score: provider.bestScore,
                 combo: provider.maxCombo,
               ),
@@ -305,7 +305,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             vertical: CyberDimensions.spacingS + CyberDimensions.spacingXXS,
           ),
           constraints: const BoxConstraints(
-              minHeight: CyberDimensions.dashboardStatusCardMinHeight),
+              minHeight: CyberDimensions.dashboardStatusCardMinHeight,),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -340,7 +340,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const SizedBox(
                   height:
-                      CyberDimensions.spacingS - CyberDimensions.spacingXXS),
+                      CyberDimensions.spacingS - CyberDimensions.spacingXXS,),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -353,7 +353,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: [
                           _buildAnimatedCounter(score),
                           const Text(
-                            " | ",
+                            ' | ',
                             style: CyberTextStyles.dashboardSeparator,
                           ),
                           _buildAnimatedCounter(combo, isCombo: true),
@@ -390,7 +390,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       curve: Curves.easeOutCubic,
       builder: (context, animatedValue, child) {
         return Text(
-          "$animatedValue",
+          '$animatedValue',
           style: CyberTextStyles.dashboardCounter.copyWith(
             color: isCombo ? CyberColors.neonPink : CyberColors.neonCyan,
             shadows: [
@@ -417,7 +417,7 @@ class _SegItem {
   final String label;
   final VoidCallback onTap;
   const _SegItem(
-      {required this.icon, required this.label, required this.onTap});
+      {required this.icon, required this.label, required this.onTap,});
 }
 
 class _SegButton extends StatefulWidget {
@@ -457,7 +457,7 @@ class _SegButtonState extends State<_SegButton> {
               size: CyberDimensions.iconS,
             ),
             const SizedBox(
-                width: CyberDimensions.spacingS - CyberDimensions.spacingXXS),
+                width: CyberDimensions.spacingS - CyberDimensions.spacingXXS,),
             Text(
               widget.item.label,
               style: CyberTextStyles.segmentLabel,

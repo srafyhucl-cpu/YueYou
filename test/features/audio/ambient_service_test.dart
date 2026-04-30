@@ -217,7 +217,7 @@ void main() {
       // 首个采样（offset 44）应接近 0（淡入起点）
       final firstSample = view.getInt16(44, Endian.little).abs();
       expect(firstSample, lessThan(100),
-          reason: '淡入起始采样应接近 0，实际为 $firstSample');
+          reason: '淡入起始采样应接近 0，实际为 $firstSample',);
     });
   });
 }

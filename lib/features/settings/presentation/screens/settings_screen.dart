@@ -40,7 +40,7 @@ class SettingsScreen extends ConsumerWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(
             sigmaX: CyberDimensions.blurLight,
-            sigmaY: CyberDimensions.blurLight),
+            sigmaY: CyberDimensions.blurLight,),
         child: Container(
           height: CyberDimensions.headerHeight,
           color: CyberColors.panelBackground.withValues(alpha: 0.8),
@@ -514,7 +514,7 @@ class _TtsTestResultDialog extends StatelessWidget {
                   backgroundColor: CyberColors.neonCyan,
                   foregroundColor: CyberColors.background,
                   padding: const EdgeInsets.symmetric(
-                      vertical: CyberDimensions.spacingMS),
+                      vertical: CyberDimensions.spacingMS,),
                   shape: RoundedRectangleBorder(
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusS),
@@ -705,11 +705,11 @@ class _IdleTimeoutSelector extends StatelessWidget {
             items: [
               const DropdownMenuItem(
                   value: 0,
-                  child: Text('永不', style: CyberTextStyles.bodySmall)),
+                  child: Text('永不', style: CyberTextStyles.bodySmall),),
               ...List.generate(5, (i) => i + 1).map((m) => DropdownMenuItem(
                     value: m,
                     child: Text('$m 分钟', style: CyberTextStyles.bodySmall),
-                  )),
+                  ),),
             ],
             onChanged: (v) {
               if (v != null) settings.setIdleTimeout(v);

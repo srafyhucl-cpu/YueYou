@@ -117,7 +117,7 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
 /// 抽象接口，用于测试时注入 Mock
 abstract class TtsHttpClient {
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body});
+      {Map<String, String>? headers, Object? body,});
   Future<void> download(Uri url, String savePath);
 }
 
@@ -235,7 +235,7 @@ class _RealHttpClient implements HttpClientInterface {
     try {
       final request = await client.postUrl(url);
       request.headers.set(
-          HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+          HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8',);
       final Map<String, dynamic> bodyMap = body is Map<String, dynamic>
           ? body
           : (body is String ? jsonDecode(body) as Map<String, dynamic> : {});
@@ -267,7 +267,7 @@ class _RealTtsHttpClient implements TtsHttpClient {
 
   @override
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body}) async {
+      {Map<String, String>? headers, Object? body,}) async {
     final responseBody = await _httpClient.postJson(url, body);
     final dynamic data = jsonDecode(responseBody);
     return TtsHttpResponse(
@@ -424,7 +424,7 @@ class TtsEngineService extends ChangeNotifier {
           AVAudioSessionOptions.duckOthers,
         },
       ),
-    ));
+    ),);
     _initFuture = _initTtsHardware();
     // 非 Riverpod 场景（如测试直接构造），仍使用内部监听器
     if (externalSettingsListener) {
@@ -473,24 +473,24 @@ class TtsEngineService extends ChangeNotifier {
     unawaited(_audioPlayer.setPlaybackRate(rate).catchError((Object e) {
       _setLastError(CyberErrorMessages.ttsAudioParamFailed);
       debugPrint('设置播放倍速失败: $e');
-    }));
+    }),);
   }
 
   void _safeSetVolume(double volume) {
     unawaited(_audioPlayer.setVolume(volume).catchError((Object e) {
       _setLastError(CyberErrorMessages.ttsAudioParamFailed);
       debugPrint('设置音量失败: $e');
-    }));
+    }),);
   }
 
   void _setLastError(dynamic error) {
     final message = switch (error) {
-      String msg => msg,
+      final String msg => msg,
       TimeoutException _ => '接入链路波动，请检查网络',
       SocketException _ => '网络连接失败，请检查网络设置',
       HttpException _ => '服务器连接异常，请稍后重试',
       FormatException _ => '数据解析失败，请联系管理员',
-      int code => switch (code) {
+      final int code => switch (code) {
         404 => '请求的资源不存在，请检查后重试',
         >= 500 => '服务器维护中，请稍后再试',
         >= 400 => '请求参数异常，请稍后重试',
@@ -585,7 +585,7 @@ class TtsEngineService extends ChangeNotifier {
       _playbackRate = _settings.ttsRate;
       _setState(_settings.storyTts
           ? TtsPlaybackState.buffering
-          : TtsPlaybackState.disabled);
+          : TtsPlaybackState.disabled,);
 
       await _audioPlayer.setVolume(_volume.clamp(0.0, 1.0));
       await _audioPlayer.setPlaybackRate(_playbackRate);
@@ -987,7 +987,7 @@ class TtsEngineService extends ChangeNotifier {
               if (_disposed || !isEnabled) return;
               if (onItemFinished != null && ok) {
                 unawaited(
-                    Future.microtask(() => onItemFinished!(fallbackItem)));
+                    Future.microtask(() => onItemFinished!(fallbackItem)),);
               }
               _currentItem = null;
               if (ok) {
@@ -1012,7 +1012,7 @@ class TtsEngineService extends ChangeNotifier {
               lineIndex: request.lineIndex,
               text: request.text,
               title: request.title,
-            ));
+            ),);
             // 🔥 按 lineIndex 排序，确保顺序
             _prefetchedItems.sort((a, b) => a.lineIndex.compareTo(b.lineIndex));
             debugPrint('✅ 预加载完成: ${request.text} -> $filePath');
@@ -1272,7 +1272,7 @@ class TtsEngineService extends ChangeNotifier {
             (true, false, false, true) => TtsPlaybackState.playing,
             // 无当前播放项 → 缓冲中
             (true, false, false, false) => TtsPlaybackState.buffering,
-          });
+          },);
         }
       }
     } catch (e) {
@@ -1314,7 +1314,7 @@ class TtsEngineService extends ChangeNotifier {
           final errorBody = response.body;
           _setLastError(response.statusCode);
           debugPrint(
-              '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})\n响应: $errorBody');
+              '⚠️ TTS服务器返回错误: ${response.statusCode} (尝试 ${attempt + 1}/${_config.maxRetries})\n响应: $errorBody',);
 
           // 🔥 400错误特殊处理：虽然不重试，但仍应触发3秒退避
           if (response.statusCode == 400) {
@@ -1336,7 +1336,7 @@ class TtsEngineService extends ChangeNotifier {
         if (_disposed) return (filePath: null, attempts: attempts, useFallback: false);
         final String responseBody = response.body.trim();
         debugPrint(
-            '🔴 TTS 服务器原始响应内容: ${responseBody.length > 100 ? responseBody.substring(0, 100) : responseBody}');
+            '🔴 TTS 服务器原始响应内容: ${responseBody.length > 100 ? responseBody.substring(0, 100) : responseBody}',);
         if (!(responseBody.startsWith('{') || responseBody.startsWith('['))) {
           throw const FormatException(
             CyberErrorMessages.ttsInvalidFormat,

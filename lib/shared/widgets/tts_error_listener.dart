@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/audio/services/tts_engine_service.dart';
 import 'cyber_toast.dart';
 
-/// Wrap any screen or the whole app with this widget to automatically
-/// display a SnackBar whenever `TtsEngineService.lastError` becomes non-null.
+/// TTS 错误全局监听器组件
+///
+/// 将任意页面或整个 App 根节点包裹在此组件下，
+/// 每当 [TtsEngineService.lastError] 变为非 null 时，
+/// 自动弹出 [CyberToast] 错误提示，无需各页面手动监听。
 class TtsErrorListener extends ConsumerStatefulWidget {
   final Widget child;
   const TtsErrorListener({super.key, required this.child});
@@ -21,14 +24,14 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Ensure we start with fresh snapshot when dependencies change
+    // 依赖变化时刷新快照，避免初始化重复触发旧错误
     _previousErrorTime = ref.read(ttsEngineProvider).errorTimestamp;
     _previousFallback = ref.read(ttsEngineProvider).fallbackNotification;
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[TtsErrorListener] building, will listen to TtsEngineService');
+    debugPrint('[TtsErrorListener] 正在构建，监听 TtsEngineService 状态');
     final tts = ref.watch(ttsEngineProvider);
     final err = tts.lastError;
         final currentTimestamp = DateTime.now().millisecondsSinceEpoch;
@@ -36,13 +39,13 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
         if (err != null && tts.errorTimestamp != _previousErrorTime) {
           _previousErrorTime = tts.errorTimestamp;
           debugPrint(
-              '[TtsErrorListener] New error detected: $err, scheduling CyberToast');
+              '[TtsErrorListener] 检测到新错误: $err，将展示 CyberToast',);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             try {
               CyberToast.show(err, type: ToastType.error);
             } catch (e) {
-              debugPrint('[TtsErrorListener] ERROR showing CyberToast: $e');
+              debugPrint('[TtsErrorListener] 展示 CyberToast 失败: $e');
             }
           });
         }
@@ -63,7 +66,7 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
                 CyberToast.show(fallback, type: ToastType.info);
               } catch (e) {
                 debugPrint(
-                    '[TtsErrorListener] ERROR showing fallback CyberToast: $e');
+                    '[TtsErrorListener] 展示降级通知 CyberToast 失败: $e',);
               }
             });
           }

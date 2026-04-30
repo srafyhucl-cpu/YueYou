@@ -33,7 +33,7 @@ class LibraryScreen extends ConsumerWidget {
                   }
                   return ListView.builder(
                     padding: const EdgeInsets.fromLTRB(CyberDimensions.spacingM,
-                        CyberDimensions.spacingS, CyberDimensions.spacingM, 80),
+                        CyberDimensions.spacingS, CyberDimensions.spacingM, 80,),
                     itemCount: shelf.shelf.length,
                     itemBuilder: (ctx, i) =>
                         _BookCard(book: shelf.shelf[i], index: i),
@@ -53,7 +53,7 @@ class LibraryScreen extends ConsumerWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(
             sigmaX: CyberDimensions.blurLight,
-            sigmaY: CyberDimensions.blurLight),
+            sigmaY: CyberDimensions.blurLight,),
         child: Container(
           height: CyberDimensions.headerHeight,
           color: CyberColors.panelBackground.withValues(alpha: 0.8),
@@ -84,7 +84,7 @@ class LibraryScreen extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.auto_stories_outlined,
-              size: 64, color: CyberColors.whiteSubtle),
+              size: 64, color: CyberColors.whiteSubtle,),
           const SizedBox(height: CyberDimensions.spacingM),
           Text(
             '当前书架为空\n请导入 TXT 本地小说',
@@ -200,7 +200,7 @@ class _BookCard extends ConsumerWidget {
                                 value: percent / 100,
                                 backgroundColor: CyberColors.whiteSubtle,
                                 valueColor: const AlwaysStoppedAnimation(
-                                    CyberColors.whiteHigh),
+                                    CyberColors.whiteHigh,),
                                 minHeight: 4,
                               ),
                             ),
@@ -221,14 +221,14 @@ class _BookCard extends ConsumerWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: CyberDimensions.spacingMS,
-                      vertical: CyberDimensions.spacingXS),
+                      vertical: CyberDimensions.spacingXS,),
                   decoration: BoxDecoration(
                     color: CyberColors.background.withValues(alpha: 0.45),
                     borderRadius:
                         BorderRadius.circular(CyberDimensions.radiusS),
                     border: Border.all(
                         color: CyberColors.whiteSubtle,
-                        width: CyberDimensions.borderNormal),
+                        width: CyberDimensions.borderNormal,),
                   ),
                   child: const Text('删', style: CyberTextStyles.caption),
                 ),
@@ -260,7 +260,7 @@ class _BookCard extends ConsumerWidget {
         .toList();
 
     await reader.loadPreparedBook(lines,
-        bookId: book.id.toString(), chapters: chapters);
+        bookId: book.id.toString(), chapters: chapters,);
     if (!context.mounted) return;
     Navigator.of(context).pop();
   }

@@ -39,7 +39,7 @@ class _BoardResetAnimationState extends State<BoardResetAnimation>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOutCubic,
-    ));
+    ),);
 
     _fadeAnimation = TweenSequence<double>([
       TweenSequenceItem(

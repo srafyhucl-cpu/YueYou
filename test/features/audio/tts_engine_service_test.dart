@@ -70,7 +70,7 @@ class _FakeHttpClient implements TtsHttpClient {
   int downloadCalls = 0;
 
   _FakeHttpClient(
-      {List<TtsHttpResponse>? queue, Map<String, List<int>>? downloads})
+      {List<TtsHttpResponse>? queue, Map<String, List<int>>? downloads,})
       : _queue = List<TtsHttpResponse>.of(queue ?? const <TtsHttpResponse>[]),
         downloads = Map<String, List<int>>.from(
           downloads ?? const <String, List<int>>{},
@@ -78,7 +78,7 @@ class _FakeHttpClient implements TtsHttpClient {
 
   @override
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body}) async {
+      {Map<String, String>? headers, Object? body,}) async {
     postCalls++;
     if (_queue.isNotEmpty) {
       return _queue.removeAt(0);
@@ -111,7 +111,7 @@ class _SequencedHttpClient implements TtsHttpClient {
 
   @override
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body}) async {
+      {Map<String, String>? headers, Object? body,}) async {
     postCalls++;
     if (_events.isEmpty) {
       return const TtsHttpResponse(statusCode: 500, body: 'internal error');
@@ -171,7 +171,7 @@ class _MockHarness {
       {required this.settings,
       required this.service,
       required this.fakeAudioPlayer,
-      required this.fakeWakeLock});
+      required this.fakeWakeLock,});
 }
 
 void _mockPathProviderTempDir(String tempDirPath) {
@@ -242,12 +242,12 @@ Future<_Harness> _makeService(
     {bool storyTts = false,
     double ttsRate = 1.0,
     double ambientVol = 0.5,
-    String voice = 'zh-CN-XiaoxiaoNeural'}) async {
+    String voice = 'zh-CN-XiaoxiaoNeural',}) async {
   SharedPreferences.setMockInitialValues({
     'setting_story_tts': storyTts,
     'setting_tts_rate': ttsRate,
     'setting_ambient_vol': ambientVol,
-    'setting_voice': voice
+    'setting_voice': voice,
   });
   StorageService.resetForTesting();
   await StorageService.init();
@@ -267,12 +267,12 @@ Future<_MockHarness> _makeMockService(
     String voice = 'zh-CN-XiaoxiaoNeural',
     TtsConfig? config,
     TtsHttpClient? httpClient,
-    Future<void> Function(Duration)? delayFn}) async {
+    Future<void> Function(Duration)? delayFn,}) async {
   SharedPreferences.setMockInitialValues({
     'setting_story_tts': storyTts,
     'setting_tts_rate': ttsRate,
     'setting_ambient_vol': ambientVol,
-    'setting_voice': voice
+    'setting_voice': voice,
   });
   StorageService.resetForTesting();
   await StorageService.init();
@@ -305,7 +305,7 @@ Future<_MockHarness> _makeMockService(
       settings: settings,
       service: service,
       fakeAudioPlayer: fakeAudioPlayer,
-      fakeWakeLock: fakeWakeLock);
+      fakeWakeLock: fakeWakeLock,);
 }
 
 void main() {
@@ -352,7 +352,7 @@ void main() {
       expect(h.service.playbackRate, isNot(equals(before)));
       await Future<void>.delayed(Duration.zero);
       expect(
-          StorageService.getSettingTtsRate(), equals(h.service.playbackRate));
+          StorageService.getSettingTtsRate(), equals(h.service.playbackRate),);
       h.service.dispose();
     });
 
@@ -521,7 +521,7 @@ void main() {
     test('testConnection 失败后应暴露 lastError 且可清理', () async {
       final httpClient = _FakeHttpClient(
         queue: const <TtsHttpResponse>[
-          TtsHttpResponse(statusCode: 404, body: 'not found')
+          TtsHttpResponse(statusCode: 404, body: 'not found'),
         ],
       );
       final h = await _makeMockService(
@@ -586,7 +586,7 @@ void main() {
     test('HTTP 400：应直接跳过不重试（post 仅 1 次）', () async {
       final httpClient = _FakeHttpClient(
         queue: const <TtsHttpResponse>[
-          TtsHttpResponse(statusCode: 400, body: 'bad request')
+          TtsHttpResponse(statusCode: 400, body: 'bad request'),
         ],
       );
       final delay = _DelayRecorder();
@@ -661,9 +661,9 @@ void main() {
           delay.durations
               .where((d) =>
                   d == const Duration(milliseconds: 2) ||
-                  d == const Duration(milliseconds: 4))
+                  d == const Duration(milliseconds: 4),)
               .length,
-          greaterThanOrEqualTo(2));
+          greaterThanOrEqualTo(2),);
       h.service.setEnabled(false);
       h.service.dispose();
     });
@@ -714,7 +714,7 @@ void main() {
             _jsonUrlResponse(audioUrl),
           ],
           downloads: <String, List<int>>{
-            audioUrl: _audioBytes(sizeBytes: 2048)
+            audioUrl: _audioBytes(sizeBytes: 2048),
           },
         );
         final delay = _DelayRecorder();
@@ -835,7 +835,7 @@ void main() {
         final httpClient = _FakeHttpClient(
           queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
           downloads: <String, List<int>>{
-            audioUrl: _audioBytes(sizeBytes: 2048)
+            audioUrl: _audioBytes(sizeBytes: 2048),
           },
         );
         final delay = _DelayRecorder();
@@ -971,7 +971,7 @@ void main() {
         final httpClient = _FakeHttpClient(
           queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
           downloads: <String, List<int>>{
-            audioUrl: _audioBytes(sizeBytes: 2048)
+            audioUrl: _audioBytes(sizeBytes: 2048),
           },
         );
         final settings = await (() async {
@@ -979,7 +979,7 @@ void main() {
             'setting_story_tts': false,
             'setting_tts_rate': 1.0,
             'setting_ambient_vol': 0.5,
-            'setting_voice': 'zh-CN-XiaoxiaoNeural'
+            'setting_voice': 'zh-CN-XiaoxiaoNeural',
           });
           StorageService.resetForTesting();
           await StorageService.init();
@@ -1054,7 +1054,7 @@ void main() {
         final httpClient = _FakeHttpClient(
           queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
           downloads: <String, List<int>>{
-            audioUrl: _audioBytes(sizeBytes: 2048)
+            audioUrl: _audioBytes(sizeBytes: 2048),
           },
         );
         final h = await _makeMockService(
@@ -1076,7 +1076,7 @@ void main() {
     test('testConnection 服务器返回非200：success=false', () async {
       final httpClient = _FakeHttpClient(
         queue: const <TtsHttpResponse>[
-          TtsHttpResponse(statusCode: 404, body: 'not found')
+          TtsHttpResponse(statusCode: 404, body: 'not found'),
         ],
       );
       final h = await _makeMockService(
@@ -1138,7 +1138,7 @@ void main() {
         final httpClient = _FakeHttpClient(
           queue: <TtsHttpResponse>[_jsonUrlResponse(audioUrl)],
           downloads: <String, List<int>>{
-            audioUrl: _audioBytes(sizeBytes: 2048)
+            audioUrl: _audioBytes(sizeBytes: 2048),
           },
         );
         final h = await _makeMockService(
@@ -1159,7 +1159,7 @@ void main() {
         expect(result['statusCode'], equals(200));
         final steps = (result['steps'] as List).cast<Map>();
         expect(
-            steps.any((s) => s['step'] == 5 && s['status'] == 'error'), isTrue);
+            steps.any((s) => s['step'] == 5 && s['status'] == 'error'), isTrue,);
         h.service.dispose();
       } finally {
         _restorePathProviderTempDir();
@@ -1271,7 +1271,7 @@ class _ThrowingHttpClient implements TtsHttpClient {
 
   @override
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body}) {
+      {Map<String, String>? headers, Object? body,}) {
     return Future<TtsHttpResponse>.error(error);
   }
 
@@ -1287,7 +1287,7 @@ class _HangingHttpClient implements TtsHttpClient {
 
   @override
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body}) {
+      {Map<String, String>? headers, Object? body,}) {
     return future;
   }
 

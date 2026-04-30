@@ -94,7 +94,7 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                            horizontal: 16, vertical: 8,),
                         decoration: BoxDecoration(
                           color: CyberColors.glassDark,
                           borderRadius:
@@ -192,7 +192,7 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
               color: CyberColors.hotPink.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
-            )
+            ),
           ],
         ),
         child: Center(
@@ -223,7 +223,7 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
       child: Container(
         padding: const EdgeInsets.symmetric(
             horizontal: CyberDimensions.spacingMS,
-            vertical: CyberDimensions.spacingS),
+            vertical: CyberDimensions.spacingS,),
         decoration: BoxDecoration(
           color: CyberColors.whiteBorder,
           borderRadius: BorderRadius.circular(CyberDimensions.radiusL),

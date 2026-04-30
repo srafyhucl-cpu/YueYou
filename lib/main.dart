@@ -49,7 +49,7 @@ Future<void> main() async {
         const riverpod.ProviderScope(
           child: YueYouApp(),
         ),
-      ));
+      ),);
 }
 
 

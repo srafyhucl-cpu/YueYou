@@ -30,7 +30,7 @@ Future<T?> showCyberModal<T>({
                 opacity: animation,
                 child: Container(
                   margin: const EdgeInsets.symmetric(
-                      horizontal: CyberDimensions.spacingXL, vertical: 64),
+                      horizontal: CyberDimensions.spacingXL, vertical: 64,),
                   constraints: BoxConstraints(
                     maxWidth: 500,
                     maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -61,7 +61,7 @@ Future<T?> showCyberModal<T>({
                     child: BackdropFilter(
                       filter: ImageFilter.blur(
                           sigmaX: CyberDimensions.blurStrong,
-                          sigmaY: CyberDimensions.blurStrong),
+                          sigmaY: CyberDimensions.blurStrong,),
                       child: Container(
                         decoration: BoxDecoration(
                           color: CyberColors.glassDark,

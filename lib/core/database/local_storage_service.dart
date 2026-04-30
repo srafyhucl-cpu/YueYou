@@ -8,12 +8,12 @@ import 'package:yueyou/core/database/storage_service.dart';
 ///
 /// ## 用法
 /// ```dart
-/// // 在 main.dart 中注册
+/// // 在 main.dart 中完成初始化
 /// final storage = LocalStorageService();
 /// await storage.init();
 /// runApp(MultiProvider(providers: [
 ///   Provider<IStorageService>.value(value: storage),
-///   ...
+///   // ... 其他 Provider
 /// ]));
 /// ```
 ///

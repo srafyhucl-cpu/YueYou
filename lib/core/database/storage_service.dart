@@ -102,7 +102,7 @@ class StorageService {
 
   // ── 阅读进度 (reading_records / ProgressManager) ─────────────────────────
   static Future<void> updateReadingRecord(
-      String bookId, int cursor, int total) async {
+      String bookId, int cursor, int total,) async {
     if (total <= 0) return;
     final records = _loadReadingRecords();
     final percent = (cursor / total * 100).clamp(0.0, 100.0);

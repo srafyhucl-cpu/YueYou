@@ -39,7 +39,7 @@ class _RainEffectState extends State<RainEffect>
         initialProgress: i / widget.rainCount, // 初始进度错开
         speed: 0.8 + _random.nextDouble() * 0.4, // 0.8-1.2
         opacity: 0.3 + _random.nextDouble() * 0.3,
-      ));
+      ),);
     }
   }
 
@@ -101,7 +101,7 @@ class _RainPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (final drop in rainDrops) {
       // 计算当前雨滴进度（每个雨滴独立循环）
-      double currentProgress =
+      final double currentProgress =
           (progress * drop.speed + drop.initialProgress) % 1.0;
 
       // 计算雨滴位置（从顶部流到底部）

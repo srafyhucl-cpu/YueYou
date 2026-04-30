@@ -343,7 +343,7 @@ class ReaderProvider with ChangeNotifier {
       {String? bookId,
       List<ChapterModel>? chapters,
       int? initialIndex,
-      bool forceIndex = false}) async {
+      bool forceIndex = false,}) async {
     if (_isParsing) return;
 
     _isParsing = true;
@@ -359,7 +359,7 @@ class ReaderProvider with ChangeNotifier {
         initialIndex: initialIndex,
       );
     } catch (e) {
-      debugPrint("� 神经数据加载异常 (ReaderProvider): $e");
+      debugPrint('� 神经数据加载异常 (ReaderProvider): $e');
     } finally {
       _isParsing = false;
       notifyListeners();

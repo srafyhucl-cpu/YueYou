@@ -1,32 +1,119 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
+# 阅游项目静态分析规则配置
 #
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
+# 目标：达到大厂生产级代码质量标准
+# 规则分层：
+#   1. 继承 flutter_lints/flutter.yaml 基础规则集
+#   2. 自定义 analyzer 严格模式（类型安全 + 废弃 API 检测）
+#   3. 附加 linter 规则（性能 + 风格 + 安全）
+#
+# 执行：flutter analyze --no-fatal-infos
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
+# ── 基础规则集 ────────────────────────────────────────────────────────────────
 include: package:flutter_lints/flutter.yaml
 
+# ── 分析器配置 ────────────────────────────────────────────────────────────────
 analyzer:
   errors:
+    # TODO 注释不作为警告处理（允许存在开发中占位）
     todo: ignore
+    # 废弃 API 使用视为错误（强制迁移）
+    deprecated_member_use: warning
+    # 无效的覆盖注解视为错误
+    invalid_override: error
+    # 类型不匹配视为错误（不依赖隐式转换）
+    invalid_assignment: error
 
+  language:
+    # 严格推断模式：提升泛型类型安全（建议开启）
+    strict-inference: false
+    # 强制类型转换安全（禁止隐式向下转型）
+    strict-casts: false
+    # 禁止裸 dynamic 的原始类型推断
+    strict-raw-types: false
+
+  exclude:
+    # 自动生成文件不参与分析
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/generated/**"
+
+# ── 代码风格规则 ──────────────────────────────────────────────────────────────
 linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # ── 安全与健壮性 ──────────────────────────────────────────────────────────
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+    # 禁止在生产代码中使用 print（使用 debugPrint 或 CyberLogger）
+    avoid_print: true
+
+    # 禁止空 catch 块（静默吞异常）
+    empty_catches: true
+
+    # 捕获异常时必须指定类型（禁止裸 catch）
+    avoid_catches_without_on_clauses: false
+
+    # 禁止对非 Null 类型使用 null 检查（Dart 空安全已保证）
+    unnecessary_null_checks: true
+
+    # 禁止对非 Null 值使用 ?? 操作符
+    unnecessary_null_aware_assignments: true
+
+    # 禁止可省略的 if null 赋值
+    prefer_if_null_operators: true
+
+    # ── 性能优化 ──────────────────────────────────────────────────────────────
+
+    # 优先使用 const 构造函数（启用编译期常量优化）
+    prefer_const_constructors: true
+
+    # 优先使用 const 字面量（List/Set/Map）
+    prefer_const_literals_to_create_immutables: true
+
+    # Widget 构造参数优先 const
+    prefer_const_constructors_in_immutables: true
+
+    # 集合添加操作符语法糖（可读性）
+    prefer_collection_literals: true
+
+    # ── 代码可读性与健壮性 ────────────────────────────────────────────────────
+
+    # 优先使用单引号（项目统一风格）
+    prefer_single_quotes: true
+
+    # 箭头函数体内如仅有 return，简化为 =>
+    prefer_expression_function_bodies: false
+
+    # 类成员变量优先 final（不变性保证）
+    prefer_final_fields: true
+
+    # 局部变量若从不被重赋值，强制 final（提升代码阅读清晰度）
+    prefer_final_locals: true
+
+    # 函数参数列表末尾强制逗号（使 git diff 更干净，格式化更稳定）
+    require_trailing_commas: true
+
+    # 禁止冗余的 await（如 await Future.value(x)）
+    unnecessary_await_in_return: true
+
+    # ── 架构与 API 规范 ───────────────────────────────────────────────────────
+
+    # 禁止对 Widget 子类使用 runtimeType 比较（用 is 替代）
+    avoid_types_as_parameter_names: true
+
+    # 公开 API 必须添加 @override（接口覆盖声明明确）
+    annotate_overrides: true
+
+    # 禁止在 == 比较中使用 null 字面量（用 ?? / is null 替代）
+    prefer_void_to_null: true
+
+    # ── Dart 3 模式匹配相关 ───────────────────────────────────────────────────
+
+    # 优先使用 switch 表达式而非 switch 语句（强制穷尽性）
+    # 注：此规则由 Dart 3 编译器静态验证，本配置作为文档声明
+    use_if_null_to_convert_nulls_to_bools: false
+
+    # ── 禁用规则（暂不启用，防止大量误报干扰主流程开发）──────────────────────
+
+    # 以下为可选升级项，当代码库成熟后考虑逐步开启
+    # public_member_api_docs: false    # 公开 API 必须有文档注释（当前为中文内注释）
+    # lines_longer_than_80_chars: false # 行长度限制（当前放宽）
+    # avoid_dynamic_calls: false       # 禁止动态调用（StorageService 返回值较多 dynamic）

@@ -113,7 +113,7 @@ void main() {
 
     test('提词器激活样式应为霓虹绿', () {
       expect(CyberTextStyles.teleprompterActive.color,
-          equals(CyberColors.neonGreen));
+          equals(CyberColors.neonGreen),);
     });
   });
 }

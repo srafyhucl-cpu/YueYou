@@ -23,7 +23,7 @@ void main() {
           of: find.byType(MergeParticle),
           matching: find.byType(CustomPaint),
         ),
-        findsOneWidget);
+        findsOneWidget,);
     expect(completed, isFalse);
 
     // 等待动画结束 (duration is 400ms)
@@ -51,6 +51,6 @@ void main() {
           of: find.byType(MergeParticle),
           matching: find.byType(CustomPaint),
         ),
-        findsOneWidget);
+        findsOneWidget,);
   });
 }

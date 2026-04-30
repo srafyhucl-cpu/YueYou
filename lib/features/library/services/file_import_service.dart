@@ -223,7 +223,7 @@ class FileImportService {
       // Step 3: 流式解码 → 行切分
       final Stream<String> lineStream = byteStream
           .transform(
-              useUtf8 ? const Utf8Decoder(allowMalformed: true) : gbk.decoder)
+              useUtf8 ? const Utf8Decoder(allowMalformed: true) : gbk.decoder,)
           .transform(const LineSplitter());
 
       // Step 4: 逐行处理（trim + 去空行），内存中只驻留最终行列表

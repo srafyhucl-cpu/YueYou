@@ -28,10 +28,10 @@ class _FakeWakeLock implements TtsWakeLock {
 class _FakeHttpClient implements TtsHttpClient {
   @override
   Future<TtsHttpResponse> post(Uri url,
-          {Map<String, String>? headers, Object? body}) async =>
+          {Map<String, String>? headers, Object? body,}) async =>
       const TtsHttpResponse(
           statusCode: 200,
-          body: '{"status":"success","url":"http://mock/audio.mp3"}');
+          body: '{"status":"success","url":"http://mock/audio.mp3"}',);
   @override Future<void> download(Uri url, String savePath) async {}
 }
 
@@ -198,7 +198,7 @@ void main() {
     test('enabled=false 时任意 ratio → idle', () {
       for (final r in [0.0, 0.3, 0.6, 1.0]) {
         expect(computeStatus(r, false), TtsBufferStatus.idle,
-            reason: 'ratio=$r 时应为 idle');
+            reason: 'ratio=$r 时应为 idle',);
       }
     });
   });

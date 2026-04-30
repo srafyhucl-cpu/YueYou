@@ -29,7 +29,7 @@ void main() {
       const base = BookModel(id: 1, title: 'A.txt', total: 9, cursor: 1);
       final copied = base.copyWith(cursor: 7, chapters: const [
         ChapterModel(title: '第一章', lineIndex: 0),
-      ]);
+      ],);
 
       expect(copied.id, base.id);
       expect(copied.title, base.title);

@@ -188,7 +188,7 @@ void _mockPathProvider(String documentsDir) {
 /// 验证两者行为完全一致，确保接口契约正确性。
 /// [skipBookContent]：为 true 时跳过书籍正文测试（需 path_provider mock 的实现使用）
 void _runContractTests(IStorageService Function() factory,
-    {bool skipBookContent = false}) {
+    {bool skipBookContent = false,}) {
   late IStorageService storage;
 
   setUp(() async {
@@ -324,7 +324,7 @@ void _runContractTests(IStorageService Function() factory,
         'book_a',
         lines: ['第一行', '第二行'],
         chapters: [
-          {'title': '第一章', 'lineIndex': 0}
+          {'title': '第一章', 'lineIndex': 0},
         ],
       );
       final loaded = await storage.loadBookContent('book_a');
@@ -448,7 +448,7 @@ void main() {
         'book_iface',
         lines: ['行一', '行二'],
         chapters: [
-          {'title': '第一章', 'lineIndex': 0}
+          {'title': '第一章', 'lineIndex': 0},
         ],
       );
       final loaded = await storage.loadBookContent('book_iface');

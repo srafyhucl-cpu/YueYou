@@ -20,7 +20,7 @@ class _FakeHttpClient implements TtsHttpClient {
 
   @override
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body}) async {
+      {Map<String, String>? headers, Object? body,}) async {
     return response;
   }
 
@@ -88,7 +88,7 @@ Future<ReaderProvider> _makeReader() async {
     httpClient: _FakeHttpClient(const TtsHttpResponse(
       statusCode: 200,
       body: '{"status": "success", "url": "https://example.com/audio.mp3"}',
-    )),
+    ),),
     delayFn: (d) => Future<void>.delayed(Duration.zero),
   );
 
