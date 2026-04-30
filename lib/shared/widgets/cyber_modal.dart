@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
+import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 
 /// 赛博朋克风格全局弹窗封装
 /// 替代 Navigator.push 全屏跳转，点击外部可关闭
@@ -56,25 +57,24 @@ Future<T?> showCyberModal<T>({
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(CyberDimensions.radiusL),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(
-                          sigmaX: CyberDimensions.blurStrong,
-                          sigmaY: CyberDimensions.blurStrong,),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: CyberColors.glassDark,
-                          borderRadius:
-                              BorderRadius.circular(CyberDimensions.radiusL),
-                        ),
-                        child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(CyberDimensions.radiusL),
-                          child: child, // 🚨 极其重要：双重防溢出保护
-                        ),
-                      ),
-                    ),
+                    borderRadius: BorderRadius.circular(
+                        CyberDimensions.radiusL - CyberDimensions.borderThick,),
+                    child: CyberPerformanceDetector.detectLevel() ==
+                            CyberAnimationLevel.low
+                        ? Container(
+                            color: CyberColors.glassDark.withValues(alpha: 0.98),
+                            child: child, // 🚨 直接渲染内容
+                          )
+                        : BackdropFilter(
+                            filter: ImageFilter.blur(
+                              sigmaX: CyberDimensions.blurStrong,
+                              sigmaY: CyberDimensions.blurStrong,
+                            ),
+                            child: Container(
+                              color: CyberColors.glassDark,
+                              child: child, // 🚨 移除了冗余的内部 ClipRRect，统一在外层精准截断
+                            ),
+                          ),
                   ),
                 ),
               ),

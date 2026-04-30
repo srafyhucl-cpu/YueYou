@@ -8,6 +8,7 @@ import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_shadows.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import 'package:yueyou/core/utils/safe_string.dart';
 
 /// 🔥 赛博 KTV 提词器 - 音乐播放器居中滚动风格
@@ -191,189 +192,185 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
         return LayoutBuilder(
           builder: (context, constraints) {
             final halfWidth = constraints.maxWidth / 2;
+            final isLowPerf = CyberPerformanceDetector.detectLevel() ==
+                CyberAnimationLevel.low;
 
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: CyberDimensions.blurMedium,
-                  sigmaY: CyberDimensions.blurMedium,
+            return Container(
+              height: CyberDimensions.teleprompterHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+                border: Border.all(
+                  color: CyberColors.neonCyan.withValues(alpha: 0.3),
+                  width: CyberDimensions.borderNormal,
                 ),
-                child: Container(
-                  height: CyberDimensions.teleprompterHeight,
-                  decoration: BoxDecoration(
-                    color: CyberColors.glassDark,
-                    borderRadius:
-                        BorderRadius.circular(CyberDimensions.radiusL),
-                    border: Border.all(
-                      color: CyberColors.neonCyan.withValues(alpha: 0.3),
-                      width: CyberDimensions.borderNormal,
-                    ),
-                    boxShadow: CyberShadows.floating,
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.hardEdge,
+                boxShadow: CyberShadows.floating,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusL -
+                    CyberDimensions.borderNormal,),
+                child: isLowPerf
+                    ? Container(
+                        color: CyberColors.glassDark.withValues(alpha: 0.95),
+                        child: _buildInner(text, isPlaying, halfWidth, reader),
+                      )
+                    : BackdropFilter(
+                        filter: ImageFilter.blur(
+                          sigmaX: CyberDimensions.blurMedium,
+                          sigmaY: CyberDimensions.blurMedium,
+                        ),
+                        child: Container(
+                          color: CyberColors.glassDark,
+                          child: _buildInner(text, isPlaying, halfWidth, reader),
+                        ),
+                      ),
+              ),
+            );
+          },
+        );
+  }
+
+  Widget _buildInner(String text, bool isPlaying, double halfWidth, ReaderProvider reader) {
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        AnimatedBuilder(
+          animation: _ktvController,
+          builder: (context, _) {
+            final pos = _ktvController.value;
+            final charIndex =
+                (pos * text.length).floor().clamp(0, text.length);
+
+            return SingleChildScrollView(
+              controller: _scrollCtrl,
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(horizontal: halfWidth),
+              child: Center(
+                child: RichText(
+                  text: TextSpan(
                     children: [
-                      AnimatedBuilder(
-                        animation: _ktvController,
-                        builder: (context, _) {
-                          final pos = _ktvController.value;
-                          final charIndex =
-                              (pos * text.length).floor().clamp(0, text.length);
-
-                          return SingleChildScrollView(
-                            controller: _scrollCtrl,
-                            scrollDirection: Axis.horizontal,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding:
-                                EdgeInsets.symmetric(horizontal: halfWidth),
-                            child: Center(
-                              child: RichText(
-                                text: TextSpan(
-                                  children: [
-                                    // 已读：亮青色 + 发光
-                                    TextSpan(
-                                      text: safeSubstring(text, 0, charIndex),
-                                      style: _readStyle,
-                                    ),
-                                    // 未读：暗色
-                                    TextSpan(
-                                      text: safeSubstring(
-                                          text, charIndex, text.length,),
-                                      style: _unreadStyle.copyWith(
-                                        color: CyberColors.whiteMuted
-                                            .withValues(alpha: 
-                                                isPlaying ? 0.4 : 0.65,),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                      // 已读：亮青色 + 发光
+                      TextSpan(
+                        text: safeSubstring(text, 0, charIndex),
+                        style: _readStyle,
                       ),
-
-                      // ── 中心读取位置指示线（仅播放时显示）────────
-                      if (isPlaying)
-                        Positioned(
-                          left: halfWidth - 1,
-                          top: CyberDimensions.spacingS,
-                          bottom: CyberDimensions.spacingS,
-                          child: Container(
-                            width: CyberDimensions.radiusXS,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                  CyberDimensions.radiusXS / 2,),
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  CyberColors.neonCyan.withValues(alpha: 0.0),
-                                  CyberColors.neonCyan,
-                                  CyberColors.neonCyan,
-                                  CyberColors.neonCyan.withValues(alpha: 0.0),
-                                ],
-                                stops: const [0.0, 0.25, 0.75, 1.0],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: CyberColors.neonCyan.withValues(alpha: 0.7),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                      // ── 左端渐隐遮罩（防文字溢出可见，避开边框）────────────
-                      Positioned(
-                        left: CyberDimensions.spacingXXS,
-                        top: CyberDimensions.spacingXXS,
-                        bottom: CyberDimensions.spacingXXS,
-                        width: CyberDimensions.teleprompterMaskWidth,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(CyberDimensions.radiusL -
-                                  CyberDimensions.spacingXXS,),
-                              bottomLeft: Radius.circular(
-                                  CyberDimensions.radiusL -
-                                      CyberDimensions.spacingXXS,),
-                            ),
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                CyberColors.glassDark,
-                                CyberColors.glassDark.withValues(alpha: 0),
-                              ],
-                            ),
+                      // 未读：暗色
+                      TextSpan(
+                        text: safeSubstring(text, charIndex, text.length),
+                        style: _unreadStyle.copyWith(
+                          color: CyberColors.whiteMuted.withValues(
+                            alpha: isPlaying ? 0.4 : 0.65,
                           ),
                         ),
                       ),
-
-                      // ── 右端渐隐遮罩（避开边框）──────────────────────────────
-                      Positioned(
-                        right: CyberDimensions.spacingXXS,
-                        top: CyberDimensions.spacingXXS,
-                        bottom: CyberDimensions.spacingXXS,
-                        width: CyberDimensions.teleprompterMaskWidth,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.only(
-                              topRight: Radius.circular(
-                                  CyberDimensions.radiusL -
-                                      CyberDimensions.spacingXXS,),
-                              bottomRight: Radius.circular(
-                                  CyberDimensions.radiusL -
-                                      CyberDimensions.spacingXXS,),
-                            ),
-                            gradient: LinearGradient(
-                              begin: Alignment.centerRight,
-                              end: Alignment.centerLeft,
-                              colors: [
-                                CyberColors.glassDark,
-                                CyberColors.glassDark.withValues(alpha: 0),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // ── 错误提示浮层 (Task 5) ──────────────────────────────
-                      if (_showError && reader.ttsErrorMessage != null)
-                        Positioned.fill(
-                          key: const ValueKey('teleprompter_error_tip'),
-                          child: GestureDetector(
-                            onTap: () {
-                              _errorTimer?.cancel();
-                              setState(() => _showError = false);
-                              reader.clearTtsError();
-                            },
-                            child: Container(
-                              color: CyberColors.background.withValues(alpha: 0.9),
-                              child: Center(
-                                child: Text(
-                                  '数据链路中断: ${reader.ttsErrorMessage}',
-                                  textAlign: TextAlign.center,
-                                  style: CyberTextStyles.caption.copyWith(
-                                    color: CyberColors.neonPink,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
               ),
             );
           },
-        );
+        ),
+
+        // ── 中心读取位置指示线（仅播放时显示）────────
+        if (isPlaying)
+          Positioned(
+            left: halfWidth - 1,
+            top: CyberDimensions.spacingS,
+            bottom: CyberDimensions.spacingS,
+            child: Container(
+              width: CyberDimensions.radiusXS,
+              decoration: BoxDecoration(
+                borderRadius:
+                    BorderRadius.circular(CyberDimensions.radiusXS / 2),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    CyberColors.neonCyan.withValues(alpha: 0.0),
+                    CyberColors.neonCyan,
+                    CyberColors.neonCyan,
+                    CyberColors.neonCyan.withValues(alpha: 0.0),
+                  ],
+                  stops: const [0.0, 0.25, 0.75, 1.0],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: CyberColors.neonCyan.withValues(alpha: 0.7),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        // ── 左端渐隐遮罩（防文字溢出可见，避开边框）────────────
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: CyberDimensions.teleprompterMaskWidth,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  CyberColors.glassDark,
+                  CyberColors.glassDark.withValues(alpha: 0),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // ── 右端渐隐遮罩（避开边框）──────────────────────────────
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: CyberDimensions.teleprompterMaskWidth,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+                colors: [
+                  CyberColors.glassDark,
+                  CyberColors.glassDark.withValues(alpha: 0),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // ── 错误提示浮层 (Task 5) ──────────────────────────────
+        if (_showError && reader.ttsErrorMessage != null)
+          Positioned.fill(
+            key: const ValueKey('teleprompter_error_tip'),
+            child: GestureDetector(
+              onTap: () {
+                _errorTimer?.cancel();
+                setState(() => _showError = false);
+                reader.clearTtsError();
+              },
+              child: Container(
+                color: CyberColors.background.withValues(alpha: 0.9),
+                child: Center(
+                  child: Text(
+                    '数据链路中断: ${reader.ttsErrorMessage}',
+                    textAlign: TextAlign.center,
+                    style: CyberTextStyles.caption.copyWith(
+                      color: CyberColors.neonPink,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _buildPlaceholder(String msg) {

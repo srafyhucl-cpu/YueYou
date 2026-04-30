@@ -4,6 +4,7 @@ import 'dart:ui';
 import '../../../core/theme/cyber_colors.dart';
 import '../../../core/theme/cyber_dimensions.dart';
 import '../../../core/theme/cyber_text_styles.dart';
+import '../../../core/utils/cyber_performance_detector.dart';
 import '../../../features/game_2048/presentation/widgets/board_mascot.dart';
 import '../../../main.dart';
 
@@ -145,92 +146,100 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: CyberColors.glassDark,
-                        borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-                      ),
-                      child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12,),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // XIAOYO Avatar PFP
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color:
-                                  CyberColors.background.withValues(alpha: 0.8),
-                              border: Border.all(
-                                color: _getBorderColor().withValues(alpha: 0.7),
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      _getBorderColor().withValues(alpha: 0.5),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: Transform.scale(
-                                scale: 0.65,
-                                // Transform.translate 去微调位置以确保脸部在圆圈正中心
-                                child: Transform.translate(
-                                  offset: const Offset(0, -5),
-                                  child: const IgnorePointer(
-                                    child: BoardMascot(),
-                                  ),
-                                ),
-                              ),
-                            ),
+                  borderRadius: BorderRadius.circular(
+                      CyberDimensions.radiusL - CyberDimensions.borderThick,),
+                  child: CyberPerformanceDetector.detectLevel() ==
+                          CyberAnimationLevel.low
+                      ? Container(
+                          color: CyberColors.glassDark.withValues(alpha: 0.98),
+                          child: _buildContent(),
+                        )
+                      : BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            color: CyberColors.glassDark,
+                            child: _buildContent(),
                           ),
-                          const SizedBox(width: 14),
-                          // Text Section
-                          Flexible(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'XIAOYO',
-                                  style: CyberTextStyles.captionBold.copyWith(
-                                    color: _getBorderColor(),
-                                    fontSize: 10,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.message,
-                                  style: CyberTextStyles.bodySmallBold.copyWith(
-                                    color: CyberColors.whiteHigh,
-                                    height: 1.3,
-                                  ),
-                                  softWrap: true,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
                 ),
               ),
             ),
           ),
         ),
       ),
-    ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 12,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // XIAOYO Avatar PFP
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: CyberColors.background.withValues(alpha: 0.8),
+              border: Border.all(
+                color: _getBorderColor().withValues(alpha: 0.7),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _getBorderColor().withValues(alpha: 0.5),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: Transform.scale(
+                scale: 0.65,
+                // Transform.translate 去微调位置以确保脸部在圆圈正中心
+                child: Transform.translate(
+                  offset: const Offset(0, -5),
+                  child: const IgnorePointer(
+                    child: BoardMascot(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          // Text Section
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'XIAOYO',
+                  style: CyberTextStyles.captionBold.copyWith(
+                    color: _getBorderColor(),
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.message,
+                  style: CyberTextStyles.bodySmallBold.copyWith(
+                    color: CyberColors.whiteHigh,
+                    height: 1.3,
+                  ),
+                  softWrap: true,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
