@@ -805,6 +805,12 @@ void main() {
   group('TtsEngineService - play loop branches', () {
     late DebugPrintCallback oldDebugPrint;
 
+    setUp(() {
+      // 确保每个用例执行前 path_provider mock 指向 _testTempDir，
+      // 防止串行运行时被其他测试文件的 setUp 污染（如 tts_contract_test.dart 设为 '.'）
+      _restorePathProviderTempDir();
+    });
+
     tearDown(() {
       _restorePathProviderTempDir();
     });

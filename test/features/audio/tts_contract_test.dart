@@ -114,6 +114,17 @@ void main() {
       await Future.delayed(const Duration(milliseconds: 1));
     });
 
+    // 用例结束后恢复 path_provider mock 到系统临时目录，
+    // 防止污染串行运行时的后续测试文件（如 tts_engine_service_test.dart）
+    tearDown(() {
+      const MethodChannel channel =
+          MethodChannel('plugins.flutter.io/path_provider');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        return Directory.systemTemp.path;
+      });
+    });
+
     test('遵循“分离下载”原则 - 先获取URL再单独下载', () async {
       // 模拟请求下一句文本
       ttsService.onNeedPrefetch = (session) async {
