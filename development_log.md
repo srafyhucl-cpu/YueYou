@@ -1,6 +1,13 @@
 # 阅游 (YueYou) - 开发日志
 
 ## **2026-04-30**
+- **重构(V1.1 架构升级 - Riverpod Phase 2 完成)**:
+  - 完成业务层三大 Provider 迁移：`TtsEngineService`、`GameProvider`、`ReaderProvider` 全部适配为 `ChangeNotifierProvider`，通过 `ref.onDispose` 管理生命周期。
+  - UI 层全面迁移：`TeleprompterView`、`ChapterListScreen`、`CyberPlayerConsole`、`DashboardScreen`、`TtsErrorListener` 升级为 `ConsumerStatefulWidget`。
+  - 完成剩余组件迁移：`SquareBoard`、`BoardMascot`、`BoardMascotRive`、`_Bootstrapper`（main.dart）、`settings_screen` 子组件、`library_screen`、`cyber_import_button`。
+  - **彻底移除 `provider` 依赖**：从 `pubspec.yaml` 删除 `provider: ^6.1.5+1`，全项目无任何 `context.read<T>()` / `context.watch<T>()` 残留。
+  - 测试层适配：`square_board_test`、`chapter_list_screen_test`、`teleprompter_view_test`、`widget_test` 全部迁移至 `ProviderScope` 覆盖注入，移除 `MultiProvider`。
+  - `flutter analyze: No issues found`，单文件测试 100% 通过。
 - **重构(V1.1 架构升级 - Riverpod Phase 1)**:
   - 引入 `flutter_riverpod` 构建新状态机。
   - 完成 `SettingsProvider` 与 `BookshelfProvider` 迁移。
