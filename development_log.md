@@ -1,6 +1,9 @@
 # 阅游 (YueYou) - 开发日志
 
 ## **2026-04-30**
+- **维护(文档汇总)**:
+  - 汇总 `DevelopmentPlan` 目录下 20260420 与 20260430 的多个任务文件，确保每日仅保留一个汇总文件。
+  - 清理冗余任务描述，保持目录结构精简。
 - **重构(V1.1 架构升级 - Riverpod Phase 2 完成)**:
   - 完成业务层三大 Provider 迁移：`TtsEngineService`、`GameProvider`、`ReaderProvider` 全部适配为 `ChangeNotifierProvider`，通过 `ref.onDispose` 管理生命周期。
   - UI 层全面迁移：`TeleprompterView`、`ChapterListScreen`、`CyberPlayerConsole`、`DashboardScreen`、`TtsErrorListener` 升级为 `ConsumerStatefulWidget`。
