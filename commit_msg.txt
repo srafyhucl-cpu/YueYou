@@ -1,7 +1,6 @@
-文档: 标记 Riverpod 迁移方案全部验收标准为已完成
+文档: 汇总 DevelopmentPlan 目录下的任务文件，实现每日一档
 
-- 验收标准四项全部由 [ ] 改为 [x]
-- flutter test --concurrency=1 全量 451 个用例通过
-- flutter analyze 零 warning/error
-- CI 已更新消除并发 mock 竞态
-- 迁移方案标注完结日期 2026-04-30
+- 合并 20260420_TTS发声引擎重构任务书.md 与 20260420_系统深度优化任务书_阶段二.md 为 20260420_TTS引擎重构与系统深度优化.md
+- 合并 20260430_Riverpod_Phase1.md、20260430_Riverpod全域迁移Phase2完成.md 与 20260430_开发文档与协作规范.md 为 20260430_Riverpod迁移与协作规范落地.md
+- 删除原有的分散任务文件，保持目录精简
+- 更新 development_log.md 记录维护工作
