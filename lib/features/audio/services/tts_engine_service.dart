@@ -310,8 +310,9 @@ class TtsEngineService extends ChangeNotifier {
   final List<_PrefetchedAudio> _prefetchedItems = [];
 
   // 循环控制
-  bool _playLoopActive = false;
-  bool _prefetchLoopActive = false;
+  // 循环锁：记录当前活跃循环所属的 Session ID，支持会话隔离
+  int? _activePlaySession;
+  int? _activePrefetchSession;
   bool _startingLoops = false; // 启动锁：防止 _heartbeat 并发重复启动
   TtsAudioItem? _currentItem;
   
@@ -385,7 +386,7 @@ class TtsEngineService extends ChangeNotifier {
       ),
       iOS: AudioContextIOS(
         category: AVAudioSessionCategory.playback,
-        options: {
+        options: const {
           AVAudioSessionOptions.mixWithOthers,
           AVAudioSessionOptions.duckOthers,
         },
@@ -521,8 +522,6 @@ class TtsEngineService extends ChangeNotifier {
     _settings.removeListener(_onSettingsChanged);
     _idleTimer?.cancel();
     TtsCacheManager.instance.stopPeriodicClean(); // 停止缓存清理定时器
-    _playLoopActive = false;
-    _prefetchLoopActive = false;
     unawaited(_audioPlayer.dispose());
     unawaited(_fallbackEngine.stop());
     unawaited(_deleteFileIfExists(_lastGeneratedAudioPath));
@@ -695,8 +694,6 @@ class TtsEngineService extends ChangeNotifier {
     _currentItem = null;
     _audioPlayer.stop();
     _clearPrefetchQueue();
-    _playLoopActive = false;
-    _prefetchLoopActive = false;
     _startingLoops = false;
     _setState(TtsPlaybackState.disabled);
     debugPrint(' TTS 已关闭');
@@ -735,8 +732,6 @@ class TtsEngineService extends ChangeNotifier {
     // 不再强制重置循环标志位：旧循环通过 session 不匹配自动退出
     // _loopSession 已递增，旧循环在下一次 while 检查时会发现 session 不匹配并退出
     // 退出后 finally 中会正确重置标志位（仅当 session 仍匹配时）
-    _playLoopActive = false;
-    _prefetchLoopActive = false;
     _startingLoops = false;
     _setState(resumeState);
 
@@ -779,8 +774,6 @@ class TtsEngineService extends ChangeNotifier {
     ]);
     _currentItem = null;
     _clearPrefetchQueue();
-    _playLoopActive = false;
-    _prefetchLoopActive = false;
     _startingLoops = false;
     _isDegradedToLocal = false;
     _setState(TtsPlaybackState.disabled);
@@ -812,8 +805,8 @@ class TtsEngineService extends ChangeNotifier {
     _startingLoops = true;
 
     try {
-      if (!_playLoopActive) unawaited(_startPlayLoop());
-      if (!_prefetchLoopActive) unawaited(_startPrefetchLoop());
+      if (_activePlaySession != _loopSession) unawaited(_startPlayLoop());
+      if (_activePrefetchSession != _loopSession) unawaited(_startPrefetchLoop());
     } finally {
       _startingLoops = false;
     }
@@ -821,12 +814,11 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 生产者轨道：预加载循环
   Future<void> _startPrefetchLoop() async {
-    if (_prefetchLoopActive || _disposed) {
-      debugPrint('⏭️ 预加载循环已在运行或已销毁，跳过');
+    final int mySession = _loopSession;
+    if (_activePrefetchSession == mySession || _disposed) {
       return;
     }
-    _prefetchLoopActive = true;
-    final int mySession = _loopSession; // 🔥 捕获启动时的 session，用于隔离循环实例
+    _activePrefetchSession = mySession;
     debugPrint('🔄 预加载循环启动 (session=$mySession)');
     int consecutiveFailures = 0; // 🔥 连续失败计数器
     int noContentCount = 0; // 连续返回 null 的次数
@@ -987,21 +979,20 @@ class TtsEngineService extends ChangeNotifier {
     } catch (e) {
       debugPrint('⚠️ 预加载循环异常: $e');
     } finally {
-      // 🔥 仅当 session 仍匹配时才重置标志位，防止干扰新循环
-      if (_loopSession == mySession) {
-        _prefetchLoopActive = false;
+      // 🔥 仅当当前活跃 session 仍是自己时才释放锁
+      if (_activePrefetchSession == mySession) {
+        _activePrefetchSession = null;
       }
     }
   }
 
   /// 消费者轨道：播放循环
   Future<void> _startPlayLoop() async {
-    if (_playLoopActive || _disposed) {
-      debugPrint('⏭️ 播放循环已在运行或已销毁，跳过');
+    final int mySession = _loopSession;
+    if (_activePlaySession == mySession || _disposed) {
       return;
     }
-    _playLoopActive = true;
-    final int mySession = _loopSession; // 🔥 捕获启动时的 session，用于隔离循环实例
+    _activePlaySession = mySession;
     debugPrint('▶️ 播放循环启动 (session=$mySession)');
 
     try {
@@ -1229,9 +1220,9 @@ class TtsEngineService extends ChangeNotifier {
     } catch (e) {
       debugPrint('⚠️ 播放循环异常: $e');
     } finally {
-      // 🔥 仅当 session 仍匹配时才重置标志位，防止干扰新循环
-      if (_loopSession == mySession) {
-        _playLoopActive = false;
+      // 🔥 仅当当前活跃 session 仍是自己时才释放锁
+      if (_activePlaySession == mySession) {
+        _activePlaySession = null;
       }
     }
   }
@@ -1565,8 +1556,6 @@ class TtsEngineService extends ChangeNotifier {
     debugPrint('🔄 强制重启循环 (Session=$_loopSession -> ${_loopSession + 1})');
     // 🔥 增加 session 是最彻底的停止旧循环并启动新循环的方法
     _loopSession++;
-    _playLoopActive = false;
-    _prefetchLoopActive = false;
     _startingLoops = false;
     _audioPlayer.stop();
     _currentItem = null;

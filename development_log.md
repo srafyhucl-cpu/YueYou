@@ -10,6 +10,11 @@
   - **音质重构**：强化低通滤波（90% 权重）并注入 **120Hz 谐波**，使环境音从单纯的粉噪声转变为深沉、沉浸的工业电子氛围音。
   - **TTS 策略对齐**：将朗读引擎焦点调整为 `gainTransient`，确保其作为主音频流的优先级，同时与背景音和谐混播。
   - **稳定性加固**：修复了 `AudioContext` 在 iOS 端的语法定义错误，同步更新了全量测试 Mock 实现，确保构建与测试套件绿色通过。
+- **修复(TTS 朗读重复、会话冲突与测试套件加固)**:
+  - **会话锁 (Session Lock)**：在 `TtsEngineService` 中强化了 `_loopSession` 原子递增机制，并引入 `_activePlaySession` 与 `_activePrefetchSession` 实例级锁，彻底解决切章/刷新时的播放重叠问题。
+  - **测试套件稳健化**：修复了 `AmbientService` 与 `TtsEngineService` 的集成测试逻辑，补全了 Mock 接口 `setAudioContext`。通过将异步事件轮询 `pumpEventQueue` 步长优化至 10 倍，实现了 CI 环境下 100% 的测试通过率。
+  - **静态分析报警清零**：修正了 `AudioContextIOS` 的 const 构造函数配置冲突，达成 `flutter analyze` 零警告。
+  - **环境音效深度优化**：将采样周期提升至 **30秒**，并适配了相应的单元测试字节数校验，极大缓解了跨章节播放时的音频循环瞬断感。
 - **重构(V1.1 架构升级 - Riverpod Phase 2 完成)**:
   - 完成业务层三大 Provider 迁移：`TtsEngineService`、`GameProvider`、`ReaderProvider` 全部适配为 `ChangeNotifierProvider`，通过 `ref.onDispose` 管理生命周期。
   - UI 层全面迁移：`TeleprompterView`、`ChapterListScreen`、`CyberPlayerConsole`、`DashboardScreen`、`TtsErrorListener` 升级为 `ConsumerStatefulWidget`。

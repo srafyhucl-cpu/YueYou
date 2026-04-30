@@ -154,7 +154,7 @@ void main() {
     late Uint8List wav;
 
     setUpAll(() {
-      // 只生成一次，避免重复计算（3 秒粉噪声，约 265KB）
+      // 只生成一次，避免重复计算（30 秒粉噪声，约 2.6MB）
       wav = AmbientService.generateAmbientWav();
     });
 
@@ -198,9 +198,9 @@ void main() {
       expect(view.getUint16(34, Endian.little), 16);
     });
 
-    test('生成的 WAV 总字节数与 3 秒预期一致', () {
-      // 3s × 44100 × 2 bytes + 44 bytes header = 264644 bytes
-      const expected = 44 + 44100 * 3 * 2;
+    test('生成的 WAV 总字节数与 30 秒预期一致', () {
+      // 30s × 44100 × 2 bytes + 44 bytes header = 2646044 bytes
+      const expected = 44 + 44100 * 30 * 2;
       expect(wav.length, expected);
     });
 

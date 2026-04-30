@@ -80,7 +80,10 @@ class ReaderProvider with ChangeNotifier {
     // 🔥 重写核心：_fetchIndex 在此处立即推进，跳过所有已消耗行（含合并短句）
     _ttsEngine.onNeedPrefetch = (session) async {
       if (_sentences.isEmpty) return null;
-      if (_fetchIndex >= _sentences.length) _fetchIndex = 0;
+      if (_fetchIndex >= _sentences.length) {
+        debugPrint(' [TtsFetch] 已到达书籍末尾 (fetch=$_fetchIndex)');
+        return null;
+      }
 
       int cursor = _fetchIndex;
       int scanned = 0;
@@ -126,9 +129,14 @@ class ReaderProvider with ChangeNotifier {
         }
 
         // 🔥 立即推进 _fetchIndex 到所有已消耗行之后，杜绝重复
-        _fetchIndex = consumed < _sentences.length
-            ? consumed
-            : consumed % _sentences.length;
+        if (consumed >= _sentences.length) {
+          // 到达书籍末尾，不再推进 _fetchIndex，由下一次调用返回 null 终止
+          _fetchIndex = _sentences.length;
+        } else {
+          _fetchIndex = consumed;
+        }
+
+        debugPrint(' [TtsFetch] 提交请求: line=$lineIndex, nextFetch=$_fetchIndex, text="${text.substring(0, text.length > 10 ? 10 : text.length)}..."');
 
         return TtsAudioRequest(
           lineIndex: lineIndex,
@@ -165,7 +173,8 @@ class ReaderProvider with ChangeNotifier {
 
       if (nextIdx < _sentences.length) {
         _currentIndex = nextIdx;
-        _fetchIndex = nextIdx; // 同步预取指针
+        // 🔥 重要修复：此处绝不可重置 _fetchIndex！
+        // 预取指针应当保持领先，重置它会导致预取循环重新抓取已在队列中的任务。
         notifyListeners();
       }
 

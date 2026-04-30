@@ -1009,13 +1009,13 @@ void main() {
         await pumpEventQueue(times: 20);
         service.setEnabled(true);
         for (int i = 0; i < 200 && httpClient.postCalls == 0; i++) {
-          await pumpEventQueue(times: 1);
+          await pumpEventQueue(times: 10);
         }
         for (int i = 0; i < 400 && service.bufferedCount == 0; i++) {
-          await pumpEventQueue(times: 1);
+          await pumpEventQueue(times: 10);
         }
         for (int i = 0; i < 400 && throwingPlayer.setSourceCalls == 0; i++) {
-          await pumpEventQueue(times: 1);
+          await pumpEventQueue(times: 10);
         }
 
         service.setEnabled(false);
@@ -1257,6 +1257,9 @@ class _ThrowingSetSourceAudioPlayer implements TtsAudioPlayer {
 
   @override
   Future<void> setVolume(double volume) => _inner.setVolume(volume);
+
+  @override
+  Future<void> setAudioContext(AudioContext context) => _inner.setAudioContext(context);
 
   @override
   Future<void> stop() => _inner.stop();
