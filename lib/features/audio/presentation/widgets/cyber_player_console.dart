@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -14,14 +14,14 @@ import 'neon_progress_painter.dart';
 
 /// 阅游赛博控播台 (CyberPlayerConsole)
 /// 1:1 复刻 style.css 中的 .cyber-player 与 .bottom-controls 视觉设定
-class CyberPlayerConsole extends StatefulWidget {
+class CyberPlayerConsole extends ConsumerStatefulWidget {
   const CyberPlayerConsole({super.key});
 
   @override
-  State<CyberPlayerConsole> createState() => _CyberPlayerConsoleState();
+  ConsumerState<CyberPlayerConsole> createState() => _CyberPlayerConsoleState();
 }
 
-class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
+class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
     with SingleTickerProviderStateMixin {
   late AnimationController _breathController;
   late Animation<double> _breathAnimation;
@@ -51,13 +51,15 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<ReaderProvider, TtsEngineService, BookshelfProvider>(
-      builder: (context, reader, ttsEngine, bookshelf, child) {
-        final String novelTitle = _getNovelTitle(reader, bookshelf);
-        final String chapterName = reader.currentChapterTitle;
+    final reader = ref.watch(readerProvider);
+    final ttsEngine = ref.watch(ttsEngineProvider);
+    final bookshelf = ref.watch(bookshelfProvider);
 
-        return Padding(
-          padding: const EdgeInsets.only(top: CyberDimensions.spacingM),
+    final String novelTitle = _getNovelTitle(reader, bookshelf);
+    final String chapterName = reader.currentChapterTitle;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: CyberDimensions.spacingM),
           child: Stack(
             children: [
               GestureDetector(
@@ -161,8 +163,6 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
             ],
           ),
         );
-      },
-    );
   }
 
   Widget _buildPlayButton(ReaderProvider reader, TtsEngineService ttsEngine) {
@@ -173,7 +173,7 @@ class _CyberPlayerConsoleState extends State<CyberPlayerConsole>
       onTap: () {
         final result = reader.toggleTTS();
         if (result == TtsToggleResult.noContent) {
-          context.read<TtsEngineService>().setLastError('无法开启 TTS：请先导入书籍');
+          ref.read(ttsEngineProvider).setLastError('无法开启 TTS：请先导入书籍');
         }
       },
       behavior: HitTestBehavior.opaque,

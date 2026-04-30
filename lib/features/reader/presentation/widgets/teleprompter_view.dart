@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
@@ -13,14 +13,14 @@ import 'package:yueyou/core/utils/safe_string.dart';
 /// 🔥 赛博 KTV 提词器 - 音乐播放器居中滚动风格
 /// 架构：AnimationController 驱动逐字进度，TextPainter 计算已读宽度
 /// 当前字始终居中，已读=亮青色，未读=暗色，两端渐隐遮罩
-class TeleprompterView extends StatefulWidget {
+class TeleprompterView extends ConsumerStatefulWidget {
   const TeleprompterView({super.key});
 
   @override
-  State<TeleprompterView> createState() => _TeleprompterViewState();
+  ConsumerState<TeleprompterView> createState() => _TeleprompterViewState();
 }
 
-class _TeleprompterViewState extends State<TeleprompterView>
+class _TeleprompterViewState extends ConsumerState<TeleprompterView>
     with SingleTickerProviderStateMixin {
   late AnimationController _ktvController;
   String _prevText = '';
@@ -56,7 +56,7 @@ class _TeleprompterViewState extends State<TeleprompterView>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reader = context.read<ReaderProvider>();
+    final reader = ref.read(readerProvider);
     if (!identical(_reader, reader)) {
       _reader?.removeListener(_onReaderChanged);
       _reader = reader;
@@ -175,14 +175,14 @@ class _TeleprompterViewState extends State<TeleprompterView>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReaderProvider>(
-      builder: (context, reader, _) {
-        if (reader.isParsing) {
-          return _buildPlaceholder('正在连接神经数据链路...');
-        }
-        if (reader.sentences.isEmpty) {
-          return _buildPlaceholder('等待数据流接入 [ _ ]');
-        }
+    final reader = ref.watch(readerProvider);
+
+    if (reader.isParsing) {
+      return _buildPlaceholder('正在连接神经数据链路...');
+    }
+    if (reader.sentences.isEmpty) {
+      return _buildPlaceholder('等待数据流接入 [ _ ]');
+    }
 
         final String text = reader.currentSentence ?? '';
         final bool isPlaying =
@@ -374,8 +374,6 @@ class _TeleprompterViewState extends State<TeleprompterView>
             );
           },
         );
-      },
-    );
   }
 
   Widget _buildPlaceholder(String msg) {

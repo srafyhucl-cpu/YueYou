@@ -5,6 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/services/sfx_service.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../settings/providers/settings_provider.dart';
+import '../../audio/services/tts_engine_service.dart';
+
+final gameProvider = ChangeNotifierProvider<GameProvider>((ref) {
+  final gp = GameProvider();
+  gp.soundEnabled = ref.read(settingsProvider).sound;
+  ref.listen(settingsProvider, (_, next) {
+    gp.soundEnabled = next.sound;
+  });
+  gp.onUserMove = () => ref.read(ttsEngineProvider).notifyUserActivity();
+  return gp;
+});
 
 /// 移动方向枚举 (映射 JS L149-152)
 enum Direction { up, down, left, right }

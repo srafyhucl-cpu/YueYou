@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
 import 'core/utils/cyber_logger.dart';
@@ -8,9 +8,7 @@ import 'features/settings/presentation/widgets/privacy_agreement_modal.dart';
 import 'features/audio/services/ambient_service.dart';
 import 'features/audio/services/sfx_service.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
-import 'features/game_2048/providers/game_provider.dart';
-import 'features/audio/services/tts_engine_service.dart';
-import 'features/library/providers/bookshelf_provider.dart';
+
 import 'features/library/domain/book_model.dart';
 import 'features/reader/providers/reader_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
@@ -60,58 +58,18 @@ class YueYouApp extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final settings = ref.watch(settingsProvider.notifier);
-    final bookshelf = ref.watch(bookshelfProvider.notifier);
-
-    return MultiProvider(
-          providers: [
-            ChangeNotifierProvider<SettingsProvider>.value(
-              value: settings,
-            ),
-            ChangeNotifierProvider<BookshelfProvider>.value(
-              value: bookshelf,
-            ),
-            ChangeNotifierProxyProvider<SettingsProvider, TtsEngineService>(
-              create: (ctx) {
-                final settings = ctx.read<SettingsProvider>();
-                return TtsEngineService(settings);
-              },
-              update: (ctx, settings, prev) =>
-                  prev ?? TtsEngineService(settings),
-            ),
-            ChangeNotifierProxyProvider2<SettingsProvider, TtsEngineService,
-                GameProvider>(
-              create: (ctx) {
-                final gp = GameProvider();
-                gp.soundEnabled = ctx.read<SettingsProvider>().sound;
-                gp.onUserMove =
-                    () => ctx.read<TtsEngineService>().notifyUserActivity();
-                return gp;
-              },
-              update: (ctx, settings, tts, prev) {
-                prev?.soundEnabled = settings.sound;
-                prev?.onUserMove = () => tts.notifyUserActivity();
-                return prev ?? GameProvider();
-              },
-            ),
-            ChangeNotifierProxyProvider<TtsEngineService, ReaderProvider>(
-              create: (ctx) => ReaderProvider(ctx.read<TtsEngineService>()),
-              update: (ctx, tts, previous) => previous ?? ReaderProvider(tts),
-            ),
-          ],
-          child: const _Bootstrapper(),
-    );
+    return const _Bootstrapper();
   }
 }
 
-class _Bootstrapper extends StatefulWidget {
+class _Bootstrapper extends riverpod.ConsumerStatefulWidget {
   const _Bootstrapper();
 
   @override
-  State<_Bootstrapper> createState() => _BootstrapperState();
+  riverpod.ConsumerState<_Bootstrapper> createState() => _BootstrapperState();
 }
 
-class _BootstrapperState extends State<_Bootstrapper>
+class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
     with WidgetsBindingObserver {
   bool _booted = false;
 
@@ -131,7 +89,7 @@ class _BootstrapperState extends State<_Bootstrapper>
   void didChangeDependencies() {
     super.didChangeDependencies();
     // 每当 SettingsProvider 变化时同步 AmbientService
-    final settings = context.watch<SettingsProvider>();
+    final settings = ref.watch(settingsProvider);
     _syncAmbient(settings);
   }
 
@@ -182,7 +140,7 @@ class _BootstrapperState extends State<_Bootstrapper>
     if (_booted) return;
     _booted = true;
 
-    final reader = context.read<ReaderProvider>();
+    final reader = ref.read(readerProvider);
     final currentNovelId = StorageService.getCurrentNovelId();
     if (currentNovelId == null) return;
 

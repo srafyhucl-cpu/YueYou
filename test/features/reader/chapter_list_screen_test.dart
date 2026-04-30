@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/config/tts_config.dart' as config;
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
@@ -108,10 +108,12 @@ Future<ReaderProvider> _makeReader() async {
   return reader;
 }
 
+/// 使用 Riverpod ProviderScope 包装，覆盖 readerProvider 与 ttsEngineProvider
 Widget _wrapWithProviders(ReaderProvider reader) {
-  return MultiProvider(
-    providers: [
-      ChangeNotifierProvider.value(value: reader),
+  return ProviderScope(
+    overrides: [
+      readerProvider.overrideWith((ref) => reader),
+      ttsEngineProvider.overrideWith((ref) => reader.ttsEngine),
     ],
     child: const MaterialApp(
       home: ChapterListScreen(),
@@ -128,10 +130,6 @@ void main() {
 
   testWidgets('ChapterListScreen 显示章节列表', (tester) async {
     final reader = await _makeReader();
-    addTearDown(() {
-      reader.dispose();
-      reader.ttsEngine.dispose();
-    });
 
     await tester.pumpWidget(_wrapWithProviders(reader));
     await tester.pump();
@@ -143,10 +141,6 @@ void main() {
 
   testWidgets('ChapterListScreen 点击章节后关闭页面并延迟跳转', (tester) async {
     final reader = await _makeReader();
-    addTearDown(() {
-      reader.dispose();
-      reader.ttsEngine.dispose();
-    });
 
     await tester.pumpWidget(_wrapWithProviders(reader));
     await tester.pump();

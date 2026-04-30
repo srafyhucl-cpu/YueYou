@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -20,14 +20,14 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// GlobalKey 持有在 State 层，避免每次 build 重新创建导致组件卸载
   final GlobalKey<BoardMascotState> _mascotKey = GlobalKey<BoardMascotState>();
 
@@ -247,32 +247,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// 构建仿旧版状态卡片组
   Widget _buildStatusPanel() {
-    return Consumer<GameProvider>(
-      builder: (context, provider, _) {
-        return Row(
-          children: [
-            Expanded(
-              child: _buildInfoCard(
-                context,
-                title: "当前得分 | 连击",
-                score: provider.score,
-                combo: provider.combo,
-                showReset: true, // 🔥 找回重置按钮
-                onReset: () async {
-                  final confirmed = await showCyberConfirmDialog(
-                    context: context,
-                    title: '重置棋盘',
-                    message: '确定要重置当前游戏吗？所有进度将会丢失。',
-                    confirmText: '确认重置',
-                    cancelText: '取消',
-                  );
-                  if (confirmed && context.mounted) {
-                    context.read<GameProvider>().reset();
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: CyberDimensions.spacingMS),
+    final provider = ref.watch(gameProvider);
+    return Row(
+      children: [
+        Expanded(
+          child: _buildInfoCard(
+            context,
+            title: "当前得分 | 连击",
+            score: provider.score,
+            combo: provider.combo,
+            showReset: true, // 🔥 找回重置按钮
+            onReset: () async {
+              final confirmed = await showCyberConfirmDialog(
+                context: context,
+                title: '重置棋盘',
+                message: '确定要重置当前游戏吗？所有进度将会丢失。',
+                confirmText: '确认重置',
+                cancelText: '取消',
+              );
+              if (confirmed && mounted) {
+                ref.read(gameProvider).reset();
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: CyberDimensions.spacingMS),
             Expanded(
               child: _buildInfoCard(
                 context,
@@ -281,9 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 combo: provider.maxCombo,
               ),
             ),
-          ],
-        );
-      },
+      ],
     );
   }
 

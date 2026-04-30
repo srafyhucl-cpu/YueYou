@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
@@ -10,14 +10,14 @@ import 'package:yueyou/features/reader/providers/reader_provider.dart';
 
 /// 章节目录界面
 /// 完整复刻旧版 modal-chapters：章节列表、正序/倒序切换、跳转、进度标注
-class ChapterListScreen extends StatefulWidget {
+class ChapterListScreen extends ConsumerStatefulWidget {
   const ChapterListScreen({super.key});
 
   @override
-  State<ChapterListScreen> createState() => _ChapterListScreenState();
+  ConsumerState<ChapterListScreen> createState() => _ChapterListScreenState();
 }
 
-class _ChapterListScreenState extends State<ChapterListScreen> {
+class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
   bool _reversed = false;
   ScrollController? _scrollController;
   Timer? _pendingJumpTimer;
@@ -59,14 +59,15 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final reader = ref.watch(readerProvider);
     return Scaffold(
       backgroundColor: CyberColors.panelBackground,
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(context),
-            _buildStats(context),
-            Expanded(child: _buildChapterList(context)),
+            _buildStats(reader),
+            Expanded(child: _buildChapterList(context, reader)),
           ],
         ),
       ),
@@ -116,85 +117,77 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
     );
   }
 
-  Widget _buildStats(BuildContext context) {
-    return Consumer<ReaderProvider>(
-      builder: (context, reader, _) {
-        final int total = reader.chapters.length;
-        final int cursor = reader.currentIndex;
-        final int totalLines = reader.sentences.length;
-        final int percent =
-            totalLines > 0 ? ((cursor / totalLines) * 100).floor() : 0;
-        return Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: CyberDimensions.spacingM,
-              vertical: CyberDimensions.spacingS),
-          color: CyberColors.panelBackground.withValues(alpha: 0.13),
-          child: Text(
-            '共 $total 章 | 阅读进度 $percent%',
-            style: CyberTextStyles.caption,
-          ),
-        );
-      },
+  Widget _buildStats(ReaderProvider reader) {
+    final int total = reader.chapters.length;
+    final int cursor = reader.currentIndex;
+    final int totalLines = reader.sentences.length;
+    final int percent =
+        totalLines > 0 ? ((cursor / totalLines) * 100).floor() : 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: CyberDimensions.spacingM,
+          vertical: CyberDimensions.spacingS),
+      color: CyberColors.panelBackground.withValues(alpha: 0.13),
+      child: Text(
+        '共 $total 章 | 阅读进度 $percent%',
+        style: CyberTextStyles.caption,
+      ),
     );
   }
 
-  Widget _buildChapterList(BuildContext context) {
-    return Consumer<ReaderProvider>(
-      builder: (context, reader, _) {
-        final chapters = reader.chapters;
-        if (chapters.isEmpty) {
-          return const Center(
-            child: Text(
-              '暂无目录数据',
-              style: CyberTextStyles.labelMedium,
-            ),
-          );
-        }
+  Widget _buildChapterList(BuildContext context, ReaderProvider reader) {
+    final chapters = reader.chapters;
+    if (chapters.isEmpty) {
+      return const Center(
+        child: Text(
+          '暂无目录数据',
+          style: CyberTextStyles.labelMedium,
+        ),
+      );
+    }
 
-        // 找到当前活跃章节
-        int activeIdx = -1;
-        for (int i = chapters.length - 1; i >= 0; i--) {
-          if (reader.currentIndex >= chapters[i].lineIndex) {
-            activeIdx = i;
-            break;
-          }
-        }
+    // 找到当前活跃章节
+    int activeIdx = -1;
+    for (int i = chapters.length - 1; i >= 0; i--) {
+      if (reader.currentIndex >= chapters[i].lineIndex) {
+        activeIdx = i;
+        break;
+      }
+    }
 
-        final displayChapters =
-            _reversed ? chapters.reversed.toList() : chapters;
+    final displayChapters =
+        _reversed ? chapters.reversed.toList() : chapters;
 
-        // O(1) 极限性能：创建时直接定位
-        _scrollController ??= _createScrollController(reader);
+    // O(1) 极限性能：创建时直接定位
+    _scrollController ??= _createScrollController(reader);
 
-        return ListView.builder(
-          controller: _scrollController,
-          itemCount: displayChapters.length,
-          itemExtent: 56.0, // 固定item高度，提升性能
-          padding:
-              const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
-          itemBuilder: (ctx, i) {
-            final chapter = displayChapters[i];
-            final int originalIdx = _reversed ? (chapters.length - 1 - i) : i;
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: displayChapters.length,
+      itemExtent: 56.0, // 固定item高度，提升性能
+      padding:
+          const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
+      itemBuilder: (ctx, i) {
+        final chapter = displayChapters[i];
+        final int originalIdx = _reversed ? (chapters.length - 1 - i) : i;
 
-            final bool isActive = originalIdx == activeIdx;
-            final bool isRead = originalIdx < activeIdx;
+        final bool isActive = originalIdx == activeIdx;
+        final bool isRead = originalIdx < activeIdx;
 
-            return _ChapterItem(
-              title: chapter.title,
-              isActive: isActive,
-              isRead: isRead,
-              onTap: () {
-                // 先关闭弹窗，避免动画冲突
-                Navigator.of(context).pop();
+        return _ChapterItem(
+          title: chapter.title,
+          isActive: isActive,
+          isRead: isRead,
+          onTap: () {
+            // 先关闭弹窗，避免动画冲突
+            Navigator.of(context).pop();
 
-                // 等待弹窗退场动画完成后，再执行数据突变
-                _pendingJumpTimer?.cancel();
-                _pendingJumpTimer =
-                    Timer(const Duration(milliseconds: 250), () {
-                  reader.jumpToLine(chapter.lineIndex);
-                });
-              },
-            );
+            // 等待弹窗退场动画完成后，再执行数据突变
+            _pendingJumpTimer?.cancel();
+            _pendingJumpTimer =
+                Timer(const Duration(milliseconds: 250), () {
+              reader.jumpToLine(chapter.lineIndex);
+            });
           },
         );
       },
