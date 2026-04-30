@@ -297,7 +297,7 @@ void main() {
       final dir = await Directory.systemTemp.createTemp('yueyou_books_');
       _mockPathProvider(dir.path);
       expect(() async => StorageService.deleteBookContent('not_exists'),
-          returnsNormally);
+          returnsNormally,);
     });
 
     test('deleteBookContent 在文件存在时会删除，随后 loadBookContent 返回 null', () async {

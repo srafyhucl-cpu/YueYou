@@ -18,7 +18,7 @@ class MockHttpClient implements TtsHttpClient {
 
   @override
   Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body}) async {
+      {Map<String, String>? headers, Object? body,}) async {
     return TtsHttpResponse(statusCode: statusCode, body: jsonEncode(response));
   }
 
@@ -145,7 +145,7 @@ void main() {
       // 注意：由于是异步循环，我们需要等待一小会儿
       expect(mockHttpClient.wasDownloadCalled, isTrue, reason: '应从返回的URL下载音频');
       expect(mockHttpClient.downloadedUrl, 'https://example.com/audio.mp3',
-          reason: '下载URL应与JSON响应中的URL一致');
+          reason: '下载URL应与JSON响应中的URL一致',);
     });
 
     test('处理错误响应 - 不下载无效URL', () async {
@@ -180,7 +180,7 @@ void main() {
       expect(ttsService.lastError, isNotNull, reason: '应设置错误信息');
       // 对齐 TtsEngineService 内部的错误映射文案
       expect(ttsService.lastError, contains('服务器维护中'),
-          reason: '错误信息应映射为服务器维护中');
+          reason: '错误信息应映射为服务器维护中',);
     });
   });
 }

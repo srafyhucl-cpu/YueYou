@@ -1,12 +1,7 @@
-refactor(audio): 音频模块 Riverpod 迁移及状态机安全加固
+style: 完善代码中文化注释与大厂生产级静态分析规范
 
-- ttsEngineProvider 添加 ref.onDispose 生命周期托管
-- ref.listen 替代 addListener 实现声明式依赖解耦
-- 新增 syncSettingsFromProvider 供 ref.listen 调用
-- dispose 添加幂等守卫防止 Riverpod 双调用
-- TtsPlaybackState 新增 error 状态分支
-- 新增 isError getter，所有 switch 升级为穷尽表达式
-- readerProvider 补充 ref.onDispose 生命周期注册
-- toggleTTS 改写为 Dart 3 穷尽 switch，error 状态自动清错恢复
-- 更新 development_log.md 与任务文件
-- 验收：flutter analyze 零警告，451/451 全量测试通过
+- 翻译并重写 lib/ 中残留的英文注释与调试日志（tts_error_listener、local_storage_service、sfx_service），实现 100% 中文合规。
+- 更新 analysis_options.yaml，引入 prefer_final_locals、require_trailing_commas 等严苛代码规范。
+- 运行 dart fix --apply，批量处理了 43 个文件的 224 处尾随逗号与 final 修饰符遗漏。
+- 保证 flutter analyze 达成绝对零警告状态，全量集成测试 451/451 稳定通过。
+- 对最近提交的日志进行了核查（发现早前有非规范命名的文档/修复提交，后续将严格执行 Conventional Commits）。

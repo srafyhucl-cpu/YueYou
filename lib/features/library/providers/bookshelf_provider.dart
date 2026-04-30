@@ -62,7 +62,7 @@ class BookshelfProvider with ChangeNotifier {
 
       // 持久化书架元数据
       await StorageService.saveBookshelf(
-          _shelf.map((b) => b.toJson()).toList());
+          _shelf.map((b) => b.toJson()).toList(),);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -86,7 +86,7 @@ class BookshelfProvider with ChangeNotifier {
     // Best-effort 持久化清理：每步独立 try-catch
     try {
       await StorageService.saveBookshelf(
-          _shelf.map((b) => b.toJson()).toList());
+          _shelf.map((b) => b.toJson()).toList(),);
     } catch (e) {
       debugPrint('⚠️ 书架元数据持久化失败: $e');
     }

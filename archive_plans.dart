@@ -46,10 +46,10 @@ void main() async {
         '--format=%cd',
         '--date=format:%Y%m%d',
         '--',
-        originalFile
+        originalFile,
       ]);
 
-      String gitDate = result.stdout.toString().trim();
+      final String gitDate = result.stdout.toString().trim();
       
       // 对于没有查到记录的情况，提供脱敏报错
       if (gitDate.isEmpty) {

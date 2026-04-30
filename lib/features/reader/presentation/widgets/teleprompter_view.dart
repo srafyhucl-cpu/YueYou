@@ -136,7 +136,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
   }
 
   void _onSentenceChanged(String text, double playbackRate,
-      {bool start = true}) {
+      {bool start = true,}) {
     _prevText = text;
     _prevPlaybackRate = playbackRate;
     // 新句子：预计算文字总宽度（只做一次，后续用线性插值）
@@ -159,7 +159,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
   }
 
   void _onPlaybackRateChanged(String text, double playbackRate,
-      {required bool isPlaying}) {
+      {required bool isPlaying,}) {
     _prevPlaybackRate = playbackRate;
     final double currentProgress = _ktvController.value;
     final speed = playbackRate.clamp(0.5, 3.0);
@@ -239,11 +239,11 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                                     // 未读：暗色
                                     TextSpan(
                                       text: safeSubstring(
-                                          text, charIndex, text.length),
+                                          text, charIndex, text.length,),
                                       style: _unreadStyle.copyWith(
                                         color: CyberColors.whiteMuted
                                             .withValues(alpha: 
-                                                isPlaying ? 0.4 : 0.65),
+                                                isPlaying ? 0.4 : 0.65,),
                                       ),
                                     ),
                                   ],
@@ -264,7 +264,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                             width: CyberDimensions.radiusXS,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(
-                                  CyberDimensions.radiusXS / 2),
+                                  CyberDimensions.radiusXS / 2,),
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
@@ -297,10 +297,10 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                           decoration: BoxDecoration(
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(CyberDimensions.radiusL -
-                                  CyberDimensions.spacingXXS),
+                                  CyberDimensions.spacingXXS,),
                               bottomLeft: Radius.circular(
                                   CyberDimensions.radiusL -
-                                      CyberDimensions.spacingXXS),
+                                      CyberDimensions.spacingXXS,),
                             ),
                             gradient: LinearGradient(
                               begin: Alignment.centerLeft,
@@ -325,10 +325,10 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                             borderRadius: const BorderRadius.only(
                               topRight: Radius.circular(
                                   CyberDimensions.radiusL -
-                                      CyberDimensions.spacingXXS),
+                                      CyberDimensions.spacingXXS,),
                               bottomRight: Radius.circular(
                                   CyberDimensions.radiusL -
-                                      CyberDimensions.spacingXXS),
+                                      CyberDimensions.spacingXXS,),
                             ),
                             gradient: LinearGradient(
                               begin: Alignment.centerRight,

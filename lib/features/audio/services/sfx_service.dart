@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-/// 物理音效引擎 (V4 — 基于旧版 Web 端已验证音效移植)
+/// 物理音效引擎（V4 — 基于旧版 Web 端已验证音效移植）
 ///
 /// 旧版 Web 端核心：440→880Hz 上行正弦扫频 + 0.12 音量 + 指数衰减 + 300ms
 /// 本版在此基础上做 4 阶段递进，保持极简单层架构。
@@ -31,8 +31,8 @@ class SfxService {
     await _mergePlayer!.setReleaseMode(ReleaseMode.stop);
     _tierWavs.clear();
 
-    // 🟢 Stage 1 (≤16): 轻盈上行 — 与旧版完全一致
-    // 旧版原始参数：440→880Hz, 100ms chirp, 0.12 vol, 300ms
+    // 🟢 阶段一 (≤16)：轻盈上行——与旧版完全一致
+    // 旧版原始参数：440→880Hz, 100ms 扫频, 0.12 音量, 300ms 时长
     _tierWavs.add(_generateMergeTone(
       freqStart: 440,
       freqEnd: 880,
@@ -40,9 +40,9 @@ class SfxService {
       decayRate: 16,
       durationMs: 300,
       volume: 0.12,
-    ));
+    ),);
 
-    // 🔵 Stage 2 (≤128): 稍宽音域 + 略厚
+    // 🔵 阶段二 (≤128)：稍宽音域 + 略厚
     _tierWavs.add(_generateMergeTone(
       freqStart: 400,
       freqEnd: 900,
@@ -50,9 +50,9 @@ class SfxService {
       decayRate: 14,
       durationMs: 340,
       volume: 0.15,
-    ));
+    ),);
 
-    // 🟣 Stage 3 (≤1024): 更深沉的上行
+    // 🟣 阶段三 (≤1024)：更深沉的上行
     _tierWavs.add(_generateMergeTone(
       freqStart: 350,
       freqEnd: 950,
@@ -60,9 +60,9 @@ class SfxService {
       decayRate: 12,
       durationMs: 380,
       volume: 0.18,
-    ));
+    ),);
 
-    // 🟡 Stage 4 (>1024): 宽幅上行 + 最饱满
+    // 🟡 阶段四 (>1024)：宽幅上行 + 最饱满
     _tierWavs.add(_generateMergeTone(
       freqStart: 330,
       freqEnd: 1000,
@@ -70,7 +70,7 @@ class SfxService {
       decayRate: 10,
       durationMs: 420,
       volume: 0.22,
-    ));
+    ),);
   }
 
   static Future<void> playMoveFeedback(int mergedValue) async {
@@ -116,11 +116,10 @@ class SfxService {
 
   /// 生成上行扫频合并音效 WAV（移植自旧版 Web 端）
   ///
-  /// 旧版 Web Audio API 等效逻辑：
-  ///   o.frequency.setValueAtTime(f0, now);
-  ///   o.frequency.exponentialRampToValueAtTime(f1, now + chirpT);
-  ///   g.gain.setValueAtTime(vol, now);
-  ///   g.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  /// 旧版 Web Audio API 等效逻辑（JavaScript）：
+  ///   振荡器频率设为起始频率 f0
+  ///   指数渐变至终止频率 f1（chirpT 时间内）
+  ///   增益从 vol 指数衰减至 0.001（duration 时间内）
   ///
   /// 本版用解析式 chirp 精确复现，零杂音：
   ///   φ(t) = 2π(f₀t + (f₁-f₀)t²/2T)  [t < chirpT]
@@ -177,7 +176,7 @@ class SfxService {
 
   /// 写入标准 16-bit mono PCM WAV 文件头
   static void _writeWavHeader(
-      ByteData buffer, int sampleRate, int dataSize, int fileSize) {
+      ByteData buffer, int sampleRate, int dataSize, int fileSize,) {
     const riff = [0x52, 0x49, 0x46, 0x46];
     const wave = [0x57, 0x41, 0x56, 0x45];
     const fmt = [0x66, 0x6D, 0x74, 0x20];

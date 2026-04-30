@@ -424,7 +424,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                               .whiteFaint,
                                                           CyberColors.whiteFaint
                                                               .withValues(alpha: 
-                                                                  0.03),
+                                                                  0.03,),
                                                         ],
                                                       ),
                                                       borderRadius:
@@ -465,14 +465,14 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                                 color: CyberColors
                                                                     .neonPink
                                                                     .withValues(alpha: 
-                                                                        0.55),
+                                                                        0.55,),
                                                                 blurRadius: 16,
                                                               ),
                                                             ],
                                                           ),
                                                         ),
                                                         const SizedBox(
-                                                            height: 4),
+                                                            height: 4,),
                                                         Text(
                                                           '本局已无可移动棋子，是否重新开局？',
                                                           style: CyberTextStyles.caption.copyWith(
@@ -483,7 +483,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                           ),
                                                         ),
                                                         const SizedBox(
-                                                            height: 8),
+                                                            height: 8,),
                                                         // 时间戳 + 评级（合并为一行）
                                                         Row(
                                                           mainAxisAlignment:
@@ -502,7 +502,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                               ),
                                                             ),
                                                             const SizedBox(
-                                                                width: 8),
+                                                                width: 8,),
                                                             Container(
                                                               padding:
                                                                   const EdgeInsets
@@ -514,16 +514,16 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                                   BoxDecoration(
                                                                 color: ratingColor
                                                                     .withValues(alpha: 
-                                                                        0.2),
+                                                                        0.2,),
                                                                 borderRadius:
                                                                     BorderRadius
                                                                         .circular(
-                                                                            6),
+                                                                            6,),
                                                                 border:
                                                                     Border.all(
                                                                   color: ratingColor
                                                                       .withValues(alpha: 
-                                                                          0.5),
+                                                                          0.5,),
                                                                   width: 0.8,
                                                                 ),
                                                               ),
@@ -540,7 +540,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                           ],
                                                         ),
                                                         const SizedBox(
-                                                            height: 8),
+                                                            height: 8,),
                                                         Wrap(
                                                           spacing: 8,
                                                           runSpacing: 6,
@@ -569,7 +569,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                                   ? CyberColors
                                                                       .whiteHigh
                                                                   : _tileValueColor(
-                                                                      maxTile),
+                                                                      maxTile,),
                                                             ),
                                                             _buildGameOverStatItem(
                                                               label: '最大连击',
@@ -583,7 +583,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                           ],
                                                         ),
                                                         const SizedBox(
-                                                            height: 8),
+                                                            height: 8,),
                                                         // 按钮区域（横向排列）
                                                         Row(
                                                           mainAxisAlignment:
@@ -607,7 +607,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                                 );
                                                                 _copyToClipboard(
                                                                     shareText,
-                                                                    context);
+                                                                    context,);
                                                               },
                                                               icon: const Icon(
                                                                 Icons.copy,
@@ -635,7 +635,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                                   color: CyberColors
                                                                       .neonGreen
                                                                       .withValues(alpha: 
-                                                                          0.5),
+                                                                          0.5,),
                                                                   width: 1,
                                                                 ),
                                                                 padding:
@@ -648,7 +648,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                               ),
                                                             ),
                                                             const SizedBox(
-                                                                width: 8),
+                                                                width: 8,),
                                                             OutlinedButton(
                                                               onPressed: () {
                                                                 setState(() {
@@ -670,7 +670,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                                   color: CyberColors
                                                                       .whiteMedium
                                                                       .withValues(alpha: 
-                                                                          0.6),
+                                                                          0.6,),
                                                                   width: 1,
                                                                 ),
                                                                 padding:
@@ -690,7 +690,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                               ),
                                                             ),
                                                             const SizedBox(
-                                                                width: 8),
+                                                                width: 8,),
                                                             ElevatedButton(
                                                               onPressed: () {
                                                                 setState(() {

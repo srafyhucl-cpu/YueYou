@@ -121,7 +121,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
                   Uri.parse(const String.fromEnvironment(
                     'PRIVACY_POLICY_URL',
                     defaultValue: 'https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN',
-                  )),
+                  ),),
                   mode: LaunchMode.externalApplication,
                 ),
                 child: Text(

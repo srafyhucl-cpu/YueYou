@@ -241,7 +241,7 @@ class TtsCacheManager {
                 path: entity.path,
                 sizeBytes: stat.size,
                 modifiedAtMs: stat.modified.millisecondsSinceEpoch,
-              ));
+              ),);
             } catch (_) {}
           }
         }

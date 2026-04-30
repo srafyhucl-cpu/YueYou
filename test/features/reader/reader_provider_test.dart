@@ -166,7 +166,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = '标题\n短\n词\n段。\n结尾。\n';
       await reader.loadBook(raw,
-          bookId: 'b2', initialIndex: 0, forceIndex: true);
+          bookId: 'b2', initialIndex: 0, forceIndex: true,);
 
       // 跳到“短”所在句，验证合并行为
       final shortIdx = reader.sentences.indexOf('短');
@@ -186,7 +186,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\nC。\n';
       await reader.loadBook(raw,
-          bookId: 'b3', initialIndex: 0, forceIndex: true);
+          bookId: 'b3', initialIndex: 0, forceIndex: true,);
       final prev = reader.currentIndex;
       await reader.nextSentence();
       expect(reader.currentIndex, prev + 1);
@@ -197,7 +197,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\n';
       await reader.loadBook(raw,
-          bookId: 'b_last', initialIndex: 1, forceIndex: true);
+          bookId: 'b_last', initialIndex: 1, forceIndex: true,);
       expect(reader.currentIndex, 1);
       await reader.nextSentence();
       expect(reader.currentIndex, 1);
@@ -207,7 +207,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\nC。\n';
       await reader.loadBook(raw,
-          bookId: 'b_prev', initialIndex: 2, forceIndex: true);
+          bookId: 'b_prev', initialIndex: 2, forceIndex: true,);
       await reader.previousSentence();
       expect(reader.currentIndex, 1);
       expect(reader.fetchIndex, reader.currentIndex);
@@ -217,7 +217,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\n';
       await reader.loadBook(raw,
-          bookId: 'b_prev0', initialIndex: 0, forceIndex: true);
+          bookId: 'b_prev0', initialIndex: 0, forceIndex: true,);
       await reader.previousSentence();
       expect(reader.currentIndex, 0);
     });
@@ -226,7 +226,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = '正文\n有效句。\n';
       await reader.loadBook(raw,
-          bookId: 'b4', initialIndex: 0, forceIndex: true);
+          bookId: 'b4', initialIndex: 0, forceIndex: true,);
       // 跳到第0行（噪音），应自动跳到下一有效句
       await reader.jumpTo(0);
       expect(reader.currentSentence, '有效句。');
@@ -238,7 +238,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\n';
       await reader.loadBook(raw,
-          bookId: 'b_oob', initialIndex: 1, forceIndex: true);
+          bookId: 'b_oob', initialIndex: 1, forceIndex: true,);
       await reader.jumpTo(-1);
       expect(reader.currentIndex, 1);
       await reader.jumpTo(999);
@@ -249,7 +249,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = '有效句。\n正文\n';
       await reader.loadBook(raw,
-          bookId: 'b_fallback', initialIndex: 0, forceIndex: true);
+          bookId: 'b_fallback', initialIndex: 0, forceIndex: true,);
       final noiseIdx = reader.sentences.indexOf('正文');
       expect(noiseIdx, isNonNegative);
       await reader.jumpTo(noiseIdx);
@@ -261,7 +261,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\nC。\n';
       await reader.loadBook(raw,
-          bookId: 'b_started', initialIndex: 0, forceIndex: true);
+          bookId: 'b_started', initialIndex: 0, forceIndex: true,);
 
       int notified = 0;
       reader.addListener(() => notified++);
@@ -284,7 +284,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\n正文\nB。\n';
       await reader.loadBook(raw,
-          bookId: 'b_finished', initialIndex: 0, forceIndex: true);
+          bookId: 'b_finished', initialIndex: 0, forceIndex: true,);
 
       final item = TtsAudioItem(
         id: 1,
@@ -303,7 +303,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\n';
       await reader.loadBook(raw,
-          bookId: 'b_finished_last', initialIndex: 0, forceIndex: true);
+          bookId: 'b_finished_last', initialIndex: 0, forceIndex: true,);
 
       final item = TtsAudioItem(
         id: 1,
@@ -323,7 +323,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = '正文\n有效句。\n第二句。\n';
       await reader.loadBook(raw,
-          bookId: 'b_jump_line', initialIndex: 0, forceIndex: true);
+          bookId: 'b_jump_line', initialIndex: 0, forceIndex: true,);
       await reader.jumpToLine(0);
       expect(reader.currentSentence, '有效句。');
     });
@@ -332,7 +332,7 @@ void main() {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\n';
       await reader.loadBook(raw,
-          bookId: 'b_speed', initialIndex: 0, forceIndex: true);
+          bookId: 'b_speed', initialIndex: 0, forceIndex: true,);
 
       final before = reader.ttsEngine.playbackRate;
       reader.cycleSpeed();
@@ -348,7 +348,7 @@ void main() {
     test('toggleTTS 有内容时返回 playing', () async {
       final reader = await _makeReaderProvider();
       await reader.loadBook('第一章 开始\n你好世界。\n',
-          bookId: 'b_toggle', initialIndex: 0, forceIndex: true);
+          bookId: 'b_toggle', initialIndex: 0, forceIndex: true,);
       final result = reader.toggleTTS();
       expect(result, TtsToggleResult.playing);
     });

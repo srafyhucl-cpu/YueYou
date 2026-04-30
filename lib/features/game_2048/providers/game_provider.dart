@@ -35,7 +35,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   // 兼容层：对齐旧版 UI 的 List<List<int>> 接口
   List<List<int>> get grid {
     return List.generate(
-        size, (r) => List.generate(size, (c) => _board[r][c]?.value ?? 0));
+        size, (r) => List.generate(size, (c) => _board[r][c]?.value ?? 0),);
   }
 
   // 游戏实时分 (溯源：JS L17)
@@ -126,7 +126,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (boardRaw != null) {
           {
             final List<dynamic> rows = List<dynamic>.from(
-                (boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null) ?? []);
+                (boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null) ?? [],);
             if (rows.length == size) {
               _board = List.generate(size, (r) {
                 final row = rows[r] as List<dynamic>;
@@ -217,7 +217,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
 
     bool moved = false;
     // 记录是否有任何合并发生，用于维护 combo
-    List<Map<String, dynamic>> mergedTiles = [];
+    final List<Map<String, dynamic>> mergedTiles = [];
 
     // 触发滑动音效（轻量级触觉反馈）
     bool hasMerge = false;
@@ -252,13 +252,13 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     final traversal = _getTraversalOrder(vector);
 
     // 记录本轮是否已经合并过的标记矩阵 (溯源：JS L46-48)
-    List<List<bool>> mergedFlags =
+    final List<List<bool>> mergedFlags =
         List.generate(size, (_) => List.filled(size, false));
 
     // 开始遍历
     for (int r in traversal['rows']!) {
       for (int c in traversal['cols']!) {
-        TileModel? tile = _board[r][c];
+        final TileModel? tile = _board[r][c];
         if (tile == null) continue;
 
         // 查找最远的可移动位置 (溯源：JS L54-60)
@@ -281,7 +281,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
 
         // 检查合并 (溯源：JS L63-82)
         if (_inBounds(nextR, nextC)) {
-          TileModel? targetTile = _board[nextR][nextC];
+          final TileModel? targetTile = _board[nextR][nextC];
           // 逻辑：值相等且目标位置未在本轮合并过 (JS L65)
           if (targetTile != null &&
               targetTile.value == tile.value &&
@@ -303,7 +303,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
 
             // 存入合并列表（在 JS 里用于触发 3D 效果，此处预留）
             mergedTiles.add(
-                {'r': nextR, 'c': nextC, 'value': _board[nextR][nextC]!.value});
+                {'r': nextR, 'c': nextC, 'value': _board[nextR][nextC]!.value},);
           }
         }
       }
@@ -391,7 +391,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
               final t = _board[r][c];
               if (t == null) return null;
               return <String, dynamic>{'id': t.id, 'value': t.value};
-            }));
+            }),);
     final int novelIndex = StorageService.getCurrentNovelIndex();
     final String? currentNovelId = StorageService.getCurrentNovelId();
     StorageService.saveGameState(
@@ -430,7 +430,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// 在空格处添加随机块 (2 或 4)
   /// 溯源：映射 JS L179-191 (addRandomTile)
   void addRandomTile() {
-    List<Map<String, int>> emptyCells = [];
+    final List<Map<String, int>> emptyCells = [];
     for (int r = 0; r < size; r++) {
       for (int c = 0; c < size; c++) {
         if (_board[r][c] == null) {
@@ -442,7 +442,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (emptyCells.isNotEmpty) {
       final cell = emptyCells[_random.nextInt(emptyCells.length)];
       // 生成概率：2 (90%), 4 (10%) (溯源：JS L188)
-      int value = _random.nextDouble() < 0.9 ? 2 : 4;
+      final int value = _random.nextDouble() < 0.9 ? 2 : 4;
       _board[cell['r']!][cell['c']!] = TileModel(id: _nextId++, value: value);
     }
   }

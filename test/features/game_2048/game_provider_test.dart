@@ -70,7 +70,7 @@ void main() {
         [null, const TileModel(id: 2, value: 4), null, null],
         [null, null, null, null],
         [null, null, null, null],
-      ]);
+      ],);
 
       final g = p.grid;
       expect(g[0][0], 2);
@@ -203,7 +203,7 @@ void main() {
             const TileModel(id: 1, value: 2),
             const TileModel(id: 2, value: 4),
             const TileModel(id: 3, value: 8),
-            const TileModel(id: 4, value: 16)
+            const TileModel(id: 4, value: 16),
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -225,7 +225,7 @@ void main() {
             const TileModel(id: 1, value: 2),
             const TileModel(id: 2, value: 2),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -245,7 +245,7 @@ void main() {
             const TileModel(id: 1, value: 4),
             const TileModel(id: 2, value: 4),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -265,7 +265,7 @@ void main() {
             const TileModel(id: 1, value: 64),
             const TileModel(id: 2, value: 64),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -284,7 +284,7 @@ void main() {
             const TileModel(id: 2, value: 4),
             const TileModel(id: 3, value: 4),
             const TileModel(id: 4, value: 4),
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -306,7 +306,7 @@ void main() {
             const TileModel(id: 1, value: 512),
             const TileModel(id: 2, value: 512),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -328,25 +328,25 @@ void main() {
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
-            TileModel(id: id++, value: 2)
+            TileModel(id: id++, value: 2),
           ],
           [
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
-            TileModel(id: id++, value: 2)
+            TileModel(id: id++, value: 2),
           ],
         ],
       );
@@ -393,16 +393,16 @@ void main() {
     test('成功恢复存档', () async {
       final boardData = [
         [
-          {"id": 10, "value": 2},
+          {'id': 10, 'value': 2},
           null,
           null,
-          null
+          null,
         ],
         [
           null,
-          {"id": 11, "value": 4},
+          {'id': 11, 'value': 4},
           null,
-          null
+          null,
         ],
         [null, null, null, null],
         [null, null, null, null],
@@ -460,7 +460,7 @@ void main() {
             const TileModel(id: 1, value: 4),
             const TileModel(id: 2, value: 4),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -479,7 +479,7 @@ void main() {
             const TileModel(id: 1, value: 4),
             const TileModel(id: 2, value: 4),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -499,25 +499,25 @@ void main() {
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
-            TileModel(id: id++, value: 2)
+            TileModel(id: id++, value: 2),
           ],
           [
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
-            TileModel(id: id++, value: 2)
+            TileModel(id: id++, value: 2),
           ],
         ],
       );
@@ -539,25 +539,25 @@ void main() {
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
-            TileModel(id: id++, value: 2)
+            TileModel(id: id++, value: 2),
           ],
           [
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             null,
             TileModel(id: id++, value: 8),
             TileModel(id: id++, value: 16),
-            TileModel(id: id++, value: 32)
+            TileModel(id: id++, value: 32),
           ],
         ],
       );
@@ -615,25 +615,25 @@ void main() {
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
-            TileModel(id: id++, value: 2)
+            TileModel(id: id++, value: 2),
           ],
           [
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
-            TileModel(id: id++, value: 4)
+            TileModel(id: id++, value: 4),
           ],
           [
             TileModel(id: id++, value: 4),
             TileModel(id: id++, value: 2),
             TileModel(id: id++, value: 4),
-            TileModel(id: id++, value: 2)
+            TileModel(id: id++, value: 2),
           ],
         ],
       );
@@ -686,7 +686,7 @@ void main() {
             const TileModel(id: 1, value: 4),
             const TileModel(id: 2, value: 4),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -711,7 +711,7 @@ void main() {
             const TileModel(id: 1, value: 8),
             const TileModel(id: 2, value: 8),
             null,
-            null
+            null,
           ],
           [null, null, null, null],
           [null, null, null, null],
@@ -773,7 +773,7 @@ void main() {
     test('board_data 行数不为 4 时降级新局', () async {
       // 构造一个 3 行的存档（不合法）
       final badBoard = [
-        [{"id": 1, "value": 2}, null, null, null],
+        [{'id': 1, 'value': 2}, null, null, null],
         [null, null, null, null],
         [null, null, null, null],
       ];

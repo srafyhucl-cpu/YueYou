@@ -24,7 +24,7 @@ void main() {
 
     // Mock Haptic (StandardMethodCodec)
     messenger.setMockMethodCallHandler(
-        const MethodChannel('flutter/haptic'), (methodCall) async => null);
+        const MethodChannel('flutter/haptic'), (methodCall) async => null,);
 
     // Mock Platform channel (JSONMethodCodec is required for SystemChannels.platform)
     messenger.setMockMethodCallHandler(
@@ -35,15 +35,15 @@ void main() {
     // Mock SystemSound (Independent channel in some versions, or uses flutter/platform)
     messenger.setMockMethodCallHandler(
         const MethodChannel('flutter/system_sound'),
-        (methodCall) async => null);
+        (methodCall) async => null,);
 
     // Mock Audioplayers
     messenger.setMockMethodCallHandler(
         const MethodChannel('xyz.luan/audioplayers.global'),
-        (methodCall) async => null);
+        (methodCall) async => null,);
     messenger.setMockMethodCallHandler(
         const MethodChannel('xyz.luan/audioplayers'),
-        (methodCall) async => null);
+        (methodCall) async => null,);
 
     // Mock path_provider
     messenger.setMockMethodCallHandler(
@@ -100,7 +100,7 @@ void main() {
         [null, const TileModel(id: 2, value: 2048), null, null],
         [null, null, null, null],
         [null, null, null, null],
-      ]);
+      ],);
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump();
@@ -120,7 +120,7 @@ void main() {
         [null, null, null, null],
         [null, null, null, null],
         [null, null, null, null],
-      ]);
+      ],);
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump();

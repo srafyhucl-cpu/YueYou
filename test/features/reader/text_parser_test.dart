@@ -224,7 +224,7 @@ void main() {
       final joined = result.sentences.join('');
       expect(joined,
           contains('这是一个很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长的句子需要被截断但要保持语义完整性'),
-          reason: '截断后不应丢失有效字符');
+          reason: '截断后不应丢失有效字符',);
     });
 
     test('连续标点符号不导致空句', () async {

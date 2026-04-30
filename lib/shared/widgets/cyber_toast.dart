@@ -19,7 +19,7 @@ class CyberToast {
 
   static void show(String message,
       {ToastType type = ToastType.info,
-      Duration duration = const Duration(seconds: 2, milliseconds: 500)}) {
+      Duration duration = const Duration(seconds: 2, milliseconds: 500),}) {
     // 移除之前的 Toast
     _removeCurrentEntry();
 
@@ -90,7 +90,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOut,
-    ));
+    ),);
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
@@ -98,7 +98,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOut,
-    ));
+    ),);
 
     _controller.forward();
   }
@@ -129,7 +129,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                   maxWidth: MediaQuery.of(context).size.width * 0.85,
                 ),
                 margin: const EdgeInsets.symmetric(
-                    horizontal: CyberDimensions.spacingML),
+                    horizontal: CyberDimensions.spacingML,),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
                   border: Border.all(
@@ -155,7 +155,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                       ),
                       child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                          horizontal: 16, vertical: 12,),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -177,7 +177,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                                   color:
                                       _getBorderColor().withValues(alpha: 0.5),
                                   blurRadius: 8,
-                                )
+                                ),
                               ],
                             ),
                             child: ClipOval(

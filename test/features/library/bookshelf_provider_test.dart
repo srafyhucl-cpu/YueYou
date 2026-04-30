@@ -108,7 +108,7 @@ void main() {
       final reader = ReaderProvider(tts);
 
       await reader.loadBook('第一章\n内容一\n内容二\n',
-          bookId: '99', initialIndex: 0, forceIndex: true);
+          bookId: '99', initialIndex: 0, forceIndex: true,);
       expect(reader.currentBookId, '99');
 
       final container = ProviderContainer();
