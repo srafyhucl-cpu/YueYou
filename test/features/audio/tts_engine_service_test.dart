@@ -44,6 +44,8 @@ class _FakeAudioPlayer implements TtsAudioPlayer {
     setPlaybackRateCalls++;
     lastPlaybackRate = rate;
   }
+  @override
+  Future<void> setAudioContext(AudioContext context) async {}
 
   @override
   Future<void> dispose() async => disposeCalls++;

@@ -4,6 +4,12 @@
 - **维护(文档汇总)**:
   - 汇总 `DevelopmentPlan` 目录下 20260420 与 20260430 的多个任务文件，确保每日仅保留一个汇总文件。
   - 清理冗余任务描述，保持目录结构精简。
+- **修复(音频引擎优化 - 环境音连贯性与焦点隔离)**:
+  - **焦点隔离**：将 `AmbientService` 的音频焦点设为 `none`，彻底解决开启听书后背景音因竞争焦点而被迫暂停的问题。
+  - **音效平滑化**：将环境音采样周期提升至 **30秒**，并将淡入淡出缩短至 5ms，显著降低了 Android `MediaPlayer` 循环时的物理间隔感。
+  - **音质重构**：强化低通滤波（90% 权重）并注入 **120Hz 谐波**，使环境音从单纯的粉噪声转变为深沉、沉浸的工业电子氛围音。
+  - **TTS 策略对齐**：将朗读引擎焦点调整为 `gainTransient`，确保其作为主音频流的优先级，同时与背景音和谐混播。
+  - **稳定性加固**：修复了 `AudioContext` 在 iOS 端的语法定义错误，同步更新了全量测试 Mock 实现，确保构建与测试套件绿色通过。
 - **重构(V1.1 架构升级 - Riverpod Phase 2 完成)**:
   - 完成业务层三大 Provider 迁移：`TtsEngineService`、`GameProvider`、`ReaderProvider` 全部适配为 `ChangeNotifierProvider`，通过 `ref.onDispose` 管理生命周期。
   - UI 层全面迁移：`TeleprompterView`、`ChapterListScreen`、`CyberPlayerConsole`、`DashboardScreen`、`TtsErrorListener` 升级为 `ConsumerStatefulWidget`。

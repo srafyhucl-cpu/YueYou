@@ -52,6 +52,8 @@ class MockAudioPlayer implements TtsAudioPlayer {
 
   @override
   Future<void> setPlaybackRate(double rate) async {}
+  @override
+  Future<void> setAudioContext(AudioContext context) async {}
 
   @override
   Stream<void> get onPlayerComplete => const Stream<void>.empty();

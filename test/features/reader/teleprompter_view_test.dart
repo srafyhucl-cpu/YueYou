@@ -46,6 +46,8 @@ class _FakeAudioPlayer implements TtsAudioPlayer {
 
   @override
   Future<void> setPlaybackRate(double rate) async {}
+  @override
+  Future<void> setAudioContext(AudioContext context) async {}
 
   @override
   Stream<void> get onPlayerComplete => const Stream<void>.empty();
@@ -118,7 +120,6 @@ void main() {
 
   testWidgets('空数据时显示等待占位文本', (tester) async {
     final reader = await _makeReader();
-    final service = reader.ttsEngine;
     addTearDown(() {
     });
     await tester.pumpWidget(_wrapWithProviders(reader));
@@ -128,7 +129,6 @@ void main() {
 
   testWidgets('加载文本后渲染 RichText（isPlaying=false）', (tester) async {
     final reader = await _makeReader();
-    final service = reader.ttsEngine;
     addTearDown(() {
     });
     await tester.runAsync(() async {
