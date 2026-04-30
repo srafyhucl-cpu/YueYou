@@ -1,6 +1,12 @@
-文档: 汇总 DevelopmentPlan 目录下的任务文件，实现每日一档
+refactor(audio): 音频模块 Riverpod 迁移及状态机安全加固
 
-- 合并 20260420_TTS发声引擎重构任务书.md 与 20260420_系统深度优化任务书_阶段二.md 为 20260420_TTS引擎重构与系统深度优化.md
-- 合并 20260430_Riverpod_Phase1.md、20260430_Riverpod全域迁移Phase2完成.md 与 20260430_开发文档与协作规范.md 为 20260430_Riverpod迁移与协作规范落地.md
-- 删除原有的分散任务文件，保持目录精简
-- 更新 development_log.md 记录维护工作
+- ttsEngineProvider 添加 ref.onDispose 生命周期托管
+- ref.listen 替代 addListener 实现声明式依赖解耦
+- 新增 syncSettingsFromProvider 供 ref.listen 调用
+- dispose 添加幂等守卫防止 Riverpod 双调用
+- TtsPlaybackState 新增 error 状态分支
+- 新增 isError getter，所有 switch 升级为穷尽表达式
+- readerProvider 补充 ref.onDispose 生命周期注册
+- toggleTTS 改写为 Dart 3 穷尽 switch，error 状态自动清错恢复
+- 更新 development_log.md 与任务文件
+- 验收：flutter analyze 零警告，451/451 全量测试通过

@@ -41,8 +41,14 @@
   - 新增 `game_flow_integration_test.dart`（16 个用例），覆盖 2048 游戏全生命周期与持久化逻辑。
   - 新增 `reader_flow_integration_test.dart`（20 个用例），覆盖听书解析、章节导航、状态重置全链路。
   - 全局测试用例达 451 个，保持 100% 覆盖与 0 analyze 报错。
+- **重构(音频模块 Riverpod 迁移及状态机安全性加固)**:
+  - **Provider 生命周期托管**：`ttsEngineProvider` 新增 `ref.onDispose(svc.dispose)` 自动回收，消除外部手动 dispose 导致的双调用风险，`dispose()` 内置幂等守卫 `if (_disposed) return`。
+  - **依赖解耦（ref.listen 替代 addListener）**：`ttsEngineProvider` 通过 `ref.listen<SettingsProvider>` 监听配置变更并推送给引擎，新增 `externalSettingsListener: false` 参数避免 Riverpod 场景下双重注册；非 Riverpod 场景（单元测试直接构造）仍保留内部 `addListener` 路径。
+  - **状态机扩展 + 穷尽性检查**：`TtsPlaybackState` 新增 `error` 分支，`refreshSession()`、`forceRestartLoops()`、播放循环 finally 块中所有 switch 均升级为包含 `isError` 维度的 3 元组穷尽表达式，编译期静态验证所有状态路径。
+  - **ReaderProvider 升级**：`readerProvider` 补充 `ref.onDispose(rp.dispose)` 生命周期注册；`toggleTTS()` 从 if-else 链重写为 Dart 3 穷尽 switch 表达式，error 状态下自动 `clearLastError()` 后尝试恢复播放。
+  - **验收**：`flutter analyze` 零警告，`flutter test --concurrency=1` 全量 451 用例 100% 通过（含 reader_flow_integration_test 20 用例）。
 
-## **2026-04-29**
+
 - **优化(TTS 缓冲监控与缓存智能化清理)**:
   - 新增 `TtsBufferStatus` 缓冲健康状态监控，支持动态预加载与平滑降级。
   - 新增 `TtsCacheManager` 独立缓存管理模块，实现基于大小淘汰（500MB / 回收到 70%）与时间淘汰（24 小时）双重熔断策略。
