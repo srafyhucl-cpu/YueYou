@@ -1,8 +1,9 @@
-重构(架构): 完成 Riverpod 全域迁移，彻底移除 provider 依赖
+修复(测试): 消除 tts_engine_service_test 跨文件 path_provider mock 竞态
 
-- 迁移 SquareBoard/BoardMascot/BoardMascotRive 至 ConsumerStatefulWidget
-- 迁移 settings_screen 子组件至 ConsumerWidget/ConsumerStatefulWidget
-- 迁移 library_screen/cyber_import_button 使用 ref.read(readerProvider)
-- 重构 main.dart _Bootstrapper 至 ConsumerStatefulWidget，移除 MultiProvider
-- 更新全部 widget 测试：MultiProvider 替换为 ProviderScope overrides
-- 从 pubspec.yaml 删除 provider 依赖，flutter analyze: No issues found
+- tts_contract_test.dart: setUp 调用 _mockPathProviderChannel() 后加 tearDown 恢复到
+  systemTemp，防止污染串行运行时后续 tts_engine_service_test 的 mock 状态
+- tts_engine_service_test.dart: play loop branches group 加 setUp 恢复 _testTempDir
+  mock，双重防御确保每个用例前 path_provider 指向正确目录
+- CI flutter-ci.yml: flutter test 加 --concurrency=1 消除并发测试文件间的 mock 竞态
+
+全量 451 个测试 --concurrency=1 串行通过，0 失败，满足迁移方案验收标准

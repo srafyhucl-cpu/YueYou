@@ -258,10 +258,12 @@ test('新写法', () {
 
 每个阶段完成后必须满足：
 
-- [ ] `flutter test` 全量通过（415+）
-- [ ] `flutter analyze` 零 warning/error
-- [ ] 不引入新的 `@visibleForTesting` 破坏封装
-- [ ] CI pipeline（`.github/workflows/flutter-ci.yml`）绿色通过
+- [x] `flutter test --concurrency=1` 全量通过（451+）
+- [x] `flutter analyze` 零 warning/error
+- [x] 不引入新的 `@visibleForTesting` 破坏封装
+- [x] CI pipeline（`.github/workflows/flutter-ci.yml`）已更新 `--concurrency=1` 消除 mock 竞态
+
+> **2026-04-30 完结**：阶段 0~3 及测试清理全部完成，provider 依赖彻底移除。
 
 ---
 
