@@ -14,10 +14,8 @@ import '../../../core/utils/tts_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
-  final settings = ref.watch(settingsProvider);
-  final svc = TtsEngineService(settings);
-  ref.onDispose(svc.dispose);
-  return svc;
+  final settings = ref.read(settingsProvider);
+  return TtsEngineService(settings);
 });
 
 /// 抽象接口，用于测试时注入 Mock
@@ -28,6 +26,7 @@ abstract class TtsAudioPlayer {
   Future<void> stop();
   Future<void> setVolume(double volume);
   Future<void> setPlaybackRate(double rate);
+  Future<void> setAudioContext(AudioContext context);
   Stream<void> get onPlayerComplete;
   Future<void> dispose();
 }
@@ -132,6 +131,9 @@ class _RealAudioPlayer implements TtsAudioPlayer {
   Future<void> setVolume(double volume) => _player.setVolume(volume);
   @override
   Future<void> setPlaybackRate(double rate) => _player.setPlaybackRate(rate);
+  @override
+  Future<void> setAudioContext(AudioContext context) =>
+      _player.setAudioContext(context);
   @override
   Stream<void> get onPlayerComplete => _player.onPlayerComplete;
   @override
@@ -374,6 +376,21 @@ class TtsEngineService extends ChangeNotifier {
         _fallbackEngine = fallbackEngine ?? _FlutterTtsFallbackEngine(),
         _delay = delayFn ?? ((d) => Future<void>.delayed(d)) {
     _settings = settings;
+    // 配置音频上下文：允许朗读与背景音共存（Ducking 策略）
+    _audioPlayer.setAudioContext(AudioContext(
+      android: const AudioContextAndroid(
+        audioFocus: AndroidAudioFocus.gainTransient,
+        contentType: AndroidContentType.speech,
+        usageType: AndroidUsageType.assistanceAccessibility,
+      ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.playback,
+        options: {
+          AVAudioSessionOptions.mixWithOthers,
+          AVAudioSessionOptions.duckOthers,
+        },
+      ),
+    ));
     _initFuture = _initTtsHardware();
     _listenToSettings();
   }

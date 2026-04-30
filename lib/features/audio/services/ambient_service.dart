@@ -59,8 +59,8 @@ class AmbientService {
       await _player!.setAudioContext(
         AudioContext(
           android: const AudioContextAndroid(
-            // 环境音使用 MEDIA 类型，独立于 TTS 音轨，互不抢占
-            audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+            // 环境音作为底层背景氛围，不参与系统焦点竞争，防止被 TTS 强行中断
+            audioFocus: AndroidAudioFocus.none,
             contentType: AndroidContentType.music,
             usageType: AndroidUsageType.media,
           ),
@@ -82,6 +82,7 @@ class AmbientService {
   /// - `false`：立即停止播放
   static Future<void> setEnabled(bool enabled) async {
     _enabled = enabled;
+    debugPrint(' AmbientService.setEnabled: $enabled');
     if (!_initialized) return;
     if (_enabled) {
       await _startIfNeeded();
@@ -130,6 +131,7 @@ class AmbientService {
     try {
       final wav = _generateAmbientWav();
       await _player!.setVolume(_volume);
+      debugPrint(' AmbientService: 正在启动背景氛围音 (vol=${_volume.toStringAsFixed(2)}, bytes=${wav.length})');
       await _player!.play(BytesSource(wav));
     } catch (e) {
       debugPrint('AmbientService._startIfNeeded error: $e');
@@ -149,10 +151,10 @@ class AmbientService {
 
   static Uint8List _generateAmbientWav({
     int sampleRate = 44100,
-    int durationMs = 3000,
+    int durationMs = 30000, // 提升至 30 秒，极大减少 MediaPlayer 循环跳变频率
     int humHz = 60,
-    double humVol = 0.04,
-    double noiseVol = 0.06,
+    double humVol = 0.18, // 增加工频嗡鸣权重
+    double noiseVol = 0.12, // 降低粉噪声权重，减少“噪音感”
   }) {
     final numSamples = (sampleRate * durationMs / 1000).round();
     final dataSize = numSamples * 2;
@@ -164,8 +166,11 @@ class AmbientService {
     final pinkState = List<double>.filled(16, 0.0);
     double pinkRunningSum = 0.0;
 
-    // 淡入淡出区间（各 50ms）
-    final fadeLen = (sampleRate * 0.05).round();
+    // 淡入淡出区间（各 5ms，仅用于消除直流偏移导致的咔哒声）
+    final fadeLen = (sampleRate * 0.005).round();
+
+    // 强化低通滤波状态（深沉化处理）
+    double lastNoise = 0.0;
 
     for (int i = 0; i < numSamples; i++) {
       final t = i / sampleRate;
@@ -179,11 +184,13 @@ class AmbientService {
           pinkRunningSum += pinkState[k] - oldVal;
         }
       }
-      // 归一化到 [-1, 1]（16 级叠加，范围约 ±16，除以 16 再乘系数）
-      final pink = (pinkRunningSum / 16.0).clamp(-1.0, 1.0);
+      // 归一化并进行强化低通滤波（90% 权重保留前值），让音色呈现沉闷的工业感
+      double pink = (pinkRunningSum / 16.0).clamp(-1.0, 1.0);
+      pink = lastNoise * 0.9 + pink * 0.1; 
+      lastNoise = pink;
 
-      // ---- 60Hz 工频嗡鸣 ----
-      final hum = sin(2 * pi * humHz * t);
+      // ---- 60Hz & 120Hz 复合工频嗡鸣 ----
+      final hum = sin(2 * pi * humHz * t) * 0.7 + sin(4 * pi * humHz * t) * 0.3;
 
       // ---- 混合 ----
       double signal = pink * noiseVol + hum * humVol;

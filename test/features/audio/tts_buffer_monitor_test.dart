@@ -16,6 +16,7 @@ class _FakeAudioPlayer implements TtsAudioPlayer {
   @override Future<void> stop() async {}
   @override Future<void> setVolume(double volume) async {}
   @override Future<void> setPlaybackRate(double rate) async {}
+  @override Future<void> setAudioContext(AudioContext context) async {}
   @override Future<void> dispose() async => _ctrl.close();
 }
 

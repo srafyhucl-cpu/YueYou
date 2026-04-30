@@ -6,10 +6,8 @@ import '../../library/domain/book_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final readerProvider = ChangeNotifierProvider<ReaderProvider>((ref) {
-  final tts = ref.watch(ttsEngineProvider);
-  final rp = ReaderProvider(tts);
-  ref.onDispose(rp.dispose);
-  return rp;
+  final tts = ref.read(ttsEngineProvider);
+  return ReaderProvider(tts);
 });
 
 /// TTS 切换操作的领域结果
@@ -498,6 +496,16 @@ class ReaderProvider with ChangeNotifier {
   @override
   void dispose() {
     _ttsEngine.removeListener(_onTtsEngineChanged);
+    // 🔥 清理回调占用，防止闭包捕获已销毁的 ReaderProvider
+    if (_ttsEngine.onNeedPrefetch != null) {
+      _ttsEngine.onNeedPrefetch = null;
+    }
+    if (_ttsEngine.onItemStarted != null) {
+      _ttsEngine.onItemStarted = null;
+    }
+    if (_ttsEngine.onItemFinished != null) {
+      _ttsEngine.onItemFinished = null;
+    }
     super.dispose();
   }
 }
