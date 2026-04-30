@@ -390,9 +390,9 @@ CyberTextStyles.captionBold         // 说明文字加粗
 ## 🎯 开发规范
 
 为了保持代码质量，项目严格遵循以下文档：
-- [核心业务流程 (CORE_WORKFLOWS.md)](DevelopmentPlan/CORE_WORKFLOWS.md)
-- [模块依赖边界 (MODULE_DEPENDENCIES.md)](DevelopmentPlan/MODULE_DEPENDENCIES.md)
-- [贡献指南 (CONTRIBUTING.md)](CONTRIBUTING.md)
+- [核心业务流程](DevelopmentPlan/核心业务流程.md)
+- [模块依赖边界](DevelopmentPlan/模块依赖关系.md)
+- [贡献指南](贡献指南.md)
 
 项目同时遵循 `.windsurfrules` 与 `.agents/skills/` 定义的硬性红线：
 
