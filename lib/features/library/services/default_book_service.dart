@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
@@ -15,8 +16,8 @@ import 'package:yueyou/features/library/domain/book_model.dart';
 ///
 /// 严禁引入 UI 库，不持有任何 Provider 引用。
 class DefaultBookService {
-  /// 书籍服务 API 基础地址（与 TTS 同域）
-  static const String _apiBase = 'https://hclstudio.cn/api/v1';
+  /// 书籍服务 API 基础地址（通过 TtsConfig.bookApiBase 编译时注入）
+  static String get _apiBase => TtsConfig.bookApiBase;
 
   /// 当前书籍标识
   final String bookKey;

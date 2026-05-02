@@ -2,6 +2,16 @@
 
 ## **2026-05-02**
 
+- **维护(工程规范治理 - 项目全面评估后整改)**:
+  - **`TtsConfig` 重构**：移除 `dart:io` 依赖，将 `Platform.environment` 运行时读取改为 `String.fromEnvironment` 编译时常量注入，新增 `bookApiBase` 公开常量供书籍服务使用。
+  - **`DefaultBookService` 域名解耦**：将硬编码的 `https://hclstudio.cn/api/v1` 替换为 `TtsConfig.bookApiBase`，消除零硬编码原则违规。
+  - **`go.mod` 版本修正**：`go 1.25.0`（不存在的版本）修正为 `go 1.22.0`。
+  - **空文件清理**：删除无任何引用的 `file_parser.dart` / `app_theme.dart` / `neon_border_box.dart`。
+  - **`pubspec.yaml` 精简**：description 从模板默认值替换为项目真实描述；移除未使用的 `dio: ^5.7.0` 依赖。
+  - **README 同步**：版本号 `v1.0.0` → `v1.1.0`，依赖清单移除 `dio`，服务器配置表新增 `BOOK_API_BASE` 变量说明。
+  - **测试适配**：`widget_test.dart` 移除已删除的 `TtsConfig.development` / `production` 引用，改为验证 `current` 和 `bookApiBase`。
+  - **验证**：`flutter analyze` 零警告，核心测试全部通过。
+
 - **修复(TTS 切换延迟与异常降级稳定性优化)**:
   - **消除切换延迟**：将 `refreshSession` 中的状态清理与游标重置前置，配合 `_playCompleter` 信号量立即中断 `playFile` 阻塞，解决了切换发声人后旧声音残留在内存中排队播放的问题。
   - **修复暂停跳句 (Skip on Resume)**：引入 `_isPausing` 状态锁。当因 `pause()` 触发音频停止时，拦截进度推进回调（`_onPlaybackComplete`），确保恢复播放时依然从当前句子开始。

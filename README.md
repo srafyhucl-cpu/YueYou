@@ -1,7 +1,7 @@
 # 阅游 (YueYou)
 
 **赛博朋克风格的沉浸式小说听读器 + 2048 游戏**  
-版本 `v1.0.0` · Flutter 3.x / Dart 3.x · 跨平台（Android / iOS / Windows / macOS / Linux / Web）
+版本 `v1.1.0` · Flutter 3.x / Dart 3.x · 跨平台（Android / iOS / Windows / macOS / Linux / Web）
 
 [![Flutter CI](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml)
 
@@ -20,6 +20,13 @@
 - **章节导航**：`ChapterListScreen` 正序/倒序切换，O(1) 定位当前章节
 - **空闲自动暂停**：可配置超时计时器（`idleTimeout`），防止忘关持续耗电
 - **阅读进度持久化**：实时存档，重启自动恢复至上次段落与滚动位置
+
+### 📚 默认书籍（西游记）
+
+- **目录先行**：App 启动时从服务端拉取 100 章目录，网络异常时降级使用内置常量（`BookConstants`）
+- **分章懒加载**：`DefaultBookService` 按需下载章节正文（OSS CDN），三级缓存（内存 → 本地文件 → 网络），影子预读下一章
+- **跨章自动推进**：`ReaderProvider` 章末状态机，TTS 播完最后一句自动加载下一章并续播
+- **新用户零配置**：书架为空时自动注入默认书籍，粘性位 `hasSelectedBook` 防止老用户被重置
 
 ### 📚 书库管理
 
@@ -53,7 +60,7 @@
 - **隐私前置拦截**：首次启动强制展示 `PrivacyAgreementModal`（不可跳过），同意后才执行书籍加载与网络初始化
 - **TTS 参数**：语速（`ttsRate`）、音色选择（`voice`）
 - **游戏音效开关**：实时同步至 `GameProvider`
-- **环境音预留**：`ambientEnabled` / `ambientVol` 字段已持久化，播放器后端待接入
+- **多风格环境音**：`AmbientService` 支持"江湖风云（武侠）"与"围炉夜话（温馨）"，算法动态生成粉噪声，无需外部音频资源
 
 ### 🎨 设计系统
 
@@ -70,7 +77,6 @@
 | 功能 | 文件 | 状态 |
 | :--- | :--- | :--- |
 | XIAOYO Rive 动画版 | `board_mascot_rive.dart` + `assets/rive/xiaoyo.riv` | Rive 文件已就位，UI 接入中 |
-| 环境背景音乐播放器 | `SettingsProvider.ambientEnabled` / `ambientVol` | 字段与持久化已实现，播放后端待接入 |
 | 崩溃上报（Sentry/Crashlytics） | `core/utils/cyber_logger.dart` | 钩子已注册，上报实现预留至 V1.1 |
 | 热更新版本检查 | `DashboardScreen._checkAppUpdates()` | 存根已注册，V1.1 实现 |
 
@@ -234,8 +240,11 @@ flutter run --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 ### 构建 Release APK
 
 ```bash
+# 只打 arm64-v8a 轻量包（约 28MB，覆盖 90%+ 主流机型）
 flutter build apk --release \
-  --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
+  --target-platform android-arm64 \
+  --split-per-abi \
+  --dart-define=TTS_SERVER_URL=https://hclstudio.cn/api/v1/tts
 ```
 
 ### 代码检查
@@ -287,9 +296,17 @@ TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬
 
 | 变量 | 说明 | 默认值 |
 | :--- | :--- | :--- |
-| `TTS_SERVER_URL` | TTS 业务接口（返回 JSON `{"status":"success","url":"..."}`) | `http://47.94.102.250:8080/api/v1/tts` |
+| `TTS_SERVER_URL` | TTS 业务接口（返回 JSON `{"status":"success","url":"..."}`) | `https://hclstudio.cn/api/v1/tts` |
+| `BOOK_API_BASE` | 书籍服务 API 基础地址（目录 + 章节派发） | `https://hclstudio.cn/api/v1` |
 
 > 客户端拿到 `url` 字段后，再通过 GET 请求从 OSS/CDN 下载音频文件存入本地缓存。**禁止将 POST 响应体直接保存为音频文件。**
+
+### 书籍接口
+
+| 接口 | 方法 | 说明 |
+| :--- | :--- | :--- |
+| `/api/v1/book/catalog?bookId=xiyouji` | GET | 返回书籍目录 JSON（100 章标题 + lineIndex） |
+| `/api/v1/book/chapter` | POST `{bookId, chapterIndex}` | 返回章节 OSS CDN URL，客户端再 GET 下载正文 |
 
 ### TTS 核心参数（`TtsConfig`）
 
@@ -315,11 +332,10 @@ TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬
 ### 运行时依赖
 
 ```yaml
-flutter_riverpod: ^2.5.1   # 状态管理
+flutter_riverpod: ^2.6.1   # 状态管理
 shared_preferences: ^2.3.3 # 本地持久化
-file_picker: ^6.1.1        # 文件导入
+file_picker: ^8.1.7        # 文件导入
 http: ^1.6.0               # TTS HTTP 请求
-dio: ^5.7.0                # 备用 HTTP 客户端
 audioplayers: ^6.4.0       # TTS 音频播放
 flutter_tts: ^3.8.5        # 本地 TTS 降级引擎
 path_provider: ^2.1.5      # 文件路径（存储 + 缓存）

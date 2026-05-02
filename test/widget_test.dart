@@ -31,9 +31,9 @@ void main() {
   });
 
   test('TTS 配置测试', () {
-    // 测试 TTS 配置是否正确加载
-    expect(TtsConfig.development.serverUrl, isNotEmpty);
-    expect(TtsConfig.production.serverUrl, isNotEmpty);
+    // 测试 TTS 配置是否正确加载（编译时常量）
+    expect(TtsConfig.current.serverUrl, isNotEmpty);
     expect(TtsConfig.current.maxRetries, greaterThan(0));
+    expect(TtsConfig.bookApiBase, isNotEmpty);
   });
 }
