@@ -49,6 +49,8 @@ abstract class TtsAudioPlayer {
   Future<void> setPlaybackRate(double rate);
   Future<void> setAudioContext(AudioContext context);
   Stream<void> get onPlayerComplete;
+  Stream<Duration> get onPositionChanged;
+  Stream<Duration> get onDurationChanged;
   Future<void> dispose();
 }
 
@@ -160,6 +162,10 @@ class _RealAudioPlayer implements TtsAudioPlayer {
       _player.setAudioContext(context);
   @override
   Stream<void> get onPlayerComplete => _player.onPlayerComplete;
+  @override
+  Stream<Duration> get onPositionChanged => _player.onPositionChanged;
+  @override
+  Stream<Duration> get onDurationChanged => _player.onDurationChanged;
   @override
   Future<void> dispose() => _player.dispose();
 }
@@ -343,6 +349,11 @@ class TtsEngineService extends ChangeNotifier {
   /// 当前播放任务的完成信号，用于外部强制停止（如切换发声人）
   Completer<void>? _playCompleter;
 
+  /// 实时播放进度流 (0.0 -> 1.0)
+  Stream<double> get progressStream => _progressController.stream;
+  final _progressController = StreamController<double>.broadcast();
+  Duration _currentDuration = Duration.zero;
+
   late final Future<void> _initFuture;
   bool _initCompleted = false;
   String? _lastGeneratedAudioPath;
@@ -408,6 +419,18 @@ class TtsEngineService extends ChangeNotifier {
         ),
       ),
     );
+
+    // 绑定物理进度监听，实现提词器绝对同步
+    _audioPlayer.onPositionChanged.listen((pos) {
+      if (_currentDuration.inMilliseconds > 0) {
+        final progress = pos.inMilliseconds / _currentDuration.inMilliseconds;
+        _progressController.add(progress.clamp(0.0, 1.0));
+      }
+    });
+    _audioPlayer.onDurationChanged.listen((dur) {
+      _currentDuration = dur;
+    });
+
     _initFuture = _initTtsHardware();
     // 非 Riverpod 场景（如测试直接构造），仍使用内部监听器
     if (externalSettingsListener) {
@@ -548,6 +571,7 @@ class TtsEngineService extends ChangeNotifier {
     _disposed = true;
     _settings.removeListener(_onSettingsChanged);
     _idleTimer?.cancel();
+    _progressController.close();
     TtsCacheManager.instance.stopPeriodicClean();
     unawaited(_audioPlayer.dispose());
     unawaited(_fallbackEngine.stop());
@@ -1016,6 +1040,10 @@ class TtsEngineService extends ChangeNotifier {
   /// [path] 是本地临时文件路径，[onComplete] 在播放正常结束或出错时调用。
   Future<void> playFile(String path, {void Function()? onComplete}) async {
     try {
+      // 物理进度归零，确保提词器扫光从头开始
+      _currentDuration = Duration.zero;
+      _progressController.add(0.0);
+
       // 先停止当前播放，确保播放器处于干净状态（避免 MEDIA_ERROR_SERVER_DIED）
       await _audioPlayer.stop();
       // 检查文件是否存在且有效

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
+import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
@@ -11,9 +13,8 @@ import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import 'package:yueyou/core/utils/safe_string.dart';
 
-/// 🔥 赛博 KTV 提词器 - 音乐播放器居中滚动风格
-/// 架构：AnimationController 驱动逐字进度，TextPainter 计算已读宽度
-/// 当前字始终居中，已读=亮青色，未读=暗色，两端渐隐遮罩
+/// 🔥 赛博 KTV 提词器 - 物理进度驱动版
+/// 架构：监听 TtsEngineService 的实时音频进度流，实现 100% 同步的扫光扫字。
 class TeleprompterView extends ConsumerStatefulWidget {
   const TeleprompterView({super.key});
 
@@ -21,19 +22,15 @@ class TeleprompterView extends ConsumerStatefulWidget {
   ConsumerState<TeleprompterView> createState() => _TeleprompterViewState();
 }
 
-class _TeleprompterViewState extends ConsumerState<TeleprompterView>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ktvController;
+class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
   String _prevText = '';
-  bool _prevIsPlaying = false;
-  double _prevPlaybackRate = 1.0;
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
-  ReaderProvider? _reader;
   Timer? _errorTimer;
   bool _showError = false;
 
-  static final TextStyle _readStyle = CyberTextStyles.teleprompterInlineRead.copyWith(
+  static final TextStyle _readStyle =
+      CyberTextStyles.teleprompterInlineRead.copyWith(
     shadows: [
       Shadow(
         color: CyberColors.hackerBlue.withValues(alpha: 0.5),
@@ -45,65 +42,14 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
   static const TextStyle _unreadStyle = CyberTextStyles.teleprompterInlineUnread;
 
   @override
-  void initState() {
-    super.initState();
-    _ktvController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    );
-    _ktvController.addListener(_syncScroll);
+  void dispose() {
+    _errorTimer?.cancel();
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reader = ref.read(readerProvider);
-    if (!identical(_reader, reader)) {
-      _reader?.removeListener(_onReaderChanged);
-      _reader = reader;
-      _reader?.addListener(_onReaderChanged);
-      _onReaderChanged();
-    }
-  }
-
-  void _onReaderChanged() {
-    final reader = _reader;
-    if (!mounted || reader == null) return;
-
-    if (reader.isParsing || reader.sentences.isEmpty) {
-      if (_prevIsPlaying) {
-        _ktvController.stop();
-        _prevIsPlaying = false;
-      }
-      return;
-    }
-
-    final String text = reader.currentSentence ?? '';
-    final bool isPlaying = reader.ttsEngine.state == TtsPlaybackState.playing;
-    final double playbackRate = reader.ttsEngine.playbackRate;
-
-    // 🔥 关键修复：即使不播放，如果文字变了（如手动切句），也要重置提词器进度并预计算
-    if (text != _prevText && text.isNotEmpty) {
-      _onSentenceChanged(text, playbackRate, start: isPlaying);
-    } else if (text.isNotEmpty && playbackRate != _prevPlaybackRate) {
-      _onPlaybackRateChanged(text, playbackRate, isPlaying: isPlaying);
-    }
-
-    if (isPlaying && text.isNotEmpty) {
-      if (!_ktvController.isAnimating) {
-        _ktvController.forward();
-      }
-      _prevIsPlaying = true;
-    } else {
-      // 停止动画但保留当前进度
-      if (_prevIsPlaying) {
-        _ktvController.stop();
-        _prevIsPlaying = false;
-      }
-    }
-
-    // 🔥 错误提示自动清理逻辑 (Task 5)
-    if (reader.ttsErrorMessage != null && !_showError) {
+  void _handleErrorState(String? errorMessage) {
+    if (errorMessage != null && !_showError) {
       setState(() => _showError = true);
       _errorTimer?.cancel();
       _errorTimer = Timer(const Duration(seconds: 3), () {
@@ -111,72 +57,42 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
           setState(() => _showError = false);
         }
       });
-    } else if (reader.ttsErrorMessage == null) {
+    } else if (errorMessage == null) {
       _showError = false;
       _errorTimer?.cancel();
     }
   }
 
-  void _syncScroll() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollCtrl.hasClients || _totalTextWidth <= 0) return;
-      if (!_scrollCtrl.position.hasPixels) return;
-      final target = (_ktvController.value * _totalTextWidth)
-          .clamp(0.0, _scrollCtrl.position.maxScrollExtent);
+  void _syncScroll(double progress) {
+    if (!mounted || !_scrollCtrl.hasClients || _totalTextWidth <= 0) return;
+    final target = (progress * _totalTextWidth)
+        .clamp(0.0, _scrollCtrl.position.maxScrollExtent);
+    if (_scrollCtrl.offset != target) {
       _scrollCtrl.jumpTo(target);
-    });
+    }
   }
 
-  @override
-  void dispose() {
-    _errorTimer?.cancel();
-    _reader?.removeListener(_onReaderChanged);
-    _ktvController.dispose();
-    _scrollCtrl.dispose();
-    super.dispose();
-  }
-
-  void _onSentenceChanged(String text, double playbackRate,
-      {bool start = true,}) {
+  void _onSentenceChanged(String text) {
     _prevText = text;
-    _prevPlaybackRate = playbackRate;
-    // 新句子：预计算文字总宽度（只做一次，后续用线性插值）
     final tp = TextPainter(
       text: TextSpan(text: text, style: _readStyle),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: double.infinity);
     _totalTextWidth = tp.width;
 
-    final speed = playbackRate.clamp(0.5, 3.0);
-    // 中文 TTS 约 3.5 字/秒（~286ms/字），比之前 5字/秒更贴近实际语速
-    final ms = (text.length * (1000 / (speed * 3.5))).round().clamp(800, 10000);
-    _ktvController.duration = Duration(milliseconds: ms);
-
-    if (start) {
-      _ktvController.forward(from: 0.0);
-    } else {
-      _ktvController.value = 0.0; // 暂停且切句时，重置进度到开头
-    }
-  }
-
-  void _onPlaybackRateChanged(String text, double playbackRate,
-      {required bool isPlaying,}) {
-    _prevPlaybackRate = playbackRate;
-    final double currentProgress = _ktvController.value;
-    final speed = playbackRate.clamp(0.5, 3.0);
-    final ms = (text.length * (1000 / (speed * 3.5))).round().clamp(800, 10000);
-    _ktvController.duration = Duration(milliseconds: ms);
-
-    if (isPlaying) {
-      _ktvController.forward(from: currentProgress);
-    } else {
-      _ktvController.value = currentProgress;
+    // 立即重置滚动位置
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.jumpTo(0.0);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final reader = ref.watch(readerProvider);
+    final ttsState = ref.watch(ttsAudioProvider);
+    final engine = ref.watch(ttsEngineProvider);
+
+    _handleErrorState(reader.ttsErrorMessage);
 
     if (reader.isParsing) {
       return _buildPlaceholder('正在连接神经数据链路...');
@@ -185,60 +101,87 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
       return _buildPlaceholder('等待数据流接入 [ _ ]');
     }
 
-        final String text = reader.currentSentence ?? '';
-        final bool isPlaying =
-            reader.ttsEngine.state == TtsPlaybackState.playing;
+    // 从 ttsState 获取当前正在播放/暂停的文本内容
+    final String text = switch (ttsState) {
+      TtsAudioPlaying(:final item) => item.textPreview,
+      TtsAudioPaused(:final item) => item?.textPreview ?? '',
+      _ => '',
+    };
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final halfWidth = constraints.maxWidth / 2;
-            final isLowPerf = CyberPerformanceDetector.detectLevel() ==
-                CyberAnimationLevel.low;
+    if (text.isNotEmpty && text != _prevText) {
+      // 在构建后重置，避免 build 期间调用 jumpTo
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onSentenceChanged(text);
+      });
+    }
 
-            return Container(
-              height: CyberDimensions.teleprompterHeight,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-                border: Border.all(
-                  color: CyberColors.neonCyan.withValues(alpha: 0.3),
-                  width: CyberDimensions.borderNormal,
-                ),
-                boxShadow: CyberShadows.floating,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(CyberDimensions.radiusL -
-                    CyberDimensions.borderNormal,),
-                child: isLowPerf
-                    ? Container(
-                        color: CyberColors.glassDark.withValues(alpha: 0.95),
-                        child: _buildInner(text, isPlaying, halfWidth, reader),
-                      )
-                    : BackdropFilter(
-                        filter: ImageFilter.blur(
-                          sigmaX: CyberDimensions.blurMedium,
-                          sigmaY: CyberDimensions.blurMedium,
-                        ),
-                        child: Container(
-                          color: CyberColors.glassDark,
-                          child: _buildInner(text, isPlaying, halfWidth, reader),
-                        ),
-                      ),
-              ),
-            );
-          },
+    final bool isPlaying = ttsState is TtsAudioPlaying;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final halfWidth = constraints.maxWidth / 2;
+        final isLowPerf =
+            CyberPerformanceDetector.detectLevel() == CyberAnimationLevel.low;
+
+        return Container(
+          height: CyberDimensions.teleprompterHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+            border: Border.all(
+              color: CyberColors.neonCyan.withValues(alpha: 0.3),
+              width: CyberDimensions.borderNormal,
+            ),
+            boxShadow: CyberShadows.floating,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(
+              CyberDimensions.radiusL - CyberDimensions.borderNormal,
+            ),
+            child: isLowPerf
+                ? Container(
+                    color: CyberColors.glassDark.withValues(alpha: 0.95),
+                    child: _buildInner(text, isPlaying, halfWidth, engine),
+                  )
+                : BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: CyberDimensions.blurMedium,
+                      sigmaY: CyberDimensions.blurMedium,
+                    ),
+                    child: Container(
+                      color: CyberColors.glassDark,
+                      child: _buildInner(text, isPlaying, halfWidth, engine),
+                    ),
+                  ),
+          ),
         );
+      },
+    );
   }
 
-  Widget _buildInner(String text, bool isPlaying, double halfWidth, ReaderProvider reader) {
+  Widget _buildInner(
+    String text,
+    bool isPlaying,
+    double halfWidth,
+    TtsEngineService engine,
+  ) {
+    // 如果没有文本（Idle/Buffering），显示占位或空容器
+    if (text.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Stack(
       clipBehavior: Clip.hardEdge,
       children: [
-        AnimatedBuilder(
-          animation: _ktvController,
-          builder: (context, _) {
-            final pos = _ktvController.value;
+        StreamBuilder<double>(
+          stream: engine.progressStream,
+          initialData: 0.0,
+          builder: (context, snapshot) {
+            final double progress = isPlaying ? (snapshot.data ?? 0.0) : 0.0;
             final charIndex =
-                (pos * text.length).floor().clamp(0, text.length);
+                (progress * text.length).floor().clamp(0, text.length);
+
+            // 同步滚动
+            _syncScroll(progress);
 
             return SingleChildScrollView(
               controller: _scrollCtrl,
@@ -304,60 +247,58 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
             ),
           ),
 
-        // ── 左端渐隐遮罩（防文字溢出可见，避开边框）────────────
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: CyberDimensions.teleprompterMaskWidth,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  CyberColors.glassDark,
-                  CyberColors.glassDark.withValues(alpha: 0),
-                ],
-              ),
+        // ── 两端渐隐遮罩 ────────────
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Row(
+              children: [
+                Container(
+                  width: CyberDimensions.teleprompterMaskWidth,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        CyberColors.glassDark,
+                        CyberColors.glassDark.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  width: CyberDimensions.teleprompterMaskWidth,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerRight,
+                      end: Alignment.centerLeft,
+                      colors: [
+                        CyberColors.glassDark,
+                        CyberColors.glassDark.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
 
-        // ── 右端渐隐遮罩（避开边框）──────────────────────────────
-        Positioned(
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: CyberDimensions.teleprompterMaskWidth,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerRight,
-                end: Alignment.centerLeft,
-                colors: [
-                  CyberColors.glassDark,
-                  CyberColors.glassDark.withValues(alpha: 0),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // ── 错误提示浮层 (Task 5) ──────────────────────────────
-        if (_showError && reader.ttsErrorMessage != null)
+        // ── 错误提示浮层 ──────────────────────────────
+        if (_showError && ref.read(readerProvider).ttsErrorMessage != null)
           Positioned.fill(
             key: const ValueKey('teleprompter_error_tip'),
             child: GestureDetector(
               onTap: () {
                 _errorTimer?.cancel();
                 setState(() => _showError = false);
-                reader.clearTtsError();
+                ref.read(readerProvider).clearTtsError();
               },
               child: Container(
                 color: CyberColors.background.withValues(alpha: 0.9),
                 child: Center(
                   child: Text(
-                    '数据链路中断: ${reader.ttsErrorMessage}',
+                    '数据链路中断: ${ref.read(readerProvider).ttsErrorMessage}',
                     textAlign: TextAlign.center,
                     style: CyberTextStyles.caption.copyWith(
                       color: CyberColors.neonPink,
