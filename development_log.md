@@ -1,6 +1,20 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-02**
+
+- **修复(TTS 切换延迟与异常降级稳定性优化)**:
+  - **消除切换延迟**：在 `TtsEngineService` 中引入 `_playCompleter` 完成信号，使 `stopAudio()` 能立即中断 `playFile` 的 `await` 阻塞，解决了切换发声人后旧声音残留在内存中排队播放的问题。
+  - **双重会话校验 (Session Sentry)**：为 `BufferedAudio` 增加 `session` 标识。在 `_refillBuffer` 下载前后及 `_playNext` 播放前增加三段式会话校验，确保任何跨会话的“过期”音频请求和缓冲项被立即丢弃。
+  - **降级逻辑加固**：重构了 `_consecutiveFailures` 的判定逻辑，使其与会话绑定，避免旧会话的失败计次污染新会话。同时在 `refreshSession` 中强制 `await` 引擎停播，杜绝了并发下载导致的竞态降级。
+  - **代码健壮性**：优化了 `refreshSession` 为异步方法，确保状态清理、引擎停播与新泵启动的时序严格受控。
+
+- **维护(Codex 开发管理技能体系)**:
+  - 新增 6 个项目级 Codex 技能：`yueyou_task_steward`、`yueyou_architecture_guard`、`yueyou_tts_audio_guard`、`yueyou_flutter_performance_guard`、`yueyou_test_ci_guard`、`yueyou_docs_encoding_guard`。
+  - 将任务收口、架构边界、TTS 两步下载契约、Flutter 性能规则、测试 CI 流程和中文文档编码规则固化到 `.agents/skills/*/SKILL.md`。
+  - 保留 `.agents/skills/*.md` 历史规则，新增目录式技能作为后续 Codex 管理入口。
+
 ## **2026-04-30**
+
 - **维护(文档汇总)**:
   - 汇总 `DevelopmentPlan` 目录下 20260420 与 20260430 的多个任务文件，确保每日仅保留一个汇总文件。
   - 清理冗余任务描述，保持目录结构精简。
@@ -48,7 +62,6 @@
   - **ReaderProvider 升级**：`readerProvider` 补充 `ref.onDispose(rp.dispose)` 生命周期注册；`toggleTTS()` 从 if-else 链重写为 Dart 3 穷尽 switch 表达式，error 状态下自动 `clearLastError()` 后尝试恢复播放。
   - **验收**：`flutter analyze` 零警告，`flutter test --concurrency=1` 全量 451 用例 100% 通过（含 reader_flow_integration_test 20 用例）。
 
-
 - **优化(TTS 缓冲监控与缓存智能化清理)**:
   - 新增 `TtsBufferStatus` 缓冲健康状态监控，支持动态预加载与平滑降级。
   - 新增 `TtsCacheManager` 独立缓存管理模块，实现基于大小淘汰（500MB / 回收到 70%）与时间淘汰（24 小时）双重熔断策略。
@@ -62,6 +75,7 @@
   - 解决了引擎在被手动禁用后，因抛出异常仍会盲目执行降级与本地朗读的缺陷，使流程完全符合安全、正规的业务控制逻辑。
 
 ## **2026-04-27**
+
 - **迁移(Flutter 3.41 API)**: 完成了从 `MaterialState` 到 `WidgetState` 的全量底层迁移。
   - 全局替换 `MaterialStateProperty` -> `WidgetStateProperty`。
   - 重点加固了 `cyber_import_button.dart` 等自定义 UI 组件，消除了所有废弃 API 警告。
@@ -74,6 +88,7 @@
 ---
 
 ## **2026-04-23**
+
 - **迁移(Flutter 3.41 兼容性审计)**: 执行全库范围的 `MaterialState` API 审计，通过大规模替换 `WidgetStateProperty` 实现了与 Flutter 3.41 的完美对齐。
 - **优化(Impeller 渲染性能)**: 针对 Impeller 引擎完成 `BackdropFilter` 渲染裁剪约束。
   - 在 `cyber_toast.dart` 与 `cyber_modal.dart` 中，将模糊滤镜与透明颜色图层嵌套分离，并确保内部图层的 `borderRadius` 严格对齐外部 `ClipRRect` 的 `CyberDimensions.radiusL` 约束，避免全屏重绘及边缘溢出引发的 GPU 功耗飙升。
@@ -84,6 +99,7 @@
 ---
 
 ## **2026-04-22**
+
 - **重构(全域提示系统重构与错误链路加固)**:
   - **架构升级**: 彻底重构 `CyberToast`，移除 `BuildContext context` 依赖，采用 `globalNavigatorKey.currentState?.overlay` 定位顶层图层，并加入空指针保护机制（`if (overlay == null) return;`），解决了真机环境下的静默崩溃（Overlay 寻址失败）问题。
 - **重构(状态与事件解耦)**:
@@ -101,6 +117,7 @@
 ---
 
 ## **2026-04-21**
+
 - **功能(2048 棋盘吉祥物交互)**: 引入 Rive 赛博吉祥物 (XIAOYO) 动态交互系统。
   - 实现状态机驱动的眨眼、微笑、思考及报错反馈动画。
   - 错误反馈与 `CyberToast` 系统深度集成，提升交互的情绪感知。
@@ -108,6 +125,7 @@
 ---
 
 ## **2026-04-20**
+
 - **发版(V1.0商业化发版冲刺)**:
   - **核心目标**: 达成全部 P0/P1 级商业化合规与性能优化任务，确保 App Store/Google Play 准入。
   - **完成详情**:
@@ -125,15 +143,18 @@
 ---
 
 ## **2026-04-04**
+
 - **功能(2048 黑客后门彩蛋)**: 在 2048 游戏方块中植入「连续点击 8 次自毁」隐藏彩蛋，强化赛博朋克极客氛围。
 
 ---
 
 ### **2026-03-23**
+
 - **重构**: 引入了 `Provider` 状态管理，并对 `ReaderProvider` 和 `TtsEngineService` 进行了大规模优化，解耦了 UI 与业务逻辑。 (commits: `7626d14`, `8df113e`)
 - **功能**: 实现了书籍导入进度显示和全局 Toast 通知系统。 (commits: `215b39c`, `48b14a4`)
 
 ### **2026-03-13**
+
 - **国际化**: 全面汉化了 UI 界面，移除了所有可见的英文文本。 (commit: `9626d14`)
 - **UI/UX**: 优化了 UI 布局，修复了数值面板溢出和底部控件拥挤的问题。 (commit: `bdf113e`)
 - **重构**: 按照规范对前后端项目结构进行了大规模重构，实现了模块化，并添加了详细的中文注释。 (commits: `315b39c`, `78b14a4`, `2b78d99`, `5235ddf`, `18dba57`, `d1f3138`, `314e98e`)
