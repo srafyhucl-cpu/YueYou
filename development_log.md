@@ -22,6 +22,14 @@
   - 将任务收口、架构边界、TTS 两步下载契约、Flutter 性能规则、测试 CI 流程和中文文档编码规则固化到 `.agents/skills/*/SKILL.md`。
   - 保留 `.agents/skills/*.md` 历史规则，新增目录式技能作为后续 Codex 管理入口。
 
+- **部署(西游记默认书籍后端全链路上线)**:
+  - **Go 服务端重构**：将原散落的 TTS 单文件服务重构为多文件模块（`main.go` / `config.go` / `handler_tts.go` / `handler_book.go`），纳入 `server/` 目录统一管理。
+  - **书籍接口新增**：实现 `GET /api/v1/book/catalog` 与 `POST /api/v1/book/chapter` 两个接口，目录通过 Go `embed` 嵌入 `data/xiyouji_catalog.json`，章节按 chapterIndex 派发 OSS CDN 地址，严格遵循分离下载原则。
+  - **数据转换脚本**：新增 `books/convert_to_oss.py`，将 `xiyouji.json` 批量转换为 100 个 UTF-8 章节 txt 文件并生成 catalog JSON。
+  - **OSS 部署**：100 个章节 txt 上传至 `general-storage/books/xiyouji/`，全链路联调验证通过（catalog → 章节派发 → OSS 内容下载）。
+  - **systemd 托管**：配置 `yueyou.service`，服务端开机自启，密钥通过 `EnvironmentFile` 注入，AK 不入版本库。
+  - **打包规范固化**：APK 统一使用 `--target-platform android-arm64 --split-per-abi` 命令，体积从 70MB 压缩至 28MB，规范写入 `AGENT.md`。
+
 ## **2026-04-30**
 
 - **维护(文档汇总)**:
