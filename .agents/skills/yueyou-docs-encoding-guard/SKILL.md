@@ -1,5 +1,5 @@
 ---
-name: yueyou_docs_encoding_guard
+name: yueyou-docs-encoding-guard
 description: 用于阅游项目中文 Markdown、README、development_log、DevelopmentPlan、贡献指南和编码乱码治理。当创建或更新文档、修复 Markdown 警告、整理任务文件或处理中文乱码时使用。
 ---
 
@@ -24,7 +24,7 @@ description: 用于阅游项目中文 Markdown、README、development_log、Deve
 - 按日期倒序或沿用现有格式。
 - 每条日志写清类型：功能、修复、重构、测试、文档、维护。
 - 记录核心文件和验证命令。
-- 不写“优化若干问题”这类不可追溯描述。
+- 不写"优化若干问题"这类不可追溯描述。
 
 ## README 更新规则
 

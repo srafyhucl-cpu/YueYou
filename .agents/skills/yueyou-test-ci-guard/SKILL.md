@@ -1,5 +1,5 @@
 ---
-name: yueyou_test_ci_guard
+name: yueyou-test-ci-guard
 description: 用于阅游项目测试、静态分析、CI 失败排查、mock 维护和覆盖率守卫。当新增功能、修复 bug、调整异步逻辑、平台插件、GitHub Actions 或测试文件时使用。
 ---
 

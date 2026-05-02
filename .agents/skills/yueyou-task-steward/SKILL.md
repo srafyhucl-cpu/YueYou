@@ -1,5 +1,5 @@
 ---
-name: yueyou_task_steward
+name: yueyou-task-steward
 description: 用于阅游项目的任务收口、开发计划、日志、README、提交与推送管理。当用户要求完成开发任务、收尾、提交、记录进度、整理 DevelopmentPlan、更新日志或让 Codex 进行开发管理时使用。
 ---
 

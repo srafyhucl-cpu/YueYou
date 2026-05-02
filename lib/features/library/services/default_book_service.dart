@@ -44,7 +44,7 @@ class DefaultBookService {
       final resp = await http.get(
         uri,
         headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 4));
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
         if (body['status'] == 'success') {
@@ -162,7 +162,7 @@ class DefaultBookService {
           body: jsonEncode({'bookId': bookKey, 'chapterIndex': chapterIndex}),
         )
         .timeout(
-          const Duration(seconds: 8),
+          const Duration(seconds: 4),
         );
 
     if (postResp.statusCode != 200) {
