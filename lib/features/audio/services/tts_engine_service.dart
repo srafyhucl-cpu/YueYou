@@ -343,9 +343,6 @@ class TtsEngineService extends ChangeNotifier {
   // 影子字段（由 TtsAudioNotifier 通过 syncShadow 驱动，保持 ReaderProvider 兼容）
   TtsAudioItem? _currentItem;
 
-  // 空闲超时计时器
-  Timer? _idleTimer;
-
   /// 当前播放任务的完成信号，用于外部强制停止（如切换发声人）
   Completer<void>? _playCompleter;
 
@@ -570,7 +567,6 @@ class TtsEngineService extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _settings.removeListener(_onSettingsChanged);
-    _idleTimer?.cancel();
     _progressController.close();
     TtsCacheManager.instance.stopPeriodicClean();
     unawaited(_audioPlayer.dispose());
@@ -696,8 +692,10 @@ class TtsEngineService extends ChangeNotifier {
 
   // ─── 兼容存根（旧调用方/测试使用，新代码走 TtsAudioNotifier） ────────
 
-  /// 通知引擎有用户交互行为（兼容旧调用方）。
-  void notifyUserActivity() {}
+  /// 通知引擎有用户交互行为，触发监听者（TtsAudioNotifier）重置计时器。
+  void notifyUserActivity() {
+    notifyListeners();
+  }
 
   /// @deprecated 使用 TtsAudioNotifier.setEnabled 替代。
   void setEnabled(bool enabled) {
@@ -729,7 +727,6 @@ class TtsEngineService extends ChangeNotifier {
   /// 停止所有音频播放（由 TtsAudioNotifier 在切换会话时调用）。
   Future<void> stopAll() async {
     _loopSession++;
-    _idleTimer?.cancel();
     await Future.wait([
       _audioPlayer.stop(),
       _fallbackEngine.stop(),

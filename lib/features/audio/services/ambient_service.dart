@@ -42,7 +42,7 @@ class AmbientService {
   /// 当前音量（0.0 ~ 1.0）
   static double _volume = 0.5;
 
-  /// 当前风格
+  /// 当前风格 (wuxia | warm)
   static String _style = 'wuxia';
 
   /// 是否已完成初始化（_player 创建完成）

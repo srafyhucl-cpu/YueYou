@@ -76,6 +76,7 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
   /// 记录上一次 SettingsProvider 的 ambient 状态，用于增量对比
   bool? _lastAmbientEnabled;
   double? _lastAmbientVol;
+  String? _lastAmbientStyle;
 
   @override
   void initState() {
@@ -102,6 +103,10 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
     if (settings.ambientVol != _lastAmbientVol) {
       _lastAmbientVol = settings.ambientVol;
       AmbientService.setVolume(settings.ambientVol);
+    }
+    if (settings.ambientStyle != _lastAmbientStyle) {
+      _lastAmbientStyle = settings.ambientStyle;
+      AmbientService.setStyle(settings.ambientStyle);
     }
   }
 
@@ -184,7 +189,11 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
         ),
         useMaterial3: true,
       ),
-      builder: (context, child) => TtsErrorListener(child: child!),
+      builder: (context, child) => Listener(
+        onPointerDown: (_) => ref.read(ttsEngineProvider).notifyUserActivity(),
+        behavior: HitTestBehavior.translucent,
+        child: TtsErrorListener(child: child!),
+      ),
       home: const DashboardScreen(),
     );
   }
