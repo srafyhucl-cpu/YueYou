@@ -58,7 +58,7 @@ func bookChapterHandler(c *gin.Context) {
 
 	// chapterIndex 0-based，OSS 文件名 1-based 三位补零
 	filename := fmt.Sprintf("%03d.txt", req.ChapterIndex+1)
-	url := fmt.Sprintf("%s/books/chapters/xiyouji/%s", cfg.OSSPub, filename)
+	url := fmt.Sprintf("%s/books/xiyouji/%s", cfg.OSSPub, filename)
 
 	log.Printf("[Book] 派发章节: index=%d -> %s", req.ChapterIndex, url)
 
