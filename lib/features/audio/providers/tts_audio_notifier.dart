@@ -121,7 +121,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           text: _currentItem?.text ?? '',
           title: _currentItem?.title ?? '',
           session: _session,
-        ));
+        ),);
       }
       _applyState(TtsAudioPlaying(
         item: _snapshotOf(_currentItem!),
@@ -129,7 +129,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         targetCount: _buffer.maxSize,
         playbackRate: _playbackRate,
         fallbackMessage: _fallbackMessage,
-      ));
+      ),);
     } else if (_currentItem != null) {
       // 没有文件路径但有 currentItem（可能是正在下载时暂停）
       _startPump();
@@ -142,7 +142,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         session: _session,
         playbackRate: _playbackRate,
         fallbackMessage: _fallbackMessage,
-      ));
+      ),);
       _startPump();
     }
   }
@@ -165,7 +165,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       session: _session,
       playbackRate: _playbackRate,
       fallbackMessage: _fallbackMessage,
-    ));
+    ),);
   }
 
   /// 停止全部播放任务。
@@ -179,7 +179,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _isDegradedToLocal = false;
     _consecutiveFailures = 0;
     _applyState(
-        TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null));
+        TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null),);
   }
 
   /// 切换播放倍速。
@@ -226,7 +226,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       session: _session,
       playbackRate: _playbackRate,
       fallbackMessage: null,
-    ));
+    ),);
     _startPump();
   }
 
@@ -243,7 +243,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         session: _session,
         playbackRate: _playbackRate,
         fallbackMessage: null,
-      ));
+      ),);
       _startPump();
     } else {
       stopAll();
@@ -355,7 +355,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       text: request.text,
       title: request.title,
       session: currentSession,
-    ));
+    ),);
   }
 
   // ─── 播放与播后清理 ───────────────────────────────────────
@@ -386,7 +386,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     if (_sentenceSource != null) {
       unawaited(
-          Future.microtask(() => _sentenceSource!.onTtsItemStarted(startItem)));
+          Future.microtask(() => _sentenceSource!.onTtsItemStarted(startItem)),);
     }
 
     _applyState(TtsAudioPlaying(
@@ -395,12 +395,12 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       targetCount: _buffer.maxSize,
       playbackRate: _playbackRate,
       fallbackMessage: _fallbackMessage,
-    ));
+    ),);
 
     // 等待播放完成
     await _engine.playFile(item.filePath, onComplete: () {
       _onPlaybackComplete(startItem);
-    });
+    },);
 
     if (_disposed) return;
 
@@ -427,7 +427,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     }
     if (_sentenceSource != null) {
       unawaited(
-          Future.microtask(() => _sentenceSource!.onTtsItemFinished(item)));
+          Future.microtask(() => _sentenceSource!.onTtsItemFinished(item)),);
     }
   }
 
@@ -443,7 +443,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       } catch (e) {
         debugPrint('[TTS] 删除临时文件失败: $e');
       }
-    }));
+    }),);
   }
 
   // ─── 降级与恢复 ───────────────────────────────────────────
@@ -475,7 +475,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     if (_sentenceSource != null) {
       unawaited(Future.microtask(
-          () => _sentenceSource!.onTtsItemStarted(fallbackItem)));
+          () => _sentenceSource!.onTtsItemStarted(fallbackItem),),);
     }
 
     _applyState(TtsAudioPlaying(
@@ -484,14 +484,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       targetCount: _buffer.maxSize,
       playbackRate: _playbackRate,
       fallbackMessage: _fallbackMessage,
-    ));
+    ),);
 
     final ok = await _engine.speakWithLocalTts(request.text);
     if (!_disposed && ok && _currentItem?.id == fallbackItem.id) {
       _currentItem = null;
       if (_sentenceSource != null) {
         unawaited(Future.microtask(
-            () => _sentenceSource!.onTtsItemFinished(fallbackItem)));
+            () => _sentenceSource!.onTtsItemFinished(fallbackItem),),);
       }
     }
   }

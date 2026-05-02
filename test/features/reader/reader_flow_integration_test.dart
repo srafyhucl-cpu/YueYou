@@ -54,6 +54,12 @@ class _FakeAudioPlayer implements TtsAudioPlayer {
   Stream<void> get onPlayerComplete => const Stream<void>.empty();
 
   @override
+  Stream<Duration> get onDurationChanged => const Stream.empty();
+
+  @override
+  Stream<Duration> get onPositionChanged => const Stream.empty();
+
+  @override
   Future<void> dispose() async {}
 }
 

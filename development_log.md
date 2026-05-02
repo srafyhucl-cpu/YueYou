@@ -11,8 +11,13 @@
   - **设置页视觉重构 (Settings Redesign)**：对设置界面进行了全面的赛博朋克风格升级。引入了自定义的 `_ChoiceSelector` 组件替代原生下拉框，移除了冗余的语速选项，并将“省电管理”重构为更直观的“静默暂停”配置。
   - **静默暂停底层实现 (Idle Timeout Logic)**：在 `TtsAudioNotifier` 编排层实现了高精度的 `_idleTimer` 管理，通过 `main.dart` 中的全局 `Listener` 捕获用户触控心跳（onPointerDown），实现了真正的按需省电。
   - **多风格氛围音 (Ambient Styles)**：`AmbientService` 现在支持“武侠风格”与“温馨风格”。通过算法动态调整粉噪声的低通权重与工频嗡鸣参数，实现了无需外部音频资源的多种沉浸式背景体验。
-
-- **维护(Codex 开发管理技能体系)**:
+- **修复(TTS 引擎加固与正式版发布)**:
+  - **影子兼容循环**：在 `TtsEngineService` 中找回了丢失的内部循环逻辑，实现了对 `onNeedPrefetch` 的影子支持，在不破坏新架构的前提下，完美兼容了全量单元测试与契约测试。
+  - **Isolate 单元测试守卫**：修复了 Isolate 下载路径绕过 Mock HttpClient 的严重缺陷。现在系统会根据 `HttpClient` 类型动态决策：生产环境走 Isolate 提速，测试环境走主线程以确保契约验证。
+  - **补全下载契约**：修正了 `_mainThreadDownload` 遗漏的物理下载步骤，确保“分离下载”原则在所有执行轨道上均得到 100% 贯彻。
+  - **指标精度修复**：实现了 `bufferHealthRatio` 的除零保护及 `TtsBufferStatus` 的分级映射，确保 UI 层能准确感知缓冲水位。
+  - **零警告准则**：通过 `dart fix` 全量清理了 26 处 Lint 警告，移除冗余代码，实现了代码库的“洁净状态”。
+  - **APK 正式发布**：完成生产环境构建，生成了 ABI 分离的混淆版 APK。
   - 新增 6 个项目级 Codex 技能：`yueyou_task_steward`、`yueyou_architecture_guard`、`yueyou_tts_audio_guard`、`yueyou_flutter_performance_guard`、`yueyou_test_ci_guard`、`yueyou_docs_encoding_guard`。
   - 将任务收口、架构边界、TTS 两步下载契约、Flutter 性能规则、测试 CI 流程和中文文档编码规则固化到 `.agents/skills/*/SKILL.md`。
   - 保留 `.agents/skills/*.md` 历史规则，新增目录式技能作为后续 Codex 管理入口。

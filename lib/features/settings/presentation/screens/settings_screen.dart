@@ -87,7 +87,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildBody(
-      BuildContext context, WidgetRef ref, SettingsProvider settings) {
+      BuildContext context, WidgetRef ref, SettingsProvider settings,) {
     return ListView(
       padding: const EdgeInsets.symmetric(
         horizontal: CyberDimensions.spacingM,
@@ -575,7 +575,7 @@ class _TtsTestResultDialog extends StatelessWidget {
                       ),
                     ],
                   ),
-                )),
+                ),),
             const SizedBox(height: CyberDimensions.spacingML),
             SizedBox(
               width: double.infinity,
@@ -614,7 +614,7 @@ class _AmbientVolumeSlider extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 12),
-          Icon(Icons.volume_down, size: 14, color: CyberColors.whiteMuted),
+          const Icon(Icons.volume_down, size: 14, color: CyberColors.whiteMuted),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(

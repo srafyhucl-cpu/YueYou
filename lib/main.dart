@@ -14,6 +14,7 @@ import 'features/reader/providers/reader_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'shared/widgets/tts_error_listener.dart';
+import 'features/audio/services/tts_engine_service.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
