@@ -7,6 +7,7 @@
   - **修复暂停跳句 (Skip on Resume)**：引入 `_isPausing` 状态锁。当因 `pause()` 触发音频停止时，拦截进度推进回调（`_onPlaybackComplete`），确保恢复播放时依然从当前句子开始。
   - **游标同步对齐**：在 `TtsSentenceSource` 接口新增 `resetFetchIndex`。在刷新会话时强制同步 `ReaderProvider` 的预取游标（`_fetchIndex`）至当前可见游标（`_currentIndex`），彻底解决因预取领先导致的切换后“跳过一两句”的陈年 BUG。
   - **双重会话校验 (Session Sentry)**：为 `BufferedAudio` 增加 `session` 标识，确保过期音频被精准丢弃。
+  - **提词器绝对同步 (Physical Sync)**：重构了 `TeleprompterView` 与 `TtsEngineService` 的通信机制。通过监听底层 `AudioPlayer` 的 `onPositionChanged` 物理进度流驱动 KTV 扫光动画，彻底废弃了基于字数的语速估算算法，实现了 100% 的音画同步。
 
 - **维护(Codex 开发管理技能体系)**:
   - 新增 6 个项目级 Codex 技能：`yueyou_task_steward`、`yueyou_architecture_guard`、`yueyou_tts_audio_guard`、`yueyou_flutter_performance_guard`、`yueyou_test_ci_guard`、`yueyou_docs_encoding_guard`。
