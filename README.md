@@ -14,6 +14,7 @@
 - **云端 TTS（两步下载）**：POST 业务服务器获取 JSON `{"status":"success","url":"..."}` → GET 从 OSS/CDN 下载 `.mp3` → 本地缓存；客户端严格遵循分离下载契约，不直接消费响应体字节流
 - **本地 TTS 降级**：云端 HTTP 5xx / 超时 / 网络异常时自动切换至系统 `flutter_tts` 朗读，CyberToast 赛博青色通知用户
 - **生产者-消费者预加载**：最多 6 句缓冲队列，指数退避重试（最大 2 次，800ms 基础延迟），无卡顿连续朗读
+- **会话哨兵 (Session Sentry)**：通过 `BufferedAudio` 会话标识与 Completer 强制中断机制，解决切换发声人/章节时的延迟与旧声音残留问题
 - **TTS 错误全局监听**：`TtsErrorListener` 通过 `MaterialApp.builder` 挂载根节点，统一展示赛博风格顶部 CyberToast
 - **KTV 提词器**：`TeleprompterView` 逐字扫光动画，`AnimationController` 驱动平滑滚动，高亮/暗色双轨渲染
 - **章节导航**：`ChapterListScreen` 正序/倒序切换，O(1) 定位当前章节
@@ -82,7 +83,7 @@
 | 层次 | 技术 | 用途 |
 | :--- | :--- | :--- |
 | UI 框架 | Flutter 3.x / Dart 3.x | 跨平台渲染 |
-| 状态管理 | Provider 6.x (`ChangeNotifier` + `ProxyProvider`) | 全局与局部状态 |
+| 状态管理 | Riverpod 2.x (`Notifier` + `ChangeNotifierProvider`) | 全局与局部状态 |
 | 本地持久化 | SharedPreferences | 设置、游戏存档 |
 | 文件存储 | path_provider + File System | 小说正文、TTS 音频缓存 |
 | 云端 TTS | http + audioplayers | 两步下载 + 流式播放 |
@@ -169,14 +170,14 @@ lib/
 │       ├── tts_error_listener.dart   # 全局 TTS 错误监听
 │       ├── neon_border_box.dart
 │       └── safe_padding_wrap.dart
-└── main.dart                         # 启动引导、Provider 树、隐私前置检查
+└── main.dart                         # 启动引导、ProviderScope 树、隐私前置检查
 ```
 
 ### 数据流
 
 ```text
 UI (Consumer / context.watch)
-    → Provider (ChangeNotifier)
+    → Notifier / ChangeNotifierProvider
         → Service / StorageService
             → SharedPreferences / 文件系统 / OSS CDN
                          ↑
@@ -314,7 +315,7 @@ TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬
 ### 运行时依赖
 
 ```yaml
-provider: ^6.1.5+1         # 状态管理
+flutter_riverpod: ^2.5.1   # 状态管理
 shared_preferences: ^2.3.3 # 本地持久化
 file_picker: ^6.1.1        # 文件导入
 http: ^1.6.0               # TTS HTTP 请求
