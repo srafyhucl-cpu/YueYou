@@ -158,4 +158,54 @@ abstract interface class IStorageService {
 
   /// 设置隐私协议同意状态并持久化
   Future<void> setHasAgreedPrivacy(bool v);
+
+  // ── 粘性位：用户是否曾主动选择过书籍 ─────────────────────────────────────
+
+  /// 读取用户是否曾主动选择过书籍（默认 `false`）
+  ///
+  /// 用于区分"从未有过书籍的新用户"与"删掉所有书籍的老用户"，
+  /// 仅前者在书架为空时触发内置默认书籍自动注入。
+  bool hasSelectedBook();
+
+  /// 设置粘性位并持久化
+  Future<void> setHasSelectedBook(bool v);
+
+  // ── 分章文本缓存（文件路径，非 SharedPreferences）────────────────────────
+
+  /// 将指定书籍的某章节纯文本写入本地文件
+  ///
+  /// 文件路径：`{documentsDir}/books/chapters/{bookId}/{chapterIndex:03d}.txt`
+  Future<void> saveChapterCache(String bookId, int chapterIndex, String text);
+
+  /// 读取指定书籍章节的本地缓存文本
+  ///
+  /// 文件不存在时返回 `null`。
+  Future<String?> loadChapterCache(String bookId, int chapterIndex);
+
+  /// 删除指定书籍所有已缓存章节文件
+  Future<void> clearChapterCache(String bookId);
+
+  /// LRU 清理：仅保留 `currentChapterIndex ± keepAround` 范围内的章节缓存
+  ///
+  /// 用于防止长时间阅读后缓存文件堆积。
+  Future<void> pruneChapterCache(
+    String bookId,
+    int currentChapterIndex, {
+    int keepAround = 3,
+  });
+
+  // ── 书目录缓存（文件路径）───────────────────────────────────────────────
+
+  /// 将书目录（章节标题 + 索引列表）序列化写入本地文件
+  ///
+  /// 文件路径：`{documentsDir}/books/catalogs/{bookId}_catalog.json`
+  Future<void> saveBookCatalog(
+    String bookId,
+    List<Map<String, dynamic>> chapters,
+  );
+
+  /// 读取书目录缓存
+  ///
+  /// 文件不存在或 JSON 损坏时返回 `null`。
+  Future<List<Map<String, dynamic>>?> loadBookCatalog(String bookId);
 }

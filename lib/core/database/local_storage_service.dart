@@ -171,4 +171,52 @@ class LocalStorageService implements IStorageService {
   @override
   Future<void> setHasAgreedPrivacy(bool v) =>
       StorageService.setHasAgreedPrivacy(v);
+
+  // ── 粘性位：用户是否曾主动选择过书籍 ─────────────────────────────────────
+
+  @override
+  bool hasSelectedBook() => StorageService.hasSelectedBook();
+
+  @override
+  Future<void> setHasSelectedBook(bool v) =>
+      StorageService.setHasSelectedBook(v);
+
+  // ── 分章文本缓存 ──────────────────────────────────────────────────────────
+
+  @override
+  Future<void> saveChapterCache(String bookId, int chapterIndex, String text) =>
+      StorageService.saveChapterCache(bookId, chapterIndex, text);
+
+  @override
+  Future<String?> loadChapterCache(String bookId, int chapterIndex) =>
+      StorageService.loadChapterCache(bookId, chapterIndex);
+
+  @override
+  Future<void> clearChapterCache(String bookId) =>
+      StorageService.clearChapterCache(bookId);
+
+  @override
+  Future<void> pruneChapterCache(
+    String bookId,
+    int currentChapterIndex, {
+    int keepAround = 3,
+  }) =>
+      StorageService.pruneChapterCache(
+        bookId,
+        currentChapterIndex,
+        keepAround: keepAround,
+      );
+
+  // ── 书目录缓存 ────────────────────────────────────────────────────────────
+
+  @override
+  Future<void> saveBookCatalog(
+    String bookId,
+    List<Map<String, dynamic>> chapters,
+  ) =>
+      StorageService.saveBookCatalog(bookId, chapters);
+
+  @override
+  Future<List<Map<String, dynamic>>?> loadBookCatalog(String bookId) =>
+      StorageService.loadBookCatalog(bookId);
 }

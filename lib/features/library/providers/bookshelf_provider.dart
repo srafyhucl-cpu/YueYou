@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/book_constants.dart';
 import '../../../core/database/storage_service.dart';
 import '../domain/book_model.dart';
+import '../services/default_book_service.dart';
 import '../../reader/providers/reader_provider.dart';
 
 /// 供 Riverpod 使用的全局书架 Provider
 final bookshelfProvider = ChangeNotifierProvider<BookshelfProvider>((ref) {
   final p = BookshelfProvider();
   p.loadFromStorage();
+  // 新用户书架为空且从未主动选择过书籍 → 自动注入内置默认书籍
+  if (p.isEmpty && !StorageService.hasSelectedBook()) {
+    Future.microtask(() => p.injectDefaultBookIfNeeded(ref));
+  }
   return p;
 });
 
@@ -62,7 +68,8 @@ class BookshelfProvider with ChangeNotifier {
 
       // 持久化书架元数据
       await StorageService.saveBookshelf(
-          _shelf.map((b) => b.toJson()).toList(),);
+        _shelf.map((b) => b.toJson()).toList(),
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -86,7 +93,8 @@ class BookshelfProvider with ChangeNotifier {
     // Best-effort 持久化清理：每步独立 try-catch
     try {
       await StorageService.saveBookshelf(
-          _shelf.map((b) => b.toJson()).toList(),);
+        _shelf.map((b) => b.toJson()).toList(),
+      );
     } catch (e) {
       debugPrint('⚠️ 书架元数据持久化失败: $e');
     }
@@ -99,6 +107,52 @@ class BookshelfProvider with ChangeNotifier {
       await StorageService.deleteReadingRecord(id.toString());
     } catch (e) {
       debugPrint('⚠️ 阅读记录删除失败: $e');
+    }
+  }
+
+  /// 将内置默认书籍（西游记目录）写入书架
+  ///
+  /// 只写书架元数据和目录缓存，不下载章节正文；
+  /// 章节正文由 [ReaderProvider.loadChapter] 按需拉取。
+  Future<void> addDefaultBook(List<ChapterModel> catalog) async {
+    // 去重：若已存在则跳过
+    if (_shelf.any((b) => b.id == BookConstants.defaultBookId)) return;
+
+    final book = BookModel(
+      id: BookConstants.defaultBookId,
+      title: BookConstants.defaultBookTitle,
+      total: BookConstants.defaultTotalChapters,
+      chapters: catalog,
+    );
+    _shelf.insert(0, book);
+    notifyListeners();
+
+    // 持久化书架元数据
+    await StorageService.saveBookshelf(
+      _shelf.map((b) => b.toJson()).toList(),
+    );
+    // 同步目录缓存（供 DefaultBookService 离线读取）
+    await StorageService.saveBookCatalog(
+      BookConstants.defaultBookKey,
+      catalog.map((c) => c.toJson()).toList(),
+    );
+  }
+
+  /// 新用户启动链路：拉取目录 → 写书架 → 预热第一章
+  ///
+  /// 通过 [ref] 读取 [readerProvider]，避免循环依赖。
+  Future<void> injectDefaultBookIfNeeded(Ref ref) async {
+    // 双重校验（防止并发/重入）
+    if (_shelf.isNotEmpty || StorageService.hasSelectedBook()) return;
+
+    try {
+      final service = DefaultBookService();
+      final catalog = await service.getCatalog();
+      await addDefaultBook(catalog);
+      // 预热第一章：fetchChapter 内部会写缓存，loadChapter 直接命中
+      await ref.read(readerProvider).loadChapter(0, resume: false);
+    } catch (e) {
+      debugPrint('[BookshelfProvider] 默认书籍注入失败: $e');
     }
   }
 

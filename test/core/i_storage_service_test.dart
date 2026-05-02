@@ -27,6 +27,9 @@ class _MockStorageService implements IStorageService {
   double _ambientVol = 0.5;
   bool _ambientEnabled = true;
   bool _hasAgreedPrivacy = false;
+  bool _hasSelectedBook = false;
+  final Map<String, Map<int, String>> _chapterCache = {};
+  final Map<String, List<Map<String, dynamic>>> _catalogCache = {};
 
   @override
   Future<void> init() async {}
@@ -97,8 +100,7 @@ class _MockStorageService implements IStorageService {
   // ── 当前小说状态 ──────────────────────────────────────────────────────────
 
   @override
-  Future<void> setCurrentNovelId(String? id) async =>
-      _currentNovelId = id;
+  Future<void> setCurrentNovelId(String? id) async => _currentNovelId = id;
 
   @override
   String? getCurrentNovelId() => _currentNovelId;
@@ -172,6 +174,59 @@ class _MockStorageService implements IStorageService {
   bool hasAgreedPrivacy() => _hasAgreedPrivacy;
   @override
   Future<void> setHasAgreedPrivacy(bool v) async => _hasAgreedPrivacy = v;
+
+  // ── 粘性位 ──────────────────────────────────────────────────────
+
+  @override
+  bool hasSelectedBook() => _hasSelectedBook;
+  @override
+  Future<void> setHasSelectedBook(bool v) async => _hasSelectedBook = v;
+
+  // ── 分章文本缓存 ──────────────────────────────────────────────────
+
+  @override
+  Future<void> saveChapterCache(
+    String bookId,
+    int chapterIndex,
+    String text,
+  ) async {
+    _chapterCache.putIfAbsent(bookId, () => {})[chapterIndex] = text;
+  }
+
+  @override
+  Future<String?> loadChapterCache(String bookId, int chapterIndex) async =>
+      _chapterCache[bookId]?[chapterIndex];
+
+  @override
+  Future<void> clearChapterCache(String bookId) async =>
+      _chapterCache.remove(bookId);
+
+  @override
+  Future<void> pruneChapterCache(
+    String bookId,
+    int currentChapterIndex, {
+    int keepAround = 3,
+  }) async {
+    final cache = _chapterCache[bookId];
+    if (cache == null) return;
+    final keepMin = currentChapterIndex - keepAround;
+    final keepMax = currentChapterIndex + keepAround;
+    cache.removeWhere((idx, _) => idx < keepMin || idx > keepMax);
+  }
+
+  // ── 目录缓存 ────────────────────────────────────────────────────
+
+  @override
+  Future<void> saveBookCatalog(
+    String bookId,
+    List<Map<String, dynamic>> chapters,
+  ) async {
+    _catalogCache[bookId] = List.from(chapters);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>?> loadBookCatalog(String bookId) async =>
+      _catalogCache[bookId];
 }
 
 /// 辅助：路径 Provider mock
@@ -179,7 +234,10 @@ void _mockPathProvider(String documentsDir) {
   const MethodChannel channel =
       MethodChannel('plugins.flutter.io/path_provider');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, (MethodCall call) async => documentsDir);
+      .setMockMethodCallHandler(
+    channel,
+    (MethodCall call) async => documentsDir,
+  );
 }
 
 /// 在 [IStorageService] 上执行的通用契约测试
@@ -187,8 +245,10 @@ void _mockPathProvider(String documentsDir) {
 /// 同一组测试可针对 [_MockStorageService] 和 [LocalStorageService] 运行，
 /// 验证两者行为完全一致，确保接口契约正确性。
 /// [skipBookContent]：为 true 时跳过书籍正文测试（需 path_provider mock 的实现使用）
-void _runContractTests(IStorageService Function() factory,
-    {bool skipBookContent = false,}) {
+void _runContractTests(
+  IStorageService Function() factory, {
+  bool skipBookContent = false,
+}) {
   late IStorageService storage;
 
   setUp(() async {
@@ -314,7 +374,8 @@ void _runContractTests(IStorageService Function() factory,
 
   // ── 书籍正文内容契约（skipBookContent=true 时跳过，LocalStorageService 专属 group 单独覆盖）─────────
 
-  group('书籍正文内容契约', skip: skipBookContent ? '需 path_provider mock，见专属 group' : null, () {
+  group('书籍正文内容契约',
+      skip: skipBookContent ? '需 path_provider mock，见专属 group' : null, () {
     test('不存在的书籍 loadBookContent 返回 null', () async {
       expect(await storage.loadBookContent('not_found'), isNull);
     });
@@ -349,7 +410,6 @@ void _runContractTests(IStorageService Function() factory,
       );
     });
   });
-
 
   // ── 全局设置契约 ──────────────────────────────────────────────────────────
 
@@ -411,15 +471,13 @@ void main() {
 
   // ── MockStorageService 接口契约测试 ────────────────────────────────────────
 
-  group('IStorageService 契约 - MockStorageService（纯内存，无平台依赖）',
-      () {
+  group('IStorageService 契约 - MockStorageService（纯内存，无平台依赖）', () {
     _runContractTests(() => _MockStorageService());
   });
 
   // ── LocalStorageService 接口契约测试 ──────────────────────────────────────
 
-  group('IStorageService 契约 - LocalStorageService（委托 StorageService）',
-      () {
+  group('IStorageService 契约 - LocalStorageService（委托 StorageService）', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
       StorageService.resetForTesting();
