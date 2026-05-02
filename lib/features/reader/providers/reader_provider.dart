@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../core/constants/book_constants.dart';
 import '../../../core/database/storage_service.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
+import 'package:yueyou/features/library/services/default_book_service.dart';
+import 'package:yueyou/features/reader/domain/chapter_load_state.dart';
 import 'package:yueyou/features/reader/domain/text_parser.dart';
 import '../../audio/services/tts_engine_service.dart';
 import '../../library/domain/book_model.dart';
@@ -49,6 +52,12 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   String? _lastTtsError;
   TtsPlaybackState _lastTtsState = TtsPlaybackState.disabled;
 
+  // ── 分章懒加载（默认书籍模式）──────────────────────────────────────────────
+  int? _currentChapterIndex;
+  ChapterLoadState _chapterLoadState = ChapterLoadState.idle;
+  bool _isDefaultBookMode = false;
+  DefaultBookService? _defaultBookService;
+
   // 🔥 章节标题正则（与 file_import_service 同步）
   static final RegExp _chapterRegex = RegExp(
     r'^\s*(?:(?:正文|卷[0-9零一二三四五六七八九十百千两\s]+|.{0,4})\s*第?\s*[0-9零一二三四五六七八九十百千两]+\s*[章回节卷集部篇]|Chapter\s*[0-9]+|引子|序言|楔子|前言|内容简介|致读者)',
@@ -85,8 +94,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     this._ttsEngine, {
     TtsAudioNotifier? notifier,
     Future<ParseResult> Function(String rawText)? parseBook,
-  }) : _ttsNotifier = notifier,
-       _parseBook = parseBook ?? TextParser.parse {
+  })  : _ttsNotifier = notifier,
+        _parseBook = parseBook ?? TextParser.parse {
     _lastTtsError = _ttsEngine.lastError;
     _lastTtsState = _ttsEngine.state;
     _ttsEngine.addListener(_onTtsEngineChanged);
@@ -95,79 +104,82 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
   @override
   Future<TtsAudioRequest?> nextTtsSentence(int session) async {
-      if (_sentences.isEmpty) return null;
-      if (_fetchIndex >= _sentences.length) {
-        debugPrint(' [TtsFetch] 已到达书籍末尾 (fetch=$_fetchIndex)');
-        return null;
+    if (_sentences.isEmpty) return null;
+    if (_fetchIndex >= _sentences.length) {
+      debugPrint(' [TtsFetch] 已到达书籍末尾 (fetch=$_fetchIndex)');
+      return null;
+    }
+
+    int cursor = _fetchIndex;
+    int scanned = 0;
+
+    while (scanned < _sentences.length) {
+      final int lineIndex = cursor;
+      String text = _sentences[lineIndex].trim();
+
+      // 跳过噪音词和空行（始终不读）
+      if (_isNoise(text)) {
+        cursor = (cursor + 1) % _sentences.length;
+        scanned++;
+        continue;
       }
 
-      int cursor = _fetchIndex;
-      int scanned = 0;
-
-      while (scanned < _sentences.length) {
-        final int lineIndex = cursor;
-        String text = _sentences[lineIndex].trim();
-
-        // 跳过噪音词和空行（始终不读）
-        if (_isNoise(text)) {
+      // 🔥 章节标题 → 清洗后朗读（如「正文 第一章 新的开始」→「第一章 新的开始」）
+      if (_isChapterTitle(text)) {
+        text = cleanChapterTitle(text);
+        if (text.isEmpty) {
           cursor = (cursor + 1) % _sentences.length;
           scanned++;
           continue;
         }
-
-        // 🔥 章节标题 → 清洗后朗读（如「正文 第一章 新的开始」→「第一章 新的开始」）
-        if (_isChapterTitle(text)) {
-          text = cleanChapterTitle(text);
-          if (text.isEmpty) {
-            cursor = (cursor + 1) % _sentences.length;
-            scanned++;
-            continue;
-          }
-        }
-
-        // TTS API 要求至少 5 字符，向后合并短句
-        int consumed = cursor + 1; // consumed 指向「下一个未消耗行」
-        while (text.length < 5 && consumed < _sentences.length) {
-          final nextText = _sentences[consumed].trim();
-          consumed++;
-          if (_isNoise(nextText)) continue;
-          // 合并时遇到下一个章节标题则停止，不跨章合并
-          if (_isChapterTitle(nextText)) break;
-          text = text + nextText;
-          if (text.length >= 5) break;
-        }
-
-        // 合并后仍然太短 → 跳过整段
-        if (text.length < 5) {
-          cursor = consumed % _sentences.length;
-          scanned += (consumed - lineIndex);
-          continue;
-        }
-
-        // 🔥 立即推进 _fetchIndex 到所有已消耗行之后，杜绝重复
-        if (consumed >= _sentences.length) {
-          // 到达书籍末尾，不再推进 _fetchIndex，由下一次调用返回 null 终止
-          _fetchIndex = _sentences.length;
-        } else {
-          _fetchIndex = consumed;
-        }
-
-        debugPrint(' [TtsFetch] 提交请求: line=$lineIndex, nextFetch=$_fetchIndex, text="${text.substring(0, text.length > 10 ? 10 : text.length)}..."');
-
-        return TtsAudioRequest(
-          lineIndex: lineIndex,
-          text: text,
-          title: currentChapterTitle,
-        );
       }
-      return null;
+
+      // TTS API 要求至少 5 字符，向后合并短句
+      int consumed = cursor + 1; // consumed 指向「下一个未消耗行」
+      while (text.length < 5 && consumed < _sentences.length) {
+        final nextText = _sentences[consumed].trim();
+        consumed++;
+        if (_isNoise(nextText)) continue;
+        // 合并时遇到下一个章节标题则停止，不跨章合并
+        if (_isChapterTitle(nextText)) break;
+        text = text + nextText;
+        if (text.length >= 5) break;
+      }
+
+      // 合并后仍然太短 → 跳过整段
+      if (text.length < 5) {
+        cursor = consumed % _sentences.length;
+        scanned += (consumed - lineIndex);
+        continue;
+      }
+
+      // 🔥 立即推进 _fetchIndex 到所有已消耗行之后，杜绝重复
+      if (consumed >= _sentences.length) {
+        // 到达书籍末尾，不再推进 _fetchIndex，由下一次调用返回 null 终止
+        _fetchIndex = _sentences.length;
+      } else {
+        _fetchIndex = consumed;
+      }
+
+      debugPrint(
+        ' [TtsFetch] 提交请求: line=$lineIndex, nextFetch=$_fetchIndex, text="${text.substring(0, text.length > 10 ? 10 : text.length)}..."',
+      );
+
+      return TtsAudioRequest(
+        lineIndex: lineIndex,
+        text: text,
+        title: currentChapterTitle,
+      );
+    }
+    return null;
   }
 
   /// 播放开始时，用真实 lineIndex 同步 UI。
   @override
   FutureOr<void> onTtsItemStarted(TtsAudioItem item) {
     final session = _ttsNotifier?.currentSession;
-    if (session != null && item.session == session &&
+    if (session != null &&
+        item.session == session &&
         _currentIndex != item.lineIndex) {
       _currentIndex = item.lineIndex;
       notifyListeners();
@@ -177,26 +189,29 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   /// 播放完成时只更新 UI 游标，不修改预加载游标。
   @override
   Future<void> onTtsItemFinished(TtsAudioItem item) async {
-      final session = _ttsNotifier?.currentSession;
-      if (session != null && item.session != session) {
-        return;
-      }
-      if (_sentences.isEmpty) return;
+    final session = _ttsNotifier?.currentSession;
+    if (session != null && item.session != session) {
+      return;
+    }
+    if (_sentences.isEmpty) return;
 
-      // 🔥 自动步进：跳过噪音行并推进 currentIndex
-      int nextIdx = _currentIndex + 1;
-      while (nextIdx < _sentences.length && _isNoise(_sentences[nextIdx])) {
-        nextIdx++;
-      }
+    // 🔥 自动步进：跳过噪音行并推进 currentIndex
+    int nextIdx = _currentIndex + 1;
+    while (nextIdx < _sentences.length && _isNoise(_sentences[nextIdx])) {
+      nextIdx++;
+    }
 
-      if (nextIdx < _sentences.length) {
-        _currentIndex = nextIdx;
-        // 🔥 重要修复：此处绝不可重置 _fetchIndex！
-        // 预取指针应当保持领先，重置它会导致预取循环重新抓取已在队列中的任务。
-        notifyListeners();
-      }
+    if (nextIdx < _sentences.length) {
+      _currentIndex = nextIdx;
+      // 🔥 重要修复：此处绝不可重置 _fetchIndex！
+      // 预取指针应当保持领先，重置它会导致预取循环重新抓取已在队列中的任务。
+      notifyListeners();
+    } else if (_isDefaultBookMode) {
+      // 🔥 章节末尾 + 默认书籍模式：自动推进到下一章
+      _autoAdvanceChapter();
+    }
 
-      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+    _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
   }
 
   /// 重置预取游标到当前阅读位置。
@@ -214,6 +229,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   List<ChapterModel> get chapters => _chapters;
   String? get currentBookId => _currentBookId;
   String? get ttsErrorMessage => _lastTtsError;
+
+  // ── 分章懒加载 getter ─────────────────────────────────────────────────────
+  ChapterLoadState get chapterLoadState => _chapterLoadState;
+  bool get isDefaultBookMode => _isDefaultBookMode;
+  int? get currentChapterIndex => _currentChapterIndex;
 
   /// 清理当前 TTS 错误提示（例如 UI 已展示并确认后）。
   void clearTtsError() {
@@ -355,11 +375,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   }
 
   /// 核心加载方法：加载书籍并解析
-  Future<void> loadBook(String rawText,
-      {String? bookId,
-      List<ChapterModel>? chapters,
-      int? initialIndex,
-      bool forceIndex = false,}) async {
+  Future<void> loadBook(
+    String rawText, {
+    String? bookId,
+    List<ChapterModel>? chapters,
+    int? initialIndex,
+    bool forceIndex = false,
+  }) async {
     if (_isParsing) return;
 
     _isParsing = true;
@@ -396,15 +418,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     final notifier = _ttsNotifier;
     if (notifier == null) return TtsToggleResult.noContent;
     return switch (_ttsEngine.state) {
-      TtsPlaybackState.playing ||
-      TtsPlaybackState.buffering =>
-        () {
+      TtsPlaybackState.playing || TtsPlaybackState.buffering => () {
           notifier.pause();
           return TtsToggleResult.paused;
         }(),
-      TtsPlaybackState.paused ||
-      TtsPlaybackState.disabled =>
-        () {
+      TtsPlaybackState.paused || TtsPlaybackState.disabled => () {
           notifier.play();
           return TtsToggleResult.playing;
         }(),
@@ -537,6 +555,67 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
     notifyListeners();
     debugPrint('🗑️ 级联重置：书籍 $bookId 已删除，ReaderProvider 已清空');
+  }
+
+  // ── 分章懒加载：核心方法 ──────────────────────────────────────────────────
+
+  /// 加载指定章节（默认书籍模式专用）
+  ///
+  /// [resume] 为 true 时从上次进度续读（仅第一次启动时传 true），
+  /// 切章/章末推进时传 false（从头开始）。
+  Future<void> loadChapter(int chapterIndex, {bool resume = false}) async {
+    if (chapterIndex < 0 ||
+        chapterIndex >= BookConstants.defaultTotalChapters) {
+      return;
+    }
+
+    _currentChapterIndex = chapterIndex;
+    _isDefaultBookMode = true;
+    _chapterLoadState = ChapterLoadState.loading;
+    notifyListeners();
+
+    try {
+      final service = _defaultBookService ??= DefaultBookService();
+      final text = await service.fetchChapter(chapterIndex);
+
+      if (text == null) {
+        _chapterLoadState = ChapterLoadState.error;
+        notifyListeners();
+        return;
+      }
+
+      await loadBook(
+        text,
+        bookId: BookConstants.defaultBookKey,
+        chapters: [
+          ChapterModel(
+            title: BookConstants.xiyoujiChapterTitles[chapterIndex],
+            lineIndex: 0,
+          ),
+        ],
+        initialIndex: resume ? null : 0,
+      );
+
+      _chapterLoadState = ChapterLoadState.loaded;
+      // 影子预读下一章（fire-and-forget）
+      service.prefetchNextChapter(chapterIndex);
+      notifyListeners();
+    } catch (e) {
+      _chapterLoadState = ChapterLoadState.error;
+      notifyListeners();
+      debugPrint('[ReaderProvider] loadChapter($chapterIndex) 失败: $e');
+    }
+  }
+
+  /// 章末自动推进（TTS 播完当前章节最后一句时由 [onTtsItemFinished] 触发）
+  Future<void> _autoAdvanceChapter() async {
+    final nextChapter = (_currentChapterIndex ?? -1) + 1;
+    if (nextChapter >= BookConstants.defaultTotalChapters) {
+      debugPrint('[ReaderProvider] 已到最后一章，停止自动推进');
+      return;
+    }
+    debugPrint('[ReaderProvider] 章末推进 → 第 $nextChapter 章');
+    await loadChapter(nextChapter, resume: false);
   }
 
   @override

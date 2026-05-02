@@ -26,6 +26,7 @@ class StorageService {
   static const String _kSettingAmbientEnabled = 'setting_ambient_enabled';
   static const String _kSettingAmbientStyle = 'setting_ambient_style';
   static const String _kHasAgreedPrivacy = 'has_agreed_privacy';
+  static const String _kHasSelectedBook = 'user_has_selected_book';
   static const String _kSettingAnimationQuality = 'setting_animation_quality';
 
   static SharedPreferences? _prefs;
@@ -103,7 +104,10 @@ class StorageService {
 
   // ── 阅读进度 (reading_records / ProgressManager) ─────────────────────────
   static Future<void> updateReadingRecord(
-      String bookId, int cursor, int total,) async {
+    String bookId,
+    int cursor,
+    int total,
+  ) async {
     if (total <= 0) return;
     final records = _loadReadingRecords();
     final percent = (cursor / total * 100).clamp(0.0, 100.0);
@@ -239,4 +243,117 @@ class StorageService {
   static bool hasAgreedPrivacy() => _p.getBool(_kHasAgreedPrivacy) ?? false;
   static Future<void> setHasAgreedPrivacy(bool v) =>
       _p.setBool(_kHasAgreedPrivacy, v);
+
+  // ── 粘性位：用户是否曾主动选择过书籍 ─────────────────────────────────────
+  static bool hasSelectedBook() => _p.getBool(_kHasSelectedBook) ?? false;
+  static Future<void> setHasSelectedBook(bool v) =>
+      _p.setBool(_kHasSelectedBook, v);
+
+  // ── 分章文本缓存（文件路径，非 SharedPreferences）────────────────────────
+  static Future<File> _chapterCacheFile(String bookId, int chapterIndex) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final idx = chapterIndex.toString().padLeft(3, '0');
+    return File('${dir.path}/books/chapters/$bookId/$idx.txt');
+  }
+
+  static Future<Directory> _chapterCacheDir(String bookId) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return Directory('${dir.path}/books/chapters/$bookId');
+  }
+
+  static Future<void> saveChapterCache(
+    String bookId,
+    int chapterIndex,
+    String text,
+  ) async {
+    try {
+      final file = await _chapterCacheFile(bookId, chapterIndex);
+      await file.parent.create(recursive: true);
+      await file.writeAsString(text);
+    } catch (e, st) {
+      debugPrint('StorageService.saveChapterCache error: $e\n$st');
+    }
+  }
+
+  static Future<String?> loadChapterCache(
+    String bookId,
+    int chapterIndex,
+  ) async {
+    try {
+      final file = await _chapterCacheFile(bookId, chapterIndex);
+      if (!await file.exists()) return null;
+      final content = await file.readAsString();
+      return content.trim().isEmpty ? null : content;
+    } catch (e, st) {
+      debugPrint('StorageService.loadChapterCache error: $e\n$st');
+      return null;
+    }
+  }
+
+  static Future<void> clearChapterCache(String bookId) async {
+    try {
+      final dir = await _chapterCacheDir(bookId);
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (e) {
+      debugPrint('StorageService.clearChapterCache error: $e');
+    }
+  }
+
+  /// LRU 清理：保留 [currentChapterIndex ± keepAround] 范围内文件，其余删除。
+  static Future<void> pruneChapterCache(
+    String bookId,
+    int currentChapterIndex, {
+    int keepAround = 3,
+  }) async {
+    try {
+      final dir = await _chapterCacheDir(bookId);
+      if (!await dir.exists()) return;
+      final keepMin = currentChapterIndex - keepAround;
+      final keepMax = currentChapterIndex + keepAround;
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        final name = entity.uri.pathSegments.last;
+        if (!name.endsWith('.txt')) continue;
+        final idx = int.tryParse(name.replaceFirst('.txt', ''));
+        if (idx == null) continue;
+        if (idx < keepMin || idx > keepMax) await entity.delete();
+      }
+    } catch (e) {
+      debugPrint('StorageService.pruneChapterCache error: $e');
+    }
+  }
+
+  // ── 书目录缓存（文件路径）───────────────────────────────────────────────
+  static Future<File> _catalogFile(String bookId) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/books/catalogs/${bookId}_catalog.json');
+  }
+
+  static Future<void> saveBookCatalog(
+    String bookId,
+    List<Map<String, dynamic>> chapters,
+  ) async {
+    try {
+      final file = await _catalogFile(bookId);
+      await file.parent.create(recursive: true);
+      await file.writeAsString(jsonEncode(chapters));
+    } catch (e, st) {
+      debugPrint('StorageService.saveBookCatalog error: $e\n$st');
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>?> loadBookCatalog(
+    String bookId,
+  ) async {
+    try {
+      final file = await _catalogFile(bookId);
+      if (!await file.exists()) return null;
+      final content = await file.readAsString();
+      if (content.trim().isEmpty) return null;
+      return (jsonDecode(content) as List).cast<Map<String, dynamic>>();
+    } catch (e, st) {
+      debugPrint('StorageService.loadBookCatalog error: $e\n$st');
+      return null;
+    }
+  }
 }

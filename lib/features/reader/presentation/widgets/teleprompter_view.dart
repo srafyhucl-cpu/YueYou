@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/features/reader/domain/chapter_load_state.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -40,7 +41,8 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
     ],
   );
 
-  static const TextStyle _unreadStyle = CyberTextStyles.teleprompterInlineUnread;
+  static const TextStyle _unreadStyle =
+      CyberTextStyles.teleprompterInlineUnread;
 
   @override
   void initState() {
@@ -51,7 +53,8 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
   void _initProgressSubscription() {
     _progressSub?.cancel();
     // 监听全局进度流，直接驱动滚动而不触发 rebuild
-    _progressSub = ref.read(ttsEngineProvider).progressStream.listen((progress) {
+    _progressSub =
+        ref.read(ttsEngineProvider).progressStream.listen((progress) {
       final ttsState = ref.read(ttsAudioProvider);
       if (ttsState is TtsAudioPlaying) {
         _syncScroll(progress);
@@ -116,6 +119,19 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
     if (reader.isParsing) {
       return _buildPlaceholder('正在连接神经数据链路...');
     }
+
+    // ── 分章懒加载状态处理 ────────────────────────────────────────
+    if (reader.isDefaultBookMode) {
+      if (reader.chapterLoadState == ChapterLoadState.loading &&
+          reader.sentences.isEmpty) {
+        return _buildPlaceholder('正在同步云端卷宗...');
+      }
+      if (reader.chapterLoadState == ChapterLoadState.error &&
+          reader.sentences.isEmpty) {
+        return _buildChapterError(reader.currentChapterIndex ?? 0);
+      }
+    }
+
     if (reader.sentences.isEmpty) {
       return _buildPlaceholder('等待数据流接入 [ _ ]');
     }
@@ -159,7 +175,15 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
             child: isLowPerf
                 ? Container(
                     color: CyberColors.glassDark.withValues(alpha: 0.95),
-                    child: _buildInner(text, isPlaying, halfWidth, engine),
+                    child: _buildInner(
+                      text,
+                      isPlaying,
+                      halfWidth,
+                      engine,
+                      isChapterError: reader.isDefaultBookMode &&
+                          reader.chapterLoadState == ChapterLoadState.error,
+                      chapterIndex: reader.currentChapterIndex ?? 0,
+                    ),
                   )
                 : BackdropFilter(
                     filter: ImageFilter.blur(
@@ -168,7 +192,15 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
                     ),
                     child: Container(
                       color: CyberColors.glassDark,
-                      child: _buildInner(text, isPlaying, halfWidth, engine),
+                      child: _buildInner(
+                        text,
+                        isPlaying,
+                        halfWidth,
+                        engine,
+                        isChapterError: reader.isDefaultBookMode &&
+                            reader.chapterLoadState == ChapterLoadState.error,
+                        chapterIndex: reader.currentChapterIndex ?? 0,
+                      ),
                     ),
                   ),
           ),
@@ -181,8 +213,10 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
     String text,
     bool isPlaying,
     double halfWidth,
-    TtsEngineService engine,
-  ) {
+    TtsEngineService engine, {
+    bool isChapterError = false,
+    int chapterIndex = 0,
+  }) {
     // 如果没有文本（Idle/Buffering），显示占位或空容器
     if (text.isEmpty) {
       return const SizedBox.shrink();
@@ -301,7 +335,41 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
           ),
         ),
 
-        // ── 错误提示浮层 ──────────────────────────────
+        // ── 分章加载失败浮层（内容非空时也能重试）──────────
+        if (isChapterError)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => ref.read(readerProvider).loadChapter(chapterIndex),
+              child: Container(
+                color: CyberColors.background.withValues(alpha: 0.88),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '云端卷宗同步失败',
+                        style: CyberTextStyles.caption.copyWith(
+                          color: CyberColors.neonPink,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '[ 点击重试 ]',
+                        style: CyberTextStyles.caption.copyWith(
+                          color: CyberColors.neonCyan,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        // ── TTS 错误提示浮层 ──────────────────────────────
         if (_showError && ref.read(readerProvider).ttsErrorMessage != null)
           Positioned.fill(
             key: const ValueKey('teleprompter_error_tip'),
@@ -328,6 +396,38 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
             ),
           ),
       ],
+    );
+  }
+
+  /// 章节加载失败空态视图（全屏占位 + 点击重试）
+  Widget _buildChapterError(int chapterIndex) {
+    return SizedBox(
+      height: CyberDimensions.teleprompterHeight,
+      child: GestureDetector(
+        onTap: () => ref.read(readerProvider).loadChapter(chapterIndex),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '云端卷宗同步失败',
+                style: CyberTextStyles.teleprompterPlaceholder.copyWith(
+                  color: CyberColors.neonPink,
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '[ 点击重试 ]',
+                style: CyberTextStyles.teleprompterPlaceholder.copyWith(
+                  color: CyberColors.neonCyan.withValues(alpha: 0.7),
+                  fontSize: 9,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
