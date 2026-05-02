@@ -3,10 +3,10 @@
 ## **2026-05-02**
 
 - **修复(TTS 切换延迟与异常降级稳定性优化)**:
-  - **消除切换延迟**：在 `TtsEngineService` 中引入 `_playCompleter` 完成信号，使 `stopAudio()` 能立即中断 `playFile` 的 `await` 阻塞，解决了切换发声人后旧声音残留在内存中排队播放的问题。
-  - **双重会话校验 (Session Sentry)**：为 `BufferedAudio` 增加 `session` 标识。在 `_refillBuffer` 下载前后及 `_playNext` 播放前增加三段式会话校验，确保任何跨会话的“过期”音频请求和缓冲项被立即丢弃。
-  - **降级逻辑加固**：重构了 `_consecutiveFailures` 的判定逻辑，使其与会话绑定，避免旧会话的失败计次污染新会话。同时在 `refreshSession` 中强制 `await` 引擎停播，杜绝了并发下载导致的竞态降级。
-  - **代码健壮性**：优化了 `refreshSession` 为异步方法，确保状态清理、引擎停播与新泵启动的时序严格受控。
+  - **消除切换延迟**：将 `refreshSession` 中的状态清理与游标重置前置，配合 `_playCompleter` 信号量立即中断 `playFile` 阻塞，解决了切换发声人后旧声音残留在内存中排队播放的问题。
+  - **修复暂停跳句 (Skip on Resume)**：引入 `_isPausing` 状态锁。当因 `pause()` 触发音频停止时，拦截进度推进回调（`_onPlaybackComplete`），确保恢复播放时依然从当前句子开始。
+  - **游标同步对齐**：在 `TtsSentenceSource` 接口新增 `resetFetchIndex`。在刷新会话时强制同步 `ReaderProvider` 的预取游标（`_fetchIndex`）至当前可见游标（`_currentIndex`），彻底解决因预取领先导致的切换后“跳过一两句”的陈年 BUG。
+  - **双重会话校验 (Session Sentry)**：为 `BufferedAudio` 增加 `session` 标识，确保过期音频被精准丢弃。
 
 - **维护(Codex 开发管理技能体系)**:
   - 新增 6 个项目级 Codex 技能：`yueyou_task_steward`、`yueyou_architecture_guard`、`yueyou_tts_audio_guard`、`yueyou_flutter_performance_guard`、`yueyou_test_ci_guard`、`yueyou_docs_encoding_guard`。
