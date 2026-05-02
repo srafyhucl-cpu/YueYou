@@ -42,6 +42,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   bool _pumpActive = false;
   int _consecutiveFailures = 0;
   bool _isDegradedToLocal = false;
+  bool _isPausing = false;
 
   /// 注册句子源（由 ReaderProvider 在构造时调用）。
   void registerSentenceSource(TtsSentenceSource source) {
@@ -114,13 +115,16 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   }
 
   /// 暂停播放。
-  ///
-  /// 使用 [stopAudio] 触发 onPlayerComplete，从而释放 playFile 的等待，
-  /// 让泵循环感知暂停状态并退出。
   Future<void> pause() async {
-    _pumpActive = false; // 先止泵，防止播放轨道继续消费
-    await _engine.stopAudio(); // stop 会触发 onPlayerComplete → 释放 playFile
-    await _engine.pauseAudio(); // 额外确保暂停（含 fallback 引擎）
+    _pumpActive = false;
+    _isPausing = true; // 开启暂停标识，阻止 _onPlaybackComplete 推进进度
+    try {
+      await _engine.stopAudio();
+      await _engine.pauseAudio();
+    } finally {
+      _isPausing = false;
+    }
+
     _applyState(TtsAudioPaused(
       item: _currentItem != null ? _snapshotOf(_currentItem!) : null,
       bufferedCount: _buffer.count,
@@ -162,19 +166,24 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   Future<void> refreshSession() async {
     // 0. 强制同步当前设置（音色等），确保引擎用最新参数下载
     _engine.syncSettingsFromProvider(ref.read(settingsProvider));
-    // 1. 递增会话使旧循环自然退出
+
+    // 1. 同步清理：立即递增会话并清空缓冲，防止旧循环继续工作
     _session++;
-    // 2. 停播双引擎（远程 + 本地），杜绝残余播放
-    // 🔥 重要：必须 await 确保 playFile 的 Completer 被释放，避免 _playRunner 阻塞
-    await _engine.stopAudio();
-    await _engine.pauseAudio();
-    // 3. 清空所有状态
     _buffer.clear();
     _currentItem = null;
     _currentFilePath = null;
     _isDegradedToLocal = false;
     _consecutiveFailures = 0;
     _fallbackMessage = null;
+
+    // 2. 重置句子源游标：确保从当前 currentIndex 重新开始预取
+    _sentenceSource?.resetFetchIndex();
+
+    // 3. 停播引擎：释放 playFile 的 await 阻塞
+    // 此处必须在 _session++ 之后，这样旧的 _onPlaybackComplete 会因 session 不匹配而直接 return
+    await _engine.stopAudio();
+    await _engine.pauseAudio();
+
     // 4. 立即进入缓冲并启动泵
     _applyState(TtsAudioBuffering(
       bufferedCount: 0,
@@ -367,7 +376,15 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
   /// 播放完成回调：推进阅读进度，清除播放中状态。
   void _onPlaybackComplete(TtsAudioItem item) {
+    // 1. 会话校验：旧会话的完成回调不予处理
     if (_disposed || item.session != _session) return;
+
+    // 2. 暂停校验：如果是因暂停导致的 stopAudio()，不应推进进度
+    if (_isPausing) {
+      debugPrint('[TTS] 暂停引起的播放中断，保留进度');
+      return;
+    }
+
     if (_currentItem?.id == item.id) {
       _currentItem = null;
       _currentFilePath = null; // 同步清除，避免 play() 误判

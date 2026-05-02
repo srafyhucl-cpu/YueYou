@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../core/database/storage_service.dart';
+import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/reader/domain/text_parser.dart';
 import '../../audio/services/tts_engine_service.dart';
 import '../../library/domain/book_model.dart';
@@ -7,13 +10,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 阻读器全局 Provider（Riverpod 生命周期托管版）
 ///
-/// - 通过 [ref.read] 获取 [ttsEngineProvider]，避免不必要的重建
+/// - 通过 [ref.read] 获取 [ttsEngineProvider] 用于影子状态监听
+/// - 通过 [ref.read] 获取 [ttsAudioProvider.notifier] 注册句子源
 /// - 通过 [ref.onDispose] 自动回收阻读器资源
-/// - 不使用 ref.watch(ttsEngineProvider)，避免 TTS 变化触发 ReaderProvider 重建
 final readerProvider = ChangeNotifierProvider<ReaderProvider>((ref) {
-  final tts = ref.read(ttsEngineProvider);
-  final rp = ReaderProvider(tts);
-  // 注册 Riverpod 自动销毁钩子
+  final engine = ref.read(ttsEngineProvider);
+  final notifier = ref.read(ttsAudioProvider.notifier);
+  final rp = ReaderProvider(engine, notifier: notifier);
+  notifier.registerSentenceSource(rp);
   ref.onDispose(rp.dispose);
   return rp;
 });
@@ -32,8 +36,9 @@ enum TtsToggleResult {
 
 /// 阅游提词器 Provider
 /// 职责：管理 sentences 和 currentIndex，并联动 TtsEngineService 进行语音播报
-class ReaderProvider with ChangeNotifier {
+class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   final TtsEngineService _ttsEngine;
+  final TtsAudioNotifier? _ttsNotifier;
   final Future<ParseResult> Function(String rawText) _parseBook;
   List<String> _sentences = [];
   int _currentIndex = 0;
@@ -78,15 +83,18 @@ class ReaderProvider with ChangeNotifier {
 
   ReaderProvider(
     this._ttsEngine, {
+    TtsAudioNotifier? notifier,
     Future<ParseResult> Function(String rawText)? parseBook,
-  }) : _parseBook = parseBook ?? TextParser.parse {
+  }) : _ttsNotifier = notifier,
+       _parseBook = parseBook ?? TextParser.parse {
     _lastTtsError = _ttsEngine.lastError;
     _lastTtsState = _ttsEngine.state;
     _ttsEngine.addListener(_onTtsEngineChanged);
+    // 句子源回调由 TtsAudioNotifier 通过 registerSentenceSource 注册
+  }
 
-    // 生产者：为 TTS 引擎提供下一句有效文本
-    // 🔥 重写核心：_fetchIndex 在此处立即推进，跳过所有已消耗行（含合并短句）
-    _ttsEngine.onNeedPrefetch = (session) async {
+  @override
+  Future<TtsAudioRequest?> nextTtsSentence(int session) async {
       if (_sentences.isEmpty) return null;
       if (_fetchIndex >= _sentences.length) {
         debugPrint(' [TtsFetch] 已到达书籍末尾 (fetch=$_fetchIndex)');
@@ -153,22 +161,24 @@ class ReaderProvider with ChangeNotifier {
         );
       }
       return null;
-    };
+  }
 
-    // 🔥 onItemStarted：播放开始时，用真实 lineIndex 同步 UI
-    _ttsEngine.onItemStarted = (item) {
-      if (item.session != _ttsEngine.currentSession) {
-        return;
-      }
-      if (_currentIndex != item.lineIndex) {
-        _currentIndex = item.lineIndex;
-        notifyListeners();
-      }
-    };
+  /// 播放开始时，用真实 lineIndex 同步 UI。
+  @override
+  FutureOr<void> onTtsItemStarted(TtsAudioItem item) {
+    final session = _ttsNotifier?.currentSession;
+    if (session != null && item.session == session &&
+        _currentIndex != item.lineIndex) {
+      _currentIndex = item.lineIndex;
+      notifyListeners();
+    }
+  }
 
-    // 🔥 onItemFinished：播放完成时，只更新 _currentIndex（UI显示），不修改 _fetchIndex（预加载游标）
-    _ttsEngine.onItemFinished = (item) async {
-      if (item.session != _ttsEngine.currentSession) {
+  /// 播放完成时只更新 UI 游标，不修改预加载游标。
+  @override
+  Future<void> onTtsItemFinished(TtsAudioItem item) async {
+      final session = _ttsNotifier?.currentSession;
+      if (session != null && item.session != session) {
         return;
       }
       if (_sentences.isEmpty) return;
@@ -187,7 +197,13 @@ class ReaderProvider with ChangeNotifier {
       }
 
       _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
-    };
+  }
+
+  /// 重置预取游标到当前阅读位置。
+  @override
+  void resetFetchIndex() {
+    _fetchIndex = _currentIndex;
+    debugPrint(' [TtsFetch] 游标已重置为 currentIndex: $_currentIndex');
   }
 
   List<String> get sentences => _sentences;
@@ -250,7 +266,7 @@ class ReaderProvider with ChangeNotifier {
   String? get currentSentence {
     final currentItem = _ttsEngine.currentItem;
     if (currentItem != null &&
-        currentItem.session == _ttsEngine.currentSession &&
+        currentItem.session == _ttsNotifier?.currentSession &&
         currentItem.text.trim().isNotEmpty) {
       return currentItem.text;
     }
@@ -298,7 +314,7 @@ class ReaderProvider with ChangeNotifier {
     await StorageService.setCurrentNovelId(bookId);
 
     if (_ttsEngine.isEnabled) {
-      _ttsEngine.refreshSession();
+      _ttsNotifier?.refreshSession();
     }
   }
 
@@ -377,25 +393,24 @@ class ReaderProvider with ChangeNotifier {
       return TtsToggleResult.noContent;
     }
     // 穷尽 switch：覆盖 TtsPlaybackState 全部 5 个分支
+    final notifier = _ttsNotifier;
+    if (notifier == null) return TtsToggleResult.noContent;
     return switch (_ttsEngine.state) {
-      // 播放中 / 缓冲中 → 暂停
       TtsPlaybackState.playing ||
       TtsPlaybackState.buffering =>
         () {
-          _ttsEngine.pause();
+          notifier.pause();
           return TtsToggleResult.paused;
         }(),
-      // 已暂停 / 已关闭 → 播放
       TtsPlaybackState.paused ||
       TtsPlaybackState.disabled =>
         () {
-          _ttsEngine.play();
+          notifier.play();
           return TtsToggleResult.playing;
         }(),
-      // 错误状态 → 清除错误后尝试恢复播放
       TtsPlaybackState.error => () {
           _ttsEngine.clearLastError();
-          _ttsEngine.play();
+          notifier.play();
           return TtsToggleResult.playing;
         }(),
     };
@@ -418,7 +433,7 @@ class ReaderProvider with ChangeNotifier {
 
       // 延后半帧执行TTS刷新
       if (_ttsEngine.isEnabled) {
-        Future.microtask(() => _ttsEngine.refreshSession());
+        Future.microtask(() => _ttsNotifier?.refreshSession());
       }
     }
   }
@@ -435,7 +450,7 @@ class ReaderProvider with ChangeNotifier {
 
       // 延后半帧执行TTS刷新
       if (_ttsEngine.isEnabled) {
-        Future.microtask(() => _ttsEngine.refreshSession());
+        Future.microtask(() => _ttsNotifier?.refreshSession());
       }
     }
   }
@@ -476,7 +491,7 @@ class ReaderProvider with ChangeNotifier {
 
     // 🔥 安全重启 TTS 流：仅在启用时才重启，避免无限后台循环
     if (_ttsEngine.isEnabled) {
-      Future.microtask(() => _ttsEngine.refreshSession());
+      Future.microtask(() => _ttsNotifier?.refreshSession());
     }
   }
 
@@ -496,7 +511,7 @@ class ReaderProvider with ChangeNotifier {
     if (chapterIndex < 0 || chapterIndex >= _chapters.length) return;
     _currentIndex = _chapters[chapterIndex].lineIndex;
     _fetchIndex = _chapters[chapterIndex].lineIndex;
-    _ttsEngine.refreshSession();
+    _ttsNotifier?.refreshSession();
     notifyListeners();
     _saveProgress();
   }
@@ -507,7 +522,7 @@ class ReaderProvider with ChangeNotifier {
 
     // 停止 TTS 播放
     if (_ttsEngine.isEnabled) {
-      _ttsEngine.setEnabled(false);
+      _ttsNotifier?.stopAll();
     }
 
     // 置空所有数据
@@ -527,16 +542,6 @@ class ReaderProvider with ChangeNotifier {
   @override
   void dispose() {
     _ttsEngine.removeListener(_onTtsEngineChanged);
-    // 🔥 清理回调占用，防止闭包捕获已销毁的 ReaderProvider
-    if (_ttsEngine.onNeedPrefetch != null) {
-      _ttsEngine.onNeedPrefetch = null;
-    }
-    if (_ttsEngine.onItemStarted != null) {
-      _ttsEngine.onItemStarted = null;
-    }
-    if (_ttsEngine.onItemFinished != null) {
-      _ttsEngine.onItemFinished = null;
-    }
     super.dispose();
   }
 }

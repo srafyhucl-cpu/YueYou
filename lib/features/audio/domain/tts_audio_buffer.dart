@@ -82,4 +82,7 @@ class TtsAudioBuffer {
 
   /// 获取所有文件路径（用于清理临时文件）。
   List<String> get allFilePaths => _items.map((e) => e.filePath).toList();
+
+  /// 检查特定行索引是否已在缓冲区中。
+  bool containsLineIndex(int index) => _items.any((e) => e.lineIndex == index);
 }
