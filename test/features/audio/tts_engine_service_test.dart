@@ -44,6 +44,7 @@ class _FakeAudioPlayer implements TtsAudioPlayer {
     setPlaybackRateCalls++;
     lastPlaybackRate = rate;
   }
+
   @override
   Future<void> setAudioContext(AudioContext context) async {}
 
@@ -73,16 +74,20 @@ class _FakeHttpClient implements TtsHttpClient {
   int postCalls = 0;
   int downloadCalls = 0;
 
-  _FakeHttpClient(
-      {List<TtsHttpResponse>? queue, Map<String, List<int>>? downloads,})
-      : _queue = List<TtsHttpResponse>.of(queue ?? const <TtsHttpResponse>[]),
+  _FakeHttpClient({
+    List<TtsHttpResponse>? queue,
+    Map<String, List<int>>? downloads,
+  })  : _queue = List<TtsHttpResponse>.of(queue ?? const <TtsHttpResponse>[]),
         downloads = Map<String, List<int>>.from(
           downloads ?? const <String, List<int>>{},
         );
 
   @override
-  Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body,}) async {
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
     postCalls++;
     if (_queue.isNotEmpty) {
       return _queue.removeAt(0);
@@ -114,8 +119,11 @@ class _SequencedHttpClient implements TtsHttpClient {
         );
 
   @override
-  Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body,}) async {
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
     postCalls++;
     if (_events.isEmpty) {
       return const TtsHttpResponse(statusCode: 500, body: 'internal error');
@@ -171,11 +179,12 @@ class _MockHarness {
   final TtsEngineService service;
   final _FakeAudioPlayer fakeAudioPlayer;
   final _FakeWakeLock fakeWakeLock;
-  _MockHarness(
-      {required this.settings,
-      required this.service,
-      required this.fakeAudioPlayer,
-      required this.fakeWakeLock,});
+  _MockHarness({
+    required this.settings,
+    required this.service,
+    required this.fakeAudioPlayer,
+    required this.fakeWakeLock,
+  });
 }
 
 void _mockPathProviderTempDir(String tempDirPath) {
@@ -242,11 +251,12 @@ void _mockWakelockPlusChannel() {
   });
 }
 
-Future<_Harness> _makeService(
-    {bool storyTts = false,
-    double ttsRate = 1.0,
-    double ambientVol = 0.5,
-    String voice = 'zh-CN-XiaoxiaoNeural',}) async {
+Future<_Harness> _makeService({
+  bool storyTts = false,
+  double ttsRate = 1.0,
+  double ambientVol = 0.5,
+  String voice = 'zh-CN-XiaoxiaoNeural',
+}) async {
   SharedPreferences.setMockInitialValues({
     'setting_story_tts': storyTts,
     'setting_tts_rate': ttsRate,
@@ -265,14 +275,15 @@ Future<_Harness> _makeService(
   return _Harness(settings: settings, service: service);
 }
 
-Future<_MockHarness> _makeMockService(
-    {bool storyTts = false,
-    double ttsRate = 1.0,
-    double ambientVol = 0.5,
-    String voice = 'zh-CN-XiaoxiaoNeural',
-    TtsConfig? config,
-    TtsHttpClient? httpClient,
-    Future<void> Function(Duration)? delayFn,}) async {
+Future<_MockHarness> _makeMockService({
+  bool storyTts = false,
+  double ttsRate = 1.0,
+  double ambientVol = 0.5,
+  String voice = 'zh-CN-XiaoxiaoNeural',
+  TtsConfig? config,
+  TtsHttpClient? httpClient,
+  Future<void> Function(Duration)? delayFn,
+}) async {
   SharedPreferences.setMockInitialValues({
     'setting_story_tts': storyTts,
     'setting_tts_rate': ttsRate,
@@ -291,7 +302,8 @@ Future<_MockHarness> _makeMockService(
     audioPlayer: fakeAudioPlayer,
     wakeLock: fakeWakeLock,
     httpClient: httpClient,
-    delayFn: delayFn ?? (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
+    delayFn:
+        delayFn ?? (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
   );
   // 为所有 Mock Service 提供默认的哑元回调，防止因 onNeedPrefetch 为空而导致开启失败
   service.onNeedPrefetch = (session) async => null;
@@ -307,10 +319,11 @@ Future<_MockHarness> _makeMockService(
     await pumpEventQueue(times: 1);
   }
   return _MockHarness(
-      settings: settings,
-      service: service,
-      fakeAudioPlayer: fakeAudioPlayer,
-      fakeWakeLock: fakeWakeLock,);
+    settings: settings,
+    service: service,
+    fakeAudioPlayer: fakeAudioPlayer,
+    fakeWakeLock: fakeWakeLock,
+  );
 }
 
 void main() {
@@ -357,7 +370,9 @@ void main() {
       expect(h.service.playbackRate, isNot(equals(before)));
       await Future<void>.delayed(Duration.zero);
       expect(
-          StorageService.getSettingTtsRate(), equals(h.service.playbackRate),);
+        StorageService.getSettingTtsRate(),
+        equals(h.service.playbackRate),
+      );
       h.service.dispose();
     });
 
@@ -399,7 +414,7 @@ void main() {
       for (int i = 0; i < 100 && !h.service.isEnabled; i++) {
         await pumpEventQueue(times: 1);
       }
-      
+
       // 1. 先暂停
       await h.service.pause();
       final beforeResume = h.fakeAudioPlayer.resumeCalls;
@@ -409,8 +424,8 @@ void main() {
       h.service.play();
       await pumpEventQueue(times: 10);
 
-      expect(h.fakeAudioPlayer.resumeCalls, equals(beforeResume)); 
-      expect(h.fakeWakeLock.enableCalls, equals(beforeEnable + 1)); 
+      expect(h.fakeAudioPlayer.resumeCalls, equals(beforeResume));
+      expect(h.fakeWakeLock.enableCalls, equals(beforeEnable + 1));
       h.service.dispose();
     });
 
@@ -422,7 +437,7 @@ void main() {
       }
       // 额外等待以确保 _syncWakeLock(true) 异步任务执行完成
       await pumpEventQueue(times: 10);
-      
+
       await h.service.pause();
 
       expect(h.fakeAudioPlayer.pauseCalls, equals(1));
@@ -438,7 +453,7 @@ void main() {
       }
       // 额外等待以确保 _syncWakeLock(true) 异步任务执行完成
       await pumpEventQueue(times: 10);
-      
+
       h.service.setEnabled(false);
       await pumpEventQueue(times: 10);
 
@@ -663,12 +678,15 @@ void main() {
 
       expect(httpClient.postCalls, equals(cfg.maxRetries));
       expect(
-          delay.durations
-              .where((d) =>
+        delay.durations
+            .where(
+              (d) =>
                   d == const Duration(milliseconds: 2) ||
-                  d == const Duration(milliseconds: 4),)
-              .length,
-          greaterThanOrEqualTo(2),);
+                  d == const Duration(milliseconds: 4),
+            )
+            .length,
+        greaterThanOrEqualTo(2),
+      );
       h.service.setEnabled(false);
       h.service.dispose();
     });
@@ -762,7 +780,9 @@ void main() {
   });
 
   group('TtsEngineService - idle timeout', () {
-    test('空闲超时触发后应自动 setEnabled(false) 并写回 storyTts=false', () async {
+    test('空闲超时触发后应自动 setEnabled(false) 并写回 storyTts=false',
+        skip: '空闲超时逻辑已迁移至 TtsAudioNotifier 编排层，TtsEngineService 无内置 idle timer',
+        () async {
       SharedPreferences.setMockInitialValues({
         'setting_story_tts': false,
         'setting_tts_rate': 1.0,
@@ -1164,7 +1184,9 @@ void main() {
         expect(result['statusCode'], equals(200));
         final steps = (result['steps'] as List).cast<Map>();
         expect(
-            steps.any((s) => s['step'] == 5 && s['status'] == 'error'), isTrue,);
+          steps.any((s) => s['step'] == 5 && s['status'] == 'error'),
+          isTrue,
+        );
         h.service.dispose();
       } finally {
         _restorePathProviderTempDir();
@@ -1258,7 +1280,8 @@ class _ThrowingSetSourceAudioPlayer implements TtsAudioPlayer {
   Future<void> setVolume(double volume) => _inner.setVolume(volume);
 
   @override
-  Future<void> setAudioContext(AudioContext context) => _inner.setAudioContext(context);
+  Future<void> setAudioContext(AudioContext context) =>
+      _inner.setAudioContext(context);
 
   @override
   Stream<Duration> get onDurationChanged => _inner.onDurationChanged;
@@ -1281,8 +1304,11 @@ class _ThrowingHttpClient implements TtsHttpClient {
   const _ThrowingHttpClient(this.error);
 
   @override
-  Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body,}) {
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) {
     return Future<TtsHttpResponse>.error(error);
   }
 
@@ -1297,8 +1323,11 @@ class _HangingHttpClient implements TtsHttpClient {
   const _HangingHttpClient(this.future);
 
   @override
-  Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body,}) {
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) {
     return future;
   }
 

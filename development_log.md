@@ -1,11 +1,21 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-03**
+
+- **修复(TTS 兼容循环异步时序)**:
+  - **`_delayFn` 注入修复**：`downloadAudio` 退避延迟和 `_runCompatibilityLoop` 循环节拍均改用注入的 `_delayFn`，使测试能控制时序。
+  - **HTTP 状态码分流**：引入 `_TtsHttpStatusException` 内部异常，`_mainThreadDownload` 非200响应由静默返回 null 改为抛异常，`downloadAudio` 区分 4xx（立即跳过）和 5xx（指数退避重试）。
+  - **兼容循环播放消费**：补全 `_runCompatibilityLoop` 的消费阶段——从 `_compatBuffer` 取出文件调用 `playFile` 并触发 `onItemStarted/onItemFinished` 回调。
+  - **连续失败退避策略**：单次失败 3 秒退避，≥5 次连续失败 15 秒长退避，防止失败时频繁轰炸服务端。
+  - **idle timeout 测试归位**：标记为 skip，该功能已迁移至 `TtsAudioNotifier` 编排层。
+  - **验证**：`flutter analyze` 零警告，`tts_engine_service_test.dart` 34 passed / 1 skipped / 0 failed（此前 9 个失败）。
+
 ## **2026-05-02**
 
 - **维护(工程规范治理 - 项目全面评估后整改)**:
   - **`TtsConfig` 重构**：移除 `dart:io` 依赖，将 `Platform.environment` 运行时读取改为 `String.fromEnvironment` 编译时常量注入，新增 `bookApiBase` 公开常量供书籍服务使用。
   - **`DefaultBookService` 域名解耦**：将硬编码的 `https://hclstudio.cn/api/v1` 替换为 `TtsConfig.bookApiBase`，消除零硬编码原则违规。
-  - **`go.mod` 版本修正**：`go 1.25.0`（不存在的版本）修正为 `go 1.22.0`。
+  - **`go.mod` 版本修正**：已回退至 `go 1.25.0`（本机实际安装版本）。
   - **空文件清理**：删除无任何引用的 `file_parser.dart` / `app_theme.dart` / `neon_border_box.dart`。
   - **`pubspec.yaml` 精简**：description 从模板默认值替换为项目真实描述；移除未使用的 `dio: ^5.7.0` 依赖。
   - **README 同步**：版本号 `v1.0.0` → `v1.1.0`，依赖清单移除 `dio`，服务器配置表新增 `BOOK_API_BASE` 变量说明。
