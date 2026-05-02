@@ -1,5 +1,5 @@
 ---
-name: yueyou_tts_audio_guard
+name: yueyou-tts-audio-guard
 description: 用于阅游 TTS、音频播放、缓存、预加载、环境音、音频焦点和朗读状态机开发。当修改 tts_engine_service、ambient_service、sfx_service、reader_provider、tts_config 或相关测试时使用。
 ---
 
@@ -7,7 +7,7 @@ description: 用于阅游 TTS、音频播放、缓存、预加载、环境音、
 
 ## 云端 TTS 契约
 
-客户端必须遵守“两步下载”：
+客户端必须遵守"两步下载"：
 
 1. POST 业务服务器，只解析 JSON：`{"status":"success","url":"https://..."}`。
 2. GET 上一步返回的 `url`，从 OSS/CDN 下载音频并写入本地缓存。

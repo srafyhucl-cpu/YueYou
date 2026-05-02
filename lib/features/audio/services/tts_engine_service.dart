@@ -360,6 +360,7 @@ class TtsEngineService extends ChangeNotifier {
   final _progressController = StreamController<double>.broadcast();
   Duration _currentDuration = Duration.zero;
 
+  /// 硬件初始化 Future，用于守卫异步初始化流程
   late final Future<void> _initFuture;
   bool _initCompleted = false;
   String? _lastGeneratedAudioPath;
@@ -579,6 +580,7 @@ class TtsEngineService extends ChangeNotifier {
     unawaited(_audioPlayer.dispose());
     unawaited(_fallbackEngine.stop());
     unawaited(_deleteFileIfExists(_lastGeneratedAudioPath));
+    unawaited(_initFuture); // 确保初始化完成（即使是销毁时）
     super.dispose();
   }
 
@@ -770,6 +772,7 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 🛠️ TTS 连接测试工具
   /// 返回详细的诊断信息，帮助排查问题
+
   Future<Map<String, dynamic>> testConnection() async {
     final String voice = _initCompleted ? _voice : _settings.voice;
     final result = <String, dynamic>{

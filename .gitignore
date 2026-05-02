@@ -62,3 +62,10 @@ server/yueyou-server
 
 # 书籍转换输出（本地生成，不入库）
 books/output/
+
+# TTS 临时音频测试文件
+tts_*.mp3
+
+# 书籍原始数据（体积大，本地生成）
+books/chapters/
+books/xiyouji.json
