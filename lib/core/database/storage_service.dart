@@ -24,6 +24,7 @@ class StorageService {
   static const String _kSettingTtsRate = 'setting_tts_rate';
   static const String _kSettingAmbientVol = 'setting_ambient_vol';
   static const String _kSettingAmbientEnabled = 'setting_ambient_enabled';
+  static const String _kSettingAmbientStyle = 'setting_ambient_style';
   static const String _kHasAgreedPrivacy = 'has_agreed_privacy';
   static const String _kSettingAnimationQuality = 'setting_animation_quality';
 
@@ -223,6 +224,11 @@ class StorageService {
       _p.getBool(_kSettingAmbientEnabled) ?? true;
   static Future<void> setSettingAmbientEnabled(bool v) =>
       _p.setBool(_kSettingAmbientEnabled, v);
+
+  static String getSettingAmbientStyle() =>
+      _p.getString(_kSettingAmbientStyle) ?? 'wuxia';
+  static Future<void> setSettingAmbientStyle(String v) =>
+      _p.setString(_kSettingAmbientStyle, v);
 
   static String getSettingAnimationQuality() =>
       _p.getString(_kSettingAnimationQuality) ?? 'auto';

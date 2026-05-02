@@ -42,6 +42,9 @@ class AmbientService {
   /// 当前音量（0.0 ~ 1.0）
   static double _volume = 0.5;
 
+  /// 当前风格
+  static String _style = 'wuxia';
+
   /// 是否已完成初始化（_player 创建完成）
   static bool _initialized = false;
 
@@ -91,6 +94,16 @@ class AmbientService {
     }
   }
 
+  /// 设置风格（wuxia | warm）
+  static Future<void> setStyle(String style) async {
+    if (_style == style) return;
+    _style = style;
+    if (_enabled && _initialized) {
+      // 风格变更时立即重新生成并播放
+      await _startIfNeeded();
+    }
+  }
+
   /// 设置音量（对应 `ambientVol` 设置项，范围 0.0–1.0）
   static Future<void> setVolume(double volume) async {
     _volume = volume.clamp(0.0, 1.0);
@@ -129,9 +142,9 @@ class AmbientService {
   static Future<void> _startIfNeeded() async {
     if (_player == null) return;
     try {
-      final wav = _generateAmbientWav();
+      final wav = _generateAmbientWav(style: _style);
       await _player!.setVolume(_volume);
-      debugPrint(' AmbientService: 正在启动背景氛围音 (vol=${_volume.toStringAsFixed(2)}, bytes=${wav.length})');
+      debugPrint(' AmbientService: 正在启动背景氛围音 [$_style] (vol=${_volume.toStringAsFixed(2)}, bytes=${wav.length})');
       await _player!.play(BytesSource(wav));
     } catch (e) {
       debugPrint('AmbientService._startIfNeeded error: $e');
@@ -150,33 +163,33 @@ class AmbientService {
   static Uint8List generateAmbientWav() => _generateAmbientWav();
 
   static Uint8List _generateAmbientWav({
+    String style = 'wuxia',
     int sampleRate = 44100,
-    int durationMs = 30000, // 提升至 30 秒，极大减少 MediaPlayer 循环跳变频率
-    int humHz = 60,
-    double humVol = 0.18, // 增加工频嗡鸣权重
-    double noiseVol = 0.12, // 降低粉噪声权重，减少“噪音感”
+    int durationMs = 30000,
   }) {
+    // 根据风格动态调整声学参数
+    // wuxia: 强调工频嗡鸣和重低通，模拟深邃、肃杀的古风背景感
+    // warm: 降低嗡鸣，增加噪声波动，模拟炉火或呼吸的轻快感
+    final bool isWarm = style == 'warm';
+    final int humHz = isWarm ? 45 : 60;
+    final double humVol = isWarm ? 0.08 : 0.18;
+    final double noiseVol = isWarm ? 0.15 : 0.12;
+    final double lowPassWeight = isWarm ? 0.8 : 0.92;
+
     final numSamples = (sampleRate * durationMs / 1000).round();
     final dataSize = numSamples * 2;
     final buffer = ByteData(44 + dataSize);
     _writeWavHeader(buffer, sampleRate, dataSize);
 
-    // Voss-McCartney 粉噪声（16 级叠加）
-    final rand = Random(42); // 固定种子，每次生成相同内容，实现无缝循环
+    final rand = Random(42);
     final pinkState = List<double>.filled(16, 0.0);
     double pinkRunningSum = 0.0;
-
-    // 淡入淡出区间（各 5ms，仅用于消除直流偏移导致的咔哒声）
     final fadeLen = (sampleRate * 0.005).round();
-
-    // 强化低通滤波状态（深沉化处理）
     double lastNoise = 0.0;
 
     for (int i = 0; i < numSamples; i++) {
       final t = i / sampleRate;
 
-      // ---- Voss-McCartney 粉噪声 ----
-      // 每一级以不同频率更新（第 k 级每 2^k 个采样更新一次）
       for (int k = 0; k < 16; k++) {
         if (i % (1 << k) == 0) {
           final oldVal = pinkState[k];
@@ -184,18 +197,20 @@ class AmbientService {
           pinkRunningSum += pinkState[k] - oldVal;
         }
       }
-      // 归一化并进行强化低通滤波（90% 权重保留前值），让音色呈现沉闷的工业感
+      
       double pink = (pinkRunningSum / 16.0).clamp(-1.0, 1.0);
-      pink = lastNoise * 0.9 + pink * 0.1; 
+      
+      // 模拟微小波动 (Warm 风格增加随机抖动)
+      if (isWarm && i % 4410 == 0) {
+        pink *= (0.8 + rand.nextDouble() * 0.4);
+      }
+
+      pink = lastNoise * lowPassWeight + pink * (1.0 - lowPassWeight);
       lastNoise = pink;
 
-      // ---- 60Hz & 120Hz 复合工频嗡鸣 ----
       final hum = sin(2 * pi * humHz * t) * 0.7 + sin(4 * pi * humHz * t) * 0.3;
-
-      // ---- 混合 ----
       double signal = pink * noiseVol + hum * humVol;
 
-      // ---- 头尾淡入淡出（无缝循环） ----
       if (i < fadeLen) {
         signal *= i / fadeLen;
       } else if (i > numSamples - fadeLen) {

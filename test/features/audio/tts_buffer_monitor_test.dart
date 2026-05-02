@@ -87,7 +87,7 @@ void main() {
       expect(TtsBufferStatus.healthy, isA<TtsBufferStatus>());
       expect(TtsBufferStatus.warning, isA<TtsBufferStatus>());
       expect(TtsBufferStatus.critical, isA<TtsBufferStatus>());
-      expect(TtsBufferStatus.idle, isA<TtsBufferStatus>());
+      expect(TtsBufferStatus.empty, isA<TtsBufferStatus>());
     });
   });
 
@@ -143,7 +143,7 @@ void main() {
       addTearDown(svc.dispose);
       // 初始状态为 disabled
       expect(svc.isEnabled, isFalse);
-      expect(svc.bufferStatus, TtsBufferStatus.idle);
+      expect(svc.bufferStatus, TtsBufferStatus.empty);
     });
 
     // 注：由于引擎 enabled 状态需要通过 setEnabled 触发，
@@ -165,7 +165,7 @@ void main() {
   group('bufferStatus 阈值逻辑', () {
     // 使用辅助函数独立验证阈值判断逻辑
     TtsBufferStatus computeStatus(double ratio, bool enabled) {
-      if (!enabled) return TtsBufferStatus.idle;
+      if (!enabled) return TtsBufferStatus.empty;
       if (ratio >= 0.6) return TtsBufferStatus.healthy;
       if (ratio >= 0.33) return TtsBufferStatus.warning;
       return TtsBufferStatus.critical;
@@ -197,7 +197,7 @@ void main() {
 
     test('enabled=false 时任意 ratio → idle', () {
       for (final r in [0.0, 0.3, 0.6, 1.0]) {
-        expect(computeStatus(r, false), TtsBufferStatus.idle,
+        expect(computeStatus(r, false), TtsBufferStatus.empty,
             reason: 'ratio=$r 时应为 idle',);
       }
     });
