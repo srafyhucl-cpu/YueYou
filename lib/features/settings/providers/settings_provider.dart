@@ -21,6 +21,7 @@ class SettingsProvider with ChangeNotifier {
   late int idleTimeout;
   late double ttsRate;
   late double ambientVol;
+  late String ambientStyle;
 
   /// 环境音开关 — 预留字段，待环境音播放器功能实现后启用
   /// 当前无 UI 入口，也无消费方，仅持久化存档保持向后兼容
@@ -35,10 +36,20 @@ class SettingsProvider with ChangeNotifier {
     sound = StorageService.getSettingSound();
     storyTts = StorageService.getSettingStoryTts();
     voice = StorageService.getSettingVoice();
+    // 校验音色有效性，无效则回退默认（防止 storage 残留无效音色名）
+    if (voice != 'zh-CN-XiaoxiaoNeural' &&
+        voice != 'zh-CN-YunxiNeural' &&
+        voice != 'zh-CN-YunjianNeural' &&
+        voice != 'zh-CN-XiaoyiNeural' &&
+        voice != 'zh-CN-XiaomengNeural') {
+      voice = 'zh-CN-XiaoxiaoNeural';
+    }
     idleTimeout = StorageService.getSettingIdleTimeout();
     ttsRate = StorageService.getSettingTtsRate();
     ambientVol = StorageService.getSettingAmbientVol();
     ambientEnabled = StorageService.getSettingAmbientEnabled();
+    ambientStyle = StorageService.getSettingAmbientStyle();
+    AmbientService.setStyle(ambientStyle);
     animationQualitySetting = StorageService.getSettingAnimationQuality();
     
     if (animationQualitySetting == 'auto') {
@@ -76,6 +87,13 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> setVoice(String v) async {
+    if (v != 'zh-CN-XiaoxiaoNeural' &&
+        v != 'zh-CN-YunxiNeural' &&
+        v != 'zh-CN-YunjianNeural' &&
+        v != 'zh-CN-XiaoyiNeural' &&
+        v != 'zh-CN-XiaomengNeural') {
+      v = 'zh-CN-XiaoxiaoNeural';
+    }
     voice = v;
     await StorageService.setSettingVoice(v);
     notifyListeners();
@@ -102,6 +120,12 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setAmbientEnabled(bool v) async {
     ambientEnabled = v;
     await StorageService.setSettingAmbientEnabled(v);
+    notifyListeners();
+  }
+
+  Future<void> setAmbientStyle(String v) async {
+    ambientStyle = v;
+    await StorageService.setSettingAmbientStyle(v);
     notifyListeners();
   }
 

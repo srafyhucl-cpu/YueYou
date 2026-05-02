@@ -27,6 +27,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
   Timer? _errorTimer;
+  StreamSubscription<double>? _progressSub; // 独立进度订阅
   bool _showError = false;
 
   static final TextStyle _readStyle =
@@ -42,7 +43,25 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
   static const TextStyle _unreadStyle = CyberTextStyles.teleprompterInlineUnread;
 
   @override
+  void initState() {
+    super.initState();
+    _initProgressSubscription();
+  }
+
+  void _initProgressSubscription() {
+    _progressSub?.cancel();
+    // 监听全局进度流，直接驱动滚动而不触发 rebuild
+    _progressSub = ref.read(ttsEngineProvider).progressStream.listen((progress) {
+      final ttsState = ref.read(ttsAudioProvider);
+      if (ttsState is TtsAudioPlaying) {
+        _syncScroll(progress);
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    _progressSub?.cancel();
     _errorTimer?.cancel();
     _scrollCtrl.dispose();
     super.dispose();
@@ -180,9 +199,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
             final charIndex =
                 (progress * text.length).floor().clamp(0, text.length);
 
-            // 同步滚动
-            _syncScroll(progress);
-
+            // 💡 优化：不再在此处调用 _syncScroll，由 _progressSub 独立驱动
             return SingleChildScrollView(
               controller: _scrollCtrl,
               scrollDirection: Axis.horizontal,

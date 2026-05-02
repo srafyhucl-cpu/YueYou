@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
-import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
+import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
@@ -52,129 +53,135 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
   @override
   Widget build(BuildContext context) {
     final reader = ref.watch(readerProvider);
-    final ttsEngine = ref.watch(ttsEngineProvider);
+    final ttsState = ref.watch(ttsAudioProvider);
     final bookshelf = ref.watch(bookshelfProvider);
 
     final String novelTitle = _getNovelTitle(reader, bookshelf);
     final String chapterName = reader.currentChapterTitle;
+    final bool isPlaying = switch (ttsState) {
+      TtsAudioPlaying() => true,
+      TtsAudioIdle() ||
+      TtsAudioBuffering() ||
+      TtsAudioPaused() ||
+      TtsAudioError() =>
+        false,
+    };
 
     return Padding(
       padding: const EdgeInsets.only(top: CyberDimensions.spacingM),
-          child: Stack(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  showCyberModal(
-                    context: context,
-                    child: const ChapterListScreen(),
-                  );
-                },
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedBuilder(
-                  animation: _breathAnimation,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      painter: NeonProgressPainter(
-                        progress: reader.progress,
-                        color: CyberColors.neonCyan,
-                        strokeWidth: 2.5,
-                        animationValue: _breathAnimation.value,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {
+              showCyberModal(
+                context: context,
+                child: const ChapterListScreen(),
+              );
+            },
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedBuilder(
+              animation: _breathAnimation,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: NeonProgressPainter(
+                    progress: reader.progress,
+                    color: CyberColors.neonCyan,
+                    strokeWidth: 2.5,
+                    animationValue: _breathAnimation.value,
+                  ),
+                  child: child,
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: CyberDimensions.blurMedium,
+                    sigmaY: CyberDimensions.blurMedium,
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: CyberColors.glassDark,
+                      borderRadius:
+                          BorderRadius.circular(CyberDimensions.radiusL),
+                      border: Border.all(
+                        color: CyberColors.whiteBorder,
+                        width: CyberDimensions.borderNormal,
                       ),
-                      child: child,
-                    );
-                  },
-                  child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(CyberDimensions.radiusL),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(
-                        sigmaX: CyberDimensions.blurMedium,
-                        sigmaY: CyberDimensions.blurMedium,
-                      ),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8,),
-                        decoration: BoxDecoration(
-                          color: CyberColors.glassDark,
-                          borderRadius:
-                              BorderRadius.circular(CyberDimensions.radiusL),
-                          border: Border.all(
-                            color: CyberColors.whiteBorder,
-                            width: CyberDimensions.borderNormal,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: CyberColors.blackShadow,
-                              blurRadius: 25,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
+                      boxShadow: const [
+                        BoxShadow(
+                          color: CyberColors.blackShadow,
+                          blurRadius: 25,
+                          offset: Offset(0, 8),
                         ),
-                        child: Row(
-                          children: [
-                            VoiceWaveform(
-                              isActive:
-                                  ttsEngine.state == TtsPlaybackState.playing,
-                              color: CyberColors.neonCyan,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildPlayButton(reader, ttsEngine),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '《$novelTitle》',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: CyberTextStyles.caption.copyWith(
-                                      color: CyberColors.whiteMedium,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.2,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    chapterName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        CyberTextStyles.bodySmallBold.copyWith(
-                                      color: CyberColors.whiteHigh,
-                                      height: 1.2,
-                                    ),
-                                  ),
-                                ],
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        VoiceWaveform(
+                          isActive: isPlaying,
+                          color: CyberColors.neonCyan,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildPlayButton(reader, ttsState),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '《$novelTitle》',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: CyberTextStyles.caption.copyWith(
+                                  color: CyberColors.whiteMedium,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.2,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            _buildSpeedCapsule(reader, ttsEngine),
-                          ],
+                              const SizedBox(height: 2),
+                              Text(
+                                chapterName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: CyberTextStyles.bodySmallBold.copyWith(
+                                  color: CyberColors.whiteHigh,
+                                  height: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        _buildSpeedCapsule(reader, ttsState.playbackRate),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        );
+        ],
+      ),
+    );
   }
 
-  Widget _buildPlayButton(ReaderProvider reader, TtsEngineService ttsEngine) {
-    final bool isActive = ttsEngine.state == TtsPlaybackState.playing ||
-        ttsEngine.state == TtsPlaybackState.buffering;
+  Widget _buildPlayButton(ReaderProvider reader, TtsAudioState ttsState) {
+    final bool isActive = switch (ttsState) {
+      TtsAudioPlaying() || TtsAudioBuffering() => true,
+      TtsAudioIdle() || TtsAudioPaused() || TtsAudioError() => false,
+    };
 
     return GestureDetector(
       onTap: () {
-        final result = reader.toggleTTS();
-        if (result == TtsToggleResult.noContent) {
-          ref.read(ttsEngineProvider).setLastError('无法开启 TTS：请先导入书籍');
-        }
+        _handlePlayTap(reader, ttsState);
       },
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -206,6 +213,23 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
     );
   }
 
+  void _handlePlayTap(ReaderProvider reader, TtsAudioState ttsState) {
+    final audio = ref.read(ttsAudioProvider.notifier);
+    if (reader.currentBookId == null || reader.sentences.isEmpty) {
+      audio.setBusinessError('无法开启 TTS：请先导入书籍');
+      return;
+    }
+
+    switch (ttsState) {
+      case TtsAudioPlaying() || TtsAudioBuffering():
+        audio.pause();
+      case TtsAudioIdle() || TtsAudioPaused():
+        audio.play();
+      case TtsAudioError():
+        audio.recover();
+    }
+  }
+
   String _getNovelTitle(ReaderProvider reader, BookshelfProvider bookshelf) {
     final bookId = reader.currentBookId;
     if (bookId == null) return '阅游';
@@ -216,14 +240,15 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
     return book?.displayTitle ?? '阅游';
   }
 
-  Widget _buildSpeedCapsule(ReaderProvider reader, TtsEngineService ttsEngine) {
+  Widget _buildSpeedCapsule(ReaderProvider reader, double playbackRate) {
     return GestureDetector(
-      onTap: () => reader.cycleSpeed(),
+      onTap: () => ref.read(ttsAudioProvider.notifier).cycleSpeed(),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: CyberDimensions.spacingMS,
-            vertical: CyberDimensions.spacingS,),
+          horizontal: CyberDimensions.spacingMS,
+          vertical: CyberDimensions.spacingS,
+        ),
         decoration: BoxDecoration(
           color: CyberColors.whiteBorder,
           borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
@@ -233,7 +258,7 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
           ),
         ),
         child: Text(
-          '${ttsEngine.playbackRate.toStringAsFixed(1)}x',
+          '${playbackRate.toStringAsFixed(1)}x',
           style: CyberTextStyles.captionBold.copyWith(
             color: CyberColors.neonCyan,
             fontWeight: FontWeight.w900,
