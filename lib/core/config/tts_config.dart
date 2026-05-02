@@ -1,6 +1,6 @@
-import 'dart:io';
-
 /// TTS 配置类
+///
+/// 所有服务器地址通过 `--dart-define` 编译时注入，严禁硬编码 IP 或域名。
 class TtsConfig {
   final String serverUrl;
   final Duration requestTimeout;
@@ -16,24 +16,20 @@ class TtsConfig {
     this.maxPrefetchQueue = 6,
   });
 
-  /// 开发环境配置（通过 --dart-define=TTS_SERVER_URL=http://your-server:3000/api/v1/tts/createStream 指定）
-  static const TtsConfig development = TtsConfig(
-    serverUrl: 'https://hclstudio.cn/api/v1/tts',
+  /// 编译时注入的 TTS 服务器地址（--dart-define=TTS_SERVER_URL=https://...）
+  static const String _ttsServerUrl = String.fromEnvironment(
+    'TTS_SERVER_URL',
+    defaultValue: 'https://hclstudio.cn/api/v1/tts',
   );
 
-  /// 生产环境配置（通过 --dart-define=TTS_SERVER_URL 覆盖）
-  static const TtsConfig production = TtsConfig(
-    serverUrl: 'https://hclstudio.cn/api/v1/tts',
+  /// 编译时注入的书籍 API 基础地址（--dart-define=BOOK_API_BASE=https://...）
+  static const String bookApiBase = String.fromEnvironment(
+    'BOOK_API_BASE',
+    defaultValue: 'https://hclstudio.cn/api/v1',
   );
 
-  /// 当前环境配置
-  static TtsConfig get current {
-    // 从环境变量中读取服务器地址
-    final serverUrl = Platform.environment['TTS_SERVER_URL'];
-    if (serverUrl != null && serverUrl.isNotEmpty) {
-      return TtsConfig(serverUrl: serverUrl);
-    }
-    // 默认开发环境
-    return development;
-  }
+  /// 当前环境配置（编译时确定，零运行时开销）
+  static const TtsConfig current = TtsConfig(
+    serverUrl: _ttsServerUrl,
+  );
 }
