@@ -13,8 +13,7 @@ import 'package:yueyou/features/audio/services/ambient_service.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
 
-/// 设置界面 - 极客版
-/// 针对用户反馈进行了视觉升级，增强了赛博朋克质感。
+/// 阅游系统配置界面 - 极客/武侠融合视觉版
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -133,7 +132,7 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: CyberDimensions.spacingXL),
 
         // ── 环境氛围 ──────────────────────────────────────────────
-        const _SectionTitle(title: '环境氛围', icon: Icons.waves),
+        const _SectionTitle(title: '意境氛围', icon: Icons.waves),
         _ToggleTile(
           label: '背景氛围音',
           subtitle: '注入沉浸式白噪声，屏蔽外界干扰',
@@ -164,9 +163,9 @@ class SettingsScreen extends ConsumerWidget {
         ],
         const SizedBox(height: CyberDimensions.spacingXL),
 
-        // ── 性能与功耗 ──────────────────────────────────────────────
-        const _SectionTitle(title: '静默暂停', icon: Icons.timer_outlined),
-        const _LabelRow(label: '无操作自动停止播放'),
+        // ── 静默暂停 ──────────────────────────────────────────────
+        const _SectionTitle(title: '省电管理', icon: Icons.timer_outlined),
+        const _LabelRow(label: '静默暂停 (无操作自动停止)'),
         _ChoiceSelector<int>(
           value: settings.idleTimeout,
           options: const {
@@ -208,13 +207,13 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: CyberDimensions.spacingM),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: CyberColors.whiteMuted),
+          Icon(icon, size: 14, color: CyberColors.whiteMuted),
           const SizedBox(width: 8),
           Text(
             title.toUpperCase(),
             style: CyberTextStyles.sectionLabel.copyWith(
               letterSpacing: 2,
-              fontSize: 11,
+              fontSize: 10,
               color: CyberColors.whiteMuted,
             ),
           ),
@@ -250,7 +249,8 @@ class _LabelRow extends StatelessWidget {
         label,
         style: CyberTextStyles.labelMedium.copyWith(
           color: CyberColors.whiteDim,
-          fontSize: 12,
+          fontSize: 11,
+          fontFamily: CyberTextStyles.monoFont,
         ),
       ),
     );
@@ -277,7 +277,7 @@ class _ToggleTile extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
-        color: value ? surfaceColor.withValues(alpha: 0.6) : CyberColors.surface,
+        color: value ? CyberColors.surface.withValues(alpha: 0.6) : CyberColors.surface,
         borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
         border: Border.all(
           color: value ? activeColor.withValues(alpha: 0.4) : CyberColors.whiteFaint,
@@ -286,8 +286,8 @@ class _ToggleTile extends StatelessWidget {
         boxShadow: value
             ? [
                 BoxShadow(
-                  color: activeColor.withValues(alpha: 0.1),
-                  blurRadius: 10,
+                  color: activeColor.withValues(alpha: 0.05),
+                  blurRadius: 12,
                   spreadRadius: -2,
                 ),
               ]
@@ -298,28 +298,27 @@ class _ToggleTile extends StatelessWidget {
           label,
           style: CyberTextStyles.tileTitle.copyWith(
             color: value ? CyberColors.white : CyberColors.whiteDim,
+            fontSize: 14,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: CyberTextStyles.tileSubtitle.copyWith(
             color: CyberColors.whiteMuted,
+            fontSize: 11,
           ),
         ),
         value: value,
         onChanged: onChanged,
-        activeTrackColor: activeColor.withValues(alpha: 0.3),
+        activeTrackColor: activeColor.withValues(alpha: 0.2),
         activeThumbColor: activeColor,
         inactiveThumbColor: CyberColors.whiteDim,
         inactiveTrackColor: CyberColors.whiteFaint,
       ),
     );
   }
-
-  static Color get surfaceColor => CyberColors.surface;
 }
 
-/// 通用的横向选择器，用于风格选择、时间选择等
 class _ChoiceSelector<T> extends StatelessWidget {
   final T value;
   final Map<T, String> options;
@@ -347,17 +346,24 @@ class _ChoiceSelector<T> extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onChanged(entry.key),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 250),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? CyberColors.whiteFaint.withValues(alpha: 0.15)
-                      : CyberColors.transparent,
+                  gradient: isSelected
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            CyberColors.whiteFaint.withValues(alpha: 0.2),
+                            CyberColors.whiteFaint.withValues(alpha: 0.05),
+                          ],
+                        )
+                      : null,
                   borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: CyberColors.background.withValues(alpha: 0.3),
+                            color: CyberColors.background.withValues(alpha: 0.4),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -370,6 +376,7 @@ class _ChoiceSelector<T> extends StatelessWidget {
                     style: CyberTextStyles.bodySmall.copyWith(
                       color: isSelected ? CyberColors.white : CyberColors.whiteMuted,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -414,7 +421,10 @@ class _VoiceSelector extends ConsumerWidget {
             value: e.key,
             child: Text(
               e.value,
-              style: CyberTextStyles.bodySmall.copyWith(color: CyberColors.whiteDim),
+              style: CyberTextStyles.bodySmall.copyWith(
+                color: CyberColors.whiteDim,
+                fontSize: 13,
+              ),
             ),
           );
         }).toList(),
@@ -464,26 +474,27 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
               children: [
                 if (_isTesting)
                   const SizedBox(
-                    width: 14,
-                    height: 14,
+                    width: 12,
+                    height: 12,
                     child: CircularProgressIndicator(
                       color: CyberColors.neonCyan,
                       strokeWidth: 2,
                     ),
                   )
                 else
-                  const Icon(Icons.terminal, color: CyberColors.neonCyan, size: 16),
+                  const Icon(Icons.terminal, color: CyberColors.neonCyan, size: 14),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     _isTesting ? '正在进行神经链路诊断...' : '执行系统自检 (TTS Test)',
                     style: CyberTextStyles.bodySmallBold.copyWith(
                       color: CyberColors.neonCyan,
+                      fontSize: 12,
                       letterSpacing: 0.5,
                     ),
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: CyberColors.whiteMuted, size: 16),
+                const Icon(Icons.chevron_right, color: CyberColors.whiteMuted, size: 14),
               ],
             ),
           ),
@@ -539,6 +550,7 @@ class _TtsTestResultDialog extends StatelessWidget {
               success ? '链路诊断报告：通畅' : '链路诊断报告：故障',
               style: CyberTextStyles.dialogTitle.copyWith(
                 color: success ? CyberColors.neonGreen : CyberColors.neonPink,
+                fontSize: 16,
               ),
             ),
             const SizedBox(height: CyberDimensions.spacingM),
@@ -556,7 +568,10 @@ class _TtsTestResultDialog extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         step['name'],
-                        style: CyberTextStyles.bodySmall.copyWith(color: CyberColors.whiteDim),
+                        style: CyberTextStyles.bodySmall.copyWith(
+                          color: CyberColors.whiteDim,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -624,6 +639,7 @@ class _AmbientVolumeSlider extends StatelessWidget {
             style: CyberTextStyles.captionBold.copyWith(
               color: CyberColors.neonPurple,
               fontSize: 10,
+              fontFamily: CyberTextStyles.monoFont,
             ),
           ),
           const SizedBox(width: 12),

@@ -8,7 +8,8 @@
   - **游标同步对齐**：在 `TtsSentenceSource` 接口新增 `resetFetchIndex`。在刷新会话时强制同步 `ReaderProvider` 的预取游标（`_fetchIndex`）至当前可见游标（`_currentIndex`），彻底解决因预取领先导致的切换后“跳过一两句”的陈年 BUG。
   - **双重会话校验 (Session Sentry)**：为 `BufferedAudio` 增加 `session` 标识，确保过期音频被精准丢弃。
   - **提词器绝对同步 (Physical Sync)**：重构了 `TeleprompterView` 与 `TtsEngineService` 的通信机制。通过监听底层 `AudioPlayer` 的 `onPositionChanged` 物理进度流驱动 KTV 扫光动画，彻底废弃了基于字数的语速估算算法，实现了 100% 的音画同步。
-  - **设置页视觉重构 (Settings Redesign)**：对设置界面进行了全面的赛博朋克风格升级。引入了自定义的 `_ChoiceSelector` 组件替代原生下拉框，移除了冗余的倍速选项，并将“省电管理”重构为更直观的“静默暂停”配置。
+  - **设置页视觉重构 (Settings Redesign)**：对设置界面进行了全面的赛博朋克风格升级。引入了自定义的 `_ChoiceSelector` 组件替代原生下拉框，移除了冗余的语速选项，并将“省电管理”重构为更直观的“静默暂停”配置。
+  - **静默暂停底层实现 (Idle Timeout Logic)**：在 `TtsAudioNotifier` 编排层实现了高精度的 `_idleTimer` 管理，通过 `main.dart` 中的全局 `Listener` 捕获用户触控心跳（onPointerDown），实现了真正的按需省电。
   - **多风格氛围音 (Ambient Styles)**：`AmbientService` 现在支持“武侠风格”与“温馨风格”。通过算法动态调整粉噪声的低通权重与工频嗡鸣参数，实现了无需外部音频资源的多种沉浸式背景体验。
 
 - **维护(Codex 开发管理技能体系)**:

@@ -43,6 +43,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   int _consecutiveFailures = 0;
   bool _isDegradedToLocal = false;
   bool _isPausing = false;
+  Timer? _idleTimer; // 静默暂停计时器
 
   /// 注册句子源（由 ReaderProvider 在构造时调用）。
   void registerSentenceSource(TtsSentenceSource source) {
@@ -58,10 +59,41 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     ref.onDispose(() {
       _disposed = true;
       _pumpActive = false;
+      _idleTimer?.cancel();
       _buffer.clear();
     });
 
+    // 核心：监听引擎的心跳信号（notifyUserActivity 触发的 notifyListeners）
+    ref.listen(ttsEngineProvider, (prev, next) {
+      _resetIdleTimer();
+    });
+
+    // 核心：监听设置中的时长变更
+    ref.listen(settingsProvider, (prev, next) {
+      if (prev?.idleTimeout != next.idleTimeout) {
+        _resetIdleTimer();
+      }
+    });
+
     return TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null);
+  }
+
+  /// 内部重置空闲计时器（静默暂停）。
+  void _resetIdleTimer() {
+    _idleTimer?.cancel();
+    _idleTimer = null;
+
+    final settings = ref.read(settingsProvider);
+    final minutes = settings.idleTimeout;
+    
+    // 如果设置为 0 (永不) 或者当前未在播放/缓冲，则不启动计时
+    if (minutes <= 0) return;
+    if (state is TtsAudioIdle) return;
+
+    _idleTimer = Timer(Duration(minutes: minutes), () {
+      debugPrint('[TTS] 静默暂停：检测到用户已空闲 ${minutes}m，自动执行停播');
+      pause();
+    });
   }
 
   // ─── 公开 API ──────────────────────────────────────────────
@@ -74,6 +106,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       return;
     }
     _consecutiveFailures = 0;
+    _resetIdleTimer(); // 启动播放时激活计时器
 
     if (_currentFilePath != null) {
       // 恢复暂停：重播当前文件（pause 时用 stop 释放了播放器，无法 resume）
@@ -138,6 +171,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   /// 停止全部播放任务。
   Future<void> stopAll() async {
     _session++;
+    _idleTimer?.cancel();
     await _engine.stopAll();
     _buffer.clear();
     _currentItem = null;
@@ -330,6 +364,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   Future<void> _playNext() async {
     final item = _buffer.takeNext();
     if (item == null || _disposed) return;
+    
+    _resetIdleTimer(); // 每次开始新的一句，刷新计时
 
     // 🔥 Session 哨兵：如果音频项属于旧会话，直接丢弃
     if (item.session != _session) {
