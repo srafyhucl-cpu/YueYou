@@ -57,6 +57,10 @@ class MockAudioPlayer implements TtsAudioPlayer {
 
   @override
   Stream<void> get onPlayerComplete => const Stream<void>.empty();
+  @override
+  Stream<Duration> get onDurationChanged => const Stream.empty();
+  @override
+  Stream<Duration> get onPositionChanged => const Stream.empty();
 
   @override
   Future<void> dispose() async {}
@@ -139,7 +143,8 @@ void main() {
 
       // 启动预加载循环
       ttsService.setEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 10));
+      // 等待循环至少执行一次（延迟 100ms，此处给 300ms 宽裕度）
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // 验证 POST 请求获取 JSON 响应后，应调用下载
       // 注意：由于是异步循环，我们需要等待一小会儿
@@ -172,8 +177,9 @@ void main() {
         );
       };
 
+      // 启动预加载循环
       ttsService.setEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // 验证不下载无效URL
       expect(mockHttpClient.wasDownloadCalled, isFalse, reason: '不应下载无效URL');

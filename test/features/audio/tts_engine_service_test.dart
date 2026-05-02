@@ -51,6 +51,10 @@ class _FakeAudioPlayer implements TtsAudioPlayer {
   Future<void> dispose() async => disposeCalls++;
   @override
   Stream<void> get onPlayerComplete => _controller.stream;
+  @override
+  Stream<Duration> get onDurationChanged => const Stream.empty();
+  @override
+  Stream<Duration> get onPositionChanged => const Stream.empty();
   void completePlayback() => _controller.add(null);
 }
 
@@ -256,7 +260,8 @@ Future<_Harness> _makeService(
   _mockPathProviderTempDir(_testTempDir?.path ?? Directory.systemTemp.path);
   final settings = SettingsProvider()..loadFromStorage();
   final service = TtsEngineService(settings);
-  await pumpEventQueue(times: 20);
+  await pumpEventQueue(times: 50);
+  await Future<void>.delayed(const Duration(milliseconds: 10));
   return _Harness(settings: settings, service: service);
 }
 
@@ -366,9 +371,9 @@ void main() {
     });
 
     test('SettingsProvider.setVoice 会触发 refreshSession', () async {
-      final h = await _makeService(voice: 'voiceA');
+      final h = await _makeService(voice: 'zh-CN-XiaoxiaoNeural');
       final before = h.service.currentSession;
-      await h.settings.setVoice('voiceB');
+      await h.settings.setVoice('zh-CN-YunxiNeural');
       expect(h.service.currentSession, before + 1);
       h.service.dispose();
     });
@@ -1250,16 +1255,22 @@ class _ThrowingSetSourceAudioPlayer implements TtsAudioPlayer {
   Future<void> setPlaybackRate(double rate) => _inner.setPlaybackRate(rate);
 
   @override
-  Future<void> setSource(Source source) async {
-    await _inner.setSource(source);
-    throw Exception('setSource failed');
-  }
-
-  @override
   Future<void> setVolume(double volume) => _inner.setVolume(volume);
 
   @override
   Future<void> setAudioContext(AudioContext context) => _inner.setAudioContext(context);
+
+  @override
+  Stream<Duration> get onDurationChanged => _inner.onDurationChanged;
+
+  @override
+  Stream<Duration> get onPositionChanged => _inner.onPositionChanged;
+
+  @override
+  Future<void> setSource(Source source) async {
+    await _inner.setSource(source);
+    throw Exception('setSource failed');
+  }
 
   @override
   Future<void> stop() => _inner.stop();

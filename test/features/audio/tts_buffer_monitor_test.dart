@@ -10,6 +10,8 @@ import 'package:yueyou/features/settings/providers/settings_provider.dart';
 class _FakeAudioPlayer implements TtsAudioPlayer {
   final _ctrl = StreamController<void>.broadcast();
   @override Stream<void> get onPlayerComplete => _ctrl.stream;
+  @override Stream<Duration> get onDurationChanged => const Stream.empty();
+  @override Stream<Duration> get onPositionChanged => const Stream.empty();
   @override Future<void> setSource(Source source) async {}
   @override Future<void> resume() async {}
   @override Future<void> pause() async {}

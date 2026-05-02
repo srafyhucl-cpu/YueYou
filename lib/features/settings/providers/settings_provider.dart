@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/storage_service.dart';
 import '../../../core/utils/cyber_performance_detector.dart';
+import '../../audio/services/ambient_service.dart';
 
 /// 供 Riverpod 使用的全局设置 Provider
 final settingsProvider = ChangeNotifierProvider<SettingsProvider>((ref) {
