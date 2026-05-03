@@ -11,8 +11,9 @@ import '../../reader/providers/reader_provider.dart';
 final bookshelfProvider = ChangeNotifierProvider<BookshelfProvider>((ref) {
   final p = BookshelfProvider();
   p.loadFromStorage();
-  // 新用户书架为空且从未主动选择过书籍 → 自动注入内置默认书籍
-  if (p.isEmpty && !StorageService.hasSelectedBook()) {
+  // 书架中不包含西游记，且用户未主动删除过它 → 自动注入（老用户同样生效）
+  final hasDefault = p.hasDefaultBook;
+  if (!hasDefault && !StorageService.hasSelectedBook()) {
     Future.microtask(() => p.injectDefaultBookIfNeeded(ref));
   }
   return p;
@@ -27,6 +28,8 @@ class BookshelfProvider with ChangeNotifier {
   List<BookModel> get shelf => List.unmodifiable(_shelf);
   bool get isLoading => _isLoading;
   bool get isEmpty => _shelf.isEmpty;
+  bool get hasDefaultBook =>
+      _shelf.any((b) => b.id == BookConstants.defaultBookId);
 
   /// App 启动时从 SharedPreferences 恢复书架元数据
   void loadFromStorage() {
@@ -87,6 +90,11 @@ class BookshelfProvider with ChangeNotifier {
     // 级联删除：先重置阅读器，再清数据
     reader?.resetForDeletedBook(id.toString());
 
+    // 删除西游记视为「主动放弃」，设置粘性位防止下次启动再次自动注入
+    if (id == BookConstants.defaultBookId) {
+      StorageService.setHasSelectedBook(true);
+    }
+
     _shelf.removeWhere((b) => b.id == id);
     notifyListeners();
 
@@ -143,7 +151,7 @@ class BookshelfProvider with ChangeNotifier {
   /// 通过 [ref] 读取 [readerProvider]，避免循环依赖。
   Future<void> injectDefaultBookIfNeeded(Ref ref) async {
     // 双重校验（防止并发/重入）
-    if (_shelf.isNotEmpty || StorageService.hasSelectedBook()) return;
+    if (hasDefaultBook || StorageService.hasSelectedBook()) return;
 
     try {
       final service = DefaultBookService();

@@ -12,6 +12,9 @@ enum TtsBufferStatus { healthy, warning, critical, empty }
 class BufferedAudio {
   final String filePath;
   final int lineIndex;
+
+  /// 合并短句消耗到的最后一行索引（包含），无合并时等于 [lineIndex]。
+  final int endLineIndex;
   final String text;
   final String title;
   final int session;
@@ -19,10 +22,11 @@ class BufferedAudio {
   const BufferedAudio({
     required this.filePath,
     required this.lineIndex,
+    int? endLineIndex,
     required this.text,
     required this.title,
     required this.session,
-  });
+  }) : endLineIndex = endLineIndex ?? lineIndex;
 }
 
 /// TTS 预加载缓冲队列。
