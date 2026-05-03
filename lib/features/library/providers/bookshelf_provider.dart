@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../core/constants/book_constants.dart';
 import '../../../core/database/storage_service.dart';
 import '../domain/book_model.dart';
@@ -158,6 +157,8 @@ class BookshelfProvider with ChangeNotifier {
     try {
       final service = DefaultBookService();
       final catalog = await service.getCatalog();
+      // getCatalog() 期间可能已 deleteBook(999)，需二次校验防止竞态
+      if (hasDefaultBook || StorageService.hasSelectedBook()) return;
       await addDefaultBook(catalog);
     } catch (e) {
       debugPrint('[BookshelfProvider] 默认书籍注入失败: $e');

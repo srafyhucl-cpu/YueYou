@@ -43,6 +43,8 @@ void main() {
     setUp(() async {
       await _initStorage();
       _mockAppChannels();
+      // 单测不需要自动注入写游记副作用，设置粘性位抑制 injectDefaultBookIfNeeded
+      await StorageService.setHasSelectedBook(true);
     });
 
     test('addBook 后 shelf 包含新书且排在首位', () async {
@@ -107,8 +109,12 @@ void main() {
       final tts = TtsEngineService(settings);
       final reader = ReaderProvider(tts);
 
-      await reader.loadBook('第一章\n内容一\n内容二\n',
-          bookId: '99', initialIndex: 0, forceIndex: true,);
+      await reader.loadBook(
+        '第一章\n内容一\n内容二\n',
+        bookId: '99',
+        initialIndex: 0,
+        forceIndex: true,
+      );
       expect(reader.currentBookId, '99');
 
       final container = ProviderContainer();
@@ -137,7 +143,8 @@ void main() {
         chapters: [],
       );
 
-      await provider.deleteBook(999);
+      // 9999 是真正不存在的 id，999 是默认书 id 已有具体语义
+      await provider.deleteBook(9999);
 
       expect(provider.shelf.length, 1);
       expect(provider.shelf.first.id, 1);
