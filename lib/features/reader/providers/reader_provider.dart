@@ -22,6 +22,11 @@ final readerProvider = ChangeNotifierProvider<ReaderProvider>((ref) {
   final rp = ReaderProvider(engine, notifier: notifier);
   notifier.registerSentenceSource(rp);
   ref.onDispose(rp.dispose);
+  // 热重启恢复：若上次阅读的是默认书籍，自动重载当前章节
+  final lastNovelId = StorageService.getCurrentNovelId();
+  if (lastNovelId == BookConstants.defaultBookKey) {
+    Future.microtask(() => rp.restoreDefaultBook());
+  }
   return rp;
 });
 
@@ -396,6 +401,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     int? initialIndex,
     bool forceIndex = false,
   }) async {
+    debugPrint('[loadBook] 被调用 bookId=$bookId _isParsing=$_isParsing');
     if (_isParsing) return;
 
     _isParsing = true;
@@ -589,6 +595,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       return;
     }
 
+    debugPrint(
+        '[loadChapter] ★ 被调用 chapterIndex=$chapterIndex resume=$resume, caller=${StackTrace.current.toString().split('\n')[1]}');
     _currentChapterIndex = chapterIndex;
     _isDefaultBookMode = true;
     _chapterLoadState = ChapterLoadState.loading;
@@ -622,6 +630,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       debugPrint('[loadChapter] loadBook 完成, sentences=${_sentences.length}');
 
       _chapterLoadState = ChapterLoadState.loaded;
+      // 持久化章节索引，供热重启恢复
+      StorageService.setCurrentChapterIndex(chapterIndex);
       // 影子预读下一章（fire-and-forget）
       service.prefetchNextChapter(chapterIndex);
       notifyListeners();
@@ -630,6 +640,29 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       notifyListeners();
       debugPrint('[ReaderProvider] loadChapter($chapterIndex) 失败: $e\n$st');
     }
+  }
+
+  /// 热重启恢复：自动加载上次章节内容
+  void restoreDefaultBook() {
+    if (_isDefaultBookMode) return;
+    final chapterIndex = StorageService.getCurrentChapterIndex();
+    debugPrint('[restoreDefaultBook] 自动恢复第 $chapterIndex 章');
+    // 先用常量填充标题，让 UI 立即有内容可显示
+    _isDefaultBookMode = true;
+    _currentChapterIndex = chapterIndex;
+    _chapterLoadState = ChapterLoadState.idle;
+    if (_chapters.isEmpty) {
+      _chapters = BookConstants.xiyoujiChapterTitles
+          .asMap()
+          .entries
+          .map((e) => ChapterModel(title: e.value, lineIndex: e.key))
+          .toList();
+    }
+    // 恢复 _currentIndex，使章节标题显示正确
+    _currentIndex = chapterIndex;
+    notifyListeners();
+    // 异步加载章节正文，完成后提词器自动更新
+    loadChapter(chapterIndex, resume: true);
   }
 
   /// 章末自动推进（TTS 播完当前章节最后一句时由 [onTtsItemFinished] 触发）

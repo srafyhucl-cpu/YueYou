@@ -120,21 +120,18 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     if (_currentFilePath != null) {
       // 恢复暂停：重播当前文件（pause 时用 stop 释放了播放器，无法 resume）
-      _startPump(); // 先启动泵，_playRunner 会从缓冲区消费
-      if (!_buffer.isEmpty) {
-        // 缓冲区有下一项，直接播下一句
-      } else {
-        // 缓冲区空 → 重新入队当前文件
-        _buffer.add(
-          BufferedAudio(
-            filePath: _currentFilePath!,
-            lineIndex: _currentItem?.lineIndex ?? -1,
-            text: _currentItem?.text ?? '',
-            title: _currentItem?.title ?? '',
-            session: _session,
-          ),
-        );
-      }
+      // 无论缓冲区是否有内容，都先把当前句插入队首，避免跳句
+      _buffer.prepend(
+        BufferedAudio(
+          filePath: _currentFilePath!,
+          lineIndex: _currentItem?.lineIndex ?? -1,
+          endLineIndex: _currentItem?.endLineIndex ?? -1,
+          text: _currentItem?.text ?? '',
+          title: _currentItem?.title ?? '',
+          session: _session,
+        ),
+      );
+      _startPump();
       _applyState(
         TtsAudioPlaying(
           item: _snapshotOf(_currentItem!),

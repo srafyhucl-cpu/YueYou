@@ -81,6 +81,9 @@ class TtsAudioBuffer {
   /// 预览队列头部项，不移除。
   BufferedAudio? get peek => _items.isNotEmpty ? _items.first : null;
 
+  /// 将项插入队首（恢复暂停时用，优先于缓冲区中的其他项）。
+  void prepend(BufferedAudio item) => _items.insert(0, item);
+
   /// 清空队列。
   void clear() => _items.clear();
 

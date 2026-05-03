@@ -23,13 +23,15 @@ class TeleprompterView extends ConsumerStatefulWidget {
   ConsumerState<TeleprompterView> createState() => _TeleprompterViewState();
 }
 
-class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
+class _TeleprompterViewState extends ConsumerState<TeleprompterView>
+    with SingleTickerProviderStateMixin {
   String _prevText = '';
   double _totalTextWidth = 0;
   final ScrollController _scrollCtrl = ScrollController();
   Timer? _errorTimer;
   StreamSubscription<double>? _progressSub; // 独立进度订阅
   bool _showError = false;
+  late final AnimationController _skeletonCtrl;
 
   static final TextStyle _readStyle =
       CyberTextStyles.teleprompterInlineRead.copyWith(
@@ -48,6 +50,10 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
   void initState() {
     super.initState();
     _initProgressSubscription();
+    _skeletonCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
   }
 
   void _initProgressSubscription() {
@@ -67,6 +73,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
     _progressSub?.cancel();
     _errorTimer?.cancel();
     _scrollCtrl.dispose();
+    _skeletonCtrl.dispose();
     super.dispose();
   }
 
@@ -132,10 +139,6 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
       }
     }
 
-    if (reader.sentences.isEmpty) {
-      return _buildPlaceholder('等待数据流接入 [ _ ]');
-    }
-
     // 从 ttsState 获取当前正在播放/暂停的文本内容
     final String text = switch (ttsState) {
       TtsAudioPlaying(:final item) => item.textPreview,
@@ -180,6 +183,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
                       isPlaying,
                       halfWidth,
                       engine,
+                      ttsState,
                       isChapterError: reader.isDefaultBookMode &&
                           reader.chapterLoadState == ChapterLoadState.error,
                       chapterIndex: reader.currentChapterIndex ?? 0,
@@ -197,6 +201,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
                         isPlaying,
                         halfWidth,
                         engine,
+                        ttsState,
                         isChapterError: reader.isDefaultBookMode &&
                             reader.chapterLoadState == ChapterLoadState.error,
                         chapterIndex: reader.currentChapterIndex ?? 0,
@@ -213,13 +218,18 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
     String text,
     bool isPlaying,
     double halfWidth,
-    TtsEngineService engine, {
+    TtsEngineService engine,
+    TtsAudioState ttsState, {
     bool isChapterError = false,
     int chapterIndex = 0,
   }) {
-    // 如果没有文本（Idle/Buffering），显示占位或空容器
     if (text.isEmpty) {
-      return const SizedBox.shrink();
+      // Idle：未启动播放器
+      if (ttsState is TtsAudioIdle) {
+        return _buildPlaceholder('数据流未开启');
+      }
+      // Buffering / Paused 等：已启动，正在加载
+      return _buildSkeletonRows();
     }
 
     return Stack(
@@ -425,6 +435,65 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonRows() {
+    return SizedBox(
+      height: CyberDimensions.teleprompterHeight,
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _skeletonCtrl,
+          builder: (_, __) => LayoutBuilder(
+            builder: (ctx, constraints) {
+              final totalWidth = constraints.maxWidth;
+              const shimmerWidth = 80.0;
+              final offset = _skeletonCtrl.value * (totalWidth + shimmerWidth) -
+                  shimmerWidth;
+              final innerHeight = CyberDimensions.teleprompterHeight -
+                  CyberDimensions.spacingS * 2;
+              return ClipRect(
+                child: SizedBox(
+                  width: totalWidth,
+                  height: innerHeight,
+                  child: Stack(
+                    children: [
+                      // 底色横条
+                      Container(
+                        width: totalWidth,
+                        height: innerHeight,
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(CyberDimensions.radiusXS),
+                          color: CyberColors.neonCyan.withValues(alpha: 0.06),
+                        ),
+                      ),
+                      // 扫光
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        left: offset,
+                        child: Container(
+                          width: shimmerWidth,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                CyberColors.neonCyan.withValues(alpha: 0.0),
+                                CyberColors.neonCyan.withValues(alpha: 0.35),
+                                CyberColors.neonCyan.withValues(alpha: 0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

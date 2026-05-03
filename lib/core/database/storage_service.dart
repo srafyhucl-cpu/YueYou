@@ -27,6 +27,7 @@ class StorageService {
   static const String _kSettingAmbientStyle = 'setting_ambient_style';
   static const String _kHasAgreedPrivacy = 'has_agreed_privacy';
   static const String _kHasSelectedBook = 'user_has_selected_book';
+  static const String _kCurrentChapterIndex = 'current_chapter_index';
   static const String _kSettingAnimationQuality = 'setting_animation_quality';
 
   static SharedPreferences? _prefs;
@@ -152,6 +153,12 @@ class StorageService {
   static String? getCurrentNovelId() => _p.getString(_kCurrentNovelId);
 
   static int getCurrentNovelIndex() => _p.getInt(_kNovelIndex) ?? 0;
+
+  static int getCurrentChapterIndex() => _p.getInt(_kCurrentChapterIndex) ?? 0;
+
+  static Future<void> setCurrentChapterIndex(int index) async {
+    await _p.setInt(_kCurrentChapterIndex, index);
+  }
 
   static Future<void> setCurrentNovelIndex(int index) async {
     await _p.setInt(_kNovelIndex, index);
