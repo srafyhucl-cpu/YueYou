@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 
 /// 章节目录界面
@@ -78,8 +79,9 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(
-            sigmaX: CyberDimensions.blurLight,
-            sigmaY: CyberDimensions.blurLight,),
+          sigmaX: CyberDimensions.blurLight,
+          sigmaY: CyberDimensions.blurLight,
+        ),
         child: Container(
           height: CyberDimensions.headerHeight,
           color: CyberColors.panelBackground.withValues(alpha: 0.8),
@@ -118,15 +120,18 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
   }
 
   Widget _buildStats(ReaderProvider reader) {
-    final int total = reader.chapters.length;
+    final int total = reader.isDefaultBookMode
+        ? BookConstants.defaultTotalChapters
+        : reader.chapters.length;
     final int cursor = reader.currentIndex;
     final int totalLines = reader.sentences.length;
     final int percent =
         totalLines > 0 ? ((cursor / totalLines) * 100).floor() : 0;
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: CyberDimensions.spacingM,
-          vertical: CyberDimensions.spacingS,),
+        horizontal: CyberDimensions.spacingM,
+        vertical: CyberDimensions.spacingS,
+      ),
       color: CyberColors.panelBackground.withValues(alpha: 0.13),
       child: Text(
         '共 $total 章 | 阅读进度 $percent%',
@@ -136,6 +141,12 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
   }
 
   Widget _buildChapterList(BuildContext context, ReaderProvider reader) {
+    // ── 默认书籍（西游记）：全量100章 + 按章节索引标注当前章 ──
+    if (reader.isDefaultBookMode) {
+      return _buildDefaultBookChapterList(context, reader);
+    }
+
+    // ── 普通书籍：按行号索引 ──
     final chapters = reader.chapters;
     if (chapters.isEmpty) {
       return const Center(
@@ -155,8 +166,7 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
       }
     }
 
-    final displayChapters =
-        _reversed ? chapters.reversed.toList() : chapters;
+    final displayChapters = _reversed ? chapters.reversed.toList() : chapters;
 
     // O(1) 极限性能：创建时直接定位
     _scrollController ??= _createScrollController(reader);
@@ -165,8 +175,7 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
       controller: _scrollController,
       itemCount: displayChapters.length,
       itemExtent: 56.0, // 固定item高度，提升性能
-      padding:
-          const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
+      padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
       itemBuilder: (ctx, i) {
         final chapter = displayChapters[i];
         final int originalIdx = _reversed ? (chapters.length - 1 - i) : i;
@@ -184,9 +193,46 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
 
             // 等待弹窗退场动画完成后，再执行数据突变
             _pendingJumpTimer?.cancel();
-            _pendingJumpTimer =
-                Timer(const Duration(milliseconds: 250), () {
+            _pendingJumpTimer = Timer(const Duration(milliseconds: 250), () {
               reader.jumpToLine(chapter.lineIndex);
+            });
+          },
+        );
+      },
+    );
+  }
+
+  /// 默认书籍（西游记）的章节列表：全量100章，点击触发分章懒加载
+  Widget _buildDefaultBookChapterList(
+      BuildContext context, ReaderProvider reader) {
+    final allTitles = BookConstants.xiyoujiChapterTitles;
+    final int activeIdx = reader.currentChapterIndex ?? 0;
+
+    // O(1) 初始滚动定位
+    if (_scrollController == null) {
+      final targetIndex =
+          _reversed ? (allTitles.length - 1 - activeIdx) : activeIdx;
+      _scrollController = ScrollController(
+        initialScrollOffset: (targetIndex * 56.0).clamp(0.0, double.infinity),
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: allTitles.length,
+      itemExtent: 56.0,
+      padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
+      itemBuilder: (ctx, i) {
+        final int originalIdx = _reversed ? (allTitles.length - 1 - i) : i;
+        return _ChapterItem(
+          title: allTitles[originalIdx],
+          isActive: originalIdx == activeIdx,
+          isRead: originalIdx < activeIdx,
+          onTap: () {
+            Navigator.of(context).pop();
+            _pendingJumpTimer?.cancel();
+            _pendingJumpTimer = Timer(const Duration(milliseconds: 250), () {
+              reader.loadChapter(originalIdx);
             });
           },
         );
@@ -224,11 +270,13 @@ class _ChapterItem extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: CyberDimensions.spacingM,
-            vertical: CyberDimensions.spacingMS,),
+          horizontal: CyberDimensions.spacingM,
+          vertical: CyberDimensions.spacingMS,
+        ),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: CyberColors.whiteFaint.withValues(alpha: 0.4)),
+            bottom: BorderSide(
+                color: CyberColors.whiteFaint.withValues(alpha: 0.4)),
           ),
           color: isActive
               ? CyberColors.neonPink.withValues(alpha: 0.1)

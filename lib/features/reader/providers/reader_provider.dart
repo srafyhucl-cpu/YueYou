@@ -466,8 +466,10 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       // Fire-and-forget：进度存档不阻塞主线程
       _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
 
-      // 延后半帧执行TTS刷新
-      if (_ttsEngine.isEnabled) {
+      // 延后半帧执行TTS刷新：仅在播放/缓冲时刷新，空闲不启泵
+      final isActiveNs = _ttsEngine.state == TtsPlaybackState.playing ||
+          _ttsEngine.state == TtsPlaybackState.buffering;
+      if (_ttsEngine.isEnabled && isActiveNs) {
         Future.microtask(() => _ttsNotifier?.refreshSession());
       }
     }
@@ -483,8 +485,10 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       // Fire-and-forget：进度存档不阻塞主线程
       _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
 
-      // 延后半帧执行TTS刷新
-      if (_ttsEngine.isEnabled) {
+      // 延后半帧执行TTS刷新：仅在播放/缓冲时刷新，空闲不启泵
+      final isActivePs = _ttsEngine.state == TtsPlaybackState.playing ||
+          _ttsEngine.state == TtsPlaybackState.buffering;
+      if (_ttsEngine.isEnabled && isActivePs) {
         Future.microtask(() => _ttsNotifier?.refreshSession());
       }
     }
@@ -524,8 +528,10 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     // Fire-and-forget 存档
     _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
 
-    // 🔥 安全重启 TTS 流：仅在启用时才重启，避免无限后台循环
-    if (_ttsEngine.isEnabled) {
+    // 🔥 安全重启 TTS 流：仅在播放/缓冲时才刷新，空闲时不启动泵避免 ANR
+    final isActive = _ttsEngine.state == TtsPlaybackState.playing ||
+        _ttsEngine.state == TtsPlaybackState.buffering;
+    if (_ttsEngine.isEnabled && isActive) {
       Future.microtask(() => _ttsNotifier?.refreshSession());
     }
   }
@@ -546,7 +552,12 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     if (chapterIndex < 0 || chapterIndex >= _chapters.length) return;
     _currentIndex = _chapters[chapterIndex].lineIndex;
     _fetchIndex = _chapters[chapterIndex].lineIndex;
-    _ttsNotifier?.refreshSession();
+    // 仅在播放/缓冲时刷新会话，空闲时不启动泵
+    final isActiveSc = _ttsEngine.state == TtsPlaybackState.playing ||
+        _ttsEngine.state == TtsPlaybackState.buffering;
+    if (_ttsEngine.isEnabled && isActiveSc) {
+      _ttsNotifier?.refreshSession();
+    }
     notifyListeners();
     _saveProgress();
   }
