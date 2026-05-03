@@ -1,64 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'package:yueyou/features/game_2048/presentation/widgets/square_board.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/main.dart';
+import '../../utils/test_utils.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    StorageService.resetForTesting();
-    await StorageService.init();
-
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-
-    // Mock Haptic (StandardMethodCodec)
-    messenger.setMockMethodCallHandler(
-        const MethodChannel('flutter/haptic'), (methodCall) async => null,);
-
-    // Mock Platform channel (JSONMethodCodec is required for SystemChannels.platform)
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('flutter/platform', JSONMethodCodec()),
-      (methodCall) async => null,
-    );
-
-    // Mock SystemSound (Independent channel in some versions, or uses flutter/platform)
-    messenger.setMockMethodCallHandler(
-        const MethodChannel('flutter/system_sound'),
-        (methodCall) async => null,);
-
-    // Mock Audioplayers
-    messenger.setMockMethodCallHandler(
-        const MethodChannel('xyz.luan/audioplayers.global'),
-        (methodCall) async => null,);
-    messenger.setMockMethodCallHandler(
-        const MethodChannel('xyz.luan/audioplayers'),
-        (methodCall) async => null,);
-
-    // Mock path_provider
-    messenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (methodCall) async {
-      if (methodCall.method == 'getTemporaryDirectory') return '.';
-      if (methodCall.method == 'getApplicationDocumentsDirectory') return '.';
-      return '.';
-    });
+    await initializeTestEnvironment();
   });
 
-  /// 使用 Riverpod ProviderScope 注入 GameProvider / SettingsProvider / TtsEngineService
+  TtsEngineService? activeTts;
+
+  tearDown(() {
+    activeTts?.dispose();
+    activeTts = null;
+  });
+
   Widget createTestableWidget(GameProvider provider) {
-    final settings = SettingsProvider();
-    final ttsEngine = TtsEngineService(settings);
+    final settings = makeSettings();
+    final ttsEngine = makeTtsEngine(settings);
+    activeTts = ttsEngine;
 
     return ProviderScope(
       overrides: [
@@ -68,9 +36,7 @@ void main() {
       ],
       child: MaterialApp(
         navigatorKey: globalNavigatorKey,
-        home: const Scaffold(
-          body: SquareBoard(),
-        ),
+        home: const Scaffold(body: SquareBoard()),
       ),
     );
   }
@@ -95,12 +61,14 @@ void main() {
         persistDebounceDuration: Duration.zero,
       )..soundEnabled = false;
 
-      provider.setStateForTesting(board: [
-        [const TileModel(id: 1, value: 2), null, null, null],
-        [null, const TileModel(id: 2, value: 2048), null, null],
-        [null, null, null, null],
-        [null, null, null, null],
-      ],);
+      provider.setStateForTesting(
+        board: [
+          [const TileModel(id: 1, value: 2), null, null, null],
+          [null, const TileModel(id: 2, value: 2048), null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump();
@@ -115,12 +83,14 @@ void main() {
         persistDebounceDuration: Duration.zero,
       )..soundEnabled = false;
 
-      provider.setStateForTesting(board: [
-        [null, null, null, const TileModel(id: 1, value: 2)],
-        [null, null, null, null],
-        [null, null, null, null],
-        [null, null, null, null],
-      ],);
+      provider.setStateForTesting(
+        board: [
+          [null, null, null, const TileModel(id: 1, value: 2)],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
 
       await tester.pumpWidget(createTestableWidget(provider));
       await tester.pump();
