@@ -7,13 +7,20 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/gin-gonic/gin"
 )
 
-// edgeTtsSem 限制 edge-tts 并发进程数为 3，避免触发微软服务端并发任务限制。
-var edgeTtsSem = make(chan struct{}, 3)
+// edgeTtsSem 严格串行化 edge-tts 进程，避免触发微软服务端并发任务限制。
+var edgeTtsSem = make(chan struct{}, 1)
+
+// inflightMu 保护 inflightKeys，用于对同一文本的并发请求去重。
+var (
+	inflightMu   sync.Mutex
+	inflightKeys = map[string]chan struct{}{}
+)
 
 // ttsHandler 接受文本和音色，生成 MP3 并上传 OSS，返回 CDN 播放地址。
 // 遵循分离下载原则：客户端 POST 获取 URL，再自行 GET 下载音频。
@@ -46,9 +53,31 @@ func ttsHandler(c *gin.Context) {
 		return
 	}
 
+	// 同一文本正在合成时，等待已有任务完成后复用 OSS 缓存，避免重复调用 edge-tts
+	inflightMu.Lock()
+	if ch, ok := inflightKeys[fn]; ok {
+		inflightMu.Unlock()
+		<-ch
+		if ok2, _ := bk.IsObjectExist(fn); ok2 {
+			c.JSON(200, gin.H{"status": "success", "url": fu})
+		} else {
+			c.JSON(500, gin.H{"status": "error", "message": "语音合成失败"})
+		}
+		return
+	}
+	doneCh := make(chan struct{})
+	inflightKeys[fn] = doneCh
+	inflightMu.Unlock()
+	defer func() {
+		close(doneCh)
+		inflightMu.Lock()
+		delete(inflightKeys, fn)
+		inflightMu.Unlock()
+	}()
+
 	log.Printf("[TTS] 合成: %s", req.Text)
 
-	// 获取信号量，限制并发，超时由客户端控制
+	// 获取信号量，严格串行化 edge-tts 进程
 	edgeTtsSem <- struct{}{}
 	defer func() { <-edgeTtsSem }()
 
