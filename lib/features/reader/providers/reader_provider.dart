@@ -606,8 +606,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     notifyListeners();
 
     try {
+      debugPrint('[loadChapter] 开始下载第 $chapterIndex 章, _isParsing=$_isParsing');
       final service = _defaultBookService ??= DefaultBookService();
       final text = await service.fetchChapter(chapterIndex);
+      debugPrint(
+          '[loadChapter] fetchChapter 返回: ${text == null ? 'null(失败)' : '成功(${text.length}字符)'}');
 
       if (text == null) {
         _chapterLoadState = ChapterLoadState.error;
@@ -615,6 +618,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         return;
       }
 
+      debugPrint('[loadChapter] 开始 loadBook, _isParsing=$_isParsing');
       await loadBook(
         text,
         bookId: BookConstants.defaultBookKey,
@@ -626,15 +630,16 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         ],
         initialIndex: resume ? null : 0,
       );
+      debugPrint('[loadChapter] loadBook 完成, sentences=${_sentences.length}');
 
       _chapterLoadState = ChapterLoadState.loaded;
       // 影子预读下一章（fire-and-forget）
       service.prefetchNextChapter(chapterIndex);
       notifyListeners();
-    } catch (e) {
+    } catch (e, st) {
       _chapterLoadState = ChapterLoadState.error;
       notifyListeners();
-      debugPrint('[ReaderProvider] loadChapter($chapterIndex) 失败: $e');
+      debugPrint('[ReaderProvider] loadChapter($chapterIndex) 失败: $e\n$st');
     }
   }
 
