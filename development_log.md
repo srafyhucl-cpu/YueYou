@@ -1,5 +1,15 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-04**
+
+- **修复(reader,audio): 提词器/TTS 进度不同步 + 西游记不显示 + 删书卡死三 Bug**：
+  - **`TtsAudioItem` / `TtsAudioRequest` / `BufferedAudio`**：新增 `endLineIndex` 字段，记录合并短句消耗的最后一行索引，实现提词器与音频精准对齐。
+  - **`TtsAudioNotifier`**：透传 `endLineIndex`，移除 `textPreview` 20 字截断，`stopAll` 终止双轨 pump 防空转。
+  - **`ReaderProvider._applyLoadedBook`**：加载非默认书时强制重置 `_isDefaultBookMode`，消除切换书籍后章末误触西游记章节跳转的问题。
+  - **`ReaderProvider.nextTtsSentence`**：计算并返回 `endLineIndex`，`onTtsItemFinished` 使用 `endLineIndex+1` 推进 `currentIndex`，避免跳行。
+  - **`BookshelfProvider`**：注入条件改为「书架中无西游记 && !hasSelectedBook」，老用户同样触发西游记注入；新增 `hasDefaultBook` getter；删除西游记时写入 `hasSelectedBook=true` 粘性位防止下次启动重复注入。
+  - **验证**：`flutter analyze` 0 error / 0 warning；单文件测试全绿，已推送 `yueyou_test` 分支（commit `db549a6`）。
+
 ## **2026-05-03**
 
 - **重构(测试基础设施统一化)**:
