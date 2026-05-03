@@ -346,8 +346,12 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
     await StorageService.setCurrentNovelId(bookId);
 
-    if (_ttsEngine.isEnabled) {
-      _ttsNotifier?.refreshSession();
+    // 只有 TTS 正在播放/缓冲时才刷新会话（新章继续播），
+    // 空闲/暂停时不启动泵，避免章节加载瞬间触发大量并发下载导致 ANR。
+    final isActive = _ttsEngine.state == TtsPlaybackState.playing ||
+        _ttsEngine.state == TtsPlaybackState.buffering;
+    if (_ttsEngine.isEnabled && isActive) {
+      await _ttsNotifier?.refreshSession();
     }
   }
 
