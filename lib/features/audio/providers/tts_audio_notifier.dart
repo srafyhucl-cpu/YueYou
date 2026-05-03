@@ -49,6 +49,15 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _sentenceSource = source;
   }
 
+  /// TTS 是否处于活跃状态（播放或缓冲）。
+  /// 供外部（如 ReaderProvider）在调用 refreshSession 前做守卫判断。
+  /// 使用 Riverpod state（纯 Dart，每次 build 干净初始化），
+  /// 比 native audioplayers 状态更可靠。
+  bool get isActivelyPlaying {
+    final s = state;
+    return s is TtsAudioPlaying || s is TtsAudioBuffering;
+  }
+
   @override
   TtsAudioState build() {
     _engine = ref.read(ttsEngineProvider);
