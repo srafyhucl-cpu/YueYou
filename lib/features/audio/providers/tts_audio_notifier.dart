@@ -44,6 +44,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   int _consecutiveFailures = 0;
   bool _isDegradedToLocal = false;
   bool _isPausing = false;
+  int? _pausedInterruptItemId;
+  int? _pausedInterruptSession;
   Timer? _idleTimer; // 静默暂停计时器
 
   /// 注册句子源（由 ReaderProvider 在构造时调用）。
@@ -163,6 +165,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   /// 暂停播放。
   Future<void> pause() async {
     _pumpActive = false;
+    _markPausedInterrupt(_currentItem);
     _isPausing = true; // 开启暂停标识，阻止 _onPlaybackComplete 推进进度
     try {
       await _engine.stopAudio();
@@ -194,6 +197,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _currentFilePath = null;
     _isDegradedToLocal = false;
     _consecutiveFailures = 0;
+    _clearPausedInterrupt();
     _applyState(
       TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null),
     );
@@ -226,6 +230,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _isDegradedToLocal = false;
     _consecutiveFailures = 0;
     _fallbackMessage = null;
+    _clearPausedInterrupt();
 
     // 2. 重置句子源游标：确保从当前 currentIndex 重新开始预取
     _sentenceSource?.resetFetchIndex();
@@ -447,8 +452,9 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     if (_disposed || item.session != _session) return;
 
     // 2. 暂停校验：如果是因暂停导致的 stopAudio()，不应推进进度
-    if (_isPausing) {
+    if (_isPausing || _isPausedInterrupt(item)) {
       debugPrint('[TTS] 暂停引起的播放中断，保留进度');
+      _clearPausedInterrupt();
       return;
     }
 
@@ -461,6 +467,25 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         Future.microtask(() => _sentenceSource!.onTtsItemFinished(item)),
       );
     }
+  }
+
+  void _markPausedInterrupt(TtsAudioItem? item) {
+    if (item == null) {
+      _clearPausedInterrupt();
+      return;
+    }
+    _pausedInterruptItemId = item.id;
+    _pausedInterruptSession = item.session;
+  }
+
+  bool _isPausedInterrupt(TtsAudioItem item) {
+    return _pausedInterruptItemId == item.id &&
+        _pausedInterruptSession == item.session;
+  }
+
+  void _clearPausedInterrupt() {
+    _pausedInterruptItemId = null;
+    _pausedInterruptSession = null;
   }
 
   /// 删除已播完的临时文件（阅后即焚）。
@@ -487,6 +512,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   /// 前置条件：先停用远程播放器，再启动本地降级，杜绝二重唱。
   Future<void> _degradeToLocal(TtsAudioRequest request) async {
     // 停用远程播放器，确保不二重唱
+    _clearPausedInterrupt();
     await _engine.stopAudio();
     await _engine.pauseAudio();
 

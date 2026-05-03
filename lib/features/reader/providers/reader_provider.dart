@@ -217,6 +217,9 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       // 🔥 重要修复：此处绝不可重置 _fetchIndex！
       // 预取指针应当保持领先，重置它会导致预取循环重新抓取已在队列中的任务。
       notifyListeners();
+    } else if (item.lineIndex >= 0 && item.lineIndex < _sentences.length) {
+      _currentIndex = item.lineIndex;
+      notifyListeners();
     } else if (_isDefaultBookMode) {
       // 🔥 章节末尾 + 默认书籍模式：自动推进到下一章
       _autoAdvanceChapter();
@@ -596,7 +599,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     }
 
     debugPrint(
-        '[loadChapter] ★ 被调用 chapterIndex=$chapterIndex resume=$resume, caller=${StackTrace.current.toString().split('\n')[1]}');
+      '[loadChapter] ★ 被调用 chapterIndex=$chapterIndex resume=$resume, caller=${StackTrace.current.toString().split('\n')[1]}',
+    );
     _currentChapterIndex = chapterIndex;
     _isDefaultBookMode = true;
     _chapterLoadState = ChapterLoadState.loading;
@@ -607,7 +611,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       final service = _defaultBookService ??= DefaultBookService();
       final text = await service.fetchChapter(chapterIndex);
       debugPrint(
-          '[loadChapter] fetchChapter 返回: ${text == null ? 'null(失败)' : '成功(${text.length}字符)'}');
+        '[loadChapter] fetchChapter 返回: ${text == null ? 'null(失败)' : '成功(${text.length}字符)'}',
+      );
 
       if (text == null) {
         _chapterLoadState = ChapterLoadState.error;

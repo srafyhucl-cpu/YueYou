@@ -12,6 +12,12 @@
 
 ## **2026-05-03**
 
+- **修复(audio,reader): TTS 暂停完成回调竞态导致切到下一句**:
+  - **`TtsAudioNotifier`**：新增暂停中断哨兵，记录暂停时的 `item.id` 与 `session`，拦截 `stopAudio()` 触发的延迟完成回调，避免误调用 `onTtsItemFinished()`。
+  - **`ReaderProvider.onTtsItemFinished`**：末句完成时将游标钉到当前完成项，保证完成回调幂等且不越界。
+  - **测试覆盖**：新增 `tts_audio_notifier_test.dart`，复现暂停中断 `playFile` 完成回调场景。
+  - **验证**：`flutter test test/features/audio/tts_audio_notifier_test.dart test/features/reader --concurrency=1` 通过；`flutter analyze` 零警告。
+
 - **重构(测试基础设施统一化)**:
   - **`test_utils.dart` 扩展**：提取 `FakeAudioPlayer`/`FakeHttpClient`/`FakeWakeLock`/`FakeFallbackEngine` 四个共享 Fake 类，新增 `makeSettings()`/`makeTtsEngine()`/`makeReaderStack()` 三个工厂方法，消除 7 个测试文件中大量重复定义。
   - **`reader_provider.dart` 兼容**：`onTtsItemStarted`/`onTtsItemFinished` 在 `_ttsNotifier` 为 null 时跳过 session 校验，支持纯 `ReaderProvider` 模式。
