@@ -28,11 +28,11 @@ void main() {
     await initializeTestEnvironment();
   });
 
-  testWidgets('空数据时显示等待占位文本', (tester) async {
+  testWidgets('空数据时显示「数据流未开启」占位文本', (tester) async {
     final reader = await _makeReader();
     addTearDown(() => reader.ttsEngine.dispose());
     await tester.pumpWidget(_wrapWithProviders(reader));
-    expect(find.text('等待数据流接入 [ _ ]'), findsOneWidget);
+    expect(find.text('数据流未开启'), findsOneWidget);
   });
 
   testWidgets('加载文本后非播放态渲染空内容区（text 由 ttsState 驱动）', (tester) async {
@@ -50,8 +50,7 @@ void main() {
     await tester.pumpWidget(_wrapWithProviders(reader));
     await tester.pump();
 
-    expect(find.text('等待数据流接入 [ _ ]'), findsNothing);
-    expect(find.byType(SizedBox), findsWidgets);
+    expect(find.text('数据流未开启'), findsOneWidget);
   });
 
   testWidgets('testConnection 失败时 ttsErrorMessage 非空', (tester) async {

@@ -6,6 +6,7 @@ import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/constants/book_constants.dart';
+import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/library/presentation/widgets/cyber_import_button.dart';
@@ -205,7 +206,8 @@ class _BookCard extends ConsumerWidget {
                             const SizedBox(height: 4),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(
-                                  CyberDimensions.radiusXS),
+                                CyberDimensions.radiusXS,
+                              ),
                               child: LinearProgressIndicator(
                                 value: percent / 100,
                                 backgroundColor: CyberColors.whiteSubtle,
@@ -262,10 +264,12 @@ class _BookCard extends ConsumerWidget {
 
     // 默认书（西游记）走分章懒加载，不走普通 loadBookContent 流程
     if (book.id == BookConstants.defaultBookId) {
-      debugPrint('[_loadBook] 进入默认书分支，开始 loadChapter(0)');
       Navigator.of(context).pop();
-      await reader.loadChapter(0, resume: true);
-      debugPrint('[_loadBook] loadChapter 完成');
+      // 若 restoreDefaultBook 已在后台加载同一章节，直接等待完成即可，不重复触发
+      if (!reader.isDefaultBookMode || reader.sentences.isEmpty) {
+        final chapterIndex = StorageService.getCurrentChapterIndex();
+        await reader.loadChapter(chapterIndex, resume: true);
+      }
       return;
     }
 
