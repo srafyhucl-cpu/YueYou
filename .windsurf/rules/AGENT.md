@@ -18,7 +18,7 @@ trigger: always_on
 ## 🛠 技术栈
 
 - **前端**：Flutter 3.x / Dart 3.x
-- **状态层**：Provider 6.x (ChangeNotifier + ProxyProvider)
+- **状态层**：flutter_riverpod (ChangeNotifierProvider + NotifierProvider + ProviderScope)
 - **持久化**：SharedPreferences (小数据) / path_provider (大文件)
 - **音频/动效**：audioplayers (TTS流) / Rive 0.13.x (赛博吉祥物)
 - **后端**：Go 1.21+ (TTS 业务分发) / 阿里云 OSS/CDN
@@ -38,6 +38,7 @@ trigger: always_on
 4. **零硬编码**：禁止硬编码颜色、字体及服务器域名。必须使用主题类及 `--dart-define` 注入。
 5. **异步解析**：处理 >100KB 的文件，必须使用 `Isolate` (compute)，严禁阻塞主线程。
 6. **数据隐私**：阅读进度与设置必须纯本地存储，禁止向服务端同步用户数据。
+7. **控制台零警告**：**强制要求** - `flutter analyze` 必须零错误零警告，运行时控制台必须完全清洁，无任何警告信息输出。
 
 ## 📡 TTS 云端通信契约 (极度重要)
 
@@ -47,6 +48,13 @@ trigger: always_on
 2. **解析**：JSON 格式约定：`{"status": "success", "url": "https://..."}`。
 3. **下载**：解析 `url`，通过 GET 请求从 OSS/CDN 下载音频并存入本地缓存。
 
+## 📝 日志使用规范 (强制执行)
+
+- **禁止行为**：严禁在业务代码中使用 `debugPrint()`、`print()`，必须使用 `CyberLogger.captureMessage()` 和 `CyberLogger.captureWarning()`
+- **分层约束**：`domain/` 层禁止直接调用日志，`providers/` 层负责业务日志记录，`presentation/` 层只记录用户交互事件
+- **模块分组**：按模块设置 tag：tts、reader、library、game、audio、dashboard
+- **异常处理**：所有异常必须使用 `CyberLogger.captureWarning()` 上报，包含足够上下文信息
+
 ## 🎨 视觉标准
 
 - **颜色**：仅限 `lib/core/theme/cyber_colors.dart`。
@@ -55,16 +63,53 @@ trigger: always_on
 
 ## 行为提示
 
-- **创建任务**：根据提示词在目录DevelopmentPlan下创建或者更新今日任务的文件，格式20260422_XXX.md，，XXX为任务梗概要使用中文，文件标题需要及时调整或根据任务内容更新，每日应该只总结一个此文件
-- **更新日志**：每次任务完成需要考虑是否进行日志更新 development_log.md
-- **更新REDAME**：每次任务完成需要考虑是否进行REDAME更新 REDAME.md
-- **提交代码**：每次任务完成进行代码提交，并对提交代码进行中文注释
-- **推送代码**：代码提交之后，对提交代码推送到远程分支
-- **警告处理**：严格编写md文档，不要忽视控制台警告信息，目前md文档经常有很多警告
-- **打包规范**：打 Android APK 必须使用以下命令，只输出 arm64-v8a 轻量包（覆盖市面 90%+ 主流机型，体积约 28MB），打包完成后删除其他架构产物：
+- **创建/更新任务**：每次任务开始前，先检查 `DevelopmentPlan/` 下是否已有当日文件（格式 `YYYYMMDD_XXX.md`，XXX 为中文梗概）。**有则更新，无则新建，每日严格只保留一个文件**，多个主题合并到同一文件中。
+- **更新日志**：每次任务完成后更新 `development_log.md`，追加本次工作摘要。
+- **更新 README**：每次任务完成后评估是否需要更新 `README.md`（新功能、架构变更必须更新）。
+- **提交代码**：每次任务完成进行代码提交，提交信息使用中文，格式：`type(scope): 中文描述`。
+- **推送代码**：提交后立即推送到远程分支。
+- **收口顺序**：代码改动 → 文档更新（任务单 + 日志 + README）→ 提交 → 推送，严格按此顺序执行，不可遗漏任何步骤。
+- **警告处理**：严格编写 Markdown 文档，**控制台零警告是强制要求**，常见规范：代码块必须标注语言、标题层级不可跳级、列表前后必须有空行。
+- **打包规范**：打 Android APK 必须使用以下命令，只输出 arm64-v8a 轻量包（覆盖市面 90%+ 主流机型，体积约 28MB），打包完成后清理其他架构产物：
 
   ```bash
   flutter build apk --release --target-platform android-arm64 --split-per-abi
   ```
 
   产物路径：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+
+- **服务端部署**：Go 服务端位于 `server/` 目录，部署路径 `/www/wwwroot/yueyou/`，通过 systemd（`yueyou.service`）托管。AK 密钥通过 `/www/wwwroot/yueyou/.env` 的 `EnvironmentFile` 注入，**严禁写入代码或版本库**。更新服务端后执行以下步骤：
+
+  ```bash
+  # 1. 本地交叉编译（在 server/ 目录执行）
+  $env:GOOS="linux"; $env:GOARCH="amd64"; go build -o yueyou-server .
+  # 2. 上传二进制到服务器
+  # 3. 服务器重启服务
+  systemctl restart yueyou
+  ```
+
+## 🛠 技能体系与工作流
+
+### 技能调用优先级
+
+1. **yueyou-architecture-guard** - 架构边界约束（最高优先级）
+2. **yueyou-code-quality-guard** - 代码质量规范（含零警告检查）
+3. **yueyou-config-constants-guard** - 配置常量管理
+4. **yueyou-test-ci-guard** - 测试与 CI 规范
+5. **yueyou-tts-audio-guard** - TTS 音频专项
+6. **yueyou-ui-performance-expert** - UI 性能优化
+7. 其他专项技能按需调用
+
+### 工作流使用
+
+- **code-standardization-check** - 代码规范化检查（强制零警告）
+- **development-task-closure** - 开发任务收口管理
+- **environment-configuration** - 环境配置验证
+- **skill-usage-guide** - 技能使用指南
+
+### 验收标准
+
+- [ ] `flutter analyze` **零错误零警告（控制台完全清洁）**
+- [ ] 运行时控制台无任何警告信息输出
+- [ ] 所有技能检查通过
+- [ ] 工作流验收标准全部满足
