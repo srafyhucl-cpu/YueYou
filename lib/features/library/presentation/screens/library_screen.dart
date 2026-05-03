@@ -260,7 +260,8 @@ class _BookCard extends ConsumerWidget {
     final reader = ref.read(readerProvider);
 
     debugPrint(
-        '[_loadBook] book.id=${book.id} (${book.id.runtimeType}), defaultBookId=${BookConstants.defaultBookId} (${BookConstants.defaultBookId.runtimeType}), match=${book.id == BookConstants.defaultBookId}');
+      '[_loadBook] book.id=${book.id} (${book.id.runtimeType}), defaultBookId=${BookConstants.defaultBookId} (${BookConstants.defaultBookId.runtimeType}), match=${book.id == BookConstants.defaultBookId}',
+    );
 
     // 默认书（西游记）走分章懒加载，不走普通 loadBookContent 流程
     if (book.id == BookConstants.defaultBookId) {

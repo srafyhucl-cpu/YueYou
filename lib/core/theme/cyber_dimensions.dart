@@ -78,6 +78,25 @@ class CyberDimensions {
   /// 标准仪表盘状态卡片最小高度
   static const double dashboardStatusCardMinHeight = 85.0;
 
+  // ==================== 动效 ====================
+
+  /// 提词器扫光条宽度
+  static const double shimmerWidth = 80.0;
+
+  /// 发光阴影模糊半径（霓虹光晕）
+  static const double glowBlurRadius = 8.0;
+
+  /// 发光阴影扩散半径
+  static const double glowSpreadRadius = 1.0;
+
+  // ==================== 列表 / 网格 ====================
+
+  /// 章节列表 item 固定高度（复用 headerHeight）
+  static const double chapterItemHeight = headerHeight;
+
+  /// 状态圆点尺寸（已读/未读指示器）
+  static const double statusDotSize = 6.0;
+
   // ==================== 图标尺寸 ====================
 
   /// 超小图标（箭头、指示器）

@@ -277,6 +277,7 @@ class _RealHttpClient implements HttpClientInterface {
       final Map<String, dynamic> bodyMap = body is Map<String, dynamic>
           ? body
           : (body is String ? jsonDecode(body) as Map<String, dynamic> : {});
+      debugPrint('📡 TTS 请求 URL: $url');
       debugPrint('📡 TTS 请求 body: $bodyMap');
       final jsonBody = jsonEncode(bodyMap);
       request.write(jsonBody);
@@ -342,6 +343,7 @@ class TtsEngineService extends ChangeNotifier {
   // 核心状态
   bool _disposed = false;
   late final Future<void> Function(Duration) _delayFn;
+  final Completer<void> _disposeCompleter = Completer<void>();
 
   String _voice = '';
   late double _volume;
@@ -584,6 +586,8 @@ class TtsEngineService extends ChangeNotifier {
     // 幂等守卫：防止 Riverpod ref.onDispose + 外部手动 dispose 双调用
     if (_disposed) return;
     _disposed = true;
+    _compatLoopActive = false;
+    if (!_disposeCompleter.isCompleted) _disposeCompleter.complete();
     _settings.removeListener(_onSettingsChanged);
     _progressController.close();
     TtsCacheManager.instance.stopPeriodicClean();
@@ -1247,7 +1251,7 @@ class TtsEngineService extends ChangeNotifier {
             if (request.text.length < 5) {
               debugPrint('[TTS] 兼容循环：短句过滤 (${request.text})');
               // 短句不计入失败，等待下一轮产出新句子
-              await _delayFn(const Duration(seconds: 1));
+              await _delayOrDispose(const Duration(seconds: 1));
               continue;
             }
             final path = await downloadAudio(request);
@@ -1267,19 +1271,25 @@ class TtsEngineService extends ChangeNotifier {
 
       // 连续失败退避策略：≥5次连续失败时进入15秒长退避
       if (_consecutiveFailures >= 5) {
-        await _delayFn(const Duration(seconds: 15));
+        await _delayOrDispose(const Duration(seconds: 15));
         continue;
       }
       // 单次失败后短暂退避（3秒），避免频繁轰炸服务端
       if (_consecutiveFailures > 0) {
-        await _delayFn(const Duration(seconds: 3));
+        await _delayOrDispose(const Duration(seconds: 3));
         continue;
       }
       // 正常节拍：缓冲区满则多等，不满则快速响应
       final delayMs =
           (_compatBuffer.length >= _config.maxPrefetchQueue) ? 500 : 100;
-      await _delayFn(Duration(milliseconds: delayMs));
+      await _delayOrDispose(Duration(milliseconds: delayMs));
     }
+  }
+
+  /// 延迟或被 dispose 中断，避免在测试环境中残留 pending timer。
+  Future<void> _delayOrDispose(Duration d) {
+    if (_disposed) return Future<void>.value();
+    return Future.any([_delayFn(d), _disposeCompleter.future]);
   }
 
   /// 影子状态同步（由 [TtsAudioNotifier] 调用，保持向下兼容）。
@@ -1355,6 +1365,8 @@ Future<String> _isolateDownload(_IsolateDownloadInput input) async {
       HttpHeaders.contentTypeHeader,
       'application/json; charset=utf-8',
     );
+    postRequest.headers.set(HttpHeaders.cacheControlHeader, 'no-cache');
+    postRequest.headers.set('Pragma', 'no-cache');
     postRequest.write(
       jsonEncode({
         'text': input.text,

@@ -118,6 +118,17 @@ class CyberTextStyles {
     fontWeight: FontWeight.w700,
   );
 
+  /// 提词器浮层小号错误标题（10px bold）
+  static const TextStyle teleprompterErrorTitle = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  );
+
+  /// 提词器浮层小号提示文字（9px）
+  static const TextStyle teleprompterErrorHint = TextStyle(
+    fontSize: 9,
+  );
+
   static const TextStyle teleprompterPlaceholder = TextStyle(
     color: CyberColors.whiteMuted,
     fontSize: 14,
