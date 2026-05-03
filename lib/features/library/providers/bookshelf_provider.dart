@@ -14,7 +14,7 @@ final bookshelfProvider = ChangeNotifierProvider<BookshelfProvider>((ref) {
   // 书架中不包含西游记，且用户未主动删除过它 → 自动注入（老用户同样生效）
   final hasDefault = p.hasDefaultBook;
   if (!hasDefault && !StorageService.hasSelectedBook()) {
-    Future.microtask(() => p.injectDefaultBookIfNeeded(ref));
+    Future.microtask(() => p.injectDefaultBookIfNeeded());
   }
   return p;
 });
@@ -146,10 +146,12 @@ class BookshelfProvider with ChangeNotifier {
     );
   }
 
-  /// 新用户启动链路：拉取目录 → 写书架 → 预热第一章
+  /// 新用户启动链路：拉取目录 → 写书架
   ///
-  /// 通过 [ref] 读取 [readerProvider]，避免循环依赖。
-  Future<void> injectDefaultBookIfNeeded(Ref ref) async {
+  /// 仅将《西游记》注入书架，不自动加载章节，避免启动阶段
+  /// 网络拉取 + Isolate 解析 + TTS pump 同时触发导致 ANR。
+  /// 用户点击书籍时再由 LibraryScreen → ReaderProvider.loadChapter 加载。
+  Future<void> injectDefaultBookIfNeeded() async {
     // 双重校验（防止并发/重入）
     if (hasDefaultBook || StorageService.hasSelectedBook()) return;
 
@@ -157,8 +159,6 @@ class BookshelfProvider with ChangeNotifier {
       final service = DefaultBookService();
       final catalog = await service.getCatalog();
       await addDefaultBook(catalog);
-      // 预热第一章：fetchChapter 内部会写缓存，loadChapter 直接命中
-      await ref.read(readerProvider).loadChapter(0, resume: false);
     } catch (e) {
       debugPrint('[BookshelfProvider] 默认书籍注入失败: $e');
     }
