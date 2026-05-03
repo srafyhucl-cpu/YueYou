@@ -178,9 +178,9 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   @override
   FutureOr<void> onTtsItemStarted(TtsAudioItem item) {
     final session = _ttsNotifier?.currentSession;
-    if (session != null &&
-        item.session == session &&
-        _currentIndex != item.lineIndex) {
+    // 无编排层时跳过 session 校验（向下兼容）
+    if (session != null && item.session != session) return null;
+    if (_currentIndex != item.lineIndex) {
       _currentIndex = item.lineIndex;
       notifyListeners();
     }
@@ -190,9 +190,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   @override
   Future<void> onTtsItemFinished(TtsAudioItem item) async {
     final session = _ttsNotifier?.currentSession;
-    if (session != null && item.session != session) {
-      return;
-    }
+    // 无编排层时跳过 session 校验（向下兼容）
+    if (session != null && item.session != session) return;
     if (_sentences.isEmpty) return;
 
     // 🔥 自动步进：跳过噪音行并推进 currentIndex

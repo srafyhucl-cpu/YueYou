@@ -2,6 +2,13 @@
 
 ## **2026-05-03**
 
+- **重构(测试基础设施统一化)**:
+  - **`test_utils.dart` 扩展**：提取 `FakeAudioPlayer`/`FakeHttpClient`/`FakeWakeLock`/`FakeFallbackEngine` 四个共享 Fake 类，新增 `makeSettings()`/`makeTtsEngine()`/`makeReaderStack()` 三个工厂方法，消除 7 个测试文件中大量重复定义。
+  - **`reader_provider.dart` 兼容**：`onTtsItemStarted`/`onTtsItemFinished` 在 `_ttsNotifier` 为 null 时跳过 session 校验，支持纯 `ReaderProvider` 模式。
+  - **`teleprompter_view_test.dart` 预期修正**：适配 `ttsAudioProvider` 驱动架构，非播放态不渲染 RichText，改为验证 Provider 层错误状态。
+  - **全部测试文件统一 `delayFn` 永不完成策略和 `addTearDown` dispose 清理**。
+  - **验证**：`flutter analyze` 0 error / 0 warning；`flutter test` 451 passed / 5 skipped / 0 failed。
+
 - **修复(TTS 兼容循环异步时序)**:
   - **`_delayFn` 注入修复**：`downloadAudio` 退避延迟和 `_runCompatibilityLoop` 循环节拍均改用注入的 `_delayFn`，使测试能控制时序。
   - **HTTP 状态码分流**：引入 `_TtsHttpStatusException` 内部异常，`_mainThreadDownload` 非200响应由静默返回 null 改为抛异常，`downloadAudio` 区分 4xx（立即跳过）和 5xx（指数退避重试）。
