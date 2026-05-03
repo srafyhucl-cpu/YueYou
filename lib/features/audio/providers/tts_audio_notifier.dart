@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
-import 'package:yueyou/core/utils/safe_string.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
@@ -85,7 +84,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     final settings = ref.read(settingsProvider);
     final minutes = settings.idleTimeout;
-    
+
     // 如果设置为 0 (永不) 或者当前未在播放/缓冲，则不启动计时
     if (minutes <= 0) return;
     if (state is TtsAudioIdle) return;
@@ -115,34 +114,40 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         // 缓冲区有下一项，直接播下一句
       } else {
         // 缓冲区空 → 重新入队当前文件
-        _buffer.add(BufferedAudio(
-          filePath: _currentFilePath!,
-          lineIndex: _currentItem?.lineIndex ?? -1,
-          text: _currentItem?.text ?? '',
-          title: _currentItem?.title ?? '',
-          session: _session,
-        ),);
+        _buffer.add(
+          BufferedAudio(
+            filePath: _currentFilePath!,
+            lineIndex: _currentItem?.lineIndex ?? -1,
+            text: _currentItem?.text ?? '',
+            title: _currentItem?.title ?? '',
+            session: _session,
+          ),
+        );
       }
-      _applyState(TtsAudioPlaying(
-        item: _snapshotOf(_currentItem!),
-        bufferedCount: _buffer.count,
-        targetCount: _buffer.maxSize,
-        playbackRate: _playbackRate,
-        fallbackMessage: _fallbackMessage,
-      ),);
+      _applyState(
+        TtsAudioPlaying(
+          item: _snapshotOf(_currentItem!),
+          bufferedCount: _buffer.count,
+          targetCount: _buffer.maxSize,
+          playbackRate: _playbackRate,
+          fallbackMessage: _fallbackMessage,
+        ),
+      );
     } else if (_currentItem != null) {
       // 没有文件路径但有 currentItem（可能是正在下载时暂停）
       _startPump();
     } else {
       _session++;
-      _applyState(TtsAudioBuffering(
-        bufferedCount: _buffer.count,
-        targetCount: _buffer.maxSize,
-        progress: _buffer.healthRatio,
-        session: _session,
-        playbackRate: _playbackRate,
-        fallbackMessage: _fallbackMessage,
-      ),);
+      _applyState(
+        TtsAudioBuffering(
+          bufferedCount: _buffer.count,
+          targetCount: _buffer.maxSize,
+          progress: _buffer.healthRatio,
+          session: _session,
+          playbackRate: _playbackRate,
+          fallbackMessage: _fallbackMessage,
+        ),
+      );
       _startPump();
     }
   }
@@ -158,19 +163,22 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       _isPausing = false;
     }
 
-    _applyState(TtsAudioPaused(
-      item: _currentItem != null ? _snapshotOf(_currentItem!) : null,
-      bufferedCount: _buffer.count,
-      targetCount: _buffer.maxSize,
-      session: _session,
-      playbackRate: _playbackRate,
-      fallbackMessage: _fallbackMessage,
-    ),);
+    _applyState(
+      TtsAudioPaused(
+        item: _currentItem != null ? _snapshotOf(_currentItem!) : null,
+        bufferedCount: _buffer.count,
+        targetCount: _buffer.maxSize,
+        session: _session,
+        playbackRate: _playbackRate,
+        fallbackMessage: _fallbackMessage,
+      ),
+    );
   }
 
   /// 停止全部播放任务。
   Future<void> stopAll() async {
     _session++;
+    _pumpActive = false; // 终止双轨泵，避免删书后 _prefetchRunner 持续空查询占 CPU 与 2048 游戏争用帧
     _idleTimer?.cancel();
     await _engine.stopAll();
     _buffer.clear();
@@ -179,7 +187,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _isDegradedToLocal = false;
     _consecutiveFailures = 0;
     _applyState(
-        TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null),);
+      TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null),
+    );
   }
 
   /// 切换播放倍速。
@@ -219,14 +228,16 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     await _engine.pauseAudio();
 
     // 4. 立即进入缓冲并启动泵
-    _applyState(TtsAudioBuffering(
-      bufferedCount: 0,
-      targetCount: _buffer.maxSize,
-      progress: 0.0,
-      session: _session,
-      playbackRate: _playbackRate,
-      fallbackMessage: null,
-    ),);
+    _applyState(
+      TtsAudioBuffering(
+        bufferedCount: 0,
+        targetCount: _buffer.maxSize,
+        progress: 0.0,
+        session: _session,
+        playbackRate: _playbackRate,
+        fallbackMessage: null,
+      ),
+    );
     _startPump();
   }
 
@@ -236,14 +247,16 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       _consecutiveFailures = 0;
       _session++;
       _isDegradedToLocal = false;
-      _applyState(TtsAudioBuffering(
-        bufferedCount: 0,
-        targetCount: _buffer.maxSize,
-        progress: 0.0,
-        session: _session,
-        playbackRate: _playbackRate,
-        fallbackMessage: null,
-      ),);
+      _applyState(
+        TtsAudioBuffering(
+          bufferedCount: 0,
+          targetCount: _buffer.maxSize,
+          progress: 0.0,
+          session: _session,
+          playbackRate: _playbackRate,
+          fallbackMessage: null,
+        ),
+      );
       _startPump();
     } else {
       stopAll();
@@ -349,13 +362,16 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     }
 
     _consecutiveFailures = 0;
-    _buffer.add(BufferedAudio(
-      filePath: filePath,
-      lineIndex: request.lineIndex,
-      text: request.text,
-      title: request.title,
-      session: currentSession,
-    ),);
+    _buffer.add(
+      BufferedAudio(
+        filePath: filePath,
+        lineIndex: request.lineIndex,
+        endLineIndex: request.endLineIndex,
+        text: request.text,
+        title: request.title,
+        session: currentSession,
+      ),
+    );
   }
 
   // ─── 播放与播后清理 ───────────────────────────────────────
@@ -364,7 +380,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   Future<void> _playNext() async {
     final item = _buffer.takeNext();
     if (item == null || _disposed) return;
-    
+
     _resetIdleTimer(); // 每次开始新的一句，刷新计时
 
     // 🔥 Session 哨兵：如果音频项属于旧会话，直接丢弃
@@ -377,6 +393,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       id: DateTime.now().microsecondsSinceEpoch,
       session: _session,
       lineIndex: item.lineIndex,
+      endLineIndex: item.endLineIndex,
       text: item.text,
       title: item.title,
       estimatedDuration: const Duration(seconds: 5),
@@ -386,21 +403,27 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     if (_sentenceSource != null) {
       unawaited(
-          Future.microtask(() => _sentenceSource!.onTtsItemStarted(startItem)),);
+        Future.microtask(() => _sentenceSource!.onTtsItemStarted(startItem)),
+      );
     }
 
-    _applyState(TtsAudioPlaying(
-      item: _snapshotOf(startItem),
-      bufferedCount: _buffer.count,
-      targetCount: _buffer.maxSize,
-      playbackRate: _playbackRate,
-      fallbackMessage: _fallbackMessage,
-    ),);
+    _applyState(
+      TtsAudioPlaying(
+        item: _snapshotOf(startItem),
+        bufferedCount: _buffer.count,
+        targetCount: _buffer.maxSize,
+        playbackRate: _playbackRate,
+        fallbackMessage: _fallbackMessage,
+      ),
+    );
 
     // 等待播放完成
-    await _engine.playFile(item.filePath, onComplete: () {
-      _onPlaybackComplete(startItem);
-    },);
+    await _engine.playFile(
+      item.filePath,
+      onComplete: () {
+        _onPlaybackComplete(startItem);
+      },
+    );
 
     if (_disposed) return;
 
@@ -427,23 +450,26 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     }
     if (_sentenceSource != null) {
       unawaited(
-          Future.microtask(() => _sentenceSource!.onTtsItemFinished(item)),);
+        Future.microtask(() => _sentenceSource!.onTtsItemFinished(item)),
+      );
     }
   }
 
   /// 删除已播完的临时文件（阅后即焚）。
   void _deleteFile(String path) {
-    unawaited(Future.microtask(() async {
-      try {
-        final file = File(path);
-        if (await file.exists()) {
-          await file.delete();
-          debugPrint('[TTS] 已销毁临时文件: $path');
+    unawaited(
+      Future.microtask(() async {
+        try {
+          final file = File(path);
+          if (await file.exists()) {
+            await file.delete();
+            debugPrint('[TTS] 已销毁临时文件: $path');
+          }
+        } catch (e) {
+          debugPrint('[TTS] 删除临时文件失败: $e');
         }
-      } catch (e) {
-        debugPrint('[TTS] 删除临时文件失败: $e');
-      }
-    }),);
+      }),
+    );
   }
 
   // ─── 降级与恢复 ───────────────────────────────────────────
@@ -467,6 +493,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       id: DateTime.now().microsecondsSinceEpoch,
       session: _session,
       lineIndex: request.lineIndex,
+      endLineIndex: request.endLineIndex,
       text: request.text,
       title: request.title,
       estimatedDuration: const Duration(seconds: 5),
@@ -474,24 +501,32 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _currentItem = fallbackItem;
 
     if (_sentenceSource != null) {
-      unawaited(Future.microtask(
-          () => _sentenceSource!.onTtsItemStarted(fallbackItem),),);
+      unawaited(
+        Future.microtask(
+          () => _sentenceSource!.onTtsItemStarted(fallbackItem),
+        ),
+      );
     }
 
-    _applyState(TtsAudioPlaying(
-      item: _snapshotOf(fallbackItem),
-      bufferedCount: _buffer.count,
-      targetCount: _buffer.maxSize,
-      playbackRate: _playbackRate,
-      fallbackMessage: _fallbackMessage,
-    ),);
+    _applyState(
+      TtsAudioPlaying(
+        item: _snapshotOf(fallbackItem),
+        bufferedCount: _buffer.count,
+        targetCount: _buffer.maxSize,
+        playbackRate: _playbackRate,
+        fallbackMessage: _fallbackMessage,
+      ),
+    );
 
     final ok = await _engine.speakWithLocalTts(request.text);
     if (!_disposed && ok && _currentItem?.id == fallbackItem.id) {
       _currentItem = null;
       if (_sentenceSource != null) {
-        unawaited(Future.microtask(
-            () => _sentenceSource!.onTtsItemFinished(fallbackItem),),);
+        unawaited(
+          Future.microtask(
+            () => _sentenceSource!.onTtsItemFinished(fallbackItem),
+          ),
+        );
       }
     }
   }
@@ -544,7 +579,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       session: item.session,
       lineIndex: item.lineIndex,
       title: item.title,
-      textPreview: safeSubstring(item.text, 0, 20),
+      // 提词器需要完整朗读文本（合并短句时常远超 20 字），不再截断
+      textPreview: item.text,
     );
   }
 

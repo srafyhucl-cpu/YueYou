@@ -8,6 +8,10 @@ class TtsAudioItem {
   final int id;
   final int session;
   final int lineIndex;
+
+  /// 合并短句消耗到的最后一行索引（包含），无合并时等于 [lineIndex]。
+  /// 提词器据此精确推进 currentIndex，避免被合并的中间行被跳过/错位。
+  final int endLineIndex;
   final String text;
   final String title;
   final Duration estimatedDuration;
@@ -16,10 +20,11 @@ class TtsAudioItem {
     required this.id,
     required this.session,
     required this.lineIndex,
+    int? endLineIndex,
     required this.text,
     required this.title,
     required this.estimatedDuration,
-  });
+  }) : endLineIndex = endLineIndex ?? lineIndex;
 }
 
 /// TTS 预取请求。
@@ -28,14 +33,18 @@ class TtsAudioItem {
 /// 或个性化设置，避免向服务端传递隐私数据。
 class TtsAudioRequest {
   final int lineIndex;
+
+  /// 合并短句消耗到的最后一行索引（包含），无合并时等于 [lineIndex]。
+  final int endLineIndex;
   final String text;
   final String title;
 
   TtsAudioRequest({
     required this.lineIndex,
+    int? endLineIndex,
     required this.text,
     required this.title,
-  });
+  }) : endLineIndex = endLineIndex ?? lineIndex;
 }
 
 /// TTS 文本源接口。
@@ -51,7 +60,7 @@ abstract interface class TtsSentenceSource {
 
   /// 当前音频项播放完成。
   FutureOr<void> onTtsItemFinished(TtsAudioItem item);
+
   /// 重置预取游标到当前阅读位置。
   void resetFetchIndex();
 }
-

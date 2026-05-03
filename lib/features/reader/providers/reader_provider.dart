@@ -136,13 +136,16 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
       // TTS API 要求至少 5 字符，向后合并短句
       int consumed = cursor + 1; // consumed 指向「下一个未消耗行」
+      int endLine = lineIndex; // 合并消耗到的最后一行（含）
       while (text.length < 5 && consumed < _sentences.length) {
-        final nextText = _sentences[consumed].trim();
+        final mergeIdx = consumed;
+        final nextText = _sentences[mergeIdx].trim();
         consumed++;
         if (_isNoise(nextText)) continue;
         // 合并时遇到下一个章节标题则停止，不跨章合并
         if (_isChapterTitle(nextText)) break;
         text = text + nextText;
+        endLine = mergeIdx;
         if (text.length >= 5) break;
       }
 
@@ -162,11 +165,12 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       }
 
       debugPrint(
-        ' [TtsFetch] 提交请求: line=$lineIndex, nextFetch=$_fetchIndex, text="${text.substring(0, text.length > 10 ? 10 : text.length)}..."',
+        ' [TtsFetch] 提交请求: line=$lineIndex..$endLine, nextFetch=$_fetchIndex, text="${text.substring(0, text.length > 10 ? 10 : text.length)}..."',
       );
 
       return TtsAudioRequest(
         lineIndex: lineIndex,
+        endLineIndex: endLine,
         text: text,
         title: currentChapterTitle,
       );
@@ -194,8 +198,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     if (session != null && item.session != session) return;
     if (_sentences.isEmpty) return;
 
-    // 🔥 自动步进：跳过噪音行并推进 currentIndex
-    int nextIdx = _currentIndex + 1;
+    // 🔥 自动步进：从「合并段最后一行」之后开始扫描，跳过噪音行
+    // 关键：item.endLineIndex 已包含本句合并消耗的所有行，
+    // 使用它推进可保证提词器不跳行、与 TTS 进度严格对齐。
+    int nextIdx = item.endLineIndex + 1;
+    if (nextIdx <= _currentIndex) nextIdx = _currentIndex + 1;
     while (nextIdx < _sentences.length && _isNoise(_sentences[nextIdx])) {
       nextIdx++;
     }
@@ -302,6 +309,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   }) async {
     _sentences = sentences;
     _currentBookId = bookId;
+
+    // 加载非默认书时，强制清除默认书模式残留，避免章末误触 _autoAdvanceChapter
+    if (bookId != BookConstants.defaultBookKey) {
+      _isDefaultBookMode = false;
+      _currentChapterIndex = null;
+      _chapterLoadState = ChapterLoadState.idle;
+    }
 
     final Map<int, int> rawLineToSentIdx = {};
     for (int i = 0; i < rawLineOrigins.length; i++) {
@@ -537,10 +551,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   void resetForDeletedBook(String bookId) {
     if (_currentBookId != bookId) return;
 
-    // 停止 TTS 播放
-    if (_ttsEngine.isEnabled) {
-      _ttsNotifier?.stopAll();
-    }
+    // 停止 TTS 播放（无论是否启用，强制清空缓冲区和泵）
+    _ttsNotifier?.stopAll();
 
     // 置空所有数据
     _currentBookId = null;
@@ -548,6 +560,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     _chapters = [];
     _currentIndex = 0;
     _fetchIndex = 0;
+
+    // 重置分章懒加载模式，防止残留状态触发 _autoAdvanceChapter
+    _isDefaultBookMode = false;
+    _currentChapterIndex = null;
+    _chapterLoadState = ChapterLoadState.idle;
 
     // 异步清除持久化的当前小说标识
     StorageService.setCurrentNovelId(null);
