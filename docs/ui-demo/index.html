@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>阅游 UI 设计系统交互 Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="demo-shell">
+    <aside class="design-panel glass-panel">
+      <p class="eyebrow">YUEYOU DESIGN SYSTEM</p>
+      <h1>阅游 UI 交互 Demo</h1>
+      <p class="summary">基于当前 Flutter 页面结构的赛博朋克设计系统预览。</p>
+      <div class="token-grid">
+        <span class="token cyan">霓虹青</span>
+        <span class="token pink">霓虹粉</span>
+        <span class="token purple">霓虹紫</span>
+        <span class="token green">矩阵绿</span>
+      </div>
+      <section>
+        <h2>页面映射</h2>
+        <ul class="mapping-list">
+          <li><b>Dashboard</b><span>棋盘 / HUD / 提词器 / 播放器</span></li>
+          <li><b>Library</b><span>书籍卡片 / 阅读进度 / 导入入口</span></li>
+          <li><b>Chapters</b><span>目录 / 当前章 / 已读状态</span></li>
+          <li><b>Settings</b><span>TTS / 环境音 / 动画质量</span></li>
+        </ul>
+      </section>
+      <section>
+        <h2>交互提示</h2>
+        <p class="hint">点击手机顶部导航、播放器、倍速、棋盘方块与弹层列表，验证设计系统状态。</p>
+      </section>
+    </aside>
+
+    <section class="phone-frame" aria-label="阅游手机界面预览">
+      <div class="phone-screen">
+        <div class="ambient-grid"></div>
+        <header class="top-nav glass-panel">
+          <button class="nav-btn" data-modal="library">书架</button>
+          <button class="nav-btn" data-modal="chapters">目录</button>
+          <button class="nav-btn" data-modal="settings">设置</button>
+        </header>
+
+        <section class="hud-row">
+          <article class="hud-card glass-panel">
+            <span>当前得分 | 连击</span>
+            <strong><em id="scoreValue">2048</em><i>|</i><em class="pink-text">8</em></strong>
+          </article>
+          <article class="hud-card glass-panel">
+            <span>最高得分 | 最高连击</span>
+            <strong><em>8192</em><i>|</i><em class="pink-text">16</em></strong>
+          </article>
+        </section>
+
+        <section class="board-zone">
+          <div class="mascot" id="mascot">小游</div>
+          <div class="game-board glass-panel" id="gameBoard">
+            <button class="tile t2">2</button>
+            <button class="tile t4">4</button>
+            <button class="tile t8">8</button>
+            <button class="tile t16">16</button>
+            <button class="tile t32">32</button>
+            <button class="tile t64">64</button>
+            <button class="tile t128">128</button>
+            <button class="tile empty"></button>
+            <button class="tile t256">256</button>
+            <button class="tile empty"></button>
+            <button class="tile t512">512</button>
+            <button class="tile empty"></button>
+            <button class="tile t1024">1024</button>
+            <button class="tile empty"></button>
+            <button class="tile empty"></button>
+            <button class="tile t2048">2048</button>
+          </div>
+        </section>
+
+        <section class="teleprompter glass-panel">
+          <div class="scan-line"></div>
+          <p><span>孙悟空闻言，金睛火眼一闪，</span><b id="activeSentence">正欲纵云前行。</b></p>
+        </section>
+
+        <footer class="player glass-panel" id="playerConsole">
+          <div class="wave" id="waveform"><i></i><i></i><i></i><i></i></div>
+          <button class="play-btn" id="playButton">▶</button>
+          <div class="track-info">
+            <span>《西游记》</span>
+            <strong id="chapterTitle">第十四回 心猿归正 六贼无踪</strong>
+          </div>
+          <button class="speed-btn" id="speedButton">1.0x</button>
+        </footer>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-layer" id="modalLayer" hidden>
+    <div class="modal-backdrop" data-close="true"></div>
+    <section class="modal-card glass-panel" id="modalCard" role="dialog" aria-modal="true">
+      <header class="modal-header">
+        <h2 id="modalTitle">标题</h2>
+        <button class="close-btn" data-close="true">×</button>
+      </header>
+      <div class="modal-body" id="modalBody"></div>
+    </section>
+  </div>
+
+  <div class="toast glass-panel" id="toast" hidden>XIAOYO 已记录操作</div>
+  <script src="app.js"></script>
+</body>
+</html>

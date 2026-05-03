@@ -68,6 +68,7 @@
 - **全域错误集中化**：通过 `CyberErrorMessages` 全局收口所有报错文本，移除魔法字符串，支持极致脱敏与拟人化表达。
 - **沉浸式反馈系统**：`CyberToast` 深度集成 XIAOYO 吉祥物 PFP，将系统通知转化为拟人化对话气泡，强化赛博朋克极客交互氛围。
 - **毛玻璃弹窗**：`CyberModal` + `BackdropFilter`，支持 `barrierDismissible` 控制。
+- **交互式设计预览**：`docs/ui-demo/` 提供基于当前 Flutter 页面结构的 UI 设计系统 Demo，可用于回迁前验证主仪表盘、书架、章节、设置与 TTS 控制台视觉方向。
 - **崩溃监控锚点**：`CyberLogger` 挂接 `FlutterError.onError` + `PlatformDispatcher.instance.onError`，预留 Sentry/Crashlytics 接入位。
 
 ---

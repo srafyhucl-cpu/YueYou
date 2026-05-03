@@ -18,6 +18,12 @@
   - **测试覆盖**：新增 `tts_audio_notifier_test.dart`，复现暂停中断 `playFile` 完成回调场景。
   - **验证**：`flutter test test/features/audio/tts_audio_notifier_test.dart test/features/reader --concurrency=1` 通过；`flutter analyze` 零警告。
 
+- **功能(UI 设计系统交互 Demo)**:
+  - **`docs/ui-demo/index.html`**：新增基于当前 Flutter 完整形态的交互式 UI Demo，覆盖主仪表盘、书架、章节目录、设置、提词器、TTS 控制台与 2048 棋盘。
+  - **`docs/ui-demo/styles.css`**：按 `CyberColors`、`CyberTextStyles`、`CyberDimensions`、`CyberShadows` 映射赛博朋克视觉令牌，建立玻璃面板、HUD 卡、章节项、书籍卡片、播放器胶囊等样式。
+  - **`docs/ui-demo/app.js`**：实现播放暂停、倍速切换、章节选择、书架入口、设置开关、棋盘点击与 Toast 反馈等模拟交互。
+  - **预览**：`python -m http.server 8787 --directory docs/ui-demo`，访问 `http://localhost:8787`。
+
 - **重构(测试基础设施统一化)**:
   - **`test_utils.dart` 扩展**：提取 `FakeAudioPlayer`/`FakeHttpClient`/`FakeWakeLock`/`FakeFallbackEngine` 四个共享 Fake 类，新增 `makeSettings()`/`makeTtsEngine()`/`makeReaderStack()` 三个工厂方法，消除 7 个测试文件中大量重复定义。
   - **`reader_provider.dart` 兼容**：`onTtsItemStarted`/`onTtsItemFinished` 在 `_ttsNotifier` 为 null 时跳过 session 校验，支持纯 `ReaderProvider` 模式。
