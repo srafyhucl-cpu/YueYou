@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
@@ -340,11 +342,11 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       // 只有在会话未变更时才计入失败
       if (currentSession == _session) {
         _consecutiveFailures++;
-        if (_consecutiveFailures >= 5) {
+        if (_consecutiveFailures >= 8) {
           CyberLogger.captureWarning(
             e is Exception ? e : Exception('$e'),
             tag: 'tts',
-            extra: {'context': '连续 5 次下载失败，触发降级'},
+            extra: {'context': '连续 8 次下载失败，触发降级'},
           );
           _degradeToLocal(request);
         }
@@ -358,8 +360,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     }
     if (filePath == null) {
       _consecutiveFailures++;
-      // 降级判定：针对新会话的前 3 次失败更加宽容
-      if (_consecutiveFailures >= 3) {
+      // 降级判定：针对新会话的前 6 次失败更加宽容
+      if (_consecutiveFailures >= 6) {
         CyberLogger.captureWarning(
           Exception('download returned null'),
           tag: 'tts',
@@ -541,6 +543,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   }
 
   /// 退化模式下的纯本地循环。
+  ///
+  /// 每句播完后探测服务器，网络恢复则自动切回云端 TTS。
   Future<void> _pumpDegraded() async {
     if (_sentenceSource == null) return;
     final request = await _sentenceSource!.nextTtsSentence(_session);
@@ -553,6 +557,22 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       return;
     }
     await _degradeToLocal(request);
+    // 每句播完后探测一次网络，恢复则退出降级
+    if (!_disposed && _isDegradedToLocal) {
+      try {
+        final resp = await http
+            .head(Uri.parse('${TtsConfig.bookApiBase}/ping'))
+            .timeout(const Duration(seconds: 3));
+        if (resp.statusCode < 500) {
+          _isDegradedToLocal = false;
+          _consecutiveFailures = 0;
+          _fallbackMessage = null;
+          debugPrint('[TTS] 网络已恢复，退出降级模式');
+        }
+      } catch (_) {
+        // 仍无网络，继续降级
+      }
+    }
   }
 
   // ─── 状态构造与推送 ────────────────────────────────────────
