@@ -12,6 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// edgeTtsSem 限制 edge-tts 并发进程数为 3，避免触发微软服务端并发任务限制。
+var edgeTtsSem = make(chan struct{}, 3)
+
 // ttsHandler 接受文本和音色，生成 MP3 并上传 OSS，返回 CDN 播放地址。
 // 遵循分离下载原则：客户端 POST 获取 URL，再自行 GET 下载音频。
 func ttsHandler(c *gin.Context) {
@@ -44,6 +47,10 @@ func ttsHandler(c *gin.Context) {
 	}
 
 	log.Printf("[TTS] 合成: %s", req.Text)
+
+	// 获取信号量，限制并发，超时由客户端控制
+	edgeTtsSem <- struct{}{}
+	defer func() { <-edgeTtsSem }()
 
 	tmpFile := fmt.Sprintf("/tmp/tts_%x.mp3",
 		md5.Sum([]byte(req.Text+req.Voice+fmt.Sprintf("%d", os.Getpid()))))
