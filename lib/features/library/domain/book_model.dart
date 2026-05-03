@@ -22,6 +22,7 @@ class BookModel {
         'title': title,
         'total': total,
         'cursor': cursor,
+        'chapters': chapters.map((c) => c.toJson()).toList(),
       };
 
   factory BookModel.fromJson(Map<String, dynamic> json) => BookModel(
@@ -29,6 +30,9 @@ class BookModel {
         title: json['title'] as String,
         total: (json['total'] as num?)?.toInt() ?? 0,
         cursor: (json['cursor'] as num?)?.toInt() ?? 0,
+        chapters: (json['chapters'] as List<dynamic>? ?? [])
+            .map((e) => ChapterModel.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 
   BookModel copyWith({int? cursor, List<ChapterModel>? chapters}) => BookModel(

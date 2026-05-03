@@ -38,7 +38,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
     shadows: [
       Shadow(
         color: CyberColors.hackerBlue.withValues(alpha: 0.5),
-        blurRadius: 8,
+        blurRadius: CyberDimensions.glowBlurRadius,
       ),
     ],
   );
@@ -300,8 +300,8 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                 boxShadow: [
                   BoxShadow(
                     color: CyberColors.neonCyan.withValues(alpha: 0.7),
-                    blurRadius: 8,
-                    spreadRadius: 1,
+                    blurRadius: CyberDimensions.glowBlurRadius,
+                    spreadRadius: CyberDimensions.glowSpreadRadius,
                   ),
                 ],
               ),
@@ -358,18 +358,15 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                     children: [
                       Text(
                         '云端卷宗同步失败',
-                        style: CyberTextStyles.caption.copyWith(
+                        style: CyberTextStyles.teleprompterErrorTitle.copyWith(
                           color: CyberColors.neonPink,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: CyberDimensions.spacingXS),
                       Text(
                         '[ 点击重试 ]',
-                        style: CyberTextStyles.caption.copyWith(
+                        style: CyberTextStyles.teleprompterErrorHint.copyWith(
                           color: CyberColors.neonCyan,
-                          fontSize: 9,
                         ),
                       ),
                     ],
@@ -395,10 +392,8 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                   child: Text(
                     '数据链路中断: ${ref.read(readerProvider).ttsErrorMessage}',
                     textAlign: TextAlign.center,
-                    style: CyberTextStyles.caption.copyWith(
+                    style: CyberTextStyles.teleprompterErrorTitle.copyWith(
                       color: CyberColors.neonPink,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -421,17 +416,15 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
             children: [
               Text(
                 '云端卷宗同步失败',
-                style: CyberTextStyles.teleprompterPlaceholder.copyWith(
+                style: CyberTextStyles.teleprompterErrorTitle.copyWith(
                   color: CyberColors.neonPink,
-                  fontSize: 10,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: CyberDimensions.spacingXS),
               Text(
                 '[ 点击重试 ]',
-                style: CyberTextStyles.teleprompterPlaceholder.copyWith(
+                style: CyberTextStyles.teleprompterErrorHint.copyWith(
                   color: CyberColors.neonCyan.withValues(alpha: 0.7),
-                  fontSize: 9,
                 ),
               ),
             ],
@@ -450,10 +443,10 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
           builder: (_, __) => LayoutBuilder(
             builder: (ctx, constraints) {
               final totalWidth = constraints.maxWidth;
-              const shimmerWidth = 80.0;
+              const shimmerWidth = CyberDimensions.shimmerWidth;
               final offset = _skeletonCtrl.value * (totalWidth + shimmerWidth) -
                   shimmerWidth;
-              final innerHeight = CyberDimensions.teleprompterHeight -
+              const innerHeight = CyberDimensions.teleprompterHeight -
                   CyberDimensions.spacingS * 2;
               return ClipRect(
                 child: SizedBox(

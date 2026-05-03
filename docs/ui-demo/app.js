@@ -9,6 +9,7 @@ const mascot = document.querySelector('#mascot');
 const scoreValue = document.querySelector('#scoreValue');
 const activeSentence = document.querySelector('#activeSentence');
 const chapterTitle = document.querySelector('#chapterTitle');
+const toastText   = document.querySelector('#toastText');
 
 const speeds = ['0.8x', '1.0x', '1.2x', '1.5x', '2.0x'];
 const sentences = [
@@ -67,19 +68,19 @@ function openModal(type) {
   if (!template) return;
   modalTitle.textContent = template.title;
   modalBody.innerHTML = template.html;
-  modalLayer.hidden = false;
+  modalLayer.classList.remove('modal-layer--hidden');
 }
 
 function closeModal() {
-  modalLayer.hidden = true;
+  modalLayer.classList.add('modal-layer--hidden');
 }
 
 function showToast(message) {
-  toast.textContent = `XIAOYO · ${message}`;
-  toast.hidden = false;
+  toastText.textContent = `XIAOYO · ${message}`;
+  toast.classList.remove('toast--hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
-    toast.hidden = true;
+    toast.classList.add('toast--hidden');
   }, 1800);
 }
 
@@ -133,8 +134,24 @@ document.querySelectorAll('[data-modal]').forEach((button) => {
   button.addEventListener('click', () => openModal(button.dataset.modal));
 });
 
-document.querySelectorAll('[data-close]').forEach((button) => {
-  button.addEventListener('click', closeModal);
+document.querySelectorAll('[data-modal-hint]').forEach((item) => {
+  item.addEventListener('click', () => openModal(item.dataset.modalHint));
+});
+
+modalLayer.addEventListener('click', (event) => {
+  if (event.target.closest('[data-close]')) {
+    closeModal();
+    return;
+  }
+  if (event.target.classList.contains('modal-backdrop')) {
+    closeModal();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !modalLayer.classList.contains('modal-layer--hidden')) {
+    closeModal();
+  }
 });
 
 modalBody.addEventListener('click', bindModalBodyAction);

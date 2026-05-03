@@ -1,7 +1,0 @@
-style: 完善代码中文化注释与大厂生产级静态分析规范
-
-- 翻译并重写 lib/ 中残留的英文注释与调试日志（tts_error_listener、local_storage_service、sfx_service），实现 100% 中文合规。
-- 更新 analysis_options.yaml，引入 prefer_final_locals、require_trailing_commas 等严苛代码规范。
-- 运行 dart fix --apply，批量处理了 43 个文件的 224 处尾随逗号与 final 修饰符遗漏。
-- 保证 flutter analyze 达成绝对零警告状态，全量集成测试 451/451 稳定通过。
-- 对最近提交的日志进行了核查（发现早前有非规范命名的文档/修复提交，后续将严格执行 Conventional Commits）。

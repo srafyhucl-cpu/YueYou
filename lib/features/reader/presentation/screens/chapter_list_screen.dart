@@ -52,7 +52,7 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
     // O(1) 直接定位：创建时就设置初始偏移
     final targetIndex =
         _reversed ? (chapters.length - 1 - activeIdx) : activeIdx;
-    const itemHeight = 56.0;
+    const itemHeight = CyberDimensions.chapterItemHeight;
     final offset = targetIndex * itemHeight;
 
     return ScrollController(initialScrollOffset: offset);
@@ -174,7 +174,7 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
     return ListView.builder(
       controller: _scrollController,
       itemCount: displayChapters.length,
-      itemExtent: 56.0, // 固定item高度，提升性能
+      itemExtent: CyberDimensions.chapterItemHeight, // 固定item高度，提升性能
       padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
       itemBuilder: (ctx, i) {
         final chapter = displayChapters[i];
@@ -204,8 +204,10 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
 
   /// 默认书籍（西游记）的章节列表：全量100章，点击触发分章懒加载
   Widget _buildDefaultBookChapterList(
-      BuildContext context, ReaderProvider reader) {
-    final allTitles = BookConstants.xiyoujiChapterTitles;
+    BuildContext context,
+    ReaderProvider reader,
+  ) {
+    const allTitles = BookConstants.xiyoujiChapterTitles;
     final int activeIdx = reader.currentChapterIndex ?? 0;
 
     // O(1) 初始滚动定位
@@ -213,14 +215,15 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
       final targetIndex =
           _reversed ? (allTitles.length - 1 - activeIdx) : activeIdx;
       _scrollController = ScrollController(
-        initialScrollOffset: (targetIndex * 56.0).clamp(0.0, double.infinity),
+        initialScrollOffset: (targetIndex * CyberDimensions.chapterItemHeight)
+            .clamp(0.0, double.infinity),
       );
     }
 
     return ListView.builder(
       controller: _scrollController,
       itemCount: allTitles.length,
-      itemExtent: 56.0,
+      itemExtent: CyberDimensions.chapterItemHeight,
       padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingS),
       itemBuilder: (ctx, i) {
         final int originalIdx = _reversed ? (allTitles.length - 1 - i) : i;
@@ -276,7 +279,8 @@ class _ChapterItem extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-                color: CyberColors.whiteFaint.withValues(alpha: 0.4)),
+              color: CyberColors.whiteFaint.withValues(alpha: 0.4),
+            ),
           ),
           color: isActive
               ? CyberColors.neonPink.withValues(alpha: 0.1)
@@ -295,8 +299,8 @@ class _ChapterItem extends StatelessWidget {
               )
             else
               Container(
-                width: 6,
-                height: 6,
+                width: CyberDimensions.statusDotSize,
+                height: CyberDimensions.statusDotSize,
                 margin: const EdgeInsets.only(right: CyberDimensions.spacingMS),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -308,7 +312,7 @@ class _ChapterItem extends StatelessWidget {
                 title,
                 style: CyberTextStyles.tileTitle.copyWith(
                   color: isActive ? CyberColors.neonPink : textColor,
-                  fontWeight: isActive ? FontWeight.w900 : FontWeight.normal,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ),
