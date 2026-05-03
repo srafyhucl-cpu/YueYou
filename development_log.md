@@ -12,6 +12,13 @@
 
 ## **2026-05-03**
 
+- **维护(skills): 吸收 GitHub Agent Skills 思路并增强阅游技能体系**:
+  - **新增 `yueyou-release-readiness-guard`**：固化发版门禁、arm64 APK 打包命令、生产环境 `--dart-define` 注入、TTS 契约检查和拒绝发布条件。
+  - **增强 `yueyou-test-ci-guard`**：吸收 Flutter 官方测试策略，补充 Widget 行为测试、平台插件 mock、关键集成闭环和异步竞态测试规则。
+  - **增强 `yueyou-code-quality-guard`**：补充现代 Dart 质量规则，强调 Dart 3 穷尽分支、空安全、异步 session 守卫和 domain 层纯净性。
+  - **增强 `yueyou-task-steward` 与 `skill-usage-guide`**：明确发布守卫与任务收口职责边界，补充发布打包技能调用链。
+  - **验证**：仅修改 Markdown 技能与工作流规则，未改业务代码；README 无需更新。
+
 - **修复(audio,reader): TTS 暂停完成回调竞态导致切到下一句**:
   - **`TtsAudioNotifier`**：新增暂停中断哨兵，记录暂停时的 `item.id` 与 `session`，拦截 `stopAudio()` 触发的延迟完成回调，避免误调用 `onTtsItemFinished()`。
   - **`ReaderProvider.onTtsItemFinished`**：末句完成时将游标钉到当前完成项，保证完成回调幂等且不越界。
