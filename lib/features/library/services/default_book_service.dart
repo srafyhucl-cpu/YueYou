@@ -191,6 +191,7 @@ class DefaultBookService {
       return null;
     }
 
-    return getResp.body;
+    // 强制 UTF-8 解码，避免 http.body 按 Latin-1 解析中文导致 sentences=0
+    return utf8.decode(getResp.bodyBytes, allowMalformed: true);
   }
 }
