@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **维护(analyze): 静态分析大面积报错止血与契约恢复**：
+  - **根因定位**：确认大面积报错并非单点 lint，而是编码损坏、核心文件重建、API 契约漂移和测试契约失配叠加导致。
+  - **止血处理**：停止逐条补错策略，恢复被重建污染的核心文件到 Git 基线，避免 `TtsEngineService`、`TtsAudioNotifier`、`TileModel` 等契约继续偏移。
+  - **验证**：`flutter analyze` 通过，结果为 `No issues found!`；工作区源码恢复到可诊断的干净状态。
+  - **文档**：新增 `DevelopmentPlan/20260504_静态分析止血与契约恢复.md` 记录本次分析与处理过程；README 无需更新。
+
 - **修复(reader,audio): 提词器/TTS 进度不同步 + 西游记不显示 + 删书卡死三 Bug**：
   - **`TtsAudioItem` / `TtsAudioRequest` / `BufferedAudio`**：新增 `endLineIndex` 字段，记录合并短句消耗的最后一行索引，实现提词器与音频精准对齐。
   - **`TtsAudioNotifier`**：透传 `endLineIndex`，移除 `textPreview` 20 字截断，`stopAll` 终止双轨 pump 防空转。
