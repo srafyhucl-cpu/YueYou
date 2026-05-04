@@ -45,7 +45,7 @@ class DefaultBookService {
       final resp = await http.get(
         uri,
         headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(TtsConfig.bookApiTimeout);
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
         if (body['status'] == 'success') {
@@ -193,7 +193,7 @@ class DefaultBookService {
           body: jsonEncode({'bookId': bookKey, 'chapterIndex': chapterIndex}),
         )
         .timeout(
-          const Duration(seconds: 4),
+          TtsConfig.bookApiTimeout,
         );
 
     if (postResp.statusCode != 200) {
@@ -225,8 +225,9 @@ class DefaultBookService {
     if (cdnUrl == null || cdnUrl.isEmpty) return null;
 
     // 步骤二：GET 从 CDN 下载章节纯文本
-    final getResp =
-        await http.get(Uri.parse(cdnUrl)).timeout(const Duration(seconds: 15));
+    final getResp = await http
+        .get(Uri.parse(cdnUrl))
+        .timeout(TtsConfig.bookCdnDownloadTimeout);
 
     if (getResp.statusCode != 200) {
       CyberLogger.captureWarning(
