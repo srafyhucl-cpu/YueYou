@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 
 /// 全量本地持久化服务
 /// 完整复刻旧版 localStorage + LocalDB.js 的所有存储行为
@@ -181,7 +181,12 @@ class StorageService {
       await file
           .writeAsString(jsonEncode({'lines': lines, 'chapters': chapters}));
     } catch (e, st) {
-      debugPrint('StorageService.saveBookContent error: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.saveBookContent 失败'},
+      );
     }
   }
 
@@ -193,7 +198,12 @@ class StorageService {
       if (content.trim().isEmpty) return null;
       return jsonDecode(content) as Map<String, dynamic>;
     } catch (e, st) {
-      debugPrint('StorageService.loadBookContent error: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.loadBookContent 失败'},
+      );
       return null;
     }
   }
@@ -278,7 +288,12 @@ class StorageService {
       await file.parent.create(recursive: true);
       await file.writeAsString(text);
     } catch (e, st) {
-      debugPrint('StorageService.saveChapterCache error: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.saveChapterCache 失败'},
+      );
     }
   }
 
@@ -292,7 +307,12 @@ class StorageService {
       final content = await file.readAsString();
       return content.trim().isEmpty ? null : content;
     } catch (e, st) {
-      debugPrint('StorageService.loadChapterCache error: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.loadChapterCache 失败'},
+      );
       return null;
     }
   }
@@ -301,8 +321,13 @@ class StorageService {
     try {
       final dir = await _chapterCacheDir(bookId);
       if (await dir.exists()) await dir.delete(recursive: true);
-    } catch (e) {
-      debugPrint('StorageService.clearChapterCache error: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.clearChapterCache 失败'},
+      );
     }
   }
 
@@ -325,8 +350,13 @@ class StorageService {
         if (idx == null) continue;
         if (idx < keepMin || idx > keepMax) await entity.delete();
       }
-    } catch (e) {
-      debugPrint('StorageService.pruneChapterCache error: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.pruneChapterCache 失败'},
+      );
     }
   }
 
@@ -345,7 +375,12 @@ class StorageService {
       await file.parent.create(recursive: true);
       await file.writeAsString(jsonEncode(chapters));
     } catch (e, st) {
-      debugPrint('StorageService.saveBookCatalog error: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.saveBookCatalog 失败'},
+      );
     }
   }
 
@@ -359,7 +394,12 @@ class StorageService {
       if (content.trim().isEmpty) return null;
       return (jsonDecode(content) as List).cast<Map<String, dynamic>>();
     } catch (e, st) {
-      debugPrint('StorageService.loadBookCatalog error: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'StorageService.loadBookCatalog 失败'},
+      );
       return null;
     }
   }

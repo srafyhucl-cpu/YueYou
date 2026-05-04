@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 
 /// TTS 音频缓存管理器
 ///
@@ -90,7 +90,7 @@ class TtsCacheManager {
     _timer = Timer.periodic(Duration(minutes: _intervalMinutes), (_) {
       unawaited(_runClean());
     });
-    debugPrint(
+    CyberLogger.captureMessage(
       '[TtsCacheManager] 定期清理已启动 '
       '(每 $_intervalMinutes 分钟，阈值: ${_maxCacheSize ~/ 1024 ~/ 1024}MB / ${_maxFileAgeMs ~/ 3600000}h)',
     );
@@ -122,8 +122,13 @@ class TtsCacheManager {
         fileCount: files.length,
         totalSizeBytes: totalBytes,
       );
-    } catch (e) {
-      debugPrint('[TtsCacheManager] getStat 异常: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'TtsCacheManager.getStat 异常'},
+      );
       return const TtsCacheStat(fileCount: 0, totalSizeBytes: 0);
     }
   }
@@ -168,10 +173,14 @@ class TtsCacheManager {
       final targetBytes = (_maxCacheSize * 0.7).round();
 
       if (totalBytes > _maxCacheSize) {
-        debugPrint(
-          '[TtsCacheManager] ⚠️ 缓存超限 '
-          '${totalBytes ~/ 1024 ~/ 1024}MB > ${_maxCacheSize ~/ 1024 ~/ 1024}MB，'
-          '开始大小淘汰...',
+        CyberLogger.captureWarning(
+          StateError('TTS 缓存超限'),
+          tag: 'tts',
+          extra: {
+            'context': 'TtsCacheManager 缓存超限，开始大小淘汰',
+            'currentMB': '${totalBytes ~/ 1024 ~/ 1024}',
+            'maxMB': '${_maxCacheSize ~/ 1024 ~/ 1024}',
+          },
         );
         // 按修改时间从旧到新排序
         remaining.sort((a, b) => a.modifiedAtMs.compareTo(b.modifiedAtMs));
@@ -202,23 +211,31 @@ class TtsCacheManager {
             deletedCount++;
             freedBytes += f.sizeBytes;
           }
-        } catch (e) {
-          debugPrint('[TtsCacheManager] 删除文件失败 ${f.path}: $e');
+        } catch (e, st) {
+          CyberLogger.captureWarning(
+            e,
+            stack: st,
+            tag: 'tts',
+            extra: {'context': 'TtsCacheManager 删除文件失败', 'path': f.path},
+          );
         }
       }
 
-      debugPrint(
-        '[TtsCacheManager] ✅ 清理完成：'
-        '删除 $deletedCount 个文件，'
-        '释放 ${freedBytes ~/ 1024} KB',
+      CyberLogger.captureMessage(
+        '[TtsCacheManager] 清理完成：删除 $deletedCount 个文件，释放 ${freedBytes ~/ 1024} KB',
       );
 
       return TtsCacheCleanResult(
         deletedCount: deletedCount,
         freedBytes: freedBytes,
       );
-    } catch (e) {
-      debugPrint('[TtsCacheManager] _runClean 异常: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'TtsCacheManager._runClean 异常'},
+      );
       return const TtsCacheCleanResult(deletedCount: 0, freedBytes: 0);
     } finally {
       _running = false;
@@ -237,17 +254,24 @@ class TtsCacheManager {
           if (name.startsWith('tts_') && name.endsWith('.mp3')) {
             try {
               final stat = await entity.stat();
-              result.add(_TtsFileInfo(
-                path: entity.path,
-                sizeBytes: stat.size,
-                modifiedAtMs: stat.modified.millisecondsSinceEpoch,
-              ),);
+              result.add(
+                _TtsFileInfo(
+                  path: entity.path,
+                  sizeBytes: stat.size,
+                  modifiedAtMs: stat.modified.millisecondsSinceEpoch,
+                ),
+              );
             } catch (_) {}
           }
         }
       }
-    } catch (e) {
-      debugPrint('[TtsCacheManager] 列举 TTS 文件异常: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'TtsCacheManager._listTtsFiles 异常'},
+      );
     }
     return result;
   }
