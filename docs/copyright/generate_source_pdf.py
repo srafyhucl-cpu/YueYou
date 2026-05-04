@@ -8,7 +8,6 @@ import re
 from fpdf import FPDF
 
 ROOT = Path(__file__).resolve().parents[2]
-LIB_DIR = ROOT / "lib"
 OUT_DIR = ROOT / "docs" / "copyright"
 OUT_FILE = OUT_DIR / "源代码.pdf"
 SOFTWARE_NAME = "阅游 V1.1"
@@ -32,12 +31,19 @@ EMOJI_PATTERN = re.compile(
 
 
 def _ordered_files() -> list[Path]:
-    files = sorted(LIB_DIR.rglob("*.dart"), key=lambda p: p.as_posix())
-    main_file = LIB_DIR / "main.dart"
-    if main_file in files:
-        files.remove(main_file)
-        files.insert(0, main_file)
-    return files
+    lib_dir = ROOT / "lib"
+    server_dir = ROOT / "server"
+    dart_files = sorted(lib_dir.rglob("*.dart"), key=lambda p: p.as_posix())
+    go_files = sorted(server_dir.rglob("*.go"), key=lambda p: p.as_posix())
+    main_file = lib_dir / "main.dart"
+    server_main_file = server_dir / "main.go"
+    if main_file in dart_files:
+        dart_files.remove(main_file)
+        dart_files.insert(0, main_file)
+    if server_main_file in go_files:
+        go_files.remove(server_main_file)
+        go_files.insert(0, server_main_file)
+    return dart_files + go_files
 
 
 def _collect_lines(files: Iterable[Path]) -> list[str]:
@@ -90,7 +96,7 @@ def _font_path() -> Path:
 
 
 def _sanitize_for_pdf(text: str) -> str:
-    return EMOJI_PATTERN.sub("", text).replace("•", "-")
+    return EMOJI_PATTERN.sub("", text).replace("•", "-").replace("\t", "    ")
 
 
 def main() -> None:
