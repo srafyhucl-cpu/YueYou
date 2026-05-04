@@ -10,7 +10,7 @@ from fpdf import FPDF
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = ROOT / "docs" / "copyright"
 OUT_FILE = OUT_DIR / "源代码.pdf"
-SOFTWARE_NAME = "阅游 V1.1"
+SOFTWARE_NAME = "阅游 V1.1.0"
 APPLICANT = "胡传龙"
 LINES_PER_PAGE = 50
 TOTAL_PAGES = 60
