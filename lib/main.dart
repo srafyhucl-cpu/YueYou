@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
 import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
 import 'core/utils/cyber_logger.dart';
@@ -8,7 +8,6 @@ import 'features/settings/presentation/widgets/privacy_agreement_modal.dart';
 import 'features/audio/services/ambient_service.dart';
 import 'features/audio/services/sfx_service.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
-
 import 'features/library/domain/book_model.dart';
 import 'features/reader/providers/reader_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
@@ -16,7 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'shared/widgets/tts_error_listener.dart';
 import 'features/audio/services/tts_engine_service.dart';
 
-final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,13 +46,14 @@ Future<void> main() async {
 
   // 通过 CyberLogger 初始化 Sentry 并启动 App
   // DSN 通过 --dart-define=SENTRY_DSN=https://... 注入，空时静默跳过
-  await CyberLogger.initSentry(() async => runApp(
-        const riverpod.ProviderScope(
-          child: YueYouApp(),
-        ),
-      ),);
+  await CyberLogger.initSentry(
+    () async => runApp(
+      const riverpod.ProviderScope(
+        child: YueYouApp(),
+      ),
+    ),
+  );
 }
-
 
 class YueYouApp extends riverpod.ConsumerWidget {
   const YueYouApp({super.key});
@@ -129,8 +130,28 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
   Future<void> _checkPrivacyAndBootstrap() async {
     if (!mounted) return;
     if (!StorageService.hasAgreedPrivacy()) {
-      final navContext = globalNavigatorKey.currentContext;
-      if (navContext == null) return;
+      // 等待 MaterialApp 内部 Navigator 挂载完成（最多 5 次，间隔 50ms）
+      // 避免首帧时 globalNavigatorKey 尚未绑定导致弹窗被静默跳过
+      BuildContext? navContext;
+      for (int i = 0; i < 5; i++) {
+        navContext = globalNavigatorKey.currentContext;
+        if (navContext != null) break;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        if (!mounted) return;
+      }
+      if (navContext == null) {
+        // 极端情况：Navigator 始终未挂载，记录日志后退出，绝不进入未授权状态
+        CyberLogger.captureWarning(
+          Exception('隐私弹窗 navContext 重试 5 次仍为 null'),
+          tag: 'privacy',
+          extra: {'context': '_checkPrivacyAndBootstrap'},
+        );
+        SystemNavigator.pop();
+        return;
+      }
+      // navContext 来自 globalNavigatorKey，由 Navigator 自身管理生命周期，
+      // 不依赖 _BootstrapperState.mounted；上方循环已做 mounted 守卫。
+      // ignore: use_build_context_synchronously
       final agreed = await showPrivacyAgreementModal(navContext);
       if (!mounted) return;
       if (agreed) {

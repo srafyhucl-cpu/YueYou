@@ -36,14 +36,14 @@ class _PrivacyAgreementContent extends StatelessWidget {
           ),
           const SizedBox(height: CyberDimensions.spacingS),
           Text(
-            '神经接驳协议',
+            '阅游 · 隐私政策',
             style: CyberTextStyles.dialogTitle.copyWith(
               color: CyberColors.neonCyan,
             ),
           ),
           const SizedBox(height: CyberDimensions.spacingXS),
           Text(
-            'NEURAL LINK AGREEMENT  v1.0',
+            '神经接驳协议  ·  NEURAL LINK  v1.0',
             style: CyberTextStyles.caption.copyWith(
               color: CyberColors.whiteMuted,
               letterSpacing: 1.5,
@@ -98,6 +98,14 @@ class _PrivacyAgreementContent extends StatelessWidget {
                         '• 不向任何第三方共享数据\n'
                         '• 符合《个人信息保护法》及 GDPR',
                   ),
+                  SizedBox(height: CyberDimensions.spacingM),
+                  _PolicySection(
+                    icon: '✉️',
+                    title: '开发者信息',
+                    body: '运营主体：HCL Studio\n'
+                        '联系邮箱：support@hclstudio.cn\n'
+                        '隐私问题反馈、数据删除请求请发送邮件至上述邮箱。',
+                  ),
                 ],
               ),
             ),
@@ -118,10 +126,12 @@ class _PrivacyAgreementContent extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () => launchUrl(
-                  Uri.parse(const String.fromEnvironment(
-                    'PRIVACY_POLICY_URL',
-                    defaultValue: 'https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN',
-                  ),),
+                  Uri.parse(
+                    const String.fromEnvironment(
+                      'PRIVACY_POLICY_URL',
+                      defaultValue: 'https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN',
+                    ),
+                  ),
                   mode: LaunchMode.externalApplication,
                 ),
                 child: Text(
@@ -140,7 +150,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
           // ── 按钮行 ───────────────────────────────────────────────
           Row(
             children: [
-              // 拒绝并退出（危险操作，用粉色/红色边框区分）
+              // 不同意并退出（危险操作，用粉色/红色边框区分）
               Expanded(
                 child: _DeclineButton(
                   onTap: () {
@@ -150,7 +160,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: CyberDimensions.spacingMS),
-              // 同意接入（主按钮）
+              // 同意（主按钮）
               Expanded(
                 child: _AgreeButton(
                   onTap: () => Navigator.of(context).pop(true),
@@ -232,7 +242,7 @@ class _DeclineButton extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            '拒绝并退出',
+            '不同意并退出',
             style: CyberTextStyles.buttonLabel.copyWith(
               color: CyberColors.neonPink,
             ),
@@ -265,7 +275,7 @@ class _AgreeButton extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            '同意接入',
+            '同意',
             style: CyberTextStyles.buttonLabel.copyWith(
               color: CyberColors.background,
               fontWeight: FontWeight.w900,
