@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/audio/domain/tts_audio_state.dart';
 import '../../features/audio/providers/tts_audio_notifier.dart';
@@ -40,7 +41,6 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[TtsErrorListener] 正在构建，监听 TtsAudioState 状态');
     final audioState = ref.watch(ttsAudioProvider);
     final (:err, :timestamp) = switch (audioState) {
       TtsAudioError(:final message, :final timestamp) => (
@@ -57,15 +57,18 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
 
     if (err != null && timestamp != _previousErrorTime) {
       _previousErrorTime = timestamp;
-      debugPrint(
-        '[TtsErrorListener] 检测到新错误: $err，将展示 CyberToast',
-      );
+      CyberLogger.captureMessage('[TtsErrorListener] 检测到新错误，将展示 CyberToast');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         try {
           CyberToast.show(err, type: ToastType.error);
-        } catch (e) {
-          debugPrint('[TtsErrorListener] 展示 CyberToast 失败: $e');
+        } catch (e, stack) {
+          CyberLogger.captureWarning(
+            e,
+            stack: stack,
+            tag: 'tts',
+            extra: {'context': 'TtsErrorListener 展示错误 Toast 失败'},
+          );
         }
       });
     }
@@ -85,9 +88,12 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
           if (!mounted) return;
           try {
             CyberToast.show(fallback, type: ToastType.info);
-          } catch (e) {
-            debugPrint(
-              '[TtsErrorListener] 展示降级通知 CyberToast 失败: $e',
+          } catch (e, stack) {
+            CyberLogger.captureWarning(
+              e,
+              stack: stack,
+              tag: 'tts',
+              extra: {'context': 'TtsErrorListener 展示降级通知 Toast 失败'},
             );
           }
         });
