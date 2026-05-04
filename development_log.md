@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **修复(tts): 字符串插值遗漏括号 bug + 阶段 3 第 2 批网络超时常量化**：
+  - `TtsConfig` 追加 6 个网络层超时常量：`ttsLocalSpeakTimeout`(60s)、`ttsDownloadTimeout`(15s)、`ttsPostConnectionTimeout`(10s)、`ttsPostResponseTimeout`(15s)、`bookApiTimeout`(4s)、`bookCdnDownloadTimeout`(15s)。
+  - `tts_engine_service.dart` 替换 5 处硬编码超时；`default_book_service.dart` 替换 3 处，共 8 处。
+  - 顺带修复 `tts_engine_service.dart` 中存量字符串插值 bug：`'...$_config.maxRetries...'` → `'...${_config.maxRetries}...'`，消除测试断言失败。
+  - **验证**：`flutter analyze` 零警告；各模块单独测试全通过；合并运行存量 -1 偶发 timing 失败经 git stash 确认与本批无关。
+
 - **维护(style): 阶段 3 第 1 批 UI 动画常量化**：
   - 向 `CyberDimensions` 追加 8 个动效时长常量：`animNormal`(300ms)、`animFast`(250ms)、`animXFast`(150ms)、`animInstant`(120ms)、`animMedium`(400ms)、`animEliminate`(450ms)、`animSlow`(600ms)、`toastDuration`(2500ms)。
   - 替换 9 个文件 14 处硬编码 `Duration`：`cyber_toast`、`cyber_modal`、`settings_screen`、`chapter_list_screen`、`tile_widget`、`square_board`、`merge_particle`、`board_reset_animation`、`board_mascot`。

@@ -104,7 +104,7 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
       rethrow;
     }
     try {
-      await _currentSpeech!.future.timeout(const Duration(seconds: 60));
+      await _currentSpeech!.future.timeout(TtsConfig.ttsLocalSpeakTimeout);
     } on TimeoutException catch (e, st) {
       CyberLogger.captureWarning(
         e,
@@ -221,7 +221,7 @@ class _RealHttpClient implements HttpClientInterface {
     await targetFile.parent.create(recursive: true);
 
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 15);
+    client.connectionTimeout = TtsConfig.ttsDownloadTimeout;
     try {
       var currentUrl = url;
       HttpClientRequest request = await client.getUrl(currentUrl);
@@ -230,7 +230,7 @@ class _RealHttpClient implements HttpClientInterface {
       const int maxRedirects = 5;
       do {
         response = await request.close().timeout(
-          const Duration(seconds: 15),
+          TtsConfig.ttsDownloadTimeout,
           onTimeout: () {
             throw TimeoutException('TTS 下载超时 (15秒)');
           },
@@ -266,7 +266,7 @@ class _RealHttpClient implements HttpClientInterface {
   @override
   Future<String> postJson(Uri url, dynamic body) async {
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 10);
+    client.connectionTimeout = TtsConfig.ttsPostConnectionTimeout;
     try {
       final request = await client.postUrl(url);
       request.headers.set(
@@ -279,7 +279,7 @@ class _RealHttpClient implements HttpClientInterface {
       final jsonBody = jsonEncode(bodyMap);
       request.write(jsonBody);
       final response = await request.close().timeout(
-        const Duration(seconds: 15),
+        TtsConfig.ttsPostResponseTimeout,
         onTimeout: () {
           throw TimeoutException('TTS POST 请求超时 (15秒)');
         },
@@ -1049,7 +1049,7 @@ class TtsEngineService extends ChangeNotifier {
     }
     // 所有重试均失败 → Sentry 上报
     CyberLogger.captureWarning(
-      Exception('TTS download failed after $_config.maxRetries retries'),
+      Exception('TTS download failed after ${_config.maxRetries} retries'),
       tag: 'tts',
     );
     _setFallbackNotification(CyberErrorMessages.ttsFallbackDisconnected);

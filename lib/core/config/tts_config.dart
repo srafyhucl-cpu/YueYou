@@ -28,6 +28,26 @@ class TtsConfig {
     defaultValue: 'https://hclstudio.cn/api/v1',
   );
 
+  // ── 网络层超时常量 ──────────────────────────────────────────────────────────
+
+  /// TTS 本地引擎朗读最长等待时间（防止 FlutterTts 卡死）
+  static const Duration ttsLocalSpeakTimeout = Duration(seconds: 60);
+
+  /// TTS HTTP 下载连接与传输超时
+  static const Duration ttsDownloadTimeout = Duration(seconds: 15);
+
+  /// TTS POST 请求连接超时
+  static const Duration ttsPostConnectionTimeout = Duration(seconds: 10);
+
+  /// TTS POST 响应超时
+  static const Duration ttsPostResponseTimeout = Duration(seconds: 15);
+
+  /// 书籍目录 / 章节 API 请求超时
+  static const Duration bookApiTimeout = Duration(seconds: 4);
+
+  /// 书籍章节 CDN 下载超时
+  static const Duration bookCdnDownloadTimeout = Duration(seconds: 15);
+
   /// 当前环境配置（编译时确定，零运行时开销）
   static const TtsConfig current = TtsConfig(
     serverUrl: _ttsServerUrl,
