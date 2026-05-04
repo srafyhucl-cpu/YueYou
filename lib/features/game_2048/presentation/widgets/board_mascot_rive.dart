@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rive/rive.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
@@ -73,10 +74,6 @@ class _BoardMascotRiveState extends ConsumerState<BoardMascotRive> {
       // 尝试获取 mainArtboard，如果失败则使用第一个 artboard
       final artboard = file.mainArtboard;
 
-      // 打印调试信息
-      debugPrint('🎨 Rive 文件加载成功');
-      debugPrint('📦 Artboard 名称: ${artboard.name}');
-
       // 尝试查找状态机（Lil Guy 可能使用不同的状态机名称）
       StateMachineController? controller;
 
@@ -92,32 +89,43 @@ class _BoardMascotRiveState extends ConsumerState<BoardMascotRive> {
         artboard.addController(controller);
         _controller = controller;
 
-        debugPrint('✅ 状态机连接成功');
-        debugPrint('📥 可用输入:');
-        for (var input in controller.inputs) {
-          debugPrint('  - ${input.name} (${input.runtimeType})');
-        }
-
         // 绑定输入（如果 .riv 文件中的输入名称不同，需要修改这里）
         _lookXInput = controller.findInput<double>('lookX') as SMINumber?;
         _lookYInput = controller.findInput<double>('lookY') as SMINumber?;
         _onMergeInput = controller.findInput<bool>('onMerge') as SMITrigger?;
         _isGameOverInput = controller.findInput<bool>('isGameOver') as SMIBool?;
 
-        if (_lookXInput == null) debugPrint('⚠️ 未找到 lookX 输入');
-        if (_lookYInput == null) debugPrint('⚠️ 未找到 lookY 输入');
-        if (_onMergeInput == null) debugPrint('⚠️ 未找到 onMerge 输入');
-        if (_isGameOverInput == null) debugPrint('⚠️ 未找到 isGameOver 输入');
+        final missingInputs = <String>[
+          if (_lookXInput == null) 'lookX',
+          if (_lookYInput == null) 'lookY',
+          if (_onMergeInput == null) 'onMerge',
+          if (_isGameOverInput == null) 'isGameOver',
+        ];
+        if (missingInputs.isNotEmpty) {
+          CyberLogger.captureWarning(
+            StateError('Rive 状态机输入未找到'),
+            tag: 'game',
+            extra: {'missingInputs': missingInputs.join(', ')},
+          );
+        }
       } else {
-        debugPrint('❌ 未找到状态机');
+        CyberLogger.captureWarning(
+          StateError('Rive 状态机未找到'),
+          tag: 'game',
+          extra: {'context': 'MainStateMachine 与 State Machine 1 均不存在'},
+        );
       }
 
       if (mounted) {
         setState(() => _riveArtboard = artboard);
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ Rive 加载失败: $e');
-      debugPrint('堆栈: $stackTrace');
+      CyberLogger.captureWarning(
+        e,
+        stack: stackTrace,
+        tag: 'game',
+        extra: {'context': 'Rive 文件加载失败'},
+      );
     }
   }
 

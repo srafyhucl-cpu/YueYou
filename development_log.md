@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(game): 规范化第 8 批 Rive 吉祥物日志治理**：
+  - **`BoardMascotRive`**：删除 Rive 文件加载成功、Artboard 名称、状态机连接成功、可用输入列表等纯调试 `debugPrint`；输入未找到改为批量收集后统一 `CyberLogger.captureWarning()`，状态机未找到和加载异常均改为 `CyberLogger.captureWarning()`，携带 tag=game。
+  - **契约保持**：Rive 加载失败仍展示加载中占位，不崩溃；状态机输入缺失时动画部分功能降级但不影响渲染。
+  - **验证**：`BoardMascotRive` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过。
+
 - **维护(tts): 规范化第 7 批 TTS 错误监听器日志治理**：
   - **`TtsErrorListener`**：删除 `build()` 中调试构建追踪 `debugPrint`；检测新错误改为 `CyberLogger.captureMessage()`；两处 CyberToast 展示失败 catch 块改为 `CyberLogger.captureWarning()`，携带 tag=tts。
   - **契约保持**：TTS 错误 Toast 弹出逻辑、降级通知节流行为不变。
