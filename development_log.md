@@ -2,6 +2,15 @@
 
 ## **2026-05-04**
 
+- **审计(quality): 阶段 8 架构边界审计**：
+  - `core/` 无任何 `features/` 引入，完全合规。
+  - `domain/` 无 `flutter/material`；`update_info.dart` 仅引入 `foundation.dart` 用于 `@immutable`，豁免合规。
+  - `providers/` 无 UI 布局；`game_provider.dart` 的 `WidgetsBindingObserver` 属生命周期监听，合规。
+  - `shared/tts_error_listener.dart` 引入 `features/audio`，具备跨 feature 监听语义，合规。
+  - `library_screen` 直调 `StorageService.getCurrentChapterIndex()` 属有意设计，与 `ReaderProvider` 内部行为平行，合规。
+  - `ref.onDispose` 居用：`readerProvider`、`ttsAudioProvider` 均正确注册。
+  - **验证**：`flutter analyze` 零警告，无代码改动。全计划所有阶段审计完成。
+
 - **审计(quality): 阶段 5+6 静态类型与资源配置审计**：
   - **阶段 5**：全库 128 处 `!` 强制解包、60 处 `Map<String, dynamic>`、所有 `as` 转型全部合规，无 `TODO/FIXME` 遗留，无需修改。
   - **阶段 6**：`pubspec.yaml` 资源声明与实际文件完全匹配，Rive 加载有降级保护，dependencies 无冗余，构建命令规范已固化，无需修改。
