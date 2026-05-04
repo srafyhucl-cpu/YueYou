@@ -72,3 +72,8 @@ books/xiyouji.json
 
 # VSCode Counter
 .VSCodeCounter/
+
+android/key.properties
+android/*.jks
+*.keystore
+__pycache__/
