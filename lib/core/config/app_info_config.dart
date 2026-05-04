@@ -1,19 +1,25 @@
 /// 应用主体信息配置。
 ///
-/// 开发者/运营主体和联系方式必须在正式构建时通过 `--dart-define` 注入。
-/// 默认值仅作为未配置时的占位提醒，禁止直接用于上架包。
+/// 开发者/运营主体和联系方式支持通过 `--dart-define` 覆盖。
+/// 默认值为当前个人开发者公开信息。
 class AppInfoConfig {
   const AppInfoConfig._();
 
   /// 运营主体名称。
   static const String developerName = String.fromEnvironment(
     'APP_DEVELOPER_NAME',
-    defaultValue: '【待填写：开发者或运营主体名称】',
+    defaultValue: '胡传龙',
   );
 
   /// 隐私与用户反馈联系邮箱。
   static const String contactEmail = String.fromEnvironment(
     'APP_CONTACT_EMAIL',
-    defaultValue: '【待填写：联系邮箱】',
+    defaultValue: 'hucloong@163.com',
+  );
+
+  /// 正式隐私政策页面。
+  static const String privacyPolicyUrl = String.fromEnvironment(
+    'PRIVACY_POLICY_URL',
+    defaultValue: 'https://hclstudio.cn/privacy',
   );
 }

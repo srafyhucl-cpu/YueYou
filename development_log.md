@@ -3,6 +3,8 @@
 ## **2026-05-04**
 
 - **发布(release): 中国应用商店上架预检与软著材料生成**：
+  - **公开信息收口**：根据用户提供信息补全著作权人/申请人/运营主体/联系邮箱，清除公开文件中的待填项；正式隐私政策地址切换为 `https://hclstudio.cn/privacy`。
+  - **隐私政策自有页面**：新增 `server/handler_privacy.go` 与 `/privacy` 路由，提供无需登录、可公开访问的 HTML 隐私政策页，腾讯文档仅作为临时备份参考。
   - **上架阻塞项修复**：`android/app/build.gradle.kts` 支持 `android/key.properties` release 签名配置，缺少签名文件时回退 debug 以保证 CI 可构建；release 启用 R8 代码压缩与资源压缩。
   - **商店材料补全**：新增 `LICENSE`、`STORE_LISTING.md`、`android/key.properties.template`、`android/app/src/main/res/values/strings.xml`、`android/app/proguard-rules.pro`。
   - **软著材料**：新增 `docs/copyright/generate_source_pdf.py`，自动生成 60 页 `docs/copyright/源代码.pdf`；新增 `操作说明书.md`、`申请清单.md`、`README.md`。

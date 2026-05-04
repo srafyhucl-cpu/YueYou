@@ -127,12 +127,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () => launchUrl(
-                  Uri.parse(
-                    const String.fromEnvironment(
-                      'PRIVACY_POLICY_URL',
-                      defaultValue: 'https://docs.qq.com/doc/DVXpHSW9qRkFZVVlN',
-                    ),
-                  ),
+                  Uri.parse(AppInfoConfig.privacyPolicyUrl),
                   mode: LaunchMode.externalApplication,
                 ),
                 child: Text(

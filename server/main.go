@@ -16,6 +16,9 @@ func main() {
 	r.GET("/api/v1/book/catalog", bookCatalogHandler)
 	r.POST("/api/v1/book/chapter", bookChapterHandler)
 
+	// ── 合规页面 ──────────────────────────────────────────────────────────
+	r.GET("/privacy", privacyHandler)
+
 	log.Println("yueyou-server on :8081")
 	r.Run(":8081")
 }
