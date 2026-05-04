@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **维护(audio): 规范化第 1 批音频服务日志治理**：
+  - **`SfxService`**：移除合并音效播放异常中的 `debugPrint()`，改用 `CyberLogger.captureWarning()`，保留原有异步播放与异常吞掉行为。
+  - **`AmbientService`**：将初始化失败、启停状态和启动播放日志改为 `CyberLogger.captureWarning()` / `CyberLogger.captureMessage()`，未改变环境音启停、音量和生命周期逻辑。
+  - **验证**：目标文件无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/audio/tts_audio_notifier_test.dart --concurrency=1` 通过。
+  - **风险记录**：`flutter test test/features/audio --concurrency=1` 在 `tts_engine_service_test.dart` 存在非本批引入失败，留待 TTS 专项批次处理。
+
 - **维护(analyze): 静态分析大面积报错止血与契约恢复**：
   - **根因定位**：确认大面积报错并非单点 lint，而是编码损坏、核心文件重建、API 契约漂移和测试契约失配叠加导致。
   - **止血处理**：停止逐条补错策略，恢复被重建污染的核心文件到 Git 基线，避免 `TtsEngineService`、`TtsAudioNotifier`、`TileModel` 等契约继续偏移。
