@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **合规(privacy): 权限合规审查与隐私弹窗修复**：
+  - **文件权限**：审查 `file_picker ^8.x`，确认走 SAF（`ACTION_OPEN_DOCUMENT`），全 Android 版本天然不需运行时权限。Manifest 不补 `READ_EXTERNAL_STORAGE` 是正确选择。
+  - **隐私弹窗合规化**：标题增加"阅游 · 隐私政策"主标题（保留赛博装饰副标题），新增"开发者信息"节（HCL Studio + `support@hclstudio.cn`，符合《个人信息保护法》第 17 条）；按钮措辞调整：「同意接入」→「同意」，「拒绝并退出」→「不同意并退出」。
+  - **修复绕过隐私弹窗的 bug**：`main.dart._checkPrivacyAndBootstrap` 中 `globalNavigatorKey.currentContext == null` 时直接 `return` 导致用户在未授权状态下进入 App。改为重试 5 次（间隔 50ms），仍 null 则 `CyberLogger.captureWarning` + `SystemNavigator.pop()` 兜底退出，确保隐私弹窗绝对不可绕过。
+  - **验证**：`flutter analyze` 零警告，`flutter test --concurrency=1` 452 个测试全部通过。
+
 - **审计(quality): 阶段 8 架构边界审计**：
   - `core/` 无任何 `features/` 引入，完全合规。
   - `domain/` 无 `flutter/material`；`update_info.dart` 仅引入 `foundation.dart` 用于 `@immutable`，豁免合规。
