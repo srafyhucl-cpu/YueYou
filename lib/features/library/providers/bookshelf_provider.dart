@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/book_constants.dart';
 import '../../../core/database/storage_service.dart';
+import '../../../core/utils/cyber_logger.dart';
 import '../domain/book_model.dart';
 import '../services/default_book_service.dart';
 import '../../reader/providers/reader_provider.dart';
@@ -102,18 +103,39 @@ class BookshelfProvider with ChangeNotifier {
       await StorageService.saveBookshelf(
         _shelf.map((b) => b.toJson()).toList(),
       );
-    } catch (e) {
-      debugPrint('⚠️ 书架元数据持久化失败: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {'context': '删除书籍后书架元数据持久化失败'},
+      );
     }
     try {
       await StorageService.deleteBookContent(id.toString());
-    } catch (e) {
-      debugPrint('⚠️ 正文内容删除失败: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {
+          'context': '删除书籍正文内容失败',
+          'bookId': id.toString(),
+        },
+      );
     }
     try {
       await StorageService.deleteReadingRecord(id.toString());
-    } catch (e) {
-      debugPrint('⚠️ 阅读记录删除失败: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {
+          'context': '删除阅读记录失败',
+          'bookId': id.toString(),
+        },
+      );
     }
   }
 
@@ -160,8 +182,13 @@ class BookshelfProvider with ChangeNotifier {
       // getCatalog() 期间可能已 deleteBook(999)，需二次校验防止竞态
       if (hasDefaultBook || StorageService.hasSelectedBook()) return;
       await addDefaultBook(catalog);
-    } catch (e) {
-      debugPrint('[BookshelfProvider] 默认书籍注入失败: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {'context': '默认书籍注入失败'},
+      );
     }
   }
 

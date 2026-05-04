@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **维护(library): 规范化第 4 批书架 Provider 日志治理**：
+  - **`BookshelfProvider`**：将删除书籍时的书架元数据清理、正文清理、阅读记录清理和默认书籍注入失败日志替换为 `CyberLogger.captureWarning()`。
+  - **契约保持**：书架即时移除、Reader 级联重置、best-effort 清理和默认书籍注入降级行为不变。
+  - **验证**：`BookshelfProvider` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/library/bookshelf_provider_test.dart --concurrency=1` 通过。
+  - **后续候选**：书架测试仍暴露 `ReaderProvider` 与 TTS 降级引擎既有控制台输出，后续单独治理。
+
 - **维护(library): 规范化第 3 批 TXT 导入服务日志治理**：
   - **`FileImportService`**：将 TXT 导入、Isolate 启动/内部解析、主动取消和流式解析异常日志替换为 `CyberLogger.captureWarning()` / `CyberLogger.captureMessage()`。
   - **控制台清洁**：文件不存在测试场景改为前置判断后直接返回 `null`，避免把可预期输入当作 warning 输出异常栈。
