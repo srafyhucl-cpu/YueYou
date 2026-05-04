@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(tts): 规范化第 7 批 TTS 错误监听器日志治理**：
+  - **`TtsErrorListener`**：删除 `build()` 中调试构建追踪 `debugPrint`；检测新错误改为 `CyberLogger.captureMessage()`；两处 CyberToast 展示失败 catch 块改为 `CyberLogger.captureWarning()`，携带 tag=tts。
+  - **契约保持**：TTS 错误 Toast 弹出逻辑、降级通知节流行为不变。
+  - **验证**：`TtsErrorListener` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/audio/tts_audio_notifier_test.dart --concurrency=1` 通过。
+
 - **维护(game): 规范化第 6 批游戏 Provider 日志治理**：
   - **`GameProvider`**：将 `_loadSavedState` 快照解析失败的 `debugPrint` 替换为 `CyberLogger.captureWarning()`，携带 `stack` 和 tag=game。
   - **契约保持**：快照解析失败后仍降级调用 `_initFresh()` 新开一局，行为不变。
