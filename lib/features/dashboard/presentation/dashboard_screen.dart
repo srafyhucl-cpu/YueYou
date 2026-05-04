@@ -104,7 +104,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // 主内容
             Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: CyberDimensions.spacingM,),
+                horizontal: CyberDimensions.spacingM,
+              ),
               child: Column(
                 children: [
                   const SizedBox(height: CyberDimensions.spacingM),
@@ -166,7 +167,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               height: CyberDimensions.dashboardMascotHeight,
                               child: GestureDetector(
                                 onTap: () {
-                                  debugPrint('🎯 XIAOYO 点击层被触发');
                                   _mascotKey.currentState
                                       ?.triggerTapAnimation();
                                 },
@@ -198,17 +198,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildTopNavigation(BuildContext context) {
     final items = [
       _SegItem(
-          icon: Icons.menu_book_rounded,
-          label: '书架',
-          onTap: () => _openLibrary(context),),
+        icon: Icons.menu_book_rounded,
+        label: '书架',
+        onTap: () => _openLibrary(context),
+      ),
       _SegItem(
-          icon: Icons.list_rounded,
-          label: '目录',
-          onTap: () => _openChapterList(context),),
+        icon: Icons.list_rounded,
+        label: '目录',
+        onTap: () => _openChapterList(context),
+      ),
       _SegItem(
-          icon: Icons.tune_rounded,
-          label: '设置',
-          onTap: () => _openSettings(context),),
+        icon: Icons.tune_rounded,
+        label: '设置',
+        onTap: () => _openSettings(context),
+      ),
     ];
 
     return ClipRRect(
@@ -272,14 +275,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(width: CyberDimensions.spacingMS),
-            Expanded(
-              child: _buildInfoCard(
-                context,
-                title: '最高得分 | 最高连击',
-                score: provider.bestScore,
-                combo: provider.maxCombo,
-              ),
-            ),
+        Expanded(
+          child: _buildInfoCard(
+            context,
+            title: '最高得分 | 最高连击',
+            score: provider.bestScore,
+            combo: provider.maxCombo,
+          ),
+        ),
       ],
     );
   }
@@ -305,7 +308,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             vertical: CyberDimensions.spacingS + CyberDimensions.spacingXXS,
           ),
           constraints: const BoxConstraints(
-              minHeight: CyberDimensions.dashboardStatusCardMinHeight,),
+            minHeight: CyberDimensions.dashboardStatusCardMinHeight,
+          ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -339,8 +343,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               const SizedBox(
-                  height:
-                      CyberDimensions.spacingS - CyberDimensions.spacingXXS,),
+                height: CyberDimensions.spacingS - CyberDimensions.spacingXXS,
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -370,7 +374,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         size: CyberDimensions.iconM,
                       ),
                       style: IconButton.styleFrom(
-                        backgroundColor: CyberColors.neonCyan.withValues(alpha: 0.15),
+                        backgroundColor:
+                            CyberColors.neonCyan.withValues(alpha: 0.15),
                         padding: const EdgeInsets.all(CyberDimensions.spacingS),
                       ),
                     ),
@@ -416,8 +421,11 @@ class _SegItem {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _SegItem(
-      {required this.icon, required this.label, required this.onTap,});
+  const _SegItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 }
 
 class _SegButton extends StatefulWidget {
@@ -457,7 +465,8 @@ class _SegButtonState extends State<_SegButton> {
               size: CyberDimensions.iconS,
             ),
             const SizedBox(
-                width: CyberDimensions.spacingS - CyberDimensions.spacingXXS,),
+              width: CyberDimensions.spacingS - CyberDimensions.spacingXXS,
+            ),
             Text(
               widget.item.label,
               style: CyberTextStyles.segmentLabel,
@@ -468,7 +477,6 @@ class _SegButtonState extends State<_SegButton> {
     );
   }
 }
-
 
 /// 版本更新提示对话框（赛博朋克风格）
 ///
@@ -498,8 +506,12 @@ class _UpdateDialog extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  info.forceUpdate ? Icons.system_update : Icons.new_releases_outlined,
-                  color: info.forceUpdate ? CyberColors.neonPink : CyberColors.neonCyan,
+                  info.forceUpdate
+                      ? Icons.system_update
+                      : Icons.new_releases_outlined,
+                  color: info.forceUpdate
+                      ? CyberColors.neonPink
+                      : CyberColors.neonCyan,
                   size: CyberDimensions.iconL,
                 ),
                 const SizedBox(width: CyberDimensions.spacingMS),
@@ -510,7 +522,9 @@ class _UpdateDialog extends StatelessWidget {
                       Text(
                         info.forceUpdate ? '发现重要更新' : '发现新版本',
                         style: CyberTextStyles.dialogTitle.copyWith(
-                          color: info.forceUpdate ? CyberColors.neonPink : CyberColors.neonCyan,
+                          color: info.forceUpdate
+                              ? CyberColors.neonPink
+                              : CyberColors.neonCyan,
                         ),
                       ),
                       Text(
@@ -533,18 +547,23 @@ class _UpdateDialog extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: CyberColors.surface,
                   borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
-                  border: Border.all(color: CyberColors.whiteFaint, width: CyberDimensions.borderNormal),
+                  border: Border.all(
+                    color: CyberColors.whiteFaint,
+                    width: CyberDimensions.borderNormal,
+                  ),
                 ),
                 child: Text(
                   info.releaseNotes,
-                  style: CyberTextStyles.captionComfortable.copyWith(color: CyberColors.whiteDim),
+                  style: CyberTextStyles.captionComfortable
+                      .copyWith(color: CyberColors.whiteDim),
                 ),
               ),
               const SizedBox(height: CyberDimensions.spacingM),
             ],
             if (info.forceUpdate)
               Padding(
-                padding: const EdgeInsets.only(bottom: CyberDimensions.spacingMS),
+                padding:
+                    const EdgeInsets.only(bottom: CyberDimensions.spacingMS),
                 child: Text(
                   '⚠ 此版本包含关键安全修复，必须更新后方可继续使用。',
                   style: CyberTextStyles.captionTight.copyWith(
@@ -561,12 +580,18 @@ class _UpdateDialog extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: CyberColors.whiteMuted,
                         side: const BorderSide(color: CyberColors.whiteSubtle),
-                        padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: CyberDimensions.spacingMS,
+                        ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+                          borderRadius:
+                              BorderRadius.circular(CyberDimensions.radiusS),
                         ),
                       ),
-                      child: const Text('暂不更新', style: CyberTextStyles.buttonLabel),
+                      child: const Text(
+                        '暂不更新',
+                        style: CyberTextStyles.buttonLabel,
+                      ),
                     ),
                   ),
                   const SizedBox(width: CyberDimensions.spacingMS),
@@ -575,14 +600,20 @@ class _UpdateDialog extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () => _launchUpdate(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: info.forceUpdate ? CyberColors.neonPink : CyberColors.neonCyan,
+                      backgroundColor: info.forceUpdate
+                          ? CyberColors.neonPink
+                          : CyberColors.neonCyan,
                       foregroundColor: CyberColors.background,
-                      padding: const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CyberDimensions.spacingMS,
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+                        borderRadius:
+                            BorderRadius.circular(CyberDimensions.radiusS),
                       ),
                     ),
-                    child: const Text('立即更新', style: CyberTextStyles.buttonLabel),
+                    child:
+                        const Text('立即更新', style: CyberTextStyles.buttonLabel),
                   ),
                 ),
               ],
