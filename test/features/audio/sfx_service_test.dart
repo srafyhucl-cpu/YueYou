@@ -10,12 +10,10 @@ void main() {
     const MethodChannel globalChannel =
         MethodChannel('xyz.luan/audioplayers.global');
 
-    setUp(() async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform,
-              (MethodCall methodCall) async {
-        return null;
-      });
+    // playerChannel mock 提升到 setUpAll/tearDownAll：
+    // SfxService._mergePlayer 是单例，其内部 PositionUpdater 有周期 timer，
+    // 若在 tearDown 中清除 mock，timer 回调可能在下一个测试前触发 MissingPluginException。
+    setUpAll(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(playerChannel,
               (MethodCall methodCall) async {
@@ -23,6 +21,19 @@ void main() {
             methodCall.method == 'getCurrentPosition') {
           return 0;
         }
+        return null;
+      });
+    });
+
+    tearDownAll(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(playerChannel, null);
+    });
+
+    setUp(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform,
+              (MethodCall methodCall) async {
         return null;
       });
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -35,8 +46,6 @@ void main() {
     tearDown(() async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, null);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(playerChannel, null);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(globalChannel, null);
     });
