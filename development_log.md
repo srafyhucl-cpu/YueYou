@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(core): 规范化第 10 批持久化与缓存日志治理**：
+  - **`StorageService`**：将书籍内容读写、章节缓存读写、章节缓存清理/剪枝、书目录读写共 8 处 catch 块 `debugPrint` 替换为 `CyberLogger.captureWarning()`，携带 tag=library 和 stack；保留 `flutter/foundation.dart`（`@visibleForTesting`）。
+  - **`TtsCacheManager`**：定时清理启动日志改为 `captureMessage()`；缓存超限改为 `captureWarning(StateError(...))`（非异常场景）；文件删除失败、`getStat`/`_runClean`/`_listTtsFiles` 异常改为 `captureWarning()`，均补 stack；清理完成摘要改为 `captureMessage()`；保留 `flutter/foundation.dart`（`@visibleForTesting`）。
+  - **验证**：两个文件已无代码级 `debugPrint()` / `print()`；`flutter analyze` 通过（零问题）。
+
 - **维护(core/ui): 规范化第 9 批低风险单点日志治理**：
   - **`CyberPerformanceDetector`**：将性能基准日志改为 `CyberLogger.captureMessage()`，保留 `flutter/foundation.dart`（`kIsWeb` 依赖）。
   - **`DashboardScreen`**：删除 XIAOYO 点击调试追踪 `debugPrint`；顺带修复上搅更新弹框中 4 处 `require_trailing_commas` 存量 lint。
