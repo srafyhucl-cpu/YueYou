@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 
 import '../domain/update_info.dart';
 
@@ -50,17 +50,21 @@ class UpdateService {
   /// - 返回 `null`：无更新、API 未配置或请求失败（静默降级）
   static Future<UpdateInfo?> checkForUpdate() async {
     if (_versionApi.isEmpty) {
-      debugPrint('[UpdateService] UPDATE_API_URL 未配置，跳过版本检测');
       return null;
     }
 
     try {
-      final response = await http
-          .get(Uri.parse(_versionApi))
-          .timeout(_timeout);
+      final response = await http.get(Uri.parse(_versionApi)).timeout(_timeout);
 
       if (response.statusCode != 200) {
-        debugPrint('[UpdateService] 版本接口返回异常：${response.statusCode}');
+        CyberLogger.captureWarning(
+          StateError('版本检测接口返回异常'),
+          tag: 'update',
+          extra: {
+            'context': '版本检测 HTTP 响应',
+            'statusCode': response.statusCode.toString(),
+          },
+        );
         return null;
       }
 
@@ -70,15 +74,22 @@ class UpdateService {
       final local = await _getLocalVersion();
 
       if (_isNewerVersion(remote, local)) {
-        debugPrint('[UpdateService] 发现新版本：${remote.version}（本地：${local.version}）');
+        CyberLogger.captureMessage(
+          '发现新版本: remote=${remote.version}, local=${local.version}',
+        );
         return remote;
       }
 
-      debugPrint('[UpdateService] 当前已是最新版本 ${local.version}');
+      CyberLogger.captureMessage('当前已是最新版本: ${local.version}');
       return null;
-    } on Exception catch (e) {
+    } on Exception catch (e, stack) {
       // 网络异常、JSON 解析异常均静默降级，不影响用户体验
-      debugPrint('[UpdateService] 版本检测异常（已忽略）：$e');
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'update',
+        extra: {'context': '版本检测异常，已静默降级'},
+      );
       return null;
     }
   }

@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(update): 规范化第 5 批版本检测服务日志治理**：
+  - **`UpdateService`**：将版本接口 HTTP 异常和检测异常替换为 `CyberLogger.captureWarning()`，新版本与已是最新版本状态替换为 `CyberLogger.captureMessage()`。
+  - **契约保持**：`UPDATE_API_URL` 未配置时继续静默返回 `null`，网络异常、JSON 解析异常仍不影响用户体验。
+  - **验证**：`UpdateService` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/update/update_service_test.dart --concurrency=1` 通过。
+
 - **维护(library): 规范化第 4 批书架 Provider 日志治理**：
   - **`BookshelfProvider`**：将删除书籍时的书架元数据清理、正文清理、阅读记录清理和默认书籍注入失败日志替换为 `CyberLogger.captureWarning()`。
   - **契约保持**：书架即时移除、Reader 级联重置、best-effort 清理和默认书籍注入降级行为不变。
