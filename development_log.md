@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(tts): 规范化第 11 批 TTS 音频状态机日志治理**：
+  - **`TtsAudioNotifier`**：空闲自动停播、暂停中断保留进度、网络恢复退出降级改为 `captureMessage()`；预加载轨道异常、播放轨道异常、删除临时文件失败改为 `captureWarning()`，均补 stack；临时文件销毁成功追踪日志直接删除；移除已无用的 `flutter/foundation.dart` import。
+  - **契约保持**：暂停中断哨兵逻辑、降级自动停播、网络探测恢复行为完全不变。
+  - **验证**：`TtsAudioNotifier` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/audio/tts_audio_notifier_test.dart --concurrency=1` 通过（测试存在 timing-sensitive 偶发，与本批无关）。
+
 - **维护(core): 规范化第 10 批持久化与缓存日志治理**：
   - **`StorageService`**：将书籍内容读写、章节缓存读写、章节缓存清理/剪枝、书目录读写共 8 处 catch 块 `debugPrint` 替换为 `CyberLogger.captureWarning()`，携带 tag=library 和 stack；保留 `flutter/foundation.dart`（`@visibleForTesting`）。
   - **`TtsCacheManager`**：定时清理启动日志改为 `captureMessage()`；缓存超限改为 `captureWarning(StateError(...))`（非异常场景）；文件删除失败、`getStat`/`_runClean`/`_listTtsFiles` 异常改为 `captureWarning()`，均补 stack；清理完成摘要改为 `captureMessage()`；保留 `flutter/foundation.dart`（`@visibleForTesting`）。

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:yueyou/core/config/tts_config.dart';
@@ -103,7 +102,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     if (state is TtsAudioIdle) return;
 
     _idleTimer = Timer(Duration(minutes: minutes), () {
-      debugPrint('[TTS] 静默暂停：检测到用户已空闲 ${minutes}m，自动执行停播');
+      CyberLogger.captureMessage('[TTS] 静默暂停：用户已空闲 ${minutes}m，自动停播');
       pause();
     });
   }
@@ -301,8 +300,13 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           await Future.delayed(const Duration(milliseconds: 300));
         }
       }
-    } catch (e) {
-      debugPrint('[TTS] 预加载轨道异常: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'TTS 预加载轨道异常'},
+      );
     }
   }
 
@@ -320,8 +324,13 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           await Future.delayed(const Duration(milliseconds: 200));
         }
       }
-    } catch (e) {
-      debugPrint('[TTS] 播放轨道异常: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'TTS 播放轨道异常'},
+      );
     }
   }
 
@@ -453,7 +462,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     // 2. 暂停校验：如果是因暂停导致的 stopAudio()，不应推进进度
     if (_isPausing || _isPausedInterrupt(item)) {
-      debugPrint('[TTS] 暂停引起的播放中断，保留进度');
+      CyberLogger.captureMessage('[TTS] 暂停引起的播放中断，保留进度');
       _clearPausedInterrupt();
       return;
     }
@@ -496,10 +505,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           final file = File(path);
           if (await file.exists()) {
             await file.delete();
-            debugPrint('[TTS] 已销毁临时文件: $path');
           }
-        } catch (e) {
-          debugPrint('[TTS] 删除临时文件失败: $e');
+        } catch (e, st) {
+          CyberLogger.captureWarning(
+            e,
+            stack: st,
+            tag: 'tts',
+            extra: {'context': 'TTS 删除临时文件失败', 'path': path},
+          );
         }
       }),
     );
@@ -590,7 +603,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           _isDegradedToLocal = false;
           _consecutiveFailures = 0;
           _fallbackMessage = null;
-          debugPrint('[TTS] 网络已恢复，退出降级模式');
+          CyberLogger.captureMessage('[TTS] 网络已恢复，退出降级模式');
         }
       } catch (_) {
         // 仍无网络，继续降级
