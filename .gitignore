@@ -69,3 +69,6 @@ tts_*.mp3
 # 书籍原始数据（体积大，本地生成）
 books/chapters/
 books/xiyouji.json
+
+# VSCode Counter
+.VSCodeCounter/
