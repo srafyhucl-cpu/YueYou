@@ -3,12 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' show min;
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fast_gbk/fast_gbk.dart';
-import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
+import 'package:yueyou/features/library/domain/book_model.dart';
 
 // V1.0 最大允许导入的文件大小（可配置常量）
 const int kMaxFileSizeMb = 15;
@@ -78,7 +79,9 @@ class FileImportService {
       final PlatformFile pickedFile = result.files.single;
       final String? filePath = pickedFile.path;
       if (filePath == null || filePath.isEmpty) {
-        throw const FileSystemException(CyberErrorMessages.importReadPathFailed);
+        throw const FileSystemException(
+          CyberErrorMessages.importReadPathFailed,
+        );
       }
 
       final String fileName = pickedFile.name;
@@ -93,7 +96,12 @@ class FileImportService {
       return await _spawnParseIsolate(_ParseArgs(filePath, fileName));
     } catch (error, stackTrace) {
       if (error is FileTooLargeException) rethrow;
-      debugPrint(' TXT 导入失败: $error\n$stackTrace');
+      CyberLogger.captureWarning(
+        error,
+        stack: stackTrace,
+        tag: 'library',
+        extra: {'context': 'TXT 文件导入失败'},
+      );
       return null;
     }
   }
@@ -134,7 +142,12 @@ class FileImportService {
 
       return FileImportResult(title: title, lines: lines, chapters: chapters);
     } catch (e, st) {
-      debugPrint('⚠️ Isolate 解析异常: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'TXT 解析 Isolate 启动或结果接收失败'},
+      );
       if (_activeImportToken == importToken) {
         _activeIsolate = null;
       }
@@ -158,8 +171,13 @@ class FileImportService {
         'lines': result.lines,
         'chapters': result.chapters.map((c) => c.toJson()).toList(),
       });
-    } catch (e) {
-      debugPrint('⚠️ Isolate 内部解析失败: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {'context': 'TXT 解析 Isolate 内部失败'},
+      );
       message.sendPort.send(null);
     }
   }
@@ -168,7 +186,7 @@ class FileImportService {
   // 立即杀死后台 Isolate，释放 CPU 和内存
   static void cancelImport() {
     if (_activeIsolate != null) {
-      debugPrint('🛑 主动杀死导入 Isolate');
+      CyberLogger.captureMessage('主动取消 TXT 导入 Isolate');
       _activeImportToken++;
       _activeIsolate!.kill(priority: Isolate.immediate);
       _activeIsolate = null;
@@ -196,6 +214,7 @@ class FileImportService {
       final file = File(args.filePath);
       final title =
           args.fileName.replaceAll(RegExp(r'\.txt$', caseSensitive: false), '');
+      if (!await file.exists()) return null;
 
       // Step 1: 采样前 4KB 嗅探编码（只读采样量，不读全文件）
       final int fileLength = await file.length();
@@ -223,7 +242,8 @@ class FileImportService {
       // Step 3: 流式解码 → 行切分
       final Stream<String> lineStream = byteStream
           .transform(
-              useUtf8 ? const Utf8Decoder(allowMalformed: true) : gbk.decoder,)
+            useUtf8 ? const Utf8Decoder(allowMalformed: true) : gbk.decoder,
+          )
           .transform(const LineSplitter());
 
       // Step 4: 逐行处理（trim + 去空行），内存中只驻留最终行列表
@@ -260,7 +280,12 @@ class FileImportService {
 
       return FileImportResult(title: title, lines: lines, chapters: chapters);
     } catch (e, st) {
-      debugPrint('FileImportService._parseFileStreaming error: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'TXT 文件流式解析失败'},
+      );
       return null;
     }
   }
