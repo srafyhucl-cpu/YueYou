@@ -105,10 +105,20 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
     }
     try {
       await _currentSpeech!.future.timeout(const Duration(seconds: 60));
-    } on TimeoutException {
-      debugPrint('⚠️ 本地 TTS 朗读超时');
-    } catch (e) {
-      debugPrint('⚠️ 本地 TTS 朗读错误: $e');
+    } on TimeoutException catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': '本地 TTS 朗读超时'},
+      );
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': '本地 TTS 朗读错误'},
+      );
     }
   }
 
@@ -213,7 +223,6 @@ class _RealHttpClient implements HttpClientInterface {
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 15);
     try {
-      debugPrint('🌐 TTS 下载请求开始: $url');
       var currentUrl = url;
       HttpClientRequest request = await client.getUrl(currentUrl);
       HttpClientResponse response;
@@ -223,7 +232,6 @@ class _RealHttpClient implements HttpClientInterface {
         response = await request.close().timeout(
           const Duration(seconds: 15),
           onTimeout: () {
-            debugPrint('🛑 TTS 下载外部超时保护触发: 超过15秒');
             throw TimeoutException('TTS 下载超时 (15秒)');
           },
         );
@@ -232,7 +240,6 @@ class _RealHttpClient implements HttpClientInterface {
             response.headers.value('location') != null &&
             redirectCount < maxRedirects) {
           currentUrl = Uri.parse(response.headers.value('location')!);
-          debugPrint('🔄 TTS 下载重定向: $currentUrl');
           request = await client.getUrl(currentUrl);
           redirectCount++;
         } else {
@@ -244,21 +251,13 @@ class _RealHttpClient implements HttpClientInterface {
         throw HttpException('下载音频失败: HTTP $statusCode');
       }
       final bytes = <int>[];
-      debugPrint('📥 TTS 下载连接成功，等待数据传输: HTTP $statusCode');
       await for (final chunk in response) {
         bytes.addAll(chunk);
-        debugPrint('📦 TTS 下载数据块接收: ${chunk.length} 字节，总计 ${bytes.length} 字节');
       }
       if (bytes.isEmpty) {
         throw const HttpException('下载音频失败: 响应体为空');
       }
       await targetFile.writeAsBytes(bytes, flush: true);
-      debugPrint(
-        '✅ TTS 下载响应完成: HTTP $statusCode, bytes=${bytes.length} -> $savePath',
-      );
-    } catch (e) {
-      debugPrint('⚠️ TTS 下载异常: $e');
-      rethrow;
     } finally {
       client.close();
     }
@@ -277,20 +276,15 @@ class _RealHttpClient implements HttpClientInterface {
       final Map<String, dynamic> bodyMap = body is Map<String, dynamic>
           ? body
           : (body is String ? jsonDecode(body) as Map<String, dynamic> : {});
-      debugPrint('📡 TTS 请求 URL: $url');
-      debugPrint('📡 TTS 请求 body: $bodyMap');
       final jsonBody = jsonEncode(bodyMap);
       request.write(jsonBody);
       final response = await request.close().timeout(
         const Duration(seconds: 15),
         onTimeout: () {
-          debugPrint('🛑 TTS POST 请求超时: 超过15秒');
           throw TimeoutException('TTS POST 请求超时 (15秒)');
         },
       );
       final responseBody = await response.transform(utf8.decoder).join();
-      debugPrint('📡 TTS 响应: HTTP ${response.statusCode}');
-      debugPrint('🔴 TTS 服务器原始响应内容: $responseBody');
       return responseBody;
     } finally {
       client.close();
@@ -499,7 +493,11 @@ class TtsEngineService extends ChangeNotifier {
     unawaited(
       _audioPlayer.setPlaybackRate(rate).catchError((Object e) {
         _setLastError(CyberErrorMessages.ttsAudioParamFailed);
-        debugPrint('设置播放倍速失败: $e');
+        CyberLogger.captureWarning(
+          e,
+          tag: 'tts',
+          extra: {'context': '设置播放倍速失败'},
+        );
       }),
     );
   }
@@ -508,7 +506,11 @@ class TtsEngineService extends ChangeNotifier {
     unawaited(
       _audioPlayer.setVolume(volume).catchError((Object e) {
         _setLastError(CyberErrorMessages.ttsAudioParamFailed);
-        debugPrint('设置音量失败: $e');
+        CyberLogger.captureWarning(
+          e,
+          tag: 'tts',
+          extra: {'context': '设置音量失败'},
+        );
       }),
     );
   }
@@ -612,12 +614,22 @@ class TtsEngineService extends ChangeNotifier {
       _initCompleted = true;
       try {
         await _fallbackEngine.initialize();
-      } catch (e) {
-        debugPrint('⚠️ 本地 TTS 降级引擎初始化失败: $e');
+      } catch (e, st) {
+        CyberLogger.captureWarning(
+          e,
+          stack: st,
+          tag: 'tts',
+          extra: {'context': '本地 TTS 降级引擎初始化失败'},
+        );
       }
-      debugPrint(' TTS 执行层已初始化');
-    } catch (e) {
-      debugPrint(' TTS 引擎初始化失败: $e');
+      CyberLogger.captureMessage('TTS 执行层已初始化');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'TTS 引擎初始化失败'},
+      );
       _initCompleted = true;
     }
   }
@@ -653,10 +665,15 @@ class TtsEngineService extends ChangeNotifier {
         }
       }
       if (cleaned > 0) {
-        debugPrint(' 已回收 $cleaned 个残留 TTS 临时文件');
+        CyberLogger.captureMessage('已回收 $cleaned 个残留 TTS 临时文件');
       }
-    } catch (e) {
-      debugPrint(' 清理残留 TTS 文件失败: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': '清理残留 TTS 文件失败'},
+      );
     }
   }
 
@@ -816,7 +833,6 @@ class TtsEngineService extends ChangeNotifier {
 
       // 步骤 3：发送 HTTP 请求
       const testText = '测试文本一二三四五';
-      debugPrint('📡 发送 TTS 测试请求: $testText');
 
       // 使用注入的 httpClient 以确保可测试性
       final response = await _httpClient
@@ -949,8 +965,13 @@ class TtsEngineService extends ChangeNotifier {
       await _fallbackEngine.speak(text);
       _clearLastError();
       return true;
-    } catch (e) {
-      debugPrint('⚠️ 本地 TTS 降级朗读失败: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': '本地 TTS 降级朗读失败'},
+      );
       return false;
     }
   }
@@ -979,15 +1000,29 @@ class TtsEngineService extends ChangeNotifier {
       try {
         final result = await _executeDownload(request, attempt);
         if (result != null) return result;
-      } on TimeoutException catch (e) {
+      } on TimeoutException catch (e, st) {
         _setLastError(e);
-        debugPrint('[TTS] 请求超时 (尝试${attempt + 1}): $e');
+        CyberLogger.captureWarning(
+          e,
+          stack: st,
+          tag: 'tts',
+          extra: {'context': 'TTS 请求超时', 'attempt': '${attempt + 1}'},
+        );
         if (attempt < _config.maxRetries - 1) {
           await _delayFn(_config.baseRetryDelay * (1 << attempt));
         }
-      } on _TtsHttpStatusException catch (e) {
+      } on _TtsHttpStatusException catch (e, st) {
         _setLastError(e.statusCode);
-        debugPrint('[TTS] HTTP ${e.statusCode} (尝试${attempt + 1})');
+        CyberLogger.captureWarning(
+          e,
+          stack: st,
+          tag: 'tts',
+          extra: {
+            'context': 'TTS HTTP 错误',
+            'statusCode': '${e.statusCode}',
+            'attempt': '${attempt + 1}',
+          },
+        );
         if (e.isClientError) {
           // 4xx 客户端错误：不可重试，立即退出
           break;
@@ -996,9 +1031,14 @@ class TtsEngineService extends ChangeNotifier {
         if (attempt < _config.maxRetries - 1) {
           await _delayFn(_config.baseRetryDelay * (1 << attempt));
         }
-      } catch (e) {
+      } catch (e, st) {
         _setLastError(e);
-        debugPrint('[TTS] 下载失败 (尝试${attempt + 1}): $e');
+        CyberLogger.captureWarning(
+          e,
+          stack: st,
+          tag: 'tts',
+          extra: {'context': 'TTS 下载失败', 'attempt': '${attempt + 1}'},
+        );
         if (e is FormatException) {
           break;
         }
@@ -1037,9 +1077,16 @@ class TtsEngineService extends ChangeNotifier {
     if (isRealClient) {
       try {
         filePath = await Isolate.run(() => _isolateDownload(isolateInput));
-        debugPrint('[TTS] Isolate 下载完成: $filePath');
-      } catch (e) {
-        debugPrint('[TTS] Isolate 下载失败 (尝试${attempt + 1}): $e');
+      } catch (e, st) {
+        CyberLogger.captureWarning(
+          e,
+          stack: st,
+          tag: 'tts',
+          extra: {
+            'context': 'Isolate 下载失败，降级到主线程',
+            'attempt': '${attempt + 1}',
+          },
+        );
         // 降级到主线程
         filePath = await _mainThreadDownload(request, voice, serverUrl);
       }
@@ -1112,13 +1159,20 @@ class TtsEngineService extends ChangeNotifier {
       // 检查文件是否存在且有效
       final file = File(path);
       if (!await file.exists()) {
-        debugPrint('[TTS] 文件不存在，跳过播放: $path');
         onComplete?.call();
         return;
       }
       final fileSize = await file.length();
       if (fileSize < 1024) {
-        debugPrint('[TTS] 文件太小 (${fileSize}B < 1KB)，跳过播放');
+        CyberLogger.captureWarning(
+          StateError('TTS 音频文件太小'),
+          tag: 'tts',
+          extra: {
+            'context': '文件太小，跳过播放',
+            'sizeBytes': '$fileSize',
+            'path': path,
+          },
+        );
         onComplete?.call();
         return;
       }
@@ -1133,12 +1187,10 @@ class TtsEngineService extends ChangeNotifier {
       });
       try {
         await _audioPlayer.resume();
-        debugPrint('[TTS] AudioPlayer 已启动: $path');
         // 等待播放自然完成，或被 stopAudio 强制完成
         await _playCompleter!.future.timeout(
           const Duration(seconds: 30),
           onTimeout: () {
-            debugPrint('[TTS] 播放超时 (30s)，强制结束');
             unawaited(_audioPlayer.stop());
           },
         );
@@ -1149,7 +1201,6 @@ class TtsEngineService extends ChangeNotifier {
         _playCompleter = null;
       }
     } on TimeoutException catch (e) {
-      debugPrint('[TTS] 音频加载超时: $e');
       CyberLogger.captureWarning(
         e,
         tag: 'tts',
@@ -1159,7 +1210,6 @@ class TtsEngineService extends ChangeNotifier {
       _setLastError(CyberErrorMessages.ttsAudioLoadTimeout);
       onComplete?.call();
     } catch (e) {
-      debugPrint('[TTS] 播放异常: $e');
       CyberLogger.captureWarning(
         e is Exception ? e : Exception('$e'),
         tag: 'tts',
@@ -1249,7 +1299,7 @@ class TtsEngineService extends ChangeNotifier {
           if (request != null) {
             // 短句过滤：统一在此处拦截，避免触发无效下载
             if (request.text.length < 5) {
-              debugPrint('[TTS] 兼容循环：短句过滤 (${request.text})');
+              CyberLogger.captureMessage('兼容循环：短句过滤');
               // 短句不计入失败，等待下一轮产出新句子
               await _delayOrDispose(const Duration(seconds: 1));
               continue;
@@ -1263,9 +1313,16 @@ class TtsEngineService extends ChangeNotifier {
               _consecutiveFailures++;
             }
           }
-        } catch (e) {
+        } catch (e, st) {
           _consecutiveFailures++;
-          if (!_disposed) debugPrint('⚠️ TTS 兼容循环异常: $e');
+          if (!_disposed) {
+            CyberLogger.captureWarning(
+              e,
+              stack: st,
+              tag: 'tts',
+              extra: {'context': 'TTS 兑容循环异常'},
+            );
+          }
         }
       }
 

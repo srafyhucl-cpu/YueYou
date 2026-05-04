@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(tts): 规范化第 12 批 TTS 引擎服务日志治理**：
+  - **`TtsEngineService`**（36 处）：删除 `_RealHttpClient` 中 HTTP 下载进度/重定向/连接/数据块/完成/POST请求与响应等纯追踪日志；删除 Isolate 成功、AudioPlayer 启动、文件不存在静默跳过等纯追踪；`_FlutterTtsFallbackEngine` 朗读超时/错误改为 `captureWarning()`；引擎初始化/降级引擎初始化/降级朗读/设置倍速音量/清理残留文件/重试各层/Isolate 降级/兼容循环异常均改为 `captureWarning()` + stack；引擎已初始化、残留文件回收成功、短句过滤改为 `captureMessage()`；文件太小由删除改为 `captureWarning(StateError(...))`；顺带修复 3 处 `require_trailing_commas` lint。
+  - **契约保持**：重试退避策略、4xx 不重试/5xx 重试、Isolate 主线程降级、兼容循环消费/生产分支行为完全不变。
+  - **验证**：`TtsEngineService` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/audio/ --concurrency=1` 90 个测试全部通过。
+
 - **维护(tts): 规范化第 11 批 TTS 音频状态机日志治理**：
   - **`TtsAudioNotifier`**：空闲自动停播、暂停中断保留进度、网络恢复退出降级改为 `captureMessage()`；预加载轨道异常、播放轨道异常、删除临时文件失败改为 `captureWarning()`，均补 stack；临时文件销毁成功追踪日志直接删除；移除已无用的 `flutter/foundation.dart` import。
   - **契约保持**：暂停中断哨兵逻辑、降级自动停播、网络探测恢复行为完全不变。
