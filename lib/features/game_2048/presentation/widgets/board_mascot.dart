@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 
@@ -74,10 +75,11 @@ class BoardMascotState extends ConsumerState<BoardMascot>
     // 眼球：120ms 平滑过渡
     _eyeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: CyberDimensions.animInstant,
     );
     _eyeAnimation = Tween<Offset>(begin: Offset.zero, end: Offset.zero).animate(
-        CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),);
+      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
+    );
 
     // 身体跳跃：480ms 弹跳序列（上弹 → 超出 → 回弹 → 落地）
     _bodyController = AnimationController(
@@ -90,7 +92,8 @@ class BoardMascotState extends ConsumerState<BoardMascot>
       TweenSequenceItem(tween: Tween(begin: 5.0, end: -10.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: -10.0, end: 0.0), weight: 30),
     ]).animate(
-        CurvedAnimation(parent: _bodyController, curve: Curves.easeInOut),);
+      CurvedAnimation(parent: _bodyController, curve: Curves.easeInOut),
+    );
 
     // 表情：200ms 平滑过渡
     _expressionController = AnimationController(
@@ -103,7 +106,8 @@ class BoardMascotState extends ConsumerState<BoardMascot>
 
     // 头部倾斜：复用 _eyeController，初始正立
     _tiltAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
-        CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),);
+      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
+    );
 
     // 棋盘掀起晃动：240ms 弹回，初始静止
     _wobbleController = AnimationController(
@@ -131,7 +135,8 @@ class BoardMascotState extends ConsumerState<BoardMascot>
       duration: const Duration(milliseconds: 600),
     );
     _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),);
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    );
   }
 
   /// 随机间隔眨眼（2.5s ~ 5.5s）
@@ -238,7 +243,8 @@ class BoardMascotState extends ConsumerState<BoardMascot>
         weight: 70,
       ),
     ]).animate(
-        CurvedAnimation(parent: _wobbleController, curve: Curves.easeOut),);
+      CurvedAnimation(parent: _wobbleController, curve: Curves.easeOut),
+    );
     _wobbleController.forward(from: 0.0);
   }
 
@@ -261,9 +267,11 @@ class BoardMascotState extends ConsumerState<BoardMascot>
     final curEye = _eyeAnimation.value;
     final curTilt = _tiltAnimation.value;
     _eyeAnimation = Tween<Offset>(begin: curEye, end: eyeTarget).animate(
-        CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),);
+      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
+    );
     _tiltAnimation = Tween<double>(begin: curTilt, end: tiltTarget).animate(
-        CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),);
+      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
+    );
     _eyeController.forward(from: 0.0);
   }
 
@@ -479,7 +487,12 @@ class _MascotFacePainter extends CustomPainter {
 
   // ── 能量触手：抓住边框 + 能量扩散 ──
   void _drawTentacles(
-      Canvas canvas, double cx, double offsetY, double coreCy, double coreR,) {
+    Canvas canvas,
+    double cx,
+    double offsetY,
+    double coreCy,
+    double coreR,
+  ) {
     final tentacleTop = coreCy + coreR * 0.8;
     final tentacleBottom = offsetY + _mH;
     final spacing = coreR * 0.85;

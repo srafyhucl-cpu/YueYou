@@ -78,7 +78,33 @@ class CyberDimensions {
   /// 标准仪表盘状态卡片最小高度
   static const double dashboardStatusCardMinHeight = 85.0;
 
-  // ==================== 动效 ====================
+  // ==================== 动效时长 ====================
+
+  /// 通用过渡动画时长（Modal、开关、按钮状态切换）
+  static const Duration animNormal = Duration(milliseconds: 300);
+
+  /// 快速反馈动画时长（弹窗退场、选项切换）
+  static const Duration animFast = Duration(milliseconds: 250);
+
+  /// 超快反馈动画时长（棋盘倾斜、元素位移）
+  static const Duration animXFast = Duration(milliseconds: 150);
+
+  /// 瞬间反馈动画时长（眼球追踪、合并弹出）
+  static const Duration animInstant = Duration(milliseconds: 120);
+
+  /// 中等动画时长（合并粒子、导入按钮）
+  static const Duration animMedium = Duration(milliseconds: 400);
+
+  /// 消除动画时长（棋盘方块消除三段式）
+  static const Duration animEliminate = Duration(milliseconds: 450);
+
+  /// 慢动画时长（棋盘重置、身体跳跃）
+  static const Duration animSlow = Duration(milliseconds: 600);
+
+  /// Toast 显示持续时长
+  static const Duration toastDuration = Duration(seconds: 2, milliseconds: 500);
+
+  // ==================== 动效（视觉） ====================
 
   /// 提词器扫光条宽度
   static const double shimmerWidth = 80.0;

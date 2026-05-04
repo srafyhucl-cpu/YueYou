@@ -2,6 +2,14 @@
 
 ## **2026-05-04**
 
+- **维护(style): 阶段 3 第 1 批 UI 动画常量化**：
+  - 向 `CyberDimensions` 追加 8 个动效时长常量：`animNormal`(300ms)、`animFast`(250ms)、`animXFast`(150ms)、`animInstant`(120ms)、`animMedium`(400ms)、`animEliminate`(450ms)、`animSlow`(600ms)、`toastDuration`(2500ms)。
+  - 替换 9 个文件 14 处硬编码 `Duration`：`cyber_toast`、`cyber_modal`、`settings_screen`、`chapter_list_screen`、`tile_widget`、`square_board`、`merge_particle`、`board_reset_animation`、`board_mascot`。
+  - 顺带修复 `square_board.dart` + `settings_screen.dart` 合计 10 处存量 `require_trailing_commas` lint。
+  - **契约保持**：单次出现且语义独特的 480ms(跳跃)、1200ms(漂浮得分)、1500ms(彩蛋重置) 保留不变；视觉表现完全无变化。
+  - **验证**：`flutter analyze` 零警告；`flutter test test/features/game_2048/ test/features/reader/ --concurrency=1` 157 个测试全部通过。
+- **维护(audit): 阶段 2 URL 审计结论**：全仓 12 处 `https://` 均合规（文档注释示例 / `String.fromEnvironment` 默认值 / 合规外部跳转链接），无需代码改动。
+
 - **维护(reader): 规范化第 13 批阅读器 Provider 日志治理**：
   - **`ReaderProvider`**（22 处）：删除 `nextTtsSentence` 末尾/书末追踪、`resetFetchIndex` 重置追踪、`loadBook`/`loadChapter` 调用/完成追踪、`fetchChapter` 返回、`jumpTo` 成功追踪等纯调试日志；4 处 `_saveProgress` catchError 改为 `captureWarning()`；`loadPreparedBook`/`loadBook` 异常、`loadChapter` 失败改为 `captureWarning()` + stack；`jumpTo` 越界改为 `captureWarning(StateError(...))`；级联重置完成、默认书恢复、章末已到最终章、章末推进改为 `captureMessage()`；引入 `cyber_logger.dart` import；修复 1 处 `require_trailing_commas` lint。
   - **契约保持**：nextTtsSentence 末尾静默返回 null、jumpTo 边界静默返回、章末自动推进、默认书热重启恢复行为完全不变。

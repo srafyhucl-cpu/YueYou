@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 
 /// 合并粒子效果组件
 /// 消消乐风格：径向扩散的小光点 + 渐隐动画
@@ -26,7 +27,7 @@ class _MergeParticleState extends State<MergeParticle>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: CyberDimensions.animMedium,
       vsync: this,
     );
 

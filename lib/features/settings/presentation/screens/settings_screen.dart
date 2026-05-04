@@ -87,7 +87,10 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildBody(
-      BuildContext context, WidgetRef ref, SettingsProvider settings,) {
+    BuildContext context,
+    WidgetRef ref,
+    SettingsProvider settings,
+  ) {
     return ListView(
       padding: const EdgeInsets.symmetric(
         horizontal: CyberDimensions.spacingM,
@@ -182,7 +185,10 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: CyberDimensions.spacingXL),
 
         // ── 系统 ──────────────────────────────────────────────
-        const _SectionTitle(title: '系统音效', icon: Icons.settings_input_component),
+        const _SectionTitle(
+          title: '系统音效',
+          icon: Icons.settings_input_component,
+        ),
         _ToggleTile(
           label: '方块合并音效',
           subtitle: '2048 核心交互音频反馈',
@@ -275,12 +281,16 @@ class _ToggleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+      duration: CyberDimensions.animNormal,
       decoration: BoxDecoration(
-        color: value ? CyberColors.surface.withValues(alpha: 0.6) : CyberColors.surface,
+        color: value
+            ? CyberColors.surface.withValues(alpha: 0.6)
+            : CyberColors.surface,
         borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
         border: Border.all(
-          color: value ? activeColor.withValues(alpha: 0.4) : CyberColors.whiteFaint,
+          color: value
+              ? activeColor.withValues(alpha: 0.4)
+              : CyberColors.whiteFaint,
           width: 1,
         ),
         boxShadow: value
@@ -346,7 +356,7 @@ class _ChoiceSelector<T> extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onChanged(entry.key),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
+                duration: CyberDimensions.animFast,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   gradient: isSelected
@@ -363,7 +373,8 @@ class _ChoiceSelector<T> extends StatelessWidget {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: CyberColors.background.withValues(alpha: 0.4),
+                            color:
+                                CyberColors.background.withValues(alpha: 0.4),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -374,8 +385,11 @@ class _ChoiceSelector<T> extends StatelessWidget {
                   child: Text(
                     entry.value,
                     style: CyberTextStyles.bodySmall.copyWith(
-                      color: isSelected ? CyberColors.white : CyberColors.whiteMuted,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? CyberColors.white
+                          : CyberColors.whiteMuted,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 12,
                     ),
                   ),
@@ -415,7 +429,10 @@ class _VoiceSelector extends ConsumerWidget {
         isExpanded: true,
         dropdownColor: CyberColors.surface,
         underline: const SizedBox.shrink(),
-        icon: const Icon(Icons.keyboard_arrow_down, color: CyberColors.whiteMuted),
+        icon: const Icon(
+          Icons.keyboard_arrow_down,
+          color: CyberColors.whiteMuted,
+        ),
         items: _voices.entries.map((e) {
           return DropdownMenuItem(
             value: e.key,
@@ -482,7 +499,11 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
                     ),
                   )
                 else
-                  const Icon(Icons.terminal, color: CyberColors.neonCyan, size: 14),
+                  const Icon(
+                    Icons.terminal,
+                    color: CyberColors.neonCyan,
+                    size: 14,
+                  ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -494,7 +515,11 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
                     ),
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: CyberColors.whiteMuted, size: 14),
+                const Icon(
+                  Icons.chevron_right,
+                  color: CyberColors.whiteMuted,
+                  size: 14,
+                ),
               ],
             ),
           ),
@@ -517,7 +542,10 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isTesting = false);
-      CyberToast.show(CyberErrorMessages.testFailedUnresponsive, type: ToastType.error);
+      CyberToast.show(
+        CyberErrorMessages.testFailedUnresponsive,
+        type: ToastType.error,
+      );
     }
   }
 }
@@ -554,38 +582,44 @@ class _TtsTestResultDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: CyberDimensions.spacingM),
-            ...steps.take(4).map((step) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        step['status'] == 'success' ? Icons.check : Icons.close,
-                        size: 14,
-                        color: step['status'] == 'success'
-                            ? CyberColors.neonGreen
-                            : CyberColors.neonPink,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        step['name'],
-                        style: CyberTextStyles.bodySmall.copyWith(
-                          color: CyberColors.whiteDim,
-                          fontSize: 12,
+            ...steps.take(4).map(
+                  (step) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          step['status'] == 'success'
+                              ? Icons.check
+                              : Icons.close,
+                          size: 14,
+                          color: step['status'] == 'success'
+                              ? CyberColors.neonGreen
+                              : CyberColors.neonPink,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          step['name'],
+                          style: CyberTextStyles.bodySmall.copyWith(
+                            color: CyberColors.whiteDim,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),),
+                ),
             const SizedBox(height: CyberDimensions.spacingML),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: success ? CyberColors.neonGreen : CyberColors.neonPink,
+                  backgroundColor:
+                      success ? CyberColors.neonGreen : CyberColors.neonPink,
                   foregroundColor: CyberColors.background,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusS),
                   ),
                 ),
                 child: const Text('了解', style: CyberTextStyles.buttonLabel),
@@ -614,7 +648,11 @@ class _AmbientVolumeSlider extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 12),
-          const Icon(Icons.volume_down, size: 14, color: CyberColors.whiteMuted),
+          const Icon(
+            Icons.volume_down,
+            size: 14,
+            color: CyberColors.whiteMuted,
+          ),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
@@ -623,7 +661,9 @@ class _AmbientVolumeSlider extends StatelessWidget {
                 thumbColor: CyberColors.white,
                 overlayColor: CyberColors.neonPurple.withValues(alpha: 0.1),
                 trackHeight: 2.0,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 6,
+                ),
               ),
               child: Slider(
                 value: settings.ambientVol,

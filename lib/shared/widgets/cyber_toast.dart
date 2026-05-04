@@ -18,9 +18,11 @@ class CyberToast {
   static OverlayEntry? _currentEntry;
   static Timer? _currentTimer;
 
-  static void show(String message,
-      {ToastType type = ToastType.info,
-      Duration duration = const Duration(seconds: 2, milliseconds: 500),}) {
+  static void show(
+    String message, {
+    ToastType type = ToastType.info,
+    Duration duration = CyberDimensions.toastDuration,
+  }) {
     // 移除之前的 Toast
     _removeCurrentEntry();
 
@@ -81,25 +83,29 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
     super.initState();
 
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: CyberDimensions.animNormal,
       vsync: this,
     );
 
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ),);
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ),);
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
 
     _controller.forward();
   }
@@ -110,7 +116,11 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
     super.dispose();
   }
 
-  Color _getBorderColor() => switch (widget.type) { ToastType.error => CyberColors.neonPink, ToastType.success => CyberColors.neonGreen, ToastType.info => CyberColors.neonCyan };
+  Color _getBorderColor() => switch (widget.type) {
+        ToastType.error => CyberColors.neonPink,
+        ToastType.success => CyberColors.neonGreen,
+        ToastType.info => CyberColors.neonCyan
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +140,8 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                   maxWidth: MediaQuery.of(context).size.width * 0.85,
                 ),
                 margin: const EdgeInsets.symmetric(
-                    horizontal: CyberDimensions.spacingML,),
+                  horizontal: CyberDimensions.spacingML,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
                   border: Border.all(
@@ -147,7 +158,8 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(
-                      CyberDimensions.radiusL - CyberDimensions.borderThick,),
+                    CyberDimensions.radiusL - CyberDimensions.borderThick,
+                  ),
                   child: CyberPerformanceDetector.detectLevel() ==
                           CyberAnimationLevel.low
                       ? Container(
