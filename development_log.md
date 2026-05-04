@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **审计(quality): 阶段 5+6 静态类型与资源配置审计**：
+  - **阶段 5**：全库 128 处 `!` 强制解包、60 处 `Map<String, dynamic>`、所有 `as` 转型全部合规，无 `TODO/FIXME` 遗留，无需修改。
+  - **阶段 6**：`pubspec.yaml` 资源声明与实际文件完全匹配，Rive 加载有降级保护，dependencies 无冗余，构建命令规范已固化，无需修改。
+  - **验证**：`flutter analyze` 零警告，两个阶段均为只读审计，无代码改动。
+
 - **维护(quality): 阶段 4 异常处理统一审计**：
   - 全库扫描所有 `catch` 块，分类为"需修复"和"合规静默"。
   - **5 处修复**：`tts_engine_service.dart` `testConnection` 步骤 5 `catch (e)` → `(e, st)` + `CyberLogger`；`TimeoutException`/`SocketException`/兜底 `catch (e)` 均补 `stack: st` + `CyberLogger`；`playFile` `TimeoutException` 和通用 catch 补 `stack: st`；`tts_audio_notifier.dart` `downloadAudio` catch 补 `stack: st`；`settings_screen.dart` `_testTtsConnection` catch 补 `CyberLogger` + `stack: st` + import。
