@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
 
 /// 棋盘重置翻转动画包装器
 /// 当重置游戏时触发 3D 翻转效果
@@ -30,16 +31,18 @@ class _BoardResetAnimationState extends State<BoardResetAnimation>
     _previousTrigger = widget.triggerReset;
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: CyberDimensions.animSlow,
     );
 
     _rotationAnimation = Tween<double>(
       begin: 0.0,
       end: math.pi,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOutCubic,
-    ),);
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOutCubic,
+      ),
+    );
 
     _fadeAnimation = TweenSequence<double>([
       TweenSequenceItem(

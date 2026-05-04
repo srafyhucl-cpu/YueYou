@@ -40,7 +40,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
     super.initState();
     _tiltController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 150),
+      duration: CyberDimensions.animXFast,
     );
     _tiltX = Tween<double>(begin: 0, end: 0).animate(
       CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
@@ -304,444 +304,462 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                   final cellSize = (boardSize - padding * 2 - spacing * 3) / 4;
 
                   final board = provider.board;
-                      var maxTile = 0;
-                      for (final row in board) {
-                        for (final tile in row) {
-                          if (tile == null) continue;
-                          if (tile.value > maxTile) {
-                            maxTile = tile.value;
-                          }
-                        }
+                  var maxTile = 0;
+                  for (final row in board) {
+                    for (final tile in row) {
+                      if (tile == null) continue;
+                      if (tile.value > maxTile) {
+                        maxTile = tile.value;
                       }
+                    }
+                  }
 
-                      // 游戏结束时间戳
-                      final endTime = DateTime.now();
-                      // 局面评级
-                      final rating = _calculateRating(maxTile);
-                      final ratingColor = _ratingColor(rating);
+                  // 游戏结束时间戳
+                  final endTime = DateTime.now();
+                  // 局面评级
+                  final rating = _calculateRating(maxTile);
+                  final ratingColor = _ratingColor(rating);
 
-                      return Container(
-                        clipBehavior: Clip.none,
-                        decoration: BoxDecoration(
-                          color: CyberColors.background.withValues(alpha: 0.75),
-                          borderRadius:
-                              BorderRadius.circular(CyberDimensions.radiusXL),
-                          border: Border.all(
-                            color: CyberColors.neonCyan.withValues(alpha: 0.4),
-                            width: CyberDimensions.borderThick,
-                          ),
-                          boxShadow: [
-                            ...CyberShadows.elevated,
-                            BoxShadow(
-                              color: CyberColors.neonCyan.withValues(alpha: 0.12),
-                              blurRadius: 16,
-                              spreadRadius: -4,
-                              offset: const Offset(0, 0),
-                            ),
-                          ],
+                  return Container(
+                    clipBehavior: Clip.none,
+                    decoration: BoxDecoration(
+                      color: CyberColors.background.withValues(alpha: 0.75),
+                      borderRadius:
+                          BorderRadius.circular(CyberDimensions.radiusXL),
+                      border: Border.all(
+                        color: CyberColors.neonCyan.withValues(alpha: 0.4),
+                        width: CyberDimensions.borderThick,
+                      ),
+                      boxShadow: [
+                        ...CyberShadows.elevated,
+                        BoxShadow(
+                          color: CyberColors.neonCyan.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          spreadRadius: -4,
+                          offset: const Offset(0, 0),
                         ),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(padding),
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  _buildBackgroundGrid(cellSize, spacing),
-                                  ...board
-                                      .expand((row) => row)
-                                      .where((tile) => tile != null)
-                                      .map((tile) {
-                                    final pos = _findTilePosition(board, tile!);
-                                    return AnimatedPositioned(
-                                      key: ValueKey(tile.id),
-                                      duration:
-                                          const Duration(milliseconds: 150),
-                                      curve: Curves.easeOut,
-                                      left: pos.$2 * (cellSize + spacing),
-                                      top: pos.$1 * (cellSize + spacing),
-                                      width: cellSize,
-                                      height: cellSize,
-                                      child: TileWidget(
-                                        id: tile.id,
-                                        value: tile.value,
-                                        onEliminate: () {
-                                          ref
-                                              .read(gameProvider)
-                                              .eliminateTileById(tile.id);
-                                        },
-                                      ),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            ),
-                            if (_showGameOverDialog && provider.isOver)
-                              Positioned.fill(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                    CyberDimensions.radiusXL,
+                      ],
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(padding),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              _buildBackgroundGrid(cellSize, spacing),
+                              ...board
+                                  .expand((row) => row)
+                                  .where((tile) => tile != null)
+                                  .map((tile) {
+                                final pos = _findTilePosition(board, tile!);
+                                return AnimatedPositioned(
+                                  key: ValueKey(tile.id),
+                                  duration: CyberDimensions.animXFast,
+                                  curve: Curves.easeOut,
+                                  left: pos.$2 * (cellSize + spacing),
+                                  top: pos.$1 * (cellSize + spacing),
+                                  width: cellSize,
+                                  height: cellSize,
+                                  child: TileWidget(
+                                    id: tile.id,
+                                    value: tile.value,
+                                    onEliminate: () {
+                                      ref
+                                          .read(gameProvider)
+                                          .eliminateTileById(tile.id);
+                                    },
                                   ),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(
-                                      sigmaX: CyberDimensions.blurLight,
-                                      sigmaY: CyberDimensions.blurLight,
-                                    ),
-                                    child: Container(
-                                      color: CyberColors.blackOverlay
-                                          .withValues(alpha: 0.78),
-                                      padding: const EdgeInsets.all(CyberDimensions.spacingMS),
-                                      child: LayoutBuilder(
-                                        builder: (context, overlayConstraints) {
-                                          return Center(
-                                            child: ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxWidth: 360,
-                                                maxHeight: overlayConstraints
-                                                        .maxHeight *
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                        if (_showGameOverDialog && provider.isOver)
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                CyberDimensions.radiusXL,
+                              ),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: CyberDimensions.blurLight,
+                                  sigmaY: CyberDimensions.blurLight,
+                                ),
+                                child: Container(
+                                  color: CyberColors.blackOverlay
+                                      .withValues(alpha: 0.78),
+                                  padding: const EdgeInsets.all(
+                                    CyberDimensions.spacingMS,
+                                  ),
+                                  child: LayoutBuilder(
+                                    builder: (context, overlayConstraints) {
+                                      return Center(
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxWidth: 360,
+                                            maxHeight:
+                                                overlayConstraints.maxHeight *
                                                     0.9,
+                                          ),
+                                          child: Stack(
+                                            children: [
+                                              // 下雨特效层
+                                              const Positioned.fill(
+                                                child: RainEffect(
+                                                  rainCount: 20,
+                                                ),
                                               ),
-                                              child: Stack(
-                                                children: [
-                                                  // 下雨特效层
-                                                  const Positioned.fill(
-                                                    child: RainEffect(
-                                                      rainCount: 20,
-                                                    ),
+                                              // 弹窗内容层
+                                              Container(
+                                                padding: const EdgeInsets.all(
+                                                  CyberDimensions.spacingMS,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [
+                                                      CyberColors.whiteFaint,
+                                                      CyberColors.whiteFaint
+                                                          .withValues(
+                                                        alpha: 0.03,
+                                                      ),
+                                                    ],
                                                   ),
-                                                  // 弹窗内容层
-                                                  Container(
-                                                    padding: const EdgeInsets.all(CyberDimensions.spacingMS),
-                                                    decoration: BoxDecoration(
-                                                      gradient: LinearGradient(
-                                                        begin:
-                                                            Alignment.topLeft,
-                                                        end: Alignment
-                                                            .bottomRight,
-                                                        colors: [
-                                                          CyberColors
-                                                              .whiteFaint,
-                                                          CyberColors.whiteFaint
-                                                              .withValues(alpha: 
-                                                                  0.03,),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                    CyberDimensions.radiusL,
+                                                  ),
+                                                  border: Border.all(
+                                                    color: CyberColors.neonCyan
+                                                        .withValues(alpha: 0.2),
+                                                    width: 1.6,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: CyberColors
+                                                          .neonCyan
+                                                          .withValues(
+                                                        alpha: 0.1,
+                                                      ),
+                                                      blurRadius: 12,
+                                                      spreadRadius: 0,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      '游戏结束',
+                                                      style: CyberTextStyles
+                                                          .dialogTitle
+                                                          .copyWith(
+                                                        color: CyberColors
+                                                            .neonPink,
+                                                        fontSize: 24,
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                        letterSpacing: 1.0,
+                                                        shadows: [
+                                                          Shadow(
+                                                            color: CyberColors
+                                                                .neonPink
+                                                                .withValues(
+                                                              alpha: 0.55,
+                                                            ),
+                                                            blurRadius: 16,
+                                                          ),
                                                         ],
                                                       ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                        CyberDimensions.radiusL,
-                                                      ),
-                                                      border: Border.all(
-                                                        color: CyberColors
-                                                            .neonCyan
-                                                            .withValues(alpha: 0.2),
-                                                        width: 1.6,
-                                                      ),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: CyberColors
-                                                              .neonCyan
-                                                              .withValues(alpha: 0.1),
-                                                          blurRadius: 12,
-                                                          spreadRadius: 0,
-                                                        ),
-                                                      ],
                                                     ),
-                                                    child: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
+                                                    const SizedBox(
+                                                      height: 4,
+                                                    ),
+                                                    Text(
+                                                      '本局已无可移动棋子，是否重新开局？',
+                                                      style: CyberTextStyles
+                                                          .caption
+                                                          .copyWith(
+                                                        color: CyberColors
+                                                            .whiteHigh,
+                                                        fontSize: 11,
+                                                        letterSpacing: 0.5,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(
+                                                      height: 8,
+                                                    ),
+                                                    // 时间戳 + 评级（合并为一行）
+                                                    Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
                                                       children: [
                                                         Text(
-                                                          '游戏结束',
-                                                          style: CyberTextStyles.dialogTitle.copyWith(
+                                                          '${endTime.month.toString().padLeft(2, '0')}-${endTime.day.toString().padLeft(2, '0')} ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
+                                                          style: CyberTextStyles
+                                                              .caption
+                                                              .copyWith(
                                                             color: CyberColors
-                                                                .neonPink,
-                                                            fontSize: 24,
-                                                            fontWeight:
-                                                                FontWeight.w900,
-                                                            letterSpacing: 1.0,
-                                                            shadows: [
-                                                              Shadow(
-                                                                color: CyberColors
-                                                                    .neonPink
-                                                                    .withValues(alpha: 
-                                                                        0.55,),
-                                                                blurRadius: 16,
-                                                              ),
-                                                            ],
+                                                                .whiteMuted,
+                                                            fontSize: 10,
+                                                            letterSpacing: 0.3,
                                                           ),
                                                         ),
                                                         const SizedBox(
-                                                            height: 4,),
-                                                        Text(
-                                                          '本局已无可移动棋子，是否重新开局？',
-                                                          style: CyberTextStyles.caption.copyWith(
-                                                            color: CyberColors
-                                                                .whiteHigh,
-                                                            fontSize: 11,
-                                                            letterSpacing: 0.5,
+                                                          width: 8,
+                                                        ),
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 2,
                                                           ),
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 8,),
-                                                        // 时间戳 + 评级（合并为一行）
-                                                        Row(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .center,
-                                                          children: [
-                                                            Text(
-                                                              '${endTime.month.toString().padLeft(2, '0')}-${endTime.day.toString().padLeft(2, '0')} ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
-                                                              style:
-                                                                  CyberTextStyles.caption.copyWith(
-                                                                color: CyberColors
-                                                                    .whiteMuted,
-                                                                fontSize: 10,
-                                                                letterSpacing:
-                                                                    0.3,
-                                                              ),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: ratingColor
+                                                                .withValues(
+                                                              alpha: 0.2,
                                                             ),
-                                                            const SizedBox(
-                                                                width: 8,),
-                                                            Container(
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .symmetric(
-                                                                horizontal: 8,
-                                                                vertical: 2,
-                                                              ),
-                                                              decoration:
-                                                                  BoxDecoration(
-                                                                color: ratingColor
-                                                                    .withValues(alpha: 
-                                                                        0.2,),
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            6,),
-                                                                border:
-                                                                    Border.all(
-                                                                  color: ratingColor
-                                                                      .withValues(alpha: 
-                                                                          0.5,),
-                                                                  width: 0.8,
-                                                                ),
-                                                              ),
-                                                              child: Text(
-                                                                rating,
-                                                                style:
-                                                                    CyberTextStyles.captionBold.copyWith(
-                                                                  color:
-                                                                      ratingColor,
-                                                                  fontSize: 10,
-                                                                ),
-                                                              ),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                              6,
                                                             ),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 8,),
-                                                        Wrap(
-                                                          spacing: 8,
-                                                          runSpacing: 6,
-                                                          alignment:
-                                                              WrapAlignment
-                                                                  .center,
-                                                          children: [
-                                                            _buildGameOverStatItem(
-                                                              label: '得分',
-                                                              value: provider
-                                                                  .score
-                                                                  .toString(),
-                                                              valueColor:
-                                                                  CyberColors
-                                                                      .neonCyan,
+                                                            border: Border.all(
+                                                              color: ratingColor
+                                                                  .withValues(
+                                                                alpha: 0.5,
+                                                              ),
+                                                              width: 0.8,
                                                             ),
-                                                            _buildGameOverStatItem(
-                                                              label: '最大棋子',
-                                                              value: maxTile ==
-                                                                      0
-                                                                  ? '-'
-                                                                  : maxTile
-                                                                      .toString(),
-                                                              valueColor: maxTile ==
-                                                                      0
-                                                                  ? CyberColors
-                                                                      .whiteHigh
-                                                                  : _tileValueColor(
-                                                                      maxTile,),
+                                                          ),
+                                                          child: Text(
+                                                            rating,
+                                                            style:
+                                                                CyberTextStyles
+                                                                    .captionBold
+                                                                    .copyWith(
+                                                              color:
+                                                                  ratingColor,
+                                                              fontSize: 10,
                                                             ),
-                                                            _buildGameOverStatItem(
-                                                              label: '最大连击',
-                                                              value: provider
-                                                                  .maxCombo
-                                                                  .toString(),
-                                                              valueColor:
-                                                                  CyberColors
-                                                                      .neonPink,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 8,),
-                                                        // 按钮区域（横向排列）
-                                                        Row(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .center,
-                                                          children: [
-                                                            OutlinedButton.icon(
-                                                              onPressed: () {
-                                                                final shareText =
-                                                                    _generateShareText(
-                                                                  endTime:
-                                                                      endTime,
-                                                                  score: provider
-                                                                      .score,
-                                                                  maxTile:
-                                                                      maxTile,
-                                                                  maxCombo: provider
-                                                                      .maxCombo,
-                                                                  rating:
-                                                                      rating,
-                                                                );
-                                                                _copyToClipboard(
-                                                                    shareText,
-                                                                    context,);
-                                                              },
-                                                              icon: const Icon(
-                                                                Icons.copy,
-                                                                size: 12,
-                                                                color: CyberColors
-                                                                    .neonGreen,
-                                                              ),
-                                                              label: Text(
-                                                                '复制',
-                                                                style:
-                                                                    CyberTextStyles.buttonLabel.copyWith(
-                                                                  color: CyberColors
-                                                                      .neonGreen,
-                                                                  fontSize: 11,
-                                                                ),
-                                                              ),
-                                                              style:
-                                                                  OutlinedButton
-                                                                      .styleFrom(
-                                                                foregroundColor:
-                                                                    CyberColors
-                                                                        .neonGreen,
-                                                                side:
-                                                                    BorderSide(
-                                                                  color: CyberColors
-                                                                      .neonGreen
-                                                                      .withValues(alpha: 
-                                                                          0.5,),
-                                                                  width: 1,
-                                                                ),
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .symmetric(
-                                                                  horizontal:
-                                                                      10,
-                                                                  vertical: 8,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 8,),
-                                                            OutlinedButton(
-                                                              onPressed: () {
-                                                                setState(() {
-                                                                  _showGameOverDialog =
-                                                                      false;
-                                                                });
-                                                              },
-                                                              style:
-                                                                  OutlinedButton
-                                                                      .styleFrom(
-                                                                foregroundColor:
-                                                                    CyberColors
-                                                                        .whiteMedium,
-                                                                backgroundColor:
-                                                                    CyberColors
-                                                                        .whiteFaint,
-                                                                side:
-                                                                    BorderSide(
-                                                                  color: CyberColors
-                                                                      .whiteMedium
-                                                                      .withValues(alpha: 
-                                                                          0.6,),
-                                                                  width: 1,
-                                                                ),
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .symmetric(
-                                                                  horizontal:
-                                                                      12,
-                                                                  vertical: 8,
-                                                                ),
-                                                              ),
-                                                              child: Text(
-                                                                '取消',
-                                                                style:
-                                                                    CyberTextStyles.buttonLabel.copyWith(
-                                                                  fontSize: 11,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 8,),
-                                                            ElevatedButton(
-                                                              onPressed: () {
-                                                                setState(() {
-                                                                  _showGameOverDialog =
-                                                                      false;
-                                                                });
-                                                                ref.read(gameProvider).reset();
-                                                              },
-                                                              style:
-                                                                  ElevatedButton
-                                                                      .styleFrom(
-                                                                backgroundColor:
-                                                                    CyberColors
-                                                                        .neonCyan,
-                                                                foregroundColor:
-                                                                    CyberColors
-                                                                        .background,
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .symmetric(
-                                                                  horizontal:
-                                                                      14,
-                                                                  vertical: 8,
-                                                                ),
-                                                              ),
-                                                              child: Text(
-                                                                '重新开始',
-                                                                style:
-                                                                    CyberTextStyles.buttonLabel.copyWith(
-                                                                  fontSize: 11,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          ],
+                                                          ),
                                                         ),
                                                       ],
                                                     ),
-                                                  ),
-                                                ],
+                                                    const SizedBox(
+                                                      height: 8,
+                                                    ),
+                                                    Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 6,
+                                                      alignment:
+                                                          WrapAlignment.center,
+                                                      children: [
+                                                        _buildGameOverStatItem(
+                                                          label: '得分',
+                                                          value: provider.score
+                                                              .toString(),
+                                                          valueColor:
+                                                              CyberColors
+                                                                  .neonCyan,
+                                                        ),
+                                                        _buildGameOverStatItem(
+                                                          label: '最大棋子',
+                                                          value: maxTile == 0
+                                                              ? '-'
+                                                              : maxTile
+                                                                  .toString(),
+                                                          valueColor: maxTile ==
+                                                                  0
+                                                              ? CyberColors
+                                                                  .whiteHigh
+                                                              : _tileValueColor(
+                                                                  maxTile,
+                                                                ),
+                                                        ),
+                                                        _buildGameOverStatItem(
+                                                          label: '最大连击',
+                                                          value: provider
+                                                              .maxCombo
+                                                              .toString(),
+                                                          valueColor:
+                                                              CyberColors
+                                                                  .neonPink,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(
+                                                      height: 8,
+                                                    ),
+                                                    // 按钮区域（横向排列）
+                                                    Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        OutlinedButton.icon(
+                                                          onPressed: () {
+                                                            final shareText =
+                                                                _generateShareText(
+                                                              endTime: endTime,
+                                                              score: provider
+                                                                  .score,
+                                                              maxTile: maxTile,
+                                                              maxCombo: provider
+                                                                  .maxCombo,
+                                                              rating: rating,
+                                                            );
+                                                            _copyToClipboard(
+                                                              shareText,
+                                                              context,
+                                                            );
+                                                          },
+                                                          icon: const Icon(
+                                                            Icons.copy,
+                                                            size: 12,
+                                                            color: CyberColors
+                                                                .neonGreen,
+                                                          ),
+                                                          label: Text(
+                                                            '复制',
+                                                            style:
+                                                                CyberTextStyles
+                                                                    .buttonLabel
+                                                                    .copyWith(
+                                                              color: CyberColors
+                                                                  .neonGreen,
+                                                              fontSize: 11,
+                                                            ),
+                                                          ),
+                                                          style: OutlinedButton
+                                                              .styleFrom(
+                                                            foregroundColor:
+                                                                CyberColors
+                                                                    .neonGreen,
+                                                            side: BorderSide(
+                                                              color: CyberColors
+                                                                  .neonGreen
+                                                                  .withValues(
+                                                                alpha: 0.5,
+                                                              ),
+                                                              width: 1,
+                                                            ),
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                              horizontal: 10,
+                                                              vertical: 8,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        OutlinedButton(
+                                                          onPressed: () {
+                                                            setState(() {
+                                                              _showGameOverDialog =
+                                                                  false;
+                                                            });
+                                                          },
+                                                          style: OutlinedButton
+                                                              .styleFrom(
+                                                            foregroundColor:
+                                                                CyberColors
+                                                                    .whiteMedium,
+                                                            backgroundColor:
+                                                                CyberColors
+                                                                    .whiteFaint,
+                                                            side: BorderSide(
+                                                              color: CyberColors
+                                                                  .whiteMedium
+                                                                  .withValues(
+                                                                alpha: 0.6,
+                                                              ),
+                                                              width: 1,
+                                                            ),
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                              horizontal: 12,
+                                                              vertical: 8,
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            '取消',
+                                                            style:
+                                                                CyberTextStyles
+                                                                    .buttonLabel
+                                                                    .copyWith(
+                                                              fontSize: 11,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        ElevatedButton(
+                                                          onPressed: () {
+                                                            setState(() {
+                                                              _showGameOverDialog =
+                                                                  false;
+                                                            });
+                                                            ref
+                                                                .read(
+                                                                  gameProvider,
+                                                                )
+                                                                .reset();
+                                                          },
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                CyberColors
+                                                                    .neonCyan,
+                                                            foregroundColor:
+                                                                CyberColors
+                                                                    .background,
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                              horizontal: 14,
+                                                              vertical: 8,
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            '重新开始',
+                                                            style:
+                                                                CyberTextStyles
+                                                                    .buttonLabel
+                                                                    .copyWith(
+                                                              fontSize: 11,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
-                      );
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ),

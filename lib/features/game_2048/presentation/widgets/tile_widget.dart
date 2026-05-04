@@ -43,7 +43,7 @@ class _TileWidgetState extends State<TileWidget> with TickerProviderStateMixin {
     super.initState();
     _previousValue = widget.value;
     _mergeController = AnimationController(
-      duration: const Duration(milliseconds: 120),
+      duration: CyberDimensions.animInstant,
       vsync: this,
     );
 
@@ -75,7 +75,7 @@ class _TileWidgetState extends State<TileWidget> with TickerProviderStateMixin {
 
     // 崩塌消除动画：450ms，三段式视觉冲击
     _eliminateController = AnimationController(
-      duration: const Duration(milliseconds: 450),
+      duration: CyberDimensions.animEliminate,
       vsync: this,
     );
     // 先膨胀 (0→25%) 再坍缩至 0 (25→100%)，easeInBack 产生回弹感

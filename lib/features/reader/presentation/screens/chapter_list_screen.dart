@@ -193,7 +193,7 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
 
             // 等待弹窗退场动画完成后，再执行数据突变
             _pendingJumpTimer?.cancel();
-            _pendingJumpTimer = Timer(const Duration(milliseconds: 250), () {
+            _pendingJumpTimer = Timer(CyberDimensions.animFast, () {
               reader.jumpToLine(chapter.lineIndex);
             });
           },
@@ -234,7 +234,7 @@ class _ChapterListScreenState extends ConsumerState<ChapterListScreen> {
           onTap: () {
             Navigator.of(context).pop();
             _pendingJumpTimer?.cancel();
-            _pendingJumpTimer = Timer(const Duration(milliseconds: 250), () {
+            _pendingJumpTimer = Timer(CyberDimensions.animFast, () {
               reader.loadChapter(originalIdx);
             });
           },

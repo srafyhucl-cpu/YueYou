@@ -16,7 +16,7 @@ Future<T?> showCyberModal<T>({
     barrierDismissible: barrierDismissible,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: CyberColors.blackOverlay,
-    transitionDuration: const Duration(milliseconds: 300),
+    transitionDuration: CyberDimensions.animNormal,
     pageBuilder: (context, animation, secondaryAnimation) {
       return SafeArea(
         child: Center(
@@ -31,7 +31,9 @@ Future<T?> showCyberModal<T>({
                 opacity: animation,
                 child: Container(
                   margin: const EdgeInsets.symmetric(
-                      horizontal: CyberDimensions.spacingXL, vertical: 64,),
+                    horizontal: CyberDimensions.spacingXL,
+                    vertical: 64,
+                  ),
                   constraints: BoxConstraints(
                     maxWidth: 500,
                     maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -58,11 +60,13 @@ Future<T?> showCyberModal<T>({
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(
-                        CyberDimensions.radiusL - CyberDimensions.borderThick,),
+                      CyberDimensions.radiusL - CyberDimensions.borderThick,
+                    ),
                     child: CyberPerformanceDetector.detectLevel() ==
                             CyberAnimationLevel.low
                         ? Container(
-                            color: CyberColors.glassDark.withValues(alpha: 0.98),
+                            color:
+                                CyberColors.glassDark.withValues(alpha: 0.98),
                             child: child, // 🚨 直接渲染内容
                           )
                         : BackdropFilter(
