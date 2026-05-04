@@ -7,7 +7,11 @@ import (
 )
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+	if err := r.SetTrustedProxies(nil); err != nil {
+		log.Fatal(err)
+	}
 
 	// ── TTS 语音合成 ──────────────────────────────────────────────────────
 	r.POST("/api/v1/tts", ttsHandler)
