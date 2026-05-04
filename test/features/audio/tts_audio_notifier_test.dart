@@ -151,9 +151,8 @@ void main() {
     notifier.registerSentenceSource(source);
     notifier.play();
 
-    for (int i = 0;
-        i < 200 && container.read(ttsAudioProvider) is! TtsAudioPlaying;
-        i++) {
+    // 等待引擎初始化完成并触发 onTtsItemStarted（最多 5s）
+    for (int i = 0; i < 500 && source.startedCalls < 1; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     expect(container.read(ttsAudioProvider), isA<TtsAudioPlaying>());
