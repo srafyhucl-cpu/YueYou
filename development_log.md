@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **维护(core/ui): 规范化第 9 批低风险单点日志治理**：
+  - **`CyberPerformanceDetector`**：将性能基准日志改为 `CyberLogger.captureMessage()`，保留 `flutter/foundation.dart`（`kIsWeb` 依赖）。
+  - **`DashboardScreen`**：删除 XIAOYO 点击调试追踪 `debugPrint`；顺带修复上搅更新弹框中 4 处 `require_trailing_commas` 存量 lint。
+  - **`LibraryScreen`**：删除 `_loadBook` 中的调试追踪 `debugPrint`。
+  - **验证**：3 个文件已无 `debugPrint()` / `print()`；`flutter analyze` 通过（零问题）。
+
 - **维护(game): 规范化第 8 批 Rive 吉祥物日志治理**：
   - **`BoardMascotRive`**：删除 Rive 文件加载成功、Artboard 名称、状态机连接成功、可用输入列表等纯调试 `debugPrint`；输入未找到改为批量收集后统一 `CyberLogger.captureWarning()`，状态机未找到和加载异常均改为 `CyberLogger.captureWarning()`，携带 tag=game。
   - **契约保持**：Rive 加载失败仍展示加载中占位，不崩溃；状态机输入缺失时动画部分功能降级但不影响渲染。
