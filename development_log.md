@@ -3,6 +3,7 @@
 ## **2026-05-04**
 
 - **发布(release): 中国应用商店上架预检与软著材料生成**：
+  - **软著源代码 PDF**：`generate_source_pdf.py` 纳入 `server/` Go 后端代码，与 `lib/` Flutter 端代码共同生成 60 页 `源代码.pdf`，覆盖 App 与服务端核心实现。
   - **服务端部署**：交叉编译 Linux amd64 二进制并部署至 `47.94.102.250:/www/wwwroot/yueyou/yueyou-server`，重启 `yueyou.service` 成功；公网验证 `https://hclstudio.cn/privacy` 与 `https://hclstudio.cn/api/v1/book/catalog?bookId=xiyouji` 均返回 200。
   - **服务端零警告**：`server/main.go` 设置 `gin.ReleaseMode` 并调用 `SetTrustedProxies(nil)`，消除 Gin trusted proxies 与 debug mode 运行警告。
   - **公开信息收口**：根据用户提供信息补全著作权人/申请人/运营主体/联系邮箱，清除公开文件中的待填项；正式隐私政策地址切换为 `https://hclstudio.cn/privacy`。
