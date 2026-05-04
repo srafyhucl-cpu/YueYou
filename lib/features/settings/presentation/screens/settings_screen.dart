@@ -12,6 +12,7 @@ import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/audio/services/ambient_service.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 
 /// 阅游系统配置界面 - 极客/武侠融合视觉版
 class SettingsScreen extends ConsumerWidget {
@@ -539,7 +540,13 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
         context: context,
         builder: (context) => _TtsTestResultDialog(result: result),
       );
-    } catch (e) {
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e is Exception ? e : Exception('$e'),
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'TTS 自检触发异常'},
+      );
       if (!mounted) return;
       setState(() => _isTesting = false);
       CyberToast.show(

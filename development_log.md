@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **维护(quality): 阶段 4 异常处理统一审计**：
+  - 全库扫描所有 `catch` 块，分类为"需修复"和"合规静默"。
+  - **5 处修复**：`tts_engine_service.dart` `testConnection` 步骤 5 `catch (e)` → `(e, st)` + `CyberLogger`；`TimeoutException`/`SocketException`/兜底 `catch (e)` 均补 `stack: st` + `CyberLogger`；`playFile` `TimeoutException` 和通用 catch 补 `stack: st`；`tts_audio_notifier.dart` `downloadAudio` catch 补 `stack: st`；`settings_screen.dart` `_testTtsConnection` catch 补 `CyberLogger` + `stack: st` + import。
+  - **12 处确认合规**：WakeLock、文件删除、`FlutterTts.stop()`、降级 ping 探测、AudioPlayer dispose 等析构/尽力路径均为合规静默处理。
+  - **验证**：`flutter analyze` 零警告；`flutter test test/features/audio/ --concurrency=1` 90 个测试全部通过。
+
 - **修复(tts): 字符串插值遗漏括号 bug + 阶段 3 第 2 批网络超时常量化**：
   - `TtsConfig` 追加 6 个网络层超时常量：`ttsLocalSpeakTimeout`(60s)、`ttsDownloadTimeout`(15s)、`ttsPostConnectionTimeout`(10s)、`ttsPostResponseTimeout`(15s)、`bookApiTimeout`(4s)、`bookCdnDownloadTimeout`(15s)。
   - `tts_engine_service.dart` 替换 5 处硬编码超时；`default_book_service.dart` 替换 3 处，共 8 处。
