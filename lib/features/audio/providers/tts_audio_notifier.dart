@@ -349,13 +349,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     final String? filePath;
     try {
       filePath = await _engine.downloadAudio(request);
-    } catch (e) {
+    } catch (e, st) {
       // 只有在会话未变更时才计入失败
       if (currentSession == _session) {
         _consecutiveFailures++;
         if (_consecutiveFailures >= 8) {
           CyberLogger.captureWarning(
             e is Exception ? e : Exception('$e'),
+            stack: st,
             tag: 'tts',
             extra: {'context': '连续 8 次下载失败，触发降级'},
           );

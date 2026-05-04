@@ -891,7 +891,13 @@ class TtsEngineService extends ChangeNotifier {
 
           // 清理测试文件
           await testFile.delete();
-        } catch (e) {
+        } catch (e, st) {
+          CyberLogger.captureWarning(
+            e is Exception ? e : Exception('$e'),
+            stack: st,
+            tag: 'tts',
+            extra: {'context': 'testConnection 写入文件失败'},
+          );
           result['steps'].add({
             'step': 5,
             'name': '下载并写入文件',
@@ -915,7 +921,13 @@ class TtsEngineService extends ChangeNotifier {
             CyberErrorMessages.ttsServerErrorCode(response.statusCode);
         _setLastError(response.statusCode);
       }
-    } on TimeoutException catch (e) {
+    } on TimeoutException catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'testConnection 请求超时'},
+      );
       result['steps'].add({
         'step': 3,
         'name': 'HTTP 请求',
@@ -924,7 +936,13 @@ class TtsEngineService extends ChangeNotifier {
       });
       result['message'] = CyberErrorMessages.ttsRequestTimeout;
       _setLastError(e);
-    } on SocketException catch (e) {
+    } on SocketException catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'testConnection 网络异常'},
+      );
       result['steps'].add({
         'step': 3,
         'name': 'HTTP 请求',
@@ -933,7 +951,13 @@ class TtsEngineService extends ChangeNotifier {
       });
       result['message'] = CyberErrorMessages.ttsConnectTimeout;
       _setLastError(e);
-    } catch (e) {
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e is Exception ? e : Exception('$e'),
+        stack: st,
+        tag: 'tts',
+        extra: {'context': 'testConnection 未知异常'},
+      );
       result['steps'].add({
         'step': 3,
         'name': 'HTTP 请求',
@@ -1200,18 +1224,20 @@ class TtsEngineService extends ChangeNotifier {
         await sub.cancel();
         _playCompleter = null;
       }
-    } on TimeoutException catch (e) {
+    } on TimeoutException catch (e, st) {
       CyberLogger.captureWarning(
         e,
+        stack: st,
         tag: 'tts',
         extra: {'context': 'playFile 超时，播放熔断'},
       );
       await _audioPlayer.stop();
       _setLastError(CyberErrorMessages.ttsAudioLoadTimeout);
       onComplete?.call();
-    } catch (e) {
+    } catch (e, st) {
       CyberLogger.captureWarning(
         e is Exception ? e : Exception('$e'),
+        stack: st,
         tag: 'tts',
         extra: {'context': 'playFile 异常'},
       );
