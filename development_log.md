@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **发布(release): 中国应用商店上架预检与软著材料生成**：
+  - **上架阻塞项修复**：`android/app/build.gradle.kts` 支持 `android/key.properties` release 签名配置，缺少签名文件时回退 debug 以保证 CI 可构建；release 启用 R8 代码压缩与资源压缩。
+  - **商店材料补全**：新增 `LICENSE`、`STORE_LISTING.md`、`android/key.properties.template`、`android/app/src/main/res/values/strings.xml`、`android/app/proguard-rules.pro`。
+  - **软著材料**：新增 `docs/copyright/generate_source_pdf.py`，自动生成 60 页 `docs/copyright/源代码.pdf`；新增 `操作说明书.md`、`申请清单.md`、`README.md`。
+  - **验证**：`python docs/copyright/generate_source_pdf.py` 生成 60 页 PDF，`flutter analyze` 零警告。
+
 - **合规(privacy): 权限合规审查与隐私弹窗修复**：
   - **文件权限**：审查 `file_picker ^8.x`，确认走 SAF（`ACTION_OPEN_DOCUMENT`），全 Android 版本天然不需运行时权限。Manifest 不补 `READ_EXTERNAL_STORAGE` 是正确选择。
   - **隐私弹窗合规化**：标题增加"阅游 · 隐私政策"主标题（保留赛博装饰副标题），新增"开发者信息"节（HCL Studio + `support@hclstudio.cn`，符合《个人信息保护法》第 17 条）；按钮措辞调整：「同意接入」→「同意」，「拒绝并退出」→「不同意并退出」。
