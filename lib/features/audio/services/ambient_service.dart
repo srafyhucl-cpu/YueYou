@@ -4,6 +4,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/utils/cyber_logger.dart';
+
 /// 环境背景音乐服务（赛博朋克氛围音）
 ///
 /// 使用 Voss-McCartney 算法生成粉噪声（Pink Noise），
@@ -71,8 +73,13 @@ class AmbientService {
       );
       await _player!.setReleaseMode(ReleaseMode.loop);
       _initialized = true;
-    } catch (e) {
-      debugPrint('AmbientService.init error: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'audio',
+        extra: {'context': '初始化环境氛围音'},
+      );
       _initialized = false;
     }
   }
@@ -85,7 +92,7 @@ class AmbientService {
   /// - `false`：立即停止播放
   static Future<void> setEnabled(bool enabled) async {
     _enabled = enabled;
-    debugPrint(' AmbientService.setEnabled: $enabled');
+    CyberLogger.captureMessage('环境氛围音开关变更: $enabled');
     if (!_initialized) return;
     if (_enabled) {
       await _startIfNeeded();
@@ -144,10 +151,17 @@ class AmbientService {
     try {
       final wav = _generateAmbientWav(style: _style);
       await _player!.setVolume(_volume);
-      debugPrint(' AmbientService: 正在启动背景氛围音 [$_style] (vol=${_volume.toStringAsFixed(2)}, bytes=${wav.length})');
+      CyberLogger.captureMessage(
+        '启动环境氛围音: style=$_style, volume=${_volume.toStringAsFixed(2)}, bytes=${wav.length}',
+      );
       await _player!.play(BytesSource(wav));
-    } catch (e) {
-      debugPrint('AmbientService._startIfNeeded error: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'audio',
+        extra: {'context': '启动环境氛围音'},
+      );
       if (e is MissingPluginException) return; // 测试环境静默跳过
     }
   }
@@ -197,9 +211,9 @@ class AmbientService {
           pinkRunningSum += pinkState[k] - oldVal;
         }
       }
-      
+
       double pink = (pinkRunningSum / 16.0).clamp(-1.0, 1.0);
-      
+
       // 模拟微小波动 (Warm 风格增加随机抖动)
       if (isWarm && i % 4410 == 0) {
         pink *= (0.8 + rand.nextDouble() * 0.4);
@@ -228,21 +242,33 @@ class AmbientService {
   static void _writeWavHeader(ByteData buf, int sampleRate, int dataSize) {
     // RIFF 块
     buf
-      ..setUint8(0, 0x52) ..setUint8(1, 0x49) ..setUint8(2, 0x46) ..setUint8(3, 0x46)
+      ..setUint8(0, 0x52)
+      ..setUint8(1, 0x49)
+      ..setUint8(2, 0x46)
+      ..setUint8(3, 0x46)
       ..setUint32(4, 36 + dataSize, Endian.little)
       // WAVE
-      ..setUint8(8, 0x57) ..setUint8(9, 0x41) ..setUint8(10, 0x56) ..setUint8(11, 0x45)
+      ..setUint8(8, 0x57)
+      ..setUint8(9, 0x41)
+      ..setUint8(10, 0x56)
+      ..setUint8(11, 0x45)
       // fmt 子块
-      ..setUint8(12, 0x66) ..setUint8(13, 0x6D) ..setUint8(14, 0x74) ..setUint8(15, 0x20)
-      ..setUint32(16, 16, Endian.little)    // fmt 块大小
-      ..setUint16(20, 1, Endian.little)     // PCM 格式
-      ..setUint16(22, 1, Endian.little)     // 单声道
+      ..setUint8(12, 0x66)
+      ..setUint8(13, 0x6D)
+      ..setUint8(14, 0x74)
+      ..setUint8(15, 0x20)
+      ..setUint32(16, 16, Endian.little) // fmt 块大小
+      ..setUint16(20, 1, Endian.little) // PCM 格式
+      ..setUint16(22, 1, Endian.little) // 单声道
       ..setUint32(24, sampleRate, Endian.little)
       ..setUint32(28, sampleRate * 2, Endian.little) // 字节率
-      ..setUint16(32, 2, Endian.little)     // 块对齐
-      ..setUint16(34, 16, Endian.little)    // 位深度
+      ..setUint16(32, 2, Endian.little) // 块对齐
+      ..setUint16(34, 16, Endian.little) // 位深度
       // data 子块
-      ..setUint8(36, 0x64) ..setUint8(37, 0x61) ..setUint8(38, 0x74) ..setUint8(39, 0x61)
+      ..setUint8(36, 0x64)
+      ..setUint8(37, 0x61)
+      ..setUint8(38, 0x74)
+      ..setUint8(39, 0x61)
       ..setUint32(40, dataSize, Endian.little);
   }
 

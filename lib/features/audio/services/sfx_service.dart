@@ -1,7 +1,10 @@
 import 'dart:math';
+import 'dart:typed_data';
+
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+import '../../../core/utils/cyber_logger.dart';
 
 /// 物理音效引擎（V4 — 基于旧版 Web 端已验证音效移植）
 ///
@@ -33,44 +36,52 @@ class SfxService {
 
     // 🟢 阶段一 (≤16)：轻盈上行——与旧版完全一致
     // 旧版原始参数：440→880Hz, 100ms 扫频, 0.12 音量, 300ms 时长
-    _tierWavs.add(_generateMergeTone(
-      freqStart: 440,
-      freqEnd: 880,
-      chirpMs: 100,
-      decayRate: 16,
-      durationMs: 300,
-      volume: 0.12,
-    ),);
+    _tierWavs.add(
+      _generateMergeTone(
+        freqStart: 440,
+        freqEnd: 880,
+        chirpMs: 100,
+        decayRate: 16,
+        durationMs: 300,
+        volume: 0.12,
+      ),
+    );
 
     // 🔵 阶段二 (≤128)：稍宽音域 + 略厚
-    _tierWavs.add(_generateMergeTone(
-      freqStart: 400,
-      freqEnd: 900,
-      chirpMs: 110,
-      decayRate: 14,
-      durationMs: 340,
-      volume: 0.15,
-    ),);
+    _tierWavs.add(
+      _generateMergeTone(
+        freqStart: 400,
+        freqEnd: 900,
+        chirpMs: 110,
+        decayRate: 14,
+        durationMs: 340,
+        volume: 0.15,
+      ),
+    );
 
     // 🟣 阶段三 (≤1024)：更深沉的上行
-    _tierWavs.add(_generateMergeTone(
-      freqStart: 350,
-      freqEnd: 950,
-      chirpMs: 120,
-      decayRate: 12,
-      durationMs: 380,
-      volume: 0.18,
-    ),);
+    _tierWavs.add(
+      _generateMergeTone(
+        freqStart: 350,
+        freqEnd: 950,
+        chirpMs: 120,
+        decayRate: 12,
+        durationMs: 380,
+        volume: 0.18,
+      ),
+    );
 
     // 🟡 阶段四 (>1024)：宽幅上行 + 最饱满
-    _tierWavs.add(_generateMergeTone(
-      freqStart: 330,
-      freqEnd: 1000,
-      chirpMs: 130,
-      decayRate: 10,
-      durationMs: 420,
-      volume: 0.22,
-    ),);
+    _tierWavs.add(
+      _generateMergeTone(
+        freqStart: 330,
+        freqEnd: 1000,
+        chirpMs: 130,
+        decayRate: 10,
+        durationMs: 420,
+        volume: 0.22,
+      ),
+    );
   }
 
   static Future<void> playMoveFeedback(int mergedValue) async {
@@ -100,8 +111,13 @@ class SfxService {
       final tier = _getTier(mergedValue);
       _mergePlayer!.stop().then((_) {
         return _mergePlayer!.play(BytesSource(_tierWavs[tier]));
-      }).catchError((e) {
-        debugPrint('SfxService.playMerge audio error: $e');
+      }).catchError((Object e, StackTrace stack) {
+        CyberLogger.captureWarning(
+          e,
+          stack: stack,
+          tag: 'audio',
+          extra: {'context': '播放 2048 合并音效'},
+        );
       });
     }
   }
@@ -176,7 +192,11 @@ class SfxService {
 
   /// 写入标准 16-bit mono PCM WAV 文件头
   static void _writeWavHeader(
-      ByteData buffer, int sampleRate, int dataSize, int fileSize,) {
+    ByteData buffer,
+    int sampleRate,
+    int dataSize,
+    int fileSize,
+  ) {
     const riff = [0x52, 0x49, 0x46, 0x46];
     const wave = [0x57, 0x41, 0x56, 0x45];
     const fmt = [0x66, 0x6D, 0x74, 0x20];
