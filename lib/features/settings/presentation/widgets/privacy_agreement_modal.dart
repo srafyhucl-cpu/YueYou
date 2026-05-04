@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:yueyou/core/config/app_info_config.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
@@ -102,8 +103,8 @@ class _PrivacyAgreementContent extends StatelessWidget {
                   _PolicySection(
                     icon: '✉️',
                     title: '开发者信息',
-                    body: '运营主体：HCL Studio\n'
-                        '联系邮箱：support@hclstudio.cn\n'
+                    body: '运营主体：${AppInfoConfig.developerName}\n'
+                        '联系邮箱：${AppInfoConfig.contactEmail}\n'
                         '隐私问题反馈、数据删除请求请发送邮件至上述邮箱。',
                   ),
                 ],

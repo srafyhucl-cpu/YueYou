@@ -1,11 +1,11 @@
 # Android 签名配置模板
 # 1. 复制此文件为 key.properties
 # 2. 用 keytool 生成 keystore:
-#    keytool -genkey -v -keystore yueyou-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias yueyou
-# 3. 将 yueyou-release.jks 放入 android/ 目录
-# 4. 填写下方密码（注意：key.properties 已在 .gitignore 中，不会被提交）
+#    keytool -genkey -v -keystore 【待填写：keystore文件名】.jks -keyalg RSA -keysize 2048 -validity 10000 -alias 【待填写：alias】
+# 3. 将生成的 .jks 文件放入 android/ 目录
+# 4. 填写下方配置（注意：key.properties 已在 .gitignore 中，不会被提交）
 
-storeFile=yueyou-release.jks
-storePassword=你的密钥库密码
-keyAlias=yueyou
-keyPassword=你的密钥密码
+storeFile=【待填写：keystore文件名】.jks
+storePassword=【待填写：密钥库密码】
+keyAlias=【待填写：alias】
+keyPassword=【待填写：密钥密码】
