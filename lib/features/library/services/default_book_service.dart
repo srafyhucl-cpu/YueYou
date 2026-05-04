@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 
 /// 内置默认书籍服务（分章懒加载版）
@@ -64,13 +64,23 @@ class DefaultBookService {
             bookKey,
             models.map((c) => c.toJson()).toList(),
           ).catchError(
-            (Object e) => debugPrint('目录缓存写入失败: $e'),
+            (Object e, StackTrace stack) => CyberLogger.captureWarning(
+              e,
+              stack: stack,
+              tag: 'library',
+              extra: {'context': '默认书籍目录缓存写入失败'},
+            ),
           );
           return models;
         }
       }
-    } catch (e) {
-      debugPrint('[DefaultBookService] 目录拉取失败，降级内置常量: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {'context': '默认书籍目录拉取失败，降级内置常量'},
+      );
     }
 
     // 3. 降级：内置常量
@@ -119,13 +129,26 @@ class DefaultBookService {
               ),
             )
             .catchError(
-              (Object e) => debugPrint('章节缓存写入失败: $e'),
+              (Object e, StackTrace stack) => CyberLogger.captureWarning(
+                e,
+                stack: stack,
+                tag: 'library',
+                extra: {'context': '默认书籍章节缓存写入失败'},
+              ),
             );
       }
       completer.complete(text);
       return text;
-    } catch (e) {
-      debugPrint('[DefaultBookService] 章节 $chapterIndex 下载失败: $e');
+    } catch (e, stack) {
+      CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {
+          'context': '默认书籍章节下载失败',
+          'chapterIndex': chapterIndex.toString(),
+        },
+      );
       completer.complete(null);
       return null;
     } finally {
@@ -139,8 +162,15 @@ class DefaultBookService {
     if (next >= BookConstants.defaultTotalChapters) return;
     fetchChapter(next).then(
       (_) {},
-      onError: (Object e) =>
-          debugPrint('[DefaultBookService] 影子预读 $next 失败: $e'),
+      onError: (Object e, StackTrace stack) => CyberLogger.captureWarning(
+        e,
+        stack: stack,
+        tag: 'library',
+        extra: {
+          'context': '默认书籍影子预读失败',
+          'chapterIndex': next.toString(),
+        },
+      ),
     );
   }
 
@@ -167,15 +197,27 @@ class DefaultBookService {
         );
 
     if (postResp.statusCode != 200) {
-      debugPrint(
-        '[DefaultBookService] POST /book/chapter 失败: ${postResp.statusCode}',
+      CyberLogger.captureWarning(
+        StateError('默认书籍章节 POST 请求失败'),
+        tag: 'library',
+        extra: {
+          'context': 'POST /book/chapter',
+          'statusCode': postResp.statusCode.toString(),
+        },
       );
       return null;
     }
 
     final postBody = jsonDecode(postResp.body) as Map<String, dynamic>;
     if (postBody['status'] != 'success') {
-      debugPrint('[DefaultBookService] 服务端返回错误: ${postBody['message']}');
+      CyberLogger.captureWarning(
+        StateError('默认书籍章节服务端返回错误'),
+        tag: 'library',
+        extra: {
+          'context': '解析章节 POST 响应',
+          'message': postBody['message']?.toString() ?? '',
+        },
+      );
       return null;
     }
 
@@ -187,7 +229,14 @@ class DefaultBookService {
         await http.get(Uri.parse(cdnUrl)).timeout(const Duration(seconds: 15));
 
     if (getResp.statusCode != 200) {
-      debugPrint('[DefaultBookService] CDN GET 失败: ${getResp.statusCode}');
+      CyberLogger.captureWarning(
+        StateError('默认书籍章节 CDN GET 失败'),
+        tag: 'library',
+        extra: {
+          'context': 'GET 章节纯文本',
+          'statusCode': getResp.statusCode.toString(),
+        },
+      );
       return null;
     }
 

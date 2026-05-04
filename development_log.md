@@ -2,6 +2,12 @@
 
 ## **2026-05-04**
 
+- **维护(library): 规范化第 2 批默认书籍服务日志治理**：
+  - **`DefaultBookService`**：将目录拉取、章节下载、缓存写入、影子预读与 HTTP 状态异常日志统一替换为 `CyberLogger.captureWarning()`。
+  - **契约保持**：默认书籍缓存命中、POST 获取 CDN URL、GET 下载章节文本、失败降级内置常量等行为不变。
+  - **验证**：`DefaultBookService` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/library --concurrency=1` 通过。
+  - **后续候选**：`FileImportService` 在 library 测试中仍有既有控制台异常输出，后续独立治理。
+
 - **维护(audio): 规范化第 1 批音频服务日志治理**：
   - **`SfxService`**：移除合并音效播放异常中的 `debugPrint()`，改用 `CyberLogger.captureWarning()`，保留原有异步播放与异常吞掉行为。
   - **`AmbientService`**：将初始化失败、启停状态和启动播放日志改为 `CyberLogger.captureWarning()` / `CyberLogger.captureMessage()`，未改变环境音启停、音量和生命周期逻辑。
