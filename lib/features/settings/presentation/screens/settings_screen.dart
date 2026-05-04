@@ -3,9 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:yueyou/core/config/app_info_config.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/features/settings/constants/settings_texts.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
@@ -69,7 +72,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(width: CyberDimensions.spacingS),
               Text(
-                '神经系统配置',
+                SettingsTexts.screenTitle,
                 style: CyberTextStyles.screenTitle.copyWith(
                   color: CyberColors.neonGreen,
                   letterSpacing: 1.2,
@@ -100,10 +103,13 @@ class SettingsScreen extends ConsumerWidget {
       physics: const BouncingScrollPhysics(),
       children: [
         // ── 语音播报 ──────────────────────────────────────────────
-        const _SectionTitle(title: '语音播报 (TTS)', icon: Icons.record_voice_over),
+        const _SectionTitle(
+          title: SettingsTexts.ttsSectionTitle,
+          icon: Icons.record_voice_over,
+        ),
         _ToggleTile(
-          label: '自动朗读',
-          subtitle: '接入神经链路，自动播报小说文本',
+          label: SettingsTexts.autoReadTitle,
+          subtitle: SettingsTexts.autoReadSubtitle,
           value: settings.storyTts,
           activeColor: CyberColors.neonCyan,
           onChanged: (v) async {
@@ -116,7 +122,7 @@ class SettingsScreen extends ConsumerWidget {
           },
         ),
         const SizedBox(height: CyberDimensions.spacingM),
-        const _LabelRow(label: '核心音色'),
+        const _LabelRow(label: SettingsTexts.voiceLabel),
         _VoiceSelector(settings: settings),
         Padding(
           padding: const EdgeInsets.symmetric(
@@ -124,7 +130,7 @@ class SettingsScreen extends ConsumerWidget {
             vertical: CyberDimensions.spacingS,
           ),
           child: Text(
-            '💡 提示：若音色生硬，请在系统设置中下载高品质语音包。',
+            SettingsTexts.voiceHint,
             style: CyberTextStyles.captionHint.copyWith(
               color: CyberColors.neonCyan.withValues(alpha: 0.7),
               fontSize: 10,
@@ -136,10 +142,13 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: CyberDimensions.spacingXL),
 
         // ── 环境氛围 ──────────────────────────────────────────────
-        const _SectionTitle(title: '意境氛围', icon: Icons.waves),
+        const _SectionTitle(
+          title: SettingsTexts.ambientSectionTitle,
+          icon: Icons.waves,
+        ),
         _ToggleTile(
-          label: '背景氛围音',
-          subtitle: '注入沉浸式白噪声，屏蔽外界干扰',
+          label: SettingsTexts.ambientSoundTitle,
+          subtitle: SettingsTexts.ambientSoundSubtitle,
           value: settings.ambientEnabled,
           activeColor: CyberColors.neonPurple,
           onChanged: (v) async {
@@ -149,12 +158,12 @@ class SettingsScreen extends ConsumerWidget {
         ),
         if (settings.ambientEnabled) ...[
           const SizedBox(height: CyberDimensions.spacingM),
-          const _LabelRow(label: '意境风格'),
+          const _LabelRow(label: SettingsTexts.ambientStyleLabel),
           _ChoiceSelector<String>(
             value: settings.ambientStyle,
             options: const {
-              'wuxia': '江湖风云 (深沉)',
-              'warm': '围炉夜话 (温馨)',
+              'wuxia': SettingsTexts.ambientStyleWuxia,
+              'warm': SettingsTexts.ambientStyleWarm,
             },
             onChanged: (v) async {
               await settings.setAmbientStyle(v);
@@ -162,24 +171,27 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: CyberDimensions.spacingM),
-          const _LabelRow(label: '输出增益'),
+          const _LabelRow(label: SettingsTexts.ambientVolumeLabel),
           _AmbientVolumeSlider(settings: settings),
         ],
         const SizedBox(height: CyberDimensions.spacingXL),
 
         // ── 静默暂停 ──────────────────────────────────────────────
-        const _SectionTitle(title: '省电管理', icon: Icons.timer_outlined),
-        const _LabelRow(label: '静默暂停 (无操作自动停止)'),
+        const _SectionTitle(
+          title: SettingsTexts.powerSectionTitle,
+          icon: Icons.timer_outlined,
+        ),
+        const _LabelRow(label: SettingsTexts.idleTimeoutLabel),
         _ChoiceSelector<int>(
           value: settings.idleTimeout,
           options: const {
-            0: '永不',
-            1: '1m',
-            5: '5m',
-            10: '10m',
-            20: '20m',
-            30: '30m',
-            60: '1h',
+            0: SettingsTexts.idleNever,
+            1: SettingsTexts.idleOneMinute,
+            5: SettingsTexts.idleFiveMinutes,
+            10: SettingsTexts.idleTenMinutes,
+            20: SettingsTexts.idleTwentyMinutes,
+            30: SettingsTexts.idleThirtyMinutes,
+            60: SettingsTexts.idleOneHour,
           },
           onChanged: (v) => settings.setIdleTimeout(v),
         ),
@@ -187,18 +199,93 @@ class SettingsScreen extends ConsumerWidget {
 
         // ── 系统 ──────────────────────────────────────────────
         const _SectionTitle(
-          title: '系统音效',
+          title: SettingsTexts.systemSoundSectionTitle,
           icon: Icons.settings_input_component,
         ),
         _ToggleTile(
-          label: '方块合并音效',
-          subtitle: '2048 核心交互音频反馈',
+          label: SettingsTexts.mergeSoundTitle,
+          subtitle: SettingsTexts.mergeSoundSubtitle,
           value: settings.sound,
           activeColor: CyberColors.neonGreen,
           onChanged: (v) => settings.setSound(v),
         ),
+        const SizedBox(height: CyberDimensions.spacingXL),
+
+        const _SectionTitle(
+          title: SettingsTexts.privacyComplianceTitle,
+          icon: Icons.privacy_tip_outlined,
+        ),
+        const _PrivacyPolicyTile(),
         const SizedBox(height: 100), // 留白，防止被底部按钮遮挡
       ],
+    );
+  }
+}
+
+class _PrivacyPolicyTile extends StatelessWidget {
+  const _PrivacyPolicyTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CyberColors.surface,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
+        border: Border.all(color: CyberColors.whiteFaint),
+      ),
+      child: Material(
+        color: CyberColors.transparent,
+        child: InkWell(
+          onTap: () => launchUrl(
+            Uri.parse(AppInfoConfig.privacyPolicyUrl),
+            mode: LaunchMode.externalApplication,
+          ),
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CyberDimensions.spacingM,
+              vertical: CyberDimensions.spacingMS,
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.policy_outlined,
+                  color: CyberColors.neonCyan,
+                  size: 16,
+                ),
+                const SizedBox(width: CyberDimensions.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        SettingsTexts.privacyPolicyTitle,
+                        style: CyberTextStyles.tileTitle.copyWith(
+                          color: CyberColors.whiteDim,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: CyberDimensions.spacingXXS),
+                      Text(
+                        SettingsTexts.privacyPolicySubtitle,
+                        style: CyberTextStyles.tileSubtitle.copyWith(
+                          color: CyberColors.whiteMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.open_in_new,
+                  color: CyberColors.whiteMuted,
+                  size: 14,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -407,11 +494,11 @@ class _ChoiceSelector<T> extends StatelessWidget {
 class _VoiceSelector extends ConsumerWidget {
   final SettingsProvider settings;
   static const Map<String, String> _voices = {
-    'zh-CN-XiaoxiaoNeural': '晓晓 (温柔)',
-    'zh-CN-YunxiNeural': '云溪 (阳光)',
-    'zh-CN-YunjianNeural': '云健 (稳重)',
-    'zh-CN-XiaoyiNeural': '晓伊 (知性)',
-    'zh-CN-XiaomengNeural': '晓梦 (活泼)',
+    'zh-CN-XiaoxiaoNeural': SettingsTexts.voiceXiaoxiao,
+    'zh-CN-YunxiNeural': SettingsTexts.voiceYunxi,
+    'zh-CN-YunjianNeural': SettingsTexts.voiceYunjian,
+    'zh-CN-XiaoyiNeural': SettingsTexts.voiceXiaoyi,
+    'zh-CN-XiaomengNeural': SettingsTexts.voiceXiaomeng,
   };
 
   const _VoiceSelector({required this.settings});
@@ -508,7 +595,9 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _isTesting ? '正在进行神经链路诊断...' : '执行系统自检 (TTS Test)',
+                    _isTesting
+                        ? SettingsTexts.ttsTestingLabel
+                        : SettingsTexts.ttsTestButtonLabel,
                     style: CyberTextStyles.bodySmallBold.copyWith(
                       color: CyberColors.neonCyan,
                       fontSize: 12,
@@ -545,7 +634,7 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
         e is Exception ? e : Exception('$e'),
         stack: st,
         tag: 'tts',
-        extra: {'context': 'TTS 自检触发异常'},
+        extra: {'context': SettingsTexts.ttsTestExceptionContext},
       );
       if (!mounted) return;
       setState(() => _isTesting = false);
@@ -582,7 +671,9 @@ class _TtsTestResultDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              success ? '链路诊断报告：通畅' : '链路诊断报告：故障',
+              success
+                  ? SettingsTexts.ttsTestSuccessTitle
+                  : SettingsTexts.ttsTestFailureTitle,
               style: CyberTextStyles.dialogTitle.copyWith(
                 color: success ? CyberColors.neonGreen : CyberColors.neonPink,
                 fontSize: 16,
@@ -629,7 +720,10 @@ class _TtsTestResultDialog extends StatelessWidget {
                         BorderRadius.circular(CyberDimensions.radiusS),
                   ),
                 ),
-                child: const Text('了解', style: CyberTextStyles.buttonLabel),
+                child: const Text(
+                  SettingsTexts.confirmButtonLabel,
+                  style: CyberTextStyles.buttonLabel,
+                ),
               ),
             ),
           ],

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
-from typing import Iterable
 import re
 
 from fpdf import FPDF
@@ -15,6 +14,28 @@ APPLICANT = "胡传龙"
 LINES_PER_PAGE = 50
 TOTAL_PAGES = 60
 FONT_SIZE = 8
+SECTION_LINES = LINES_PER_PAGE * (TOTAL_PAGES // 2)
+SOURCE_PATTERNS = [
+    "lib/main.dart",
+    "lib/core/config/*.dart",
+    "lib/core/constants/*.dart",
+    "lib/core/theme/*.dart",
+    "lib/core/database/*.dart",
+    "lib/core/utils/*.dart",
+    "lib/features/reader/domain/*.dart",
+    "lib/features/reader/providers/*.dart",
+    "lib/features/reader/presentation/**/*.dart",
+    "lib/features/audio/**/*.dart",
+    "lib/features/library/**/*.dart",
+    "lib/features/game/**/*.dart",
+    "lib/features/settings/**/*.dart",
+    "lib/shared/**/*.dart",
+    "server/main.go",
+    "server/config.go",
+    "server/handler_tts.go",
+    "server/handler_book.go",
+    "server/handler_privacy.go",
+]
 FONT_CANDIDATES = [
     Path("C:/Windows/Fonts/simhei.ttf"),
     Path("C:/Windows/Fonts/msyh.ttc"),
@@ -31,33 +52,55 @@ EMOJI_PATTERN = re.compile(
 
 
 def _ordered_files() -> list[Path]:
-    lib_dir = ROOT / "lib"
-    server_dir = ROOT / "server"
-    dart_files = sorted(lib_dir.rglob("*.dart"), key=lambda p: p.as_posix())
-    go_files = sorted(server_dir.rglob("*.go"), key=lambda p: p.as_posix())
-    main_file = lib_dir / "main.dart"
-    server_main_file = server_dir / "main.go"
-    if main_file in dart_files:
-        dart_files.remove(main_file)
-        dart_files.insert(0, main_file)
-    if server_main_file in go_files:
-        go_files.remove(server_main_file)
-        go_files.insert(0, server_main_file)
-    return dart_files + go_files
+    files: list[Path] = []
+    seen: set[Path] = set()
+    for pattern in SOURCE_PATTERNS:
+        matches = sorted(ROOT.glob(pattern), key=lambda p: p.as_posix())
+        for file in matches:
+            if file.is_file() and file not in seen:
+                files.append(file)
+                seen.add(file)
+    return files
 
 
-def _collect_lines(files: Iterable[Path]) -> list[str]:
+def _read_source_lines(file: Path) -> list[str]:
+    relative = file.relative_to(ROOT).as_posix()
     lines: list[str] = []
-    for file in files:
-        relative = file.relative_to(ROOT).as_posix()
-        lines.append(f"// ===== 文件：{relative} =====")
-        content = file.read_text(encoding="utf-8", errors="replace").splitlines()
-        for index, line in enumerate(content, start=1):
-            stripped = line.rstrip()
-            if stripped:
-                lines.append(f"{index:04d}  {stripped}")
-        lines.append("")
+    lines.append(f"// ===== 文件：{relative} =====")
+    content = file.read_text(encoding="utf-8", errors="replace").splitlines()
+    for index, line in enumerate(content, start=1):
+        stripped = line.rstrip()
+        if stripped:
+            lines.append(f"{index:04d}  {stripped}")
+    lines.append(f"// ===== 文件结束：{relative} =====")
+    lines.append("")
     return lines
+
+
+def _collect_sections(files: list[Path]) -> list[str]:
+    head: list[str] = []
+    tail: list[str] = []
+    for file in files:
+        block = _read_source_lines(file)
+        if len(head) + len(block) <= SECTION_LINES:
+            head.extend(block)
+        else:
+            break
+    for file in reversed(files):
+        block = _read_source_lines(file)
+        if len(tail) + len(block) <= SECTION_LINES:
+            tail[0:0] = block
+        else:
+            break
+    return _fit_section(head, "前 30 页连续源码") + _fit_section(tail, "后 30 页连续源码")
+
+
+def _fit_section(lines: list[str], title: str) -> list[str]:
+    fitted = [f"// ===== {title} ====="]
+    fitted.extend(lines[: SECTION_LINES - 1])
+    while len(fitted) < SECTION_LINES:
+        fitted.append("//")
+    return fitted[:SECTION_LINES]
 
 
 def _slice_pages(lines: list[str]) -> list[list[str]]:
@@ -102,7 +145,7 @@ def _sanitize_for_pdf(text: str) -> str:
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     files = _ordered_files()
-    lines = _collect_lines(files)
+    lines = _collect_sections(files)
     pages = _slice_pages(lines)
 
     pdf = SourcePdf(format="A4")
