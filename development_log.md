@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(game): 规范化第 6 批游戏 Provider 日志治理**：
+  - **`GameProvider`**：将 `_loadSavedState` 快照解析失败的 `debugPrint` 替换为 `CyberLogger.captureWarning()`，携带 `stack` 和 tag=game。
+  - **契约保持**：快照解析失败后仍降级调用 `_initFresh()` 新开一局，行为不变。
+  - **验证**：`GameProvider` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/game_2048/game_provider_test.dart --concurrency=1` 通过（44 个测试）。
+
 - **维护(update): 规范化第 5 批版本检测服务日志治理**：
   - **`UpdateService`**：将版本接口 HTTP 异常和检测异常替换为 `CyberLogger.captureWarning()`，新版本与已是最新版本状态替换为 `CyberLogger.captureMessage()`。
   - **契约保持**：`UPDATE_API_URL` 未配置时继续静默返回 `null`，网络异常、JSON 解析异常仍不影响用户体验。

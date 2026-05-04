@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/features/audio/services/sfx_service.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +36,9 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   // 兼容层：对齐旧版 UI 的 List<List<int>> 接口
   List<List<int>> get grid {
     return List.generate(
-        size, (r) => List.generate(size, (c) => _board[r][c]?.value ?? 0),);
+      size,
+      (r) => List.generate(size, (c) => _board[r][c]?.value ?? 0),
+    );
   }
 
   // 游戏实时分 (溯源：JS L17)
@@ -126,7 +129,8 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (boardRaw != null) {
           {
             final List<dynamic> rows = List<dynamic>.from(
-                (boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null) ?? [],);
+              (boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null) ?? [],
+            );
             if (rows.length == size) {
               _board = List.generate(size, (r) {
                 final row = rows[r] as List<dynamic>;
@@ -156,8 +160,13 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
             }
           }
         }
-      } catch (e) {
-        debugPrint('GameProvider._loadSavedState error: $e');
+      } catch (e, stack) {
+        CyberLogger.captureWarning(
+          e,
+          stack: stack,
+          tag: 'game',
+          extra: {'context': '游戏快照恢复失败，新开一局'},
+        );
       }
     }
     // 无存档或解析失败则新开一局
@@ -303,7 +312,8 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
 
             // 存入合并列表（在 JS 里用于触发 3D 效果，此处预留）
             mergedTiles.add(
-                {'r': nextR, 'c': nextC, 'value': _board[nextR][nextC]!.value},);
+              {'r': nextR, 'c': nextC, 'value': _board[nextR][nextC]!.value},
+            );
           }
         }
       }
@@ -386,12 +396,13 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// 持久化当前快照到 StorageService（对应 JS saveLocalState）
   void _persistState() {
     final boardJson = List.generate(
-        size,
-        (r) => List.generate(size, (c) {
-              final t = _board[r][c];
-              if (t == null) return null;
-              return <String, dynamic>{'id': t.id, 'value': t.value};
-            }),);
+      size,
+      (r) => List.generate(size, (c) {
+        final t = _board[r][c];
+        if (t == null) return null;
+        return <String, dynamic>{'id': t.id, 'value': t.value};
+      }),
+    );
     final int novelIndex = StorageService.getCurrentNovelIndex();
     final String? currentNovelId = StorageService.getCurrentNovelId();
     StorageService.saveGameState(
