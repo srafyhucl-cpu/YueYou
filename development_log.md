@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(reader): 规范化第 13 批阅读器 Provider 日志治理**：
+  - **`ReaderProvider`**（22 处）：删除 `nextTtsSentence` 末尾/书末追踪、`resetFetchIndex` 重置追踪、`loadBook`/`loadChapter` 调用/完成追踪、`fetchChapter` 返回、`jumpTo` 成功追踪等纯调试日志；4 处 `_saveProgress` catchError 改为 `captureWarning()`；`loadPreparedBook`/`loadBook` 异常、`loadChapter` 失败改为 `captureWarning()` + stack；`jumpTo` 越界改为 `captureWarning(StateError(...))`；级联重置完成、默认书恢复、章末已到最终章、章末推进改为 `captureMessage()`；引入 `cyber_logger.dart` import；修复 1 处 `require_trailing_commas` lint。
+  - **契约保持**：nextTtsSentence 末尾静默返回 null、jumpTo 边界静默返回、章末自动推进、默认书热重启恢复行为完全不变。
+  - **验证**：`ReaderProvider` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/reader/ --concurrency=1` 75 个测试全部通过。
+
 - **维护(tts): 规范化第 12 批 TTS 引擎服务日志治理**：
   - **`TtsEngineService`**（36 处）：删除 `_RealHttpClient` 中 HTTP 下载进度/重定向/连接/数据块/完成/POST请求与响应等纯追踪日志；删除 Isolate 成功、AudioPlayer 启动、文件不存在静默跳过等纯追踪；`_FlutterTtsFallbackEngine` 朗读超时/错误改为 `captureWarning()`；引擎初始化/降级引擎初始化/降级朗读/设置倍速音量/清理残留文件/重试各层/Isolate 降级/兼容循环异常均改为 `captureWarning()` + stack；引擎已初始化、残留文件回收成功、短句过滤改为 `captureMessage()`；文件太小由删除改为 `captureWarning(StateError(...))`；顺带修复 3 处 `require_trailing_commas` lint。
   - **契约保持**：重试退避策略、4xx 不重试/5xx 重试、Isolate 主线程降级、兼容循环消费/生产分支行为完全不变。

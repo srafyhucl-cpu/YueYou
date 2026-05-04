@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 import '../../../core/constants/book_constants.dart';
 import '../../../core/database/storage_service.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
@@ -111,7 +112,6 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   Future<TtsAudioRequest?> nextTtsSentence(int session) async {
     if (_sentences.isEmpty) return null;
     if (_fetchIndex >= _sentences.length) {
-      debugPrint(' [TtsFetch] 已到达书籍末尾 (fetch=$_fetchIndex)');
       return null;
     }
 
@@ -169,10 +169,6 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         _fetchIndex = consumed;
       }
 
-      debugPrint(
-        ' [TtsFetch] 提交请求: line=$lineIndex..$endLine, nextFetch=$_fetchIndex, text="${text.substring(0, text.length > 10 ? 10 : text.length)}..."',
-      );
-
       return TtsAudioRequest(
         lineIndex: lineIndex,
         endLineIndex: endLine,
@@ -225,14 +221,19 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       _autoAdvanceChapter();
     }
 
-    _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+    _saveProgress().catchError((e) {
+      CyberLogger.captureWarning(
+        e,
+        tag: 'reader',
+        extra: {'context': 'onTtsItemFinished 进度保存失败'},
+      );
+    });
   }
 
   /// 重置预取游标到当前阅读位置。
   @override
   void resetFetchIndex() {
     _fetchIndex = _currentIndex;
-    debugPrint(' [TtsFetch] 游标已重置为 currentIndex: $_currentIndex');
   }
 
   List<String> get sentences => _sentences;
@@ -388,8 +389,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         chapters: chapters,
         initialIndex: initialIndex,
       );
-    } catch (e) {
-      debugPrint('ReaderProvider.loadPreparedBook error: $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'reader',
+        extra: {'context': 'ReaderProvider.loadPreparedBook 异常'},
+      );
     } finally {
       _isParsing = false;
       notifyListeners();
@@ -404,7 +410,6 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     int? initialIndex,
     bool forceIndex = false,
   }) async {
-    debugPrint('[loadBook] 被调用 bookId=$bookId _isParsing=$_isParsing');
     if (_isParsing) return;
 
     _isParsing = true;
@@ -419,8 +424,16 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         chapters: chapters,
         initialIndex: initialIndex,
       );
-    } catch (e) {
-      debugPrint('� 神经数据加载异常 (ReaderProvider): $e');
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'reader',
+        extra: {
+          'context': 'ReaderProvider.loadBook 异常',
+          'bookId': bookId ?? '',
+        },
+      );
     } finally {
       _isParsing = false;
       notifyListeners();
@@ -470,7 +483,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       notifyListeners();
 
       // Fire-and-forget：进度存档不阻塞主线程
-      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+      _saveProgress().catchError((e) {
+        CyberLogger.captureWarning(
+          e,
+          tag: 'reader',
+          extra: {'context': 'nextSentence 进度保存失败'},
+        );
+      });
 
       // 仅在 TTS 播放/缓冲时刷新，空闲不启泵
       if (_ttsNotifier?.isActivelyPlaying == true) {
@@ -487,7 +506,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       notifyListeners();
 
       // Fire-and-forget：进度存档不阻塞主线程
-      _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+      _saveProgress().catchError((e) {
+        CyberLogger.captureWarning(
+          e,
+          tag: 'reader',
+          extra: {'context': 'previousSentence 进度保存失败'},
+        );
+      });
 
       // 仅在 TTS 播放/缓冲时刷新，空闲不启泵
       if (_ttsNotifier?.isActivelyPlaying == true) {
@@ -504,7 +529,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     // 严格边界检查
     if (_sentences.isEmpty) return;
     if (index < 0 || index >= _sentences.length) {
-      debugPrint('❌ jumpTo 拒绝: index=$index 越界 (0..${_sentences.length - 1})');
+      CyberLogger.captureWarning(
+        StateError('jumpTo 越界'),
+        tag: 'reader',
+        extra: {'index': '$index', 'max': '${_sentences.length - 1}'},
+      );
       return;
     }
 
@@ -520,15 +549,19 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       targetIndex = index; // fallback
     }
 
-    debugPrint('✅ jumpTo: $index -> $targetIndex (总数=${_sentences.length})');
-
     // 🔥 第一时间同步更新，让所有 UI 瞬间响应
     _currentIndex = targetIndex;
     _fetchIndex = targetIndex;
     notifyListeners();
 
     // Fire-and-forget 存档
-    _saveProgress().catchError((e) => debugPrint('⚠️ 进度保存失败: $e'));
+    _saveProgress().catchError((e) {
+      CyberLogger.captureWarning(
+        e,
+        tag: 'reader',
+        extra: {'context': 'jumpTo 进度保存失败'},
+      );
+    });
 
     // 仅在 TTS 播放/缓冲时刷新，空闲不启泵
     if (_ttsNotifier?.isActivelyPlaying == true) {
@@ -583,7 +616,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     StorageService.setCurrentNovelId(null);
 
     notifyListeners();
-    debugPrint('🗑️ 级联重置：书籍 $bookId 已删除，ReaderProvider 已清空');
+    CyberLogger.captureMessage('级联重置：书籍 $bookId 已删除，ReaderProvider 已清空');
   }
 
   // ── 分章懒加载：核心方法 ──────────────────────────────────────────────────
@@ -598,21 +631,14 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       return;
     }
 
-    debugPrint(
-      '[loadChapter] ★ 被调用 chapterIndex=$chapterIndex resume=$resume, caller=${StackTrace.current.toString().split('\n')[1]}',
-    );
     _currentChapterIndex = chapterIndex;
     _isDefaultBookMode = true;
     _chapterLoadState = ChapterLoadState.loading;
     notifyListeners();
 
     try {
-      debugPrint('[loadChapter] 开始下载第 $chapterIndex 章, _isParsing=$_isParsing');
       final service = _defaultBookService ??= DefaultBookService();
       final text = await service.fetchChapter(chapterIndex);
-      debugPrint(
-        '[loadChapter] fetchChapter 返回: ${text == null ? 'null(失败)' : '成功(${text.length}字符)'}',
-      );
 
       if (text == null) {
         _chapterLoadState = ChapterLoadState.error;
@@ -620,7 +646,6 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         return;
       }
 
-      debugPrint('[loadChapter] 开始 loadBook, _isParsing=$_isParsing');
       await loadBook(
         text,
         bookId: BookConstants.defaultBookKey,
@@ -632,8 +657,6 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         ],
         initialIndex: resume ? null : 0,
       );
-      debugPrint('[loadChapter] loadBook 完成, sentences=${_sentences.length}');
-
       _chapterLoadState = ChapterLoadState.loaded;
       // 持久化章节索引，供热重启恢复
       StorageService.setCurrentChapterIndex(chapterIndex);
@@ -643,7 +666,12 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     } catch (e, st) {
       _chapterLoadState = ChapterLoadState.error;
       notifyListeners();
-      debugPrint('[ReaderProvider] loadChapter($chapterIndex) 失败: $e\n$st');
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'reader',
+        extra: {'context': 'loadChapter 失败', 'chapterIndex': '$chapterIndex'},
+      );
     }
   }
 
@@ -651,7 +679,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   void restoreDefaultBook() {
     if (_isDefaultBookMode) return;
     final chapterIndex = StorageService.getCurrentChapterIndex();
-    debugPrint('[restoreDefaultBook] 自动恢复第 $chapterIndex 章');
+    CyberLogger.captureMessage('自动恢复默认书第 $chapterIndex 章');
     // 先用常量填充标题，让 UI 立即有内容可显示
     _isDefaultBookMode = true;
     _currentChapterIndex = chapterIndex;
@@ -674,10 +702,10 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   Future<void> _autoAdvanceChapter() async {
     final nextChapter = (_currentChapterIndex ?? -1) + 1;
     if (nextChapter >= BookConstants.defaultTotalChapters) {
-      debugPrint('[ReaderProvider] 已到最后一章，停止自动推进');
+      CyberLogger.captureMessage('已到最后一章，停止自动推进');
       return;
     }
-    debugPrint('[ReaderProvider] 章末推进 → 第 $nextChapter 章');
+    CyberLogger.captureMessage('章末自动推进到第 $nextChapter 章');
     await loadChapter(nextChapter, resume: false);
   }
 
