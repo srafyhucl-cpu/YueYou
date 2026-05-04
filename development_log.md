@@ -2,6 +2,11 @@
 
 ## **2026-05-04**
 
+- **维护(library): 规范化第 3 批 TXT 导入服务日志治理**：
+  - **`FileImportService`**：将 TXT 导入、Isolate 启动/内部解析、主动取消和流式解析异常日志替换为 `CyberLogger.captureWarning()` / `CyberLogger.captureMessage()`。
+  - **控制台清洁**：文件不存在测试场景改为前置判断后直接返回 `null`，避免把可预期输入当作 warning 输出异常栈。
+  - **验证**：`FileImportService` 已无 `debugPrint()` / `print()`；`flutter analyze` 通过；`flutter test test/features/library/file_import_service_test.dart --concurrency=1` 通过且无异常栈噪声。
+
 - **维护(library): 规范化第 2 批默认书籍服务日志治理**：
   - **`DefaultBookService`**：将目录拉取、章节下载、缓存写入、影子预读与 HTTP 状态异常日志统一替换为 `CyberLogger.captureWarning()`。
   - **契约保持**：默认书籍缓存命中、POST 获取 CDN URL、GET 下载章节文本、失败降级内置常量等行为不变。
