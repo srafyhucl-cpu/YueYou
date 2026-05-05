@@ -203,7 +203,11 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   }
 
   /// 切换播放倍速。
-  void cycleSpeed() => _engine.cycleSpeed();
+  void cycleSpeed() {
+    _engine.cycleSpeed();
+    _playbackRate = _engine.playbackRate;
+    state = _copyStateWithRate(state, _playbackRate);
+  }
 
   /// 清除错误并尝试恢复会话。
   void recover() {
@@ -620,6 +624,47 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   }
 
   // ─── 状态构造与推送 ────────────────────────────────────────
+
+  /// 原地重建当前状态，仅替换 [playbackRate]，其余字段保持不变。
+  TtsAudioState _copyStateWithRate(TtsAudioState current, double rate) =>
+      switch (current) {
+        TtsAudioIdle() => TtsAudioIdle(
+            playbackRate: rate,
+            fallbackMessage: current.fallbackMessage,
+          ),
+        TtsAudioBuffering() => TtsAudioBuffering(
+            bufferedCount: current.bufferedCount,
+            targetCount: current.targetCount,
+            progress: current.progress,
+            session: current.session,
+            playbackRate: rate,
+            fallbackMessage: current.fallbackMessage,
+          ),
+        TtsAudioPlaying() => TtsAudioPlaying(
+            item: current.item,
+            bufferedCount: current.bufferedCount,
+            targetCount: current.targetCount,
+            playbackRate: rate,
+            fallbackMessage: current.fallbackMessage,
+          ),
+        TtsAudioPaused() => TtsAudioPaused(
+            item: current.item,
+            bufferedCount: current.bufferedCount,
+            targetCount: current.targetCount,
+            session: current.session,
+            playbackRate: rate,
+            fallbackMessage: current.fallbackMessage,
+          ),
+        TtsAudioError() => TtsAudioError(
+            type: current.type,
+            message: current.message,
+            timestamp: current.timestamp,
+            recoverable: current.recoverable,
+            session: current.session,
+            playbackRate: rate,
+            fallbackMessage: current.fallbackMessage,
+          ),
+      };
 
   void _applyState(TtsAudioState newState) {
     if (_disposed) return;
