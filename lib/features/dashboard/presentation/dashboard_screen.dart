@@ -105,11 +105,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // 主内容
             LayoutBuilder(
               builder: (context, constraints) {
-                final view = View.of(context);
-                final screenSize = view.physicalSize / view.devicePixelRatio;
-                final isMultiWindow =
-                    constraints.maxHeight < screenSize.height * 0.75;
-                final isCompact = constraints.maxWidth < 360 || isMultiWindow;
+                final aspectRatio = constraints.maxWidth <= 0
+                    ? 0.0
+                    : constraints.maxHeight / constraints.maxWidth;
+                final isMultiWindow = constraints.maxHeight < 720 &&
+                    (constraints.maxWidth < 420 || aspectRatio < 1.85);
+                final isCompact = isMultiWindow;
                 final boardFlex = isCompact ? 1 : 2;
                 final spacing = isCompact
                     ? CyberDimensions.spacingXS
@@ -197,7 +198,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const SizedBox(height: CyberDimensions.borderNormal),
                       // 灵动岛胶囊（内部有 Padding(top:15)，总视觉间距 = 1 + 15 = 16px）
                       const CyberPlayerConsole(),
-                      const SizedBox(height: CyberDimensions.spacingM),
+                      SizedBox(height: spacing),
                     ],
                   ),
                 );
