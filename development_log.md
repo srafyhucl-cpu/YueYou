@@ -5,6 +5,8 @@
 - **发布(release): 中国应用商店上架预检与软著材料生成**：
   - **软著版本统一**：软著源代码 PDF、申请清单、操作说明书与材料 README 统一为 `V1.1.0`，对齐 `pubspec.yaml` 的 `1.1.0+2`。
   - **软著鉴别材料合规重整**：源代码 PDF 按功能主次排序生成连续前 30 页与后 30 页，每页 50 行，覆盖 Flutter 客户端与 Go 服务端；新增 `阅游V1.1.0.md` 与 `阅游V1.1.0.pdf` 作为设计与使用说明书文档鉴别材料，当前不足 60 页按规则提交整份。
+  - **文档鉴别材料回归自然版**：`阅游V1.1.0.md` 不再为凑满 60 页重复扩写，改为自然完整说明书正文；重新生成 `阅游V1.1.0.pdf` 为 16 页，按“不足 60 页提交整份”规则使用。
+  - **文档鉴别材料图文化**：精修《设计与使用说明书》措辞，补入总体关系图、启动流程、导入流程、TTS流程，并将 `docs/copyright/screenshots/` 中的真实截图直接嵌入文档与 PDF；更新后的 `阅游V1.1.0.pdf` 为 15 页。
   - **设置页隐私入口**：设置页新增“隐私与合规 / 隐私政策”入口，使用 `AppInfoConfig.privacyPolicyUrl` 打开正式隐私政策；设置页 UI 文案集中迁移至 `SettingsTexts`。
   - **软著源代码 PDF**：`generate_source_pdf.py` 纳入 `server/` Go 后端代码，与 `lib/` Flutter 端代码共同生成 60 页 `源代码.pdf`，覆盖 App 与服务端核心实现。
   - **服务端部署**：交叉编译 Linux amd64 二进制并部署至 `47.94.102.250:/www/wwwroot/yueyou/yueyou-server`，重启 `yueyou.service` 成功；公网验证 `https://hclstudio.cn/privacy` 与 `https://hclstudio.cn/api/v1/book/catalog?bookId=xiyouji` 均返回 200。
@@ -15,6 +17,17 @@
   - **商店材料补全**：新增 `LICENSE`、`STORE_LISTING.md`、`android/key.properties.template`、`android/app/src/main/res/values/strings.xml`、`android/app/proguard-rules.pro`。
   - **软著材料**：新增 `docs/copyright/generate_source_pdf.py`，自动生成 60 页 `docs/copyright/源代码.pdf`；新增 `操作说明书.md`、`申请清单.md`、`README.md`。
   - **验证**：`python docs/copyright/generate_source_pdf.py` 生成 60 页 PDF，`flutter analyze` 零警告。
+
+- **修复(fix): 章节末尾 TTS 紧循环导致 APP 无响应**：
+  - **根因**：`_refillBuffer` 在 `nextTtsSentence` 返回 `null`（章节末尾句子源已耗尽）时立即 `return`，`_prefetchRunner` 中 `needsRefill == true`（buffer 空） → 无延迟立即再次调用 `_refillBuffer` → 形成**无限紧循环**，Dart 事件循环被饿死，UI 无法响应触摸。
+  - **修复**：`tts_audio_notifier.dart` `_refillBuffer` 分离 `_disposed` 与 `request == null` 两路判断；`request == null` 时增加 `500ms` 退避延迟再返回，彻底打断紧循环。
+  - **验证**：`flutter analyze` 零警告。
+
+- **修复(fix): 三合一缺陷修复——功耗发热、默认章节不显示、特殊字符卡死**：
+  - **功耗优化**：`rain_effect.dart` 的 `shouldRepaint` 改为比较 `progress` 值，避免 Game Over 弹窗内雨滴每帧强制重绘；`teleprompter_view.dart` 的 `_skeletonCtrl` 骨架屏动画仅在 `TtsAudioBuffering` 状态运行，其余状态停止；`board_mascot.dart` 的 `math.Random()` 提取为成员变量 `_blinkRandom` 复用。
+  - **默认章节显示**：`teleprompter_view.dart` 的 Idle 状态文本获取回退到 `reader.currentSentence`，进入页面即显示已加载的第一章节内容。
+  - **特殊字符卡死**：`text_parser.dart` 预清洗阶段增加全角引号（U+201C/U+201D/U+2018/U+2019）归一化为 ASCII 引号；`tts_audio_notifier.dart` 的 `downloadAudio` 调用增加 15 秒 `.timeout()` 防护，避免单次下载 hang 死预加载轨道。
+  - **验证**：`flutter analyze` 零警告，`flutter test` 452 通过 5 跳过。
 
 - **合规(privacy): 权限合规审查与隐私弹窗修复**：
   - **文件权限**：审查 `file_picker ^8.x`，确认走 SAF（`ACTION_OPEN_DOCUMENT`），全 Android 版本天然不需运行时权限。Manifest 不补 `READ_EXTERNAL_STORAGE` 是正确选择。
