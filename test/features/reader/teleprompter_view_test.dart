@@ -35,7 +35,7 @@ void main() {
     expect(find.text('数据流未开启'), findsOneWidget);
   });
 
-  testWidgets('加载文本后非播放态渲染空内容区（text 由 ttsState 驱动）', (tester) async {
+  testWidgets('加载文本后非播放态渲染当前句子（text 由 ttsState 驱动）', (tester) async {
     final reader = await _makeReader();
     addTearDown(() => reader.ttsEngine.dispose());
     await tester.runAsync(() async {
@@ -50,7 +50,11 @@ void main() {
     await tester.pumpWidget(_wrapWithProviders(reader));
     await tester.pump();
 
-    expect(find.text('数据流未开启'), findsOneWidget);
+    // Idle 状态下应显示已加载的当前句子
+    expect(find.byType(TeleprompterView), findsOneWidget);
+    expect(find.text('数据流未开启'), findsNothing);
+    final richText = tester.widget<RichText>(find.byType(RichText));
+    expect(richText.text.toPlainText(), contains('你好世界。'));
   });
 
   testWidgets('testConnection 失败时 ttsErrorMessage 非空', (tester) async {

@@ -25,6 +25,13 @@ class TextParser {
     // 0. 预清洗：碾压所有连续点、全角句号、省略号为单个句号
     text = text.replaceAll(RegExp(r'[。\.…]{2,}'), '。');
 
+    // 0.1 全角引号归一化：替换为 ASCII 引号，避免 TTS 服务端解析异常
+    text = text
+        .replaceAll('\u201C', '"')
+        .replaceAll('\u201D', '"')
+        .replaceAll('\u2018', "'")
+        .replaceAll('\u2019', "'");
+
     // 1. 预处理：按换行符拆分，过滤空白行，去除首尾冗余空格
     final rawLines = text.split(RegExp(r'\r?\n')).toList();
 
