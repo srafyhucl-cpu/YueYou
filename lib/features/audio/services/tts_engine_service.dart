@@ -65,6 +65,7 @@ abstract class TtsFallbackEngine {
   Future<void> initialize();
   Future<void> speak(String text);
   Future<void> stop();
+  Future<void> dispose();
 }
 
 /// 生产环境实现：包装系统原生 FlutterTts
@@ -131,6 +132,11 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
     try {
       await _tts.stop();
     } catch (_) {}
+  }
+
+  @override
+  Future<void> dispose() async {
+    await stop();
   }
 }
 
@@ -596,7 +602,7 @@ class TtsEngineService extends ChangeNotifier {
     _wakeLockHeld = false;
     unawaited(_wakeLock.disable());
     unawaited(_audioPlayer.dispose());
-    unawaited(_fallbackEngine.stop());
+    unawaited(_fallbackEngine.dispose());
     unawaited(_deleteFileIfExists(_lastGeneratedAudioPath));
     unawaited(_initFuture); // 确保初始化完成（即使是销毁时）
     super.dispose();

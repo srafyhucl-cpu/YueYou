@@ -11,6 +11,7 @@
   - **外链配置化**：`lib/core/config/app_info_config.dart` 新增 `MARKET_DOWNLOAD_URL`，`dashboard_screen.dart` 更新弹窗跳转地址改为读取配置，消除硬编码外链 warning。
   - **文档同步**：更新 `README.md`、`贡献指南.md` 与 `DevelopmentPlan/20260505_AI工程门禁收敛与检查器升级.md`，同步本地验收命令、CI 事实和新增环境配置。
   - **验证**：`dart scripts/ai_code_checker.dart` 通过（阻断 0 / warning 0）；`cmd /c "echo n| flutter analyze"` 通过（`No issues found!`）；`flutter test test/features/audio/tts_contract_test.dart test/features/audio/tts_audio_notifier_test.dart --concurrency=1` 通过；`flutter test test/scripts/ai_code_checker_test.dart --concurrency=1` 通过。
+- **技术评估核实与修复**：逐条核实第三方评估报告 8 项问题，排除 5 项已修复或结论有误的问题；`TtsFallbackEngine` 接口新增 `dispose()` 方法实现 `stop`/`dispose` 语义分离；`TtsAudioNotifier.play()` 首部补 `_engine.clearLastError()` 清除错误状态残留；Mock 实现同步补 `dispose()`。验证：`flutter test test/features/audio/ --concurrency=1` 通过（90 passed, 1 skipped），`flutter analyze` 零警告。
 
 ## **2026-05-04**
 

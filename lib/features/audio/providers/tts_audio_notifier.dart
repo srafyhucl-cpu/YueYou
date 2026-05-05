@@ -112,6 +112,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   /// 启动或恢复播放。
   void play() {
     if (_disposed) return;
+    _engine.clearLastError();
     if (_sentenceSource == null) {
       setBusinessError('无法开启 TTS：请先导入书籍');
       return;

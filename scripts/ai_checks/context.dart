@@ -22,7 +22,7 @@ class AiRepoContext {
       if (entity is! File || !entity.path.endsWith('.dart')) {
         continue;
       }
-      final relative = this.relativePath(entity.path);
+      final relative = relativePath(entity.path);
       final String content;
       try {
         content = entity.readAsStringSync();
