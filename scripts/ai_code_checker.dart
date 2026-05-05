@@ -58,7 +58,10 @@ class AiCodeChecker {
   final Directory repoRoot;
   final List<AiFinding> _findings = <AiFinding>[];
 
+  List<AiFinding> get findings => List<AiFinding>.unmodifiable(_findings);
+
   AiCheckSummary run() {
+    _findings.clear();
     _checkLegacyAnalyzeFlag();
     _checkTtsLifecycle();
     _checkNotifierGuards();
