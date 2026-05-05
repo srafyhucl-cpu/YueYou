@@ -341,14 +341,21 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     if (_sentenceSource == null) return;
     final int currentSession = _session; // 捕获当前会话 ID
     final request = await _sentenceSource!.nextTtsSentence(currentSession);
-    if (_disposed || request == null) return;
+    if (_disposed) return;
+    if (request == null) {
+      // 句子源已耗尽（章节末尾），退避等待，防止紧循环饿死 UI 事件循环
+      await Future.delayed(const Duration(milliseconds: 500));
+      return;
+    }
     // 校验会话有效性（避免 nextTtsSentence 耗时过长导致 session 已变更）
     if (currentSession != _session) return;
     if (request.text.length < 5) return;
 
     final String? filePath;
     try {
-      filePath = await _engine.downloadAudio(request);
+      filePath = await _engine
+          .downloadAudio(request)
+          .timeout(const Duration(seconds: 15));
     } catch (e, st) {
       // 只有在会话未变更时才计入失败
       if (currentSession == _session) {
