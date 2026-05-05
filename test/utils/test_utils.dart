@@ -81,6 +81,9 @@ class FakeFallbackEngine implements TtsFallbackEngine {
   Future<void> speak(String text) async {}
   @override
   Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
 }
 
 // ── 环境初始化 ─────────────────────────────────────────────────────────────

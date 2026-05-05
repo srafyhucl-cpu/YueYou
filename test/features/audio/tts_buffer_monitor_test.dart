@@ -9,38 +9,61 @@ import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
 class _FakeAudioPlayer implements TtsAudioPlayer {
   final _ctrl = StreamController<void>.broadcast();
-  @override Stream<void> get onPlayerComplete => _ctrl.stream;
-  @override Stream<Duration> get onDurationChanged => const Stream.empty();
-  @override Stream<Duration> get onPositionChanged => const Stream.empty();
-  @override Future<void> setSource(Source source) async {}
-  @override Future<void> resume() async {}
-  @override Future<void> pause() async {}
-  @override Future<void> stop() async {}
-  @override Future<void> setVolume(double volume) async {}
-  @override Future<void> setPlaybackRate(double rate) async {}
-  @override Future<void> setAudioContext(AudioContext context) async {}
-  @override Future<void> dispose() async => _ctrl.close();
+  @override
+  Stream<void> get onPlayerComplete => _ctrl.stream;
+  @override
+  Stream<Duration> get onDurationChanged => const Stream.empty();
+  @override
+  Stream<Duration> get onPositionChanged => const Stream.empty();
+  @override
+  Future<void> setSource(Source source) async {}
+  @override
+  Future<void> resume() async {}
+  @override
+  Future<void> pause() async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> setVolume(double volume) async {}
+  @override
+  Future<void> setPlaybackRate(double rate) async {}
+  @override
+  Future<void> setAudioContext(AudioContext context) async {}
+  @override
+  Future<void> dispose() async => _ctrl.close();
 }
 
 class _FakeWakeLock implements TtsWakeLock {
-  @override Future<void> enable() async {}
-  @override Future<void> disable() async {}
+  @override
+  Future<void> enable() async {}
+  @override
+  Future<void> disable() async {}
 }
 
 class _FakeHttpClient implements TtsHttpClient {
   @override
-  Future<TtsHttpResponse> post(Uri url,
-          {Map<String, String>? headers, Object? body,}) async =>
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async =>
       const TtsHttpResponse(
-          statusCode: 200,
-          body: '{"status":"success","url":"http://mock/audio.mp3"}',);
-  @override Future<void> download(Uri url, String savePath) async {}
+        statusCode: 200,
+        body: '{"status":"success","url":"http://mock/audio.mp3"}',
+      );
+  @override
+  Future<void> download(Uri url, String savePath) async {}
 }
 
 class _FakeFallbackEngine implements TtsFallbackEngine {
-  @override Future<void> initialize() async {}
-  @override Future<void> speak(String text) async {}
-  @override Future<void> stop() async {}
+  @override
+  Future<void> initialize() async {}
+  @override
+  Future<void> speak(String text) async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> dispose() async {}
 }
 
 class _TestSettings extends SettingsProvider {
@@ -54,7 +77,6 @@ class _TestSettings extends SettingsProvider {
     ambientEnabled = false;
   }
 }
-
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -199,8 +221,11 @@ void main() {
 
     test('enabled=false 时任意 ratio → idle', () {
       for (final r in [0.0, 0.3, 0.6, 1.0]) {
-        expect(computeStatus(r, false), TtsBufferStatus.empty,
-            reason: 'ratio=$r 时应为 idle',);
+        expect(
+          computeStatus(r, false),
+          TtsBufferStatus.empty,
+          reason: 'ratio=$r 时应为 idle',
+        );
       }
     });
   });
