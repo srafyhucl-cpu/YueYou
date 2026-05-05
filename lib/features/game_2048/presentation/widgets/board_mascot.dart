@@ -46,6 +46,7 @@ class BoardMascotState extends ConsumerState<BoardMascot>
   late AnimationController _blinkController;
   late Animation<double> _blinkAnimation;
   Timer? _blinkTimer;
+  final _blinkRandom = math.Random();
 
   // ── 点击能量脉冲层 ──
   late AnimationController _pulseController;
@@ -142,7 +143,7 @@ class BoardMascotState extends ConsumerState<BoardMascot>
   /// 随机间隔眨眼（2.5s ~ 5.5s）
   void _scheduleNextBlink() {
     _blinkTimer?.cancel();
-    final delay = Duration(milliseconds: 2500 + math.Random().nextInt(3000));
+    final delay = Duration(milliseconds: 2500 + _blinkRandom.nextInt(3000));
     _blinkTimer = Timer(delay, () {
       if (!mounted) return;
       // 开心时眼睛已是弧形，跳过眨眼避免视觉冲突
