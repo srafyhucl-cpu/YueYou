@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:yueyou/core/config/app_info_config.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
@@ -627,7 +628,7 @@ class _UpdateDialog extends StatelessWidget {
   Future<void> _launchUpdate(BuildContext context) async {
     final url = info.downloadUrl.isNotEmpty
         ? info.downloadUrl
-        : 'https://play.google.com/store/apps/details?id=com.yueyou.app';
+        : AppInfoConfig.marketDownloadUrl;
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

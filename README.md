@@ -252,6 +252,7 @@ flutter build apk --release \
 
 ```bash
 flutter analyze
+dart scripts/ai_code_checker.dart
 ```
 
 ---
@@ -279,6 +280,7 @@ genhtml coverage/lcov.info -o coverage/html
 仓库配置了 GitHub Actions（`.github/workflows/flutter-ci.yml`），Push / PR 时自动执行：
 
 - `flutter analyze`
+- `dart scripts/ai_code_checker.dart`
 - `flutter test --coverage`
 
 覆盖率文件 `coverage/lcov.info` 作为 Artifact 上传。
@@ -299,6 +301,12 @@ TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬
 | :--- | :--- | :--- |
 | `TTS_SERVER_URL` | TTS 业务接口（返回 JSON `{"status":"success","url":"..."}`) | `https://hclstudio.cn/api/v1/tts` |
 | `BOOK_API_BASE` | 书籍服务 API 基础地址（目录 + 章节派发） | `https://hclstudio.cn/api/v1` |
+
+### 应用外链配置
+
+| 变量 | 说明 | 默认值 |
+| :--- | :--- | :--- |
+| `MARKET_DOWNLOAD_URL` | 版本更新弹窗跳转的应用市场地址 | `https://play.google.com/store/apps/details?id=com.yueyou.app` |
 
 > 客户端拿到 `url` 字段后，再通过 GET 请求从 OSS/CDN 下载音频文件存入本地缓存。**禁止将 POST 响应体直接保存为音频文件。**
 
