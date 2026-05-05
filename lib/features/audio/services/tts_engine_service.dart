@@ -593,6 +593,8 @@ class TtsEngineService extends ChangeNotifier {
     _settings.removeListener(_onSettingsChanged);
     _progressController.close();
     TtsCacheManager.instance.stopPeriodicClean();
+    _wakeLockHeld = false;
+    unawaited(_wakeLock.disable());
     unawaited(_audioPlayer.dispose());
     unawaited(_fallbackEngine.stop());
     unawaited(_deleteFileIfExists(_lastGeneratedAudioPath));

@@ -22,4 +22,11 @@ class AppInfoConfig {
     'PRIVACY_POLICY_URL',
     defaultValue: 'https://hclstudio.cn/privacy',
   );
+
+  /// 应用市场下载地址。
+  static const String marketDownloadUrl = String.fromEnvironment(
+    'MARKET_DOWNLOAD_URL',
+    defaultValue:
+        'https://play.google.com/store/apps/details?id=com.yueyou.app',
+  );
 }

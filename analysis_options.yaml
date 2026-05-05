@@ -6,7 +6,7 @@
 #   2. 自定义 analyzer 严格模式（类型安全 + 废弃 API 检测）
 #   3. 附加 linter 规则（性能 + 风格 + 安全）
 #
-# 执行：flutter analyze --no-fatal-infos
+# 执行：flutter analyze
 
 # ── 基础规则集 ────────────────────────────────────────────────────────────────
 include: package:flutter_lints/flutter.yaml
@@ -22,6 +22,10 @@ analyzer:
     invalid_override: error
     # 类型不匹配视为错误（不依赖隐式转换）
     invalid_assignment: error
+    
+    # 将资源泄漏相关规则设为错误，禁止提交
+    close_sinks: error
+    cancel_subscriptions: error
 
   language:
     # 严格推断模式：提升泛型类型安全（建议开启）
@@ -36,10 +40,22 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "lib/generated/**"
+    - "test/**"
 
 # ── 代码风格规则 ──────────────────────────────────────────────────────────────
 linter:
   rules:
+    # 资源泄漏检测（AI最容易遗漏）
+    close_sinks: true
+    cancel_subscriptions: true
+    
+    # 状态管理规范（Riverpod专属）
+    prefer_const_declarations: true
+    
+    # 代码质量
+    no_duplicate_case_values: true
+    no_logic_in_create_state: true
+
     # ── 安全与健壮性 ──────────────────────────────────────────────────────────
 
     # 禁止在生产代码中使用 print（使用 debugPrint 或 CyberLogger）

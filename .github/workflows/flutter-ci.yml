@@ -7,6 +7,17 @@ on:
   pull_request:
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: dart scripts/ai_code_checker.dart  # 新增：AI代码缺陷检测
+      - run: flutter test --coverage
   build-test:
     name: 分析与测试
     runs-on: ubuntu-latest
@@ -25,12 +36,21 @@ jobs:
 
       - name: 静态检查
         run: |
-          if ! flutter analyze --no-fatal-infos; then
+          if ! flutter analyze; then
             echo "## ❌ 静态检查失败" >> $GITHUB_STEP_SUMMARY
             echo "请在本地执行 \`flutter analyze\` 修复所有 error/warning 后再推送。" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
           echo "## ✅ 静态检查通过" >> $GITHUB_STEP_SUMMARY
+
+      - name: AI 工程门禁检查
+        run: |
+          if ! dart scripts/ai_code_checker.dart; then
+            echo "## ❌ AI 工程门禁失败" >> $GITHUB_STEP_SUMMARY
+            echo "请在本地执行 \`dart scripts/ai_code_checker.dart\` 修复阻断项后再推送。" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "## ✅ AI 工程门禁通过" >> $GITHUB_STEP_SUMMARY
 
       - name: 运行测试并生成覆盖率
         run: flutter test --coverage --concurrency=1
