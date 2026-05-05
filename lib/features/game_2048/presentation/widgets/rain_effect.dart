@@ -34,12 +34,14 @@ class _RainEffectState extends State<RainEffect>
     // 初始化雨滴
     // 让每个雨滴有不同的初始进度，实现连续下雨效果
     for (int i = 0; i < widget.rainCount; i++) {
-      _rainDrops.add(_RainDrop(
-        xOffset: _random.nextDouble(),
-        initialProgress: i / widget.rainCount, // 初始进度错开
-        speed: 0.8 + _random.nextDouble() * 0.4, // 0.8-1.2
-        opacity: 0.3 + _random.nextDouble() * 0.3,
-      ),);
+      _rainDrops.add(
+        _RainDrop(
+          xOffset: _random.nextDouble(),
+          initialProgress: i / widget.rainCount, // 初始进度错开
+          speed: 0.8 + _random.nextDouble() * 0.4, // 0.8-1.2
+          opacity: 0.3 + _random.nextDouble() * 0.3,
+        ),
+      );
     }
   }
 
@@ -146,5 +148,6 @@ class _RainPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RainPainter oldDelegate) => true;
+  bool shouldRepaint(_RainPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
