@@ -53,7 +53,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
     _skeletonCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
-    )..repeat();
+    );
   }
 
   void _initProgressSubscription() {
@@ -123,6 +123,13 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
 
     _handleErrorState(reader.ttsErrorMessage);
 
+    // 骨架屏动画仅在缓冲状态运行，其余状态停止以节省 GPU
+    if (ttsState is TtsAudioBuffering) {
+      if (!_skeletonCtrl.isAnimating) _skeletonCtrl.repeat();
+    } else {
+      if (_skeletonCtrl.isAnimating) _skeletonCtrl.stop();
+    }
+
     if (reader.isParsing) {
       return _buildPlaceholder('正在连接神经数据链路...');
     }
@@ -140,10 +147,11 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
     }
 
     // 从 ttsState 获取当前正在播放/暂停的文本内容
+    // Idle/Buffering/Error 时回退到 reader.currentSentence 展示已加载文本
     final String text = switch (ttsState) {
       TtsAudioPlaying(:final item) => item.textPreview,
       TtsAudioPaused(:final item) => item?.textPreview ?? '',
-      _ => '',
+      _ => reader.currentSentence ?? '',
     };
 
     if (text.isNotEmpty && text != _prevText) {
