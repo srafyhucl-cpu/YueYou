@@ -44,6 +44,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   bool _isDegradedToLocal = false;
   bool _isPausing = false;
   bool _backgroundTolerant = false;
+  bool _prefetchPaused = false;
   int? _pausedInterruptItemId;
   int? _pausedInterruptSession;
   Timer? _idleTimer; // 静默暂停计时器
@@ -51,6 +52,13 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   /// 设置后台宽容模式：提高降级阈值，避免后台限网触发误降级。
   void setBackgroundTolerant(bool value) {
     _backgroundTolerant = value;
+    if (value) {
+      _prefetchPaused = true;
+      _consecutiveFailures = 0;
+    } else {
+      _prefetchPaused = false;
+      _consecutiveFailures = 0;
+    }
   }
 
   /// 注册句子源（由 ReaderProvider 在构造时调用）。
@@ -303,6 +311,10 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       while (_pumpActive && !_disposed) {
         if (_isDegradedToLocal) {
           await Future.delayed(const Duration(milliseconds: 500));
+          continue;
+        }
+        if (_prefetchPaused) {
+          await Future.delayed(const Duration(milliseconds: 2000));
           continue;
         }
         if (_buffer.needsRefill) {
