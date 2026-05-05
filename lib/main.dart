@@ -14,6 +14,7 @@ import 'features/settings/providers/settings_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'shared/widgets/tts_error_listener.dart';
 import 'features/audio/services/tts_engine_service.dart';
+import 'features/audio/providers/tts_audio_notifier.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey =
     GlobalKey<NavigatorState>();
@@ -119,8 +120,10 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
         AmbientService.pause();
+        ref.read(ttsAudioProvider.notifier).setBackgroundTolerant(true);
       case AppLifecycleState.resumed:
         AmbientService.resume();
+        ref.read(ttsAudioProvider.notifier).setBackgroundTolerant(false);
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         AmbientService.dispose();

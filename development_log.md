@@ -12,6 +12,7 @@
   - **文档同步**：更新 `README.md`、`贡献指南.md` 与 `DevelopmentPlan/20260505_AI工程门禁收敛与检查器升级.md`，同步本地验收命令、CI 事实和新增环境配置。
   - **验证**：`dart scripts/ai_code_checker.dart` 通过（阻断 0 / warning 0）；`cmd /c "echo n| flutter analyze"` 通过（`No issues found!`）；`flutter test test/features/audio/tts_contract_test.dart test/features/audio/tts_audio_notifier_test.dart --concurrency=1` 通过；`flutter test test/scripts/ai_code_checker_test.dart --concurrency=1` 通过。
 - **技术评估核实与修复**：逐条核实第三方评估报告 8 项问题，排除 5 项已修复或结论有误的问题；`TtsFallbackEngine` 接口新增 `dispose()` 方法实现 `stop`/`dispose` 语义分离；`TtsAudioNotifier.play()` 首部补 `_engine.clearLastError()` 清除错误状态残留；Mock 实现同步补 `dispose()`。验证：`flutter test test/features/audio/ --concurrency=1` 通过（90 passed, 1 skipped），`flutter analyze` 零警告。
+- **TTS 生产环境六大问题修复**：删除 Isolate 下载路径（Dart HttpClient 异步非阻塞，Isolate 纯属负优化）；兼容循环在无句子源时延迟升至 2000ms；`_prefetchRunner` 自适应阶梯延迟（满 2s/健康 1s/需补 0.5s）；`downloadAudio()` 重试循环移除 `_setLastError()` 收敛错误上报；`main.dart` 生命周期管理后台降级阈值 8→30；`_speakWithLocalTts()` 用 Timer 估算进度驱动提词器；`DashboardScreen` LayoutBuilder 小窗响应式。验证：`flutter test test/features/audio/ --concurrency=1` 通过（90 passed, 1 skipped），`flutter analyze` 零警告。
 
 ## **2026-05-04**
 

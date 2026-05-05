@@ -43,9 +43,15 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   int _consecutiveFailures = 0;
   bool _isDegradedToLocal = false;
   bool _isPausing = false;
+  bool _backgroundTolerant = false;
   int? _pausedInterruptItemId;
   int? _pausedInterruptSession;
   Timer? _idleTimer; // 静默暂停计时器
+
+  /// 设置后台宽容模式：提高降级阈值，避免后台限网触发误降级。
+  void setBackgroundTolerant(bool value) {
+    _backgroundTolerant = value;
+  }
 
   /// 注册句子源（由 ReaderProvider 在构造时调用）。
   void registerSentenceSource(TtsSentenceSource source) {
@@ -302,7 +308,12 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         if (_buffer.needsRefill) {
           await _refillBuffer();
         } else {
-          await Future.delayed(const Duration(milliseconds: 300));
+          final delayMs = _buffer.isFull
+              ? 2000
+              : _buffer.healthRatio >= 0.6
+                  ? 1000
+                  : 500;
+          await Future.delayed(Duration(milliseconds: delayMs));
         }
       }
     } catch (e, st) {
@@ -326,7 +337,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         if (!_buffer.isEmpty) {
           await _playNext();
         } else {
-          await Future.delayed(const Duration(milliseconds: 200));
+          await Future.delayed(const Duration(milliseconds: 300));
         }
       }
     } catch (e, st) {
@@ -365,7 +376,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       // 只有在会话未变更时才计入失败
       if (currentSession == _session) {
         _consecutiveFailures++;
-        if (_consecutiveFailures >= 8) {
+        final threshold = _backgroundTolerant ? 30 : 8;
+        if (_consecutiveFailures >= threshold) {
           CyberLogger.captureWarning(
             e is Exception ? e : Exception('$e'),
             stack: st,
@@ -384,8 +396,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     }
     if (filePath == null) {
       _consecutiveFailures++;
-      // 降级判定：针对新会话的前 6 次失败更加宽容
-      if (_consecutiveFailures >= 6) {
+      final threshold = _backgroundTolerant ? 30 : 6;
+      if (_consecutiveFailures >= threshold) {
         CyberLogger.captureWarning(
           Exception('download returned null'),
           tag: 'tts',
