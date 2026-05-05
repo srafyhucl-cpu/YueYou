@@ -5,6 +5,7 @@
 - **维护(ai): AI 工程门禁收敛与检查器升级**：
   - **`scripts/ai_code_checker.dart` 升级**：将原始单点扫描脚本重构为结构化 AI 门禁检查器，新增阻断规则（零警告口径冲突、TTS 资源释放、暂停中断哨兵、旧会话回写守卫、契约测试存在性、非法控制台输出）与警告规则（疑似硬编码 URL），输出统一 `[AI-CHECK]` 结果并以非零退出码阻断 CI。
   - **AI 门禁测试回归**：`scripts/ai_code_checker.dart` 暴露只读 `findings` 并在 `run()` 前清空内部状态；新增 `test/scripts/ai_code_checker_test.dart`，覆盖全绿场景、legacy analyze flag、资源释放缺失、非法 `debugPrint()`、硬编码 URL 与重复运行不累积 findings 的回归场景。
+  - **AI 门禁第三步增强**：新增 `scripts/ai_checks/models.dart`、`context.dart`、`rules.dart`、`checker.dart`，将门禁脚本拆为模型、仓库上下文、独立规则和编排层；`scripts/ai_code_checker.dart` 收敛为稳定 CLI 入口与导出层，后续新增规则无需继续堆到单文件中。
   - **CI / workflow 统一**：`.github/workflows/flutter-ci.yml`、`.windsurf/workflows/code-standardization-check.md`、`.windsurf/workflows/development-task-closure.md` 全部收口到 `flutter analyze` 与 `dart scripts/ai_code_checker.dart` 同一门禁链路，移除与零警告政策冲突的 `--no-fatal-infos`。
   - **TTS 资源释放补齐**：`lib/features/audio/services/tts_engine_service.dart` 的 `dispose()` 新增 Wakelock 释放，避免销毁路径遗漏资源回收。
   - **外链配置化**：`lib/core/config/app_info_config.dart` 新增 `MARKET_DOWNLOAD_URL`，`dashboard_screen.dart` 更新弹窗跳转地址改为读取配置，消除硬编码外链 warning。
