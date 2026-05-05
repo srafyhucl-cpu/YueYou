@@ -213,12 +213,17 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       // 🔥 重要修复：此处绝不可重置 _fetchIndex！
       // 预取指针应当保持领先，重置它会导致预取循环重新抓取已在队列中的任务。
       notifyListeners();
-    } else if (item.lineIndex >= 0 && item.lineIndex < _sentences.length) {
-      _currentIndex = item.lineIndex;
-      notifyListeners();
-    } else if (_isDefaultBookMode) {
+    } else {
+      // 章节末尾：先钉住 UI 游标到当前句位置
+      if (item.lineIndex >= 0 && item.lineIndex < _sentences.length) {
+        _currentIndex = item.lineIndex;
+        notifyListeners();
+      }
       // 🔥 章节末尾 + 默认书籍模式：自动推进到下一章
-      _autoAdvanceChapter();
+      // 注意：必须与上方 UI 更新分离（不可用 else if），二者应同时执行
+      if (_isDefaultBookMode) {
+        _autoAdvanceChapter();
+      }
     }
 
     _saveProgress().catchError((e) {
