@@ -103,91 +103,100 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
             // 主内容
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: CyberDimensions.spacingM,
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: CyberDimensions.spacingM),
-                  // 1. 顶部导航
-                  _buildTopNavigation(context),
-                  const SizedBox(height: CyberDimensions.spacingM),
-                  // 2. 状态面板
-                  _buildStatusPanel(),
-                  // 棋盘 + XIAOYO 爬墙头
-                  // 76px 缓冲区合并进 Expanded 内部计算，保证 mascotTop 始终为正值（在 Stack 边界内）
-                  Expanded(
-                    flex: 2,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        const double kBuffer =
-                            CyberDimensions.dashboardBoardBuffer;
-                        final w = constraints.maxWidth;
-                        final h = constraints.maxHeight;
-                        // 棋盘可用高度 = 总高 - 顶部缓冲区
-                        final boardAvailH = h - kBuffer;
-                        final boardSz = w < boardAvailH ? w : boardAvailH;
-                        // 棋盘顶部位置 = 缓冲区 + 剩余居中空间
-                        final boardTop = kBuffer + (boardAvailH - boardSz) / 2;
-                        // XIAOYO 顶部 = boardTop - 73，由于 boardTop >= kBuffer = 76 > 73，始终为正数
-                        final mascotTop = boardTop -
-                            (CyberDimensions.dashboardMascotHeight -
-                                CyberDimensions.spacingMS +
-                                1);
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 360;
+                final boardFlex = isCompact ? 1 : 2;
+                final spacing = isCompact
+                    ? CyberDimensions.spacingXS
+                    : CyberDimensions.spacingM;
 
-                        return Stack(
-                          children: [
-                            // 1. 棋盘层（在缓冲区下方居中）
-                            Positioned(
-                              top: boardTop,
-                              left: 0,
-                              right: 0,
-                              height: boardSz,
-                              child: const SquareBoard(),
-                            ),
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: spacing),
+                  child: Column(
+                    children: [
+                      SizedBox(height: spacing),
+                      _buildTopNavigation(context),
+                      SizedBox(height: spacing),
+                      _buildStatusPanel(),
+                      Expanded(
+                        flex: boardFlex,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            const double kBuffer =
+                                CyberDimensions.dashboardBoardBuffer;
+                            final w = constraints.maxWidth;
+                            final h = constraints.maxHeight;
+                            // 棋盘可用高度 = 总高 - 顶部缓冲区
+                            final boardAvailH = h - kBuffer;
+                            final boardSz = w < boardAvailH ? w : boardAvailH;
+                            // 棋盘顶部位置 = 缓冲区 + 剩余居中空间
+                            final boardTop =
+                                kBuffer + (boardAvailH - boardSz) / 2;
+                            // XIAOYO 顶部 = boardTop - 73，由于 boardTop >= kBuffer = 76 > 73，始终为正数
+                            final mascotTop = boardTop -
+                                (CyberDimensions.dashboardMascotHeight -
+                                    CyberDimensions.spacingMS +
+                                    1);
 
-                            // 2. XIAOYO 渲染层（纯渲染，不处理手势）
-                            Positioned(
-                              top: mascotTop,
-                              left: (w - CyberDimensions.dashboardMascotWidth) /
-                                  2,
-                              width: CyberDimensions.dashboardMascotWidth,
-                              height: CyberDimensions.dashboardMascotHeight,
-                              child: IgnorePointer(
-                                child: BoardMascot(key: _mascotKey),
-                              ),
-                            ),
+                            return Stack(
+                              children: [
+                                // 1. 棋盘层（在缓冲区下方居中）
+                                Positioned(
+                                  top: boardTop,
+                                  left: 0,
+                                  right: 0,
+                                  height: boardSz,
+                                  child: const SquareBoard(),
+                                ),
 
-                            // 3. XIAOYO 点击层（透明覆盖，独立于棋盘手势）
-                            Positioned(
-                              top: mascotTop,
-                              left: (w - CyberDimensions.dashboardMascotWidth) /
-                                  2,
-                              width: CyberDimensions.dashboardMascotWidth,
-                              height: CyberDimensions.dashboardMascotHeight,
-                              child: GestureDetector(
-                                onTap: () {
-                                  _mascotKey.currentState
-                                      ?.triggerTapAnimation();
-                                },
-                                behavior: HitTestBehavior.opaque,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                                // 2. XIAOYO 渲染层（纯渲染，不处理手势）
+                                Positioned(
+                                  top: mascotTop,
+                                  left: (w -
+                                          CyberDimensions
+                                              .dashboardMascotWidth) /
+                                      2,
+                                  width: CyberDimensions.dashboardMascotWidth,
+                                  height: CyberDimensions.dashboardMascotHeight,
+                                  child: IgnorePointer(
+                                    child: BoardMascot(key: _mascotKey),
+                                  ),
+                                ),
+
+                                // 3. XIAOYO 点击层（透明覆盖，独立于棋盘手势）
+                                Positioned(
+                                  top: mascotTop,
+                                  left: (w -
+                                          CyberDimensions
+                                              .dashboardMascotWidth) /
+                                      2,
+                                  width: CyberDimensions.dashboardMascotWidth,
+                                  height: CyberDimensions.dashboardMascotHeight,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      _mascotKey.currentState
+                                          ?.triggerTapAnimation();
+                                    },
+                                    behavior: HitTestBehavior.opaque,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: CyberDimensions.spacingM),
+                      // 提词器（带边框容器）
+                      const RepaintBoundary(child: TeleprompterView()),
+                      const SizedBox(height: CyberDimensions.borderNormal),
+                      // 灵动岛胶囊（内部有 Padding(top:15)，总视觉间距 = 1 + 15 = 16px）
+                      const CyberPlayerConsole(),
+                      const SizedBox(height: CyberDimensions.spacingM),
+                    ],
                   ),
-                  const SizedBox(height: CyberDimensions.spacingM),
-                  // 提词器（带边框容器）
-                  const RepaintBoundary(child: TeleprompterView()),
-                  const SizedBox(height: CyberDimensions.borderNormal),
-                  // 灵动岛胶囊（内部有 Padding(top:15)，总视觉间距 = 1 + 15 = 16px）
-                  const CyberPlayerConsole(),
-                  const SizedBox(height: CyberDimensions.spacingM),
-                ],
-              ),
+                );
+              },
             ),
           ],
         ),

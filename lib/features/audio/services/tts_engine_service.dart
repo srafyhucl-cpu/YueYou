@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'dart:io';
@@ -13,7 +12,6 @@ import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../../core/config/tts_config.dart';
-import '../../../core/utils/safe_string.dart';
 import '../../../core/utils/tts_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -458,7 +456,6 @@ class TtsEngineService extends ChangeNotifier {
     }
 
     _initFuture = _initTtsHardware();
-    // 启动兼容性循环（用于旧版测试/非 Riverpod 场景）
     _startCompatibilityLoop();
 
     // 非 Riverpod 场景（如测试直接构造），仍使用内部监听器
@@ -994,7 +991,20 @@ class TtsEngineService extends ChangeNotifier {
   /// 使用本地 TTS 引擎朗读指定文本，返回是否成功。
   Future<bool> _speakWithLocalTts(String text) async {
     try {
-      await _fallbackEngine.speak(text);
+      _progressController.add(0.0);
+      final estimatedSeconds = text.length / 4.0 / _playbackRate;
+      final stopwatch = Stopwatch()..start();
+      final progressTimer =
+          Timer.periodic(const Duration(milliseconds: 100), (_) {
+        final elapsed = stopwatch.elapsedMilliseconds / 1000.0;
+        _progressController.add((elapsed / estimatedSeconds).clamp(0.0, 0.95));
+      });
+      try {
+        await _fallbackEngine.speak(text);
+      } finally {
+        progressTimer.cancel();
+      }
+      _progressController.add(1.0);
       _clearLastError();
       return true;
     } catch (e, st) {
@@ -1030,10 +1040,9 @@ class TtsEngineService extends ChangeNotifier {
   Future<String?> downloadAudio(TtsAudioRequest request) async {
     for (int attempt = 0; attempt < _config.maxRetries; attempt++) {
       try {
-        final result = await _executeDownload(request, attempt);
+        final result = await _executeDownload(request);
         if (result != null) return result;
       } on TimeoutException catch (e, st) {
-        _setLastError(e);
         CyberLogger.captureWarning(
           e,
           stack: st,
@@ -1044,7 +1053,6 @@ class TtsEngineService extends ChangeNotifier {
           await _delayFn(_config.baseRetryDelay * (1 << attempt));
         }
       } on _TtsHttpStatusException catch (e, st) {
-        _setLastError(e.statusCode);
         CyberLogger.captureWarning(
           e,
           stack: st,
@@ -1064,7 +1072,6 @@ class TtsEngineService extends ChangeNotifier {
           await _delayFn(_config.baseRetryDelay * (1 << attempt));
         }
       } catch (e, st) {
-        _setLastError(e);
         CyberLogger.captureWarning(
           e,
           stack: st,
@@ -1092,40 +1099,10 @@ class TtsEngineService extends ChangeNotifier {
   ///
   /// 优先在后台 Isolate 中执行 HTTP 下载；若 Isolate 失败（如 Android
   /// 部分版本限制），自动降级到主线程 [TtsHttpClient] 重试。
-  Future<String?> _executeDownload(TtsAudioRequest request, int attempt) async {
+  Future<String?> _executeDownload(TtsAudioRequest request) async {
     final voice = _initCompleted ? _voice : _settings.voice;
-    final serverUrl = _config.serverUrl;
-    final isolateInput = _IsolateDownloadInput(
-      text: request.text,
-      voice: voice,
-      serverUrl: serverUrl,
-    );
-    String? filePath;
-
-    // 单元测试守卫：若注入了非生产环境的 HttpClient（如 Mock），则跳过 Isolate 下载以支持验证
-    final bool isRealClient = _httpClient is _RealTtsHttpClient;
-
-    // 通道 1：Isolate 后台下载（仅限真实网络环境）
-    if (isRealClient) {
-      try {
-        filePath = await Isolate.run(() => _isolateDownload(isolateInput));
-      } catch (e, st) {
-        CyberLogger.captureWarning(
-          e,
-          stack: st,
-          tag: 'tts',
-          extra: {
-            'context': 'Isolate 下载失败，降级到主线程',
-            'attempt': '${attempt + 1}',
-          },
-        );
-        // 降级到主线程
-        filePath = await _mainThreadDownload(request, voice, serverUrl);
-      }
-    } else {
-      // 测试环境：直接走主线程，以便 Mock 拦截器能正常捕获调用
-      filePath = await _mainThreadDownload(request, voice, serverUrl);
-    }
+    final filePath =
+        await _mainThreadDownload(request, voice, _config.serverUrl);
 
     if (_disposed) {
       unawaited(_deleteFileIfExists(filePath));
@@ -1370,9 +1347,12 @@ class TtsEngineService extends ChangeNotifier {
         await _delayOrDispose(const Duration(seconds: 3));
         continue;
       }
-      // 正常节拍：缓冲区满则多等，不满则快速响应
-      final delayMs =
-          (_compatBuffer.length >= _config.maxPrefetchQueue) ? 500 : 100;
+      // 正常节拍：无句子源时深度休眠，有源时按缓冲状态调速
+      final delayMs = onNeedPrefetch == null
+          ? 2000
+          : (_compatBuffer.length >= _config.maxPrefetchQueue)
+              ? 500
+              : 100;
       await _delayOrDispose(Duration(milliseconds: delayMs));
     }
   }
@@ -1422,95 +1402,5 @@ class TtsEngineService extends ChangeNotifier {
       _fallbackNotification = null;
     }
     if (changed && !_disposed) notifyListeners();
-  }
-}
-
-/// Isolate 下载输入参数（纯数据，可跨 Isolate 传递）。
-class _IsolateDownloadInput {
-  final String text;
-  final String voice;
-  final String serverUrl;
-
-  const _IsolateDownloadInput({
-    required this.text,
-    required this.voice,
-    required this.serverUrl,
-  });
-}
-
-/// 在后台 Isolate 中执行的 TTS 音频下载流程。
-///
-/// 1. POST 请求获取音频 URL
-/// 2. GET 下载二进制流
-/// 3. 写入临时文件
-/// 4. 返回文件路径
-///
-/// 独立于主 Isolate，不阻塞 UI 线程。
-Future<String> _isolateDownload(_IsolateDownloadInput input) async {
-  final client = HttpClient();
-  try {
-    // Step 1: POST → 获取音频 URL
-    final postUri = Uri.parse(input.serverUrl);
-    final postRequest = await client.postUrl(postUri);
-    postRequest.headers.set(
-      HttpHeaders.contentTypeHeader,
-      'application/json; charset=utf-8',
-    );
-    postRequest.headers.set(HttpHeaders.cacheControlHeader, 'no-cache');
-    postRequest.headers.set('Pragma', 'no-cache');
-    postRequest.write(
-      jsonEncode({
-        'text': input.text,
-        'voice': input.voice,
-      }),
-    );
-    final postResponse = await postRequest.close().timeout(
-          const Duration(seconds: 15),
-        );
-    if (postResponse.statusCode != 200) {
-      throw HttpException('服务器返回 ${postResponse.statusCode}');
-    }
-    final responseBody = await postResponse.transform(utf8.decoder).join();
-    if (!(responseBody.startsWith('{') || responseBody.startsWith('['))) {
-      throw const FormatException('服务端响应格式异常');
-    }
-    final decoded = jsonDecode(responseBody);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('服务端响应非 JSON 对象');
-    }
-    final status = (decoded['status'] as String? ?? '').trim();
-    final audioUrl = (decoded['url'] as String? ?? '').trim();
-    if (status != 'success' || audioUrl.isEmpty) {
-      throw FormatException(
-        '音频 URL 缺失: ${safeSubstring(responseBody, 0, 100)}',
-      );
-    }
-
-    // Step 2: GET → 下载音频二进制
-    final audioUri = Uri.parse(audioUrl);
-    final audioRequest = await client.getUrl(audioUri);
-    final audioResponse = await audioRequest.close().timeout(
-          const Duration(seconds: 15),
-        );
-    if (audioResponse.statusCode >= 400) {
-      throw HttpException('音频下载失败: HTTP ${audioResponse.statusCode}');
-    }
-    final bytes = <int>[];
-    await for (final chunk in audioResponse) {
-      bytes.addAll(chunk);
-    }
-    if (bytes.isEmpty) {
-      throw const HttpException('音频内容为空');
-    }
-
-    // Step 3: 写入临时文件
-    final tempDir = Directory.systemTemp;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filePath = '${tempDir.path}/tts_$timestamp.mp3';
-    await File(filePath).writeAsBytes(bytes, flush: true);
-
-    return filePath;
-  } finally {
-    client.close();
   }
 }
