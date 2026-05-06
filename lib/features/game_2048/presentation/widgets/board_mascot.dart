@@ -288,6 +288,7 @@ class BoardMascotState extends ConsumerState<BoardMascot>
 
   /// 欢呼：合并数大小决定喜悦度，跳跃时长随喜悦度延长
   void _celebrate(int mergeValue) {
+    if (!mounted) return;
     final joy = mergeValue >= 1024
         ? 1.0
         : mergeValue >= 512

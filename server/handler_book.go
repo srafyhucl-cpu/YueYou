@@ -24,7 +24,7 @@ const xiyoujiTotalChapters = 100
 func bookCatalogHandler(c *gin.Context) {
 	bookID := c.Query("bookId")
 	if bookID != "xiyouji" {
-		c.JSON(404, gin.H{"status": "error", "message": "书籍不存在"})
+		fail(c, 404, "书籍不存在")
 		return
 	}
 	// 直接返回嵌入的 JSON，客户端按约定解析
@@ -44,15 +44,15 @@ func bookChapterHandler(c *gin.Context) {
 		ChapterIndex int    `json:"chapterIndex"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"status": "error", "message": "参数错误"})
+		fail(c, 400, "参数错误")
 		return
 	}
 	if req.BookID != "xiyouji" {
-		c.JSON(404, gin.H{"status": "error", "message": "书籍不存在"})
+		fail(c, 404, "书籍不存在")
 		return
 	}
 	if req.ChapterIndex < 0 || req.ChapterIndex >= xiyoujiTotalChapters {
-		c.JSON(400, gin.H{"status": "error", "message": "章节索引越界"})
+		fail(c, 400, "章节索引越界")
 		return
 	}
 
@@ -62,7 +62,7 @@ func bookChapterHandler(c *gin.Context) {
 
 	log.Printf("[Book] 派发章节: index=%d -> %s", req.ChapterIndex, url)
 
-	c.JSON(200, gin.H{
+	ok(c, gin.H{
 		"status": "success",
 		"url":    url,
 	})

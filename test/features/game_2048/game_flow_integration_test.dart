@@ -17,7 +17,8 @@ int _tileCount(GameProvider gp) {
   return count;
 }
 
-
+List<List<int>> _grid(GameProvider p) =>
+    p.board.map((r) => r.map((t) => t?.value ?? 0).toList()).toList();
 
 bool _listsEqual(List<int> a, List<int> b) {
   if (a.length != b.length) return false;
@@ -60,7 +61,7 @@ void main() {
 
       // updateScore 把棋盘上所有方块值加总，初始 2 格各为 2 或 4
       expect(gp.score, greaterThanOrEqualTo(4)); // 最小：2+2
-      expect(gp.score, lessThanOrEqualTo(8));    // 最大：4+4
+      expect(gp.score, lessThanOrEqualTo(8)); // 最大：4+4
       expect(gp.combo, 0);
     });
 
@@ -96,12 +97,12 @@ void main() {
       );
       addTearDown(gp.dispose);
 
-      final before = gp.grid.expand((r) => r).toList();
+      final before = _grid(gp).expand((r) => r).toList();
       bool changed = false;
 
       for (final dir in Direction.values) {
         gp.move(dir);
-        final after = gp.grid.expand((r) => r).toList();
+        final after = _grid(gp).expand((r) => r).toList();
         if (!_listsEqual(before, after)) {
           changed = true;
           break;

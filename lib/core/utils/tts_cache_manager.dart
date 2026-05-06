@@ -255,9 +255,10 @@ class TtsCacheManager {
         if (entity is File) {
           final name = entity.path.split(Platform.pathSeparator).last;
           if (name.startsWith('tts_') && name.endsWith('.mp3')) {
+            final currentEntity = entity;
             futures.add(() async {
               try {
-                final stat = await entity.stat();
+                final stat = await currentEntity.stat();
                 result.add(
                   _TtsFileInfo(
                     path: entity.path,

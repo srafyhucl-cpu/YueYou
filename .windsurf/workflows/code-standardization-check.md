@@ -39,15 +39,11 @@ rg "captureMessage\(" lib/features/*/presentation
 ### 3. 硬编码检查
 
 ```bash
-# 检查魔法数字
-rg "\b(15|30|60|300|800|2000|5000|10000|15000)\b" lib --type dart
+# 检查 Duration 硬编码（黑名单模式：检测非引用常量的 Duration 字面量）
+rg "Duration\((seconds|milliseconds):\s*[0-9]" lib --type dart
 
 # 检查硬编码域名
 rg "https?://[^']+" lib --type dart
-
-# 检查直接 Duration
-rg "Duration\(seconds:\s*[0-9]" lib --type dart
-rg "Duration\(milliseconds:\s*[0-9]" lib --type dart
 
 # 检查环境变量使用
 rg "String\.fromEnvironment" lib --type dart

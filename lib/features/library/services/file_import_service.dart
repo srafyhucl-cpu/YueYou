@@ -213,8 +213,7 @@ class FileImportService {
   static Future<FileImportResult?> _parseFileStreaming(_ParseArgs args) async {
     try {
       final file = File(args.filePath);
-      final title =
-          args.fileName.replaceAll(RegExp(r'\.txt$', caseSensitive: false), '');
+      final title = TextProcessing.stripTxtSuffix(args.fileName);
       if (!await file.exists()) return null;
 
       // Step 1: 采样前 4KB 嗅探编码（只读采样量，不读全文件）

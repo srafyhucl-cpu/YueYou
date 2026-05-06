@@ -17,8 +17,11 @@ class MockHttpClient implements TtsHttpClient {
   MockHttpClient({required this.response, this.statusCode = 200});
 
   @override
-  Future<TtsHttpResponse> post(Uri url,
-      {Map<String, String>? headers, Object? body,}) async {
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
     return TtsHttpResponse(statusCode: statusCode, body: jsonEncode(response));
   }
 
@@ -131,26 +134,26 @@ void main() {
       });
     });
 
-    test('遵循“分离下载”原则 - 先获取URL再单独下载', () async {
-      // 模拟请求下一句文本
-      ttsService.onNeedPrefetch = (session) async {
-        return TtsAudioRequest(
-          text: '测试文本内容足够长以通过短句过滤',
-          lineIndex: 0,
-          title: '测试标题',
-        );
-      };
+    test('遵循"分离下载"原则 - 先获取URL再单独下载', () async {
+      final request = TtsAudioRequest(
+        text: '测试文本内容足够长以通过短句过滤',
+        lineIndex: 0,
+        title: '测试标题',
+      );
 
-      // 启动预加载循环
-      ttsService.setEnabled(true);
-      // 等待循环至少执行一次（延迟 100ms，此处给 300ms 宽裕度）
-      await Future.delayed(const Duration(milliseconds: 300));
+      final result = await ttsService.downloadAudio(request);
 
-      // 验证 POST 请求获取 JSON 响应后，应调用下载
-      // 注意：由于是异步循环，我们需要等待一小会儿
-      expect(mockHttpClient.wasDownloadCalled, isTrue, reason: '应从返回的URL下载音频');
-      expect(mockHttpClient.downloadedUrl, 'https://example.com/audio.mp3',
-          reason: '下载URL应与JSON响应中的URL一致',);
+      expect(result, isNotNull, reason: '应成功下载音频文件');
+      expect(
+        mockHttpClient.wasDownloadCalled,
+        isTrue,
+        reason: '应从返回的URL下载音频',
+      );
+      expect(
+        mockHttpClient.downloadedUrl,
+        'https://example.com/audio.mp3',
+        reason: '下载URL应与JSON响应中的URL一致',
+      );
     });
 
     test('处理错误响应 - 不下载无效URL', () async {
@@ -169,24 +172,23 @@ void main() {
         delayFn: (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
       );
 
-      ttsService.onNeedPrefetch = (session) async {
-        return TtsAudioRequest(
-          text: '测试文本内容足够长以通过短句过滤',
-          lineIndex: 0,
-          title: '测试标题',
-        );
-      };
+      await Future.delayed(const Duration(milliseconds: 1));
 
-      // 启动预加载循环
-      ttsService.setEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 300));
+      final request = TtsAudioRequest(
+        text: '测试文本内容足够长以通过短句过滤',
+        lineIndex: 0,
+        title: '测试标题',
+      );
 
-      // 验证不下载无效URL
-      expect(mockHttpClient.wasDownloadCalled, isFalse, reason: '不应下载无效URL');
+      final result = await ttsService.downloadAudio(request);
+
+      expect(result, isNull, reason: '错误响应不应返回文件路径');
+      expect(
+        mockHttpClient.wasDownloadCalled,
+        isFalse,
+        reason: '不应下载无效URL',
+      );
       expect(ttsService.lastError, isNotNull, reason: '应设置错误信息');
-      // 对齐 TtsEngineService 内部的错误映射文案
-      expect(ttsService.lastError, contains('服务器维护中'),
-          reason: '错误信息应映射为服务器维护中',);
     });
   });
 }

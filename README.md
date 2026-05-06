@@ -421,7 +421,7 @@ CyberTextStyles.captionBold         // 说明文字加粗
 - [模块依赖边界](DevelopmentPlan/模块依赖关系.md)
 - [贡献指南](贡献指南.md)
 
-项目同时遵循 `.windsurfrules` 与 `.agents/skills/` 定义的硬性红线：
+项目硬性红线（详见 `CLAUDE.md` 与 `.agents/skills/`）：
 
 - ✅ **零硬编码颜色/尺寸**：所有视觉 token 必须来自 `CyberColors` / `CyberDimensions` / `CyberTextStyles`
 - ✅ **domain 层纯 Dart**：`features/*/domain/` 下严禁引入 `flutter/material.dart`

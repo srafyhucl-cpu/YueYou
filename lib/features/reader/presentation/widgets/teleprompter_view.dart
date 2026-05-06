@@ -13,6 +13,7 @@ import 'package:yueyou/core/theme/cyber_shadows.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import 'package:yueyou/core/utils/safe_string.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
 /// 🔥 赛博 KTV 提词器 - 物理进度驱动版
 /// 架构：监听 TtsEngineService 的实时音频进度流，实现 100% 同步的扫光扫字。
@@ -119,7 +120,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
   Widget build(BuildContext context) {
     final reader = ref.watch(readerProvider);
     final ttsState = ref.watch(ttsAudioProvider);
-    final engine = ref.watch(ttsEngineProvider);
+    final engine = ref.read(ttsEngineProvider);
 
     _handleErrorState(reader.ttsErrorMessage);
 
@@ -167,7 +168,7 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
       builder: (context, constraints) {
         final halfWidth = constraints.maxWidth / 2;
         final isLowPerf =
-            CyberPerformanceDetector.detectLevel() == CyberAnimationLevel.low;
+            ref.watch(settingsProvider).currentAnimationLevel == CyberAnimationLevel.low;
 
         return Container(
           height: CyberDimensions.teleprompterHeight,
@@ -263,12 +264,12 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
                     children: [
                       // 已读：亮青色 + 发光
                       TextSpan(
-                        text: safeSubstring(text, 0, charIndex),
+                        text: text.safeSubstring(0, charIndex),
                         style: _readStyle,
                       ),
                       // 未读：暗色
                       TextSpan(
-                        text: safeSubstring(text, charIndex, text.length),
+                        text: text.safeSubstring(charIndex, text.length),
                         style: _unreadStyle.copyWith(
                           color: CyberColors.whiteMuted.withValues(
                             alpha: isPlaying ? 0.4 : 0.65,

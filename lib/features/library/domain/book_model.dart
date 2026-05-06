@@ -1,4 +1,5 @@
 import '../../../core/utils/safe_string.dart';
+import '../../../core/utils/text_processing.dart';
 
 /// 书架书目模型
 /// 对应旧版 JS local_bookshelf 数组中的单个对象: { id, title, total, cursor }
@@ -45,11 +46,11 @@ class BookModel {
 
   /// 去掉 .txt 后缀的展示标题（对应 JS cleanTitle 逻辑）
   String get displayTitle =>
-      title.replaceAll(RegExp(r'\.txt$', caseSensitive: false), '');
+      TextProcessing.stripTxtSuffix(title);
 
   /// 封面首字（对应 JS coverChar）
   String get coverChar =>
-      displayTitle.isNotEmpty ? safeSubstring(displayTitle, 0, 1) : '?';
+      displayTitle.isNotEmpty ? displayTitle.safeSubstring(0, 1) : '?';
 }
 
 /// 章节索引模型

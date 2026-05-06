@@ -22,7 +22,8 @@ var (
 	inflightKeys = map[string]chan struct{}{}
 )
 
-// allowedVoices 是服务端音色白名单，与客户端 VoiceConstants 保持同步。
+// allowedVoices 是服务端音色白名单。
+// 新增音色时须同步更新客户端 settings_provider.dart 的 loadFromStorage 白名单。
 var allowedVoices = map[string]bool{
 	"zh-CN-XiaoxiaoNeural": true,
 	"zh-CN-YunxiNeural":    true,
@@ -61,8 +62,8 @@ func ttsHandler(c *gin.Context) {
 	}
 
 	hash := md5.Sum([]byte(req.Text + req.Voice))
-	fn := fmt.Sprintf("cache/%x.mp3", hash)
-	fu := fmt.Sprintf("%s/%s", cfg.OSSPub, fn)
+	objKey := fmt.Sprintf("cache/%x.mp3", hash)
+	objURL := fmt.Sprintf("%s/%s", cfg.OSSPub, objKey)
 
 	if ossBk == nil {
 		fail(c, 500, "OSS 未初始化")
@@ -70,30 +71,30 @@ func ttsHandler(c *gin.Context) {
 	}
 
 	// 缓存命中直接返回
-	if ossExist(fn) {
-		ok(c, gin.H{"status": "success", "url": fu})
+	if ossExist(objKey) {
+		ok(c, gin.H{"status": "success", "url": objURL})
 		return
 	}
 
 	// 同一文本正在合成时，等待已有任务完成后复用 OSS 缓存，避免重复调用 edge-tts
 	inflightMu.Lock()
-	if ch, exists := inflightKeys[fn]; exists {
+	if ch, exists := inflightKeys[objKey]; exists {
 		inflightMu.Unlock()
 		<-ch
-		if ossExist(fn) {
-			ok(c, gin.H{"status": "success", "url": fu})
+		if ossExist(objKey) {
+			ok(c, gin.H{"status": "success", "url": objURL})
 		} else {
 			fail(c, 500, "语音合成失败")
 		}
 		return
 	}
 	doneCh := make(chan struct{})
-	inflightKeys[fn] = doneCh
+	inflightKeys[objKey] = doneCh
 	inflightMu.Unlock()
 	defer func() {
 		close(doneCh)
 		inflightMu.Lock()
-		delete(inflightKeys, fn)
+		delete(inflightKeys, objKey)
 		inflightMu.Unlock()
 	}()
 
@@ -105,7 +106,9 @@ func ttsHandler(c *gin.Context) {
 
 	tmpFile := fmt.Sprintf("/tmp/tts_%x.mp3",
 		md5.Sum([]byte(req.Text+req.Voice+fmt.Sprintf("%d", os.Getpid()))))
-	cmd := exec.Command("edge-tts",
+	defer os.Remove(tmpFile) // 无论成功或 panic，确保临时文件不泄漏
+
+	cmd := exec.CommandContext(c.Request.Context(), "edge-tts",
 		"--text", req.Text,
 		"--voice", req.Voice,
 		"--write-media", tmpFile,
@@ -117,7 +120,6 @@ func ttsHandler(c *gin.Context) {
 	}
 
 	audioData, err := os.ReadFile(tmpFile)
-	os.Remove(tmpFile)
 	if err != nil {
 		fail(c, 500, "读取音频失败")
 		return
@@ -127,15 +129,15 @@ func ttsHandler(c *gin.Context) {
 		return
 	}
 
-	if err := ossBk.PutObject(fn, bytes.NewReader(audioData)); err != nil {
+	if err := ossBk.PutObject(objKey, bytes.NewReader(audioData)); err != nil {
 		fail(c, 500, "OSS 上传失败")
 		return
 	}
 
 	// 上传成功后主动写入缓存，避免下次再发起 IsObjectExist 请求
-	ossExistCache.Store(fn, true)
+	ossExistCache.Store(objKey, true)
 
-	ok(c, gin.H{"status": "success", "url": fu})
+	ok(c, gin.H{"status": "success", "url": objURL})
 }
 
 var ossBk *oss.Bucket

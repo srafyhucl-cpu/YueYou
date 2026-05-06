@@ -10,6 +10,23 @@
   - **测试 T2-T3**：`settings_provider_test` 新增音色白名单 3 用例；`bookshelf_provider_test` 新增粘性位写入 2 用例。
   - **验证**：`flutter analyze` 零警告零错误，`go build` 成功，15 测试用例全部通过。
 
+- **维护(refactor): 全栈代码质量审计与修复（阶段二）**：
+  - **性能高优**：移除 `build()` 中 `CyberPerformanceDetector.detectLevel()` 调用（`cyber_toast.dart`、`cyber_modal.dart`、`teleprompter_view.dart`），改为从 `SettingsProvider.currentAnimationLevel` 读取缓存值。
+  - **Go 服务端加固**：`main.go` 新增优雅关闭 + ReadTimeout/WriteTimeout/IdleTimeout；`handler_tts.go` 改用 `exec.CommandContext` + `defer os.Remove` 防泄露；新建 `response.go` 统一 `ok()`/`fail()` 响应格式；变量命名优化 `fn`→`objKey`、`fu`→`objURL`。
+  - **TTS 异步错误边界**：`tts_audio_notifier.dart` 4 个 `unawaited` 调用补 try-catch + `CyberLogger.captureWarning`。
+  - **新增测试**：`default_book_service_test.dart`，12 用例覆盖目录降级、边界值、并发去重、缓存检查、预取。
+  - **代码去重**：WAV 头提取为 `AudioUtils.writeWavHeader()`；`.txt` 后缀提取为 `TextProcessing.stripTxtSuffix()`；语音白名单双向同步注释；`game_provider.dart` 移除废弃 `grid` getter。
+  - **空 catch 块注释**：5 处关键路径添加中文注释说明静默失败原因。
+  - **中优**：移除空文件（`audio_controls.dart`、`game_screen.dart`）；`safeSubstring` 转 extension；`__CyberToastWidgetState` 去双下划线；`cyber_player_console.dart` 统一导入；`board_mascot._celebrate` 加 `mounted` 守卫；`tts_cache_manager` 修复循环闭包变量捕获；`_executeDownload` 加 try-catch 防文件泄漏。
+  - **验证**：`flutter analyze` 零警告；`flutter test --concurrency=1` 464 用例全过；`go build ./...` 编译成功。
+
+- **维护(docs): 项目文档体系收口（阶段三）**：
+  - **CLAUDE.md 修正**：删除引用不存在 Windsurf 技能/工作流的章节，替换为实际质量门禁命令 + 7 项检查清单；新增 `.agents/skills/` 技能引用表（11 文件、路径、职责）。
+  - **CI 去重**：`.github/workflows/flutter-ci.yml` 删除重复 `build` job。
+  - **创建 `.windsurfrules`**：补齐 README 引用但缺失的文件。
+  - **README.md 修正**：`.windsurfrules` 引用改为 `CLAUDE.md`。
+  - **验证**：`flutter analyze` 零警告。
+
 ## **2026-05-05**
 
 - **维护(ai): AI 工程门禁收敛与检查器升级**：
