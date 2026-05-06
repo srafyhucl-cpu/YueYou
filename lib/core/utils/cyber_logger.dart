@@ -160,13 +160,19 @@ class CyberLogger {
   ///
   /// - [message]：消息内容（请勿包含用户数据）
   /// - [level]：日志级别（默认 info）
+  /// - [tag]：模块标签（如 'tts'、'reader'、'library'），用于 Sentry 按模块过滤
   static void captureMessage(
     String message, {
     SentryLevel level = SentryLevel.info,
+    String tag = 'business',
   }) {
-    debugPrint('[CyberLogger][${level.name.toUpperCase()}] $message');
+    debugPrint('[CyberLogger][${level.name.toUpperCase()}][$tag] $message');
     if (!_sentryReady) return;
-    Sentry.captureMessage(sanitize(message), level: level);
+    Sentry.captureMessage(
+      sanitize(message),
+      level: level,
+      withScope: (scope) => scope.setTag('source', tag),
+    );
   }
 
   // ── 内部工具 ──────────────────────────────────────────────────────────────

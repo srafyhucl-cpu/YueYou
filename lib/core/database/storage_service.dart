@@ -80,7 +80,13 @@ class StorageService {
     if (saved == null) return null;
     try {
       return jsonDecode(saved) as Map<String, dynamic>;
-    } catch (_) {
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'game',
+        extra: {'context': 'loadGameState JSON 解析失败，本地存档已损坏'},
+      );
       return null;
     }
   }
@@ -98,7 +104,13 @@ class StorageService {
     if (s == null) return [];
     try {
       return (jsonDecode(s) as List).cast<Map<String, dynamic>>();
-    } catch (_) {
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'loadBookshelf JSON 解析失败，书架数据已损坏'},
+      );
       return [];
     }
   }
@@ -137,7 +149,13 @@ class StorageService {
     if (s == null) return {};
     try {
       return (jsonDecode(s) as Map).cast<String, dynamic>();
-    } catch (_) {
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'reader',
+        extra: {'context': '_loadReadingRecords JSON 解析失败，进度记录已损坏'},
+      );
       return {};
     }
   }
@@ -212,7 +230,14 @@ class StorageService {
     try {
       final file = await _bookFile(bookId);
       if (await file.exists()) await file.delete();
-    } catch (_) {}
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'library',
+        extra: {'context': 'deleteBookContent 文件删除失败', 'bookId': bookId},
+      );
+    }
   }
 
   // ── 全局设置 ──────────────────────────────────────────────────────────────

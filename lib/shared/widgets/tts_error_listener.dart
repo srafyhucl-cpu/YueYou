@@ -57,7 +57,10 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
 
     if (err != null && timestamp != _previousErrorTime) {
       _previousErrorTime = timestamp;
-      CyberLogger.captureMessage('[TtsErrorListener] 检测到新错误，将展示 CyberToast');
+      CyberLogger.captureMessage(
+        '[TtsErrorListener] 检测到新错误，将展示 CyberToast',
+        tag: 'tts',
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         try {

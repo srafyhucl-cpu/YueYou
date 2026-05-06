@@ -1,5 +1,15 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-06**
+
+- **修复(full-stack): 全栈代码质量评审修复**：
+  - **错误处理 P0**：`CyberLogger.captureMessage` 新增 `tag` 参数并全量补标；`bookshelf_provider.deleteBook` 补 `await` 防止粘性位写盘失败；`reader_provider` fire-and-forget 补 `.catchError`；`storage_service` 4 处 silent catch 补 `CyberLogger.captureWarning`。
+  - **性能 P1**：`tts_cache_manager._listTtsFiles` 中 `listSync()` 改为异步 `await dir.list().toList()`。
+  - **架构 A1**：`tts_audio_notifier` 中 `http.head` 移入 `TtsEngineService.pingServer()`，移除 providers 层对 `package:http` 的直接依赖。
+  - **安全 S1-S3**：Go `handler_tts.go` 新增文本长度上限 (2000 runes) + 音色白名单；`ossExistCache` 仅缓存 true 防 stale；`dashboard_screen` 新增 URL scheme 校验。
+  - **测试 T2-T3**：`settings_provider_test` 新增音色白名单 3 用例；`bookshelf_provider_test` 新增粘性位写入 2 用例。
+  - **验证**：`flutter analyze` 零警告零错误，`go build` 成功，15 测试用例全部通过。
+
 ## **2026-05-05**
 
 - **维护(ai): AI 工程门禁收敛与检查器升级**：

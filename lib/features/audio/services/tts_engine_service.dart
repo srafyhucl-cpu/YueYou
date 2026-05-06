@@ -252,7 +252,7 @@ class _RealHttpClient implements HttpClientInterface {
       } while (true);
       final int statusCode = response.statusCode;
       if (statusCode >= 400) {
-        throw HttpException('下载音频失败: HTTP $statusCode');
+        throw _TtsHttpStatusException(statusCode, uri: url);
       }
       final bytes = <int>[];
       await for (final chunk in response) {
@@ -288,7 +288,11 @@ class _RealHttpClient implements HttpClientInterface {
           throw TimeoutException('TTS POST 请求超时 (15秒)');
         },
       );
+      final statusCode = response.statusCode;
       final responseBody = await response.transform(utf8.decoder).join();
+      if (statusCode >= 400) {
+        throw _TtsHttpStatusException(statusCode, uri: url);
+      }
       return responseBody;
     } finally {
       client.close();
@@ -357,6 +361,8 @@ class TtsEngineService extends ChangeNotifier {
   late final TtsHttpClient _httpClient;
   late final TtsFallbackEngine _fallbackEngine;
   String? _fallbackNotification;
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration>? _durationSub;
   int _loopSession = 0;
   bool _wakeLockHeld = false;
 
@@ -440,13 +446,13 @@ class TtsEngineService extends ChangeNotifier {
     );
 
     // 绑定物理进度监听，实现提词器绝对同步
-    _audioPlayer.onPositionChanged.listen((pos) {
+    _positionSub = _audioPlayer.onPositionChanged.listen((pos) {
       if (_currentDuration.inMilliseconds > 0) {
         final progress = pos.inMilliseconds / _currentDuration.inMilliseconds;
         _progressController.add(progress.clamp(0.0, 1.0));
       }
     });
-    _audioPlayer.onDurationChanged.listen((dur) {
+    _durationSub = _audioPlayer.onDurationChanged.listen((dur) {
       _currentDuration = dur;
     });
 
@@ -456,7 +462,6 @@ class TtsEngineService extends ChangeNotifier {
     }
 
     _initFuture = _initTtsHardware();
-    _startCompatibilityLoop();
 
     // 非 Riverpod 场景（如测试直接构造），仍使用内部监听器
     if (externalSettingsListener) {
@@ -591,9 +596,10 @@ class TtsEngineService extends ChangeNotifier {
     // 幂等守卫：防止 Riverpod ref.onDispose + 外部手动 dispose 双调用
     if (_disposed) return;
     _disposed = true;
-    _compatLoopActive = false;
     if (!_disposeCompleter.isCompleted) _disposeCompleter.complete();
     _settings.removeListener(_onSettingsChanged);
+    _positionSub?.cancel();
+    _durationSub?.cancel();
     _progressController.close();
     TtsCacheManager.instance.stopPeriodicClean();
     _wakeLockHeld = false;
@@ -627,7 +633,7 @@ class TtsEngineService extends ChangeNotifier {
           extra: {'context': '本地 TTS 降级引擎初始化失败'},
         );
       }
-      CyberLogger.captureMessage('TTS 执行层已初始化');
+      CyberLogger.captureMessage('TTS 执行层已初始化', tag: 'tts');
     } catch (e, st) {
       CyberLogger.captureWarning(
         e,
@@ -644,6 +650,27 @@ class TtsEngineService extends ChangeNotifier {
     TtsCacheManager.instance.startPeriodicClean(
       excludeActivePath: () => _lastGeneratedAudioPath,
     );
+  }
+
+  /// 轻量 ping 探测：检测 TTS 服务端是否可达（非 5xx 即视为可达）
+  ///
+  /// 用于 [TtsAudioNotifier] 在降级模式下探测网络是否恢复，
+  /// 封装于 service 层避免 providers 层直接依赖 http 包。
+  Future<bool> pingServer() async {
+    try {
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 3);
+      final request = await client
+          .headUrl(Uri.parse('${TtsConfig.bookApiBase}/ping'))
+          .timeout(const Duration(seconds: 3));
+      final response =
+          await request.close().timeout(const Duration(seconds: 3));
+      unawaited(response.drain<void>());
+      client.close(force: true);
+      return response.statusCode < 500;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// 任务 1.1：遍历临时目录，清理所有 tts_*.mp3 残留文件
@@ -670,7 +697,7 @@ class TtsEngineService extends ChangeNotifier {
         }
       }
       if (cleaned > 0) {
-        CyberLogger.captureMessage('已回收 $cleaned 个残留 TTS 临时文件');
+        CyberLogger.captureMessage('已回收 $cleaned 个残留 TTS 临时文件', tag: 'tts');
       }
     } catch (e, st) {
       CyberLogger.captureWarning(
@@ -680,16 +707,6 @@ class TtsEngineService extends ChangeNotifier {
         extra: {'context': '清理残留 TTS 文件失败'},
       );
     }
-  }
-
-  /// API兼容层：写死返回音色列表
-  Future<List<Map<String, String>>> getVoices() async {
-    return [
-      {'name': '默认女声', 'locale': 'zh-CN'},
-      {'name': '温柔女声', 'locale': 'zh-CN'},
-      {'name': '活力女声', 'locale': 'zh-CN'},
-      {'name': '磁性男声', 'locale': 'zh-CN'},
-    ];
   }
 
   /// 手动触发 TTS 缓存清理（供设置页「清理缓存」按钮调用）
@@ -1257,110 +1274,6 @@ class TtsEngineService extends ChangeNotifier {
       _fallbackEngine.stop(),
     ]);
     _compatBuffer.clear();
-  }
-
-  bool _compatLoopActive = false;
-  int _consecutiveFailures = 0;
-
-  void _startCompatibilityLoop() {
-    if (_compatLoopActive) return;
-    _compatLoopActive = true;
-    _consecutiveFailures = 0;
-    _runCompatibilityLoop();
-  }
-
-  /// 兼容循环是否正在播放（防止重叠播放）
-  bool _compatPlaying = false;
-
-  Future<void> _runCompatibilityLoop() async {
-    while (!_disposed && _compatLoopActive) {
-      // ── 消费阶段：有缓冲且未在播放时，取出播放 ──
-      if (isEnabled && _compatBuffer.isNotEmpty && !_compatPlaying) {
-        final path = _compatBuffer.removeAt(0);
-        _compatPlaying = true;
-        // 构造兼容 TtsAudioItem 供回调使用
-        final item = TtsAudioItem(
-          id: DateTime.now().millisecondsSinceEpoch,
-          session: _loopSession,
-          lineIndex: 0,
-          text: '',
-          title: '',
-          estimatedDuration: Duration.zero,
-        );
-        _currentItem = item;
-        onItemStarted?.call(item);
-        await playFile(
-          path,
-          onComplete: () {
-            onItemFinished?.call(item);
-            _currentItem = null;
-            _deleteFileIfExists(path);
-          },
-        );
-        _compatPlaying = false;
-        continue;
-      }
-
-      // ── 生产阶段：buffer 未满时预取新句子 ──
-      if (onNeedPrefetch != null &&
-          isEnabled &&
-          _compatBuffer.length < _config.maxPrefetchQueue) {
-        try {
-          final request = await onNeedPrefetch!(_loopSession);
-          if (request != null) {
-            // 短句过滤：统一在此处拦截，避免触发无效下载
-            if (request.text.length < 5) {
-              CyberLogger.captureMessage('兼容循环：短句过滤');
-              // 短句不计入失败，等待下一轮产出新句子
-              await _delayOrDispose(const Duration(seconds: 1));
-              continue;
-            }
-            final path = await downloadAudio(request);
-            if (path != null) {
-              _compatBuffer.add(path);
-              _consecutiveFailures = 0;
-              notifyListeners();
-            } else {
-              _consecutiveFailures++;
-            }
-          }
-        } catch (e, st) {
-          _consecutiveFailures++;
-          if (!_disposed) {
-            CyberLogger.captureWarning(
-              e,
-              stack: st,
-              tag: 'tts',
-              extra: {'context': 'TTS 兑容循环异常'},
-            );
-          }
-        }
-      }
-
-      // 连续失败退避策略：≥5次连续失败时进入15秒长退避
-      if (_consecutiveFailures >= 5) {
-        await _delayOrDispose(const Duration(seconds: 15));
-        continue;
-      }
-      // 单次失败后短暂退避（3秒），避免频繁轰炸服务端
-      if (_consecutiveFailures > 0) {
-        await _delayOrDispose(const Duration(seconds: 3));
-        continue;
-      }
-      // 正常节拍：无句子源时深度休眠，有源时按缓冲状态调速
-      final delayMs = onNeedPrefetch == null
-          ? 2000
-          : (_compatBuffer.length >= _config.maxPrefetchQueue)
-              ? 500
-              : 100;
-      await _delayOrDispose(Duration(milliseconds: delayMs));
-    }
-  }
-
-  /// 延迟或被 dispose 中断，避免在测试环境中残留 pending timer。
-  Future<void> _delayOrDispose(Duration d) {
-    if (_disposed) return Future<void>.value();
-    return Future.any([_delayFn(d), _disposeCompleter.future]);
   }
 
   /// 影子状态同步（由 [TtsAudioNotifier] 调用，保持向下兼容）。

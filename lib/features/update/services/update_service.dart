@@ -76,11 +76,12 @@ class UpdateService {
       if (_isNewerVersion(remote, local)) {
         CyberLogger.captureMessage(
           '发现新版本: remote=${remote.version}, local=${local.version}',
+          tag: 'update',
         );
         return remote;
       }
 
-      CyberLogger.captureMessage('当前已是最新版本: ${local.version}');
+      CyberLogger.captureMessage('当前已是最新版本: ${local.version}', tag: 'update');
       return null;
     } on Exception catch (e, stack) {
       // 网络异常、JSON 解析异常均静默降级，不影响用户体验

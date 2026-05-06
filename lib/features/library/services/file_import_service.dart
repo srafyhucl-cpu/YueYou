@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:fast_gbk/fast_gbk.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
+import 'package:yueyou/core/utils/text_processing.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 
 // V1.0 最大允许导入的文件大小（可配置常量）
@@ -186,7 +187,7 @@ class FileImportService {
   // 立即杀死后台 Isolate，释放 CPU 和内存
   static void cancelImport() {
     if (_activeIsolate != null) {
-      CyberLogger.captureMessage('主动取消 TXT 导入 Isolate');
+      CyberLogger.captureMessage('主动取消 TXT 导入 Isolate', tag: 'library');
       _activeImportToken++;
       _activeIsolate!.kill(priority: Isolate.immediate);
       _activeIsolate = null;
@@ -255,16 +256,10 @@ class FileImportService {
         }
       }
 
-      // Step 5: 章节提取（与旧版逻辑完全一致）
-      final RegExp chapterRegex = RegExp(
-        r'^\s*(?:(?:正文|卷[0-9零一二三四五六七八九十百千两\s]+|.{0,4})\s*第?\s*[0-9零一二三四五六七八九十百千两]+\s*[章回节卷集部篇]|Chapter\s*[0-9]+|引子|序言|楔子|前言|内容简介|致读者)',
-        caseSensitive: false,
-      );
-      final RegExp noiseRegex = RegExp(
-        r'^\s*(正文|正\s*文|正文卷|VIP卷|默认卷|上架感言|作品相关|\*{3,}|\-{3,}|={3,})\s*$',
-        caseSensitive: false,
-      );
-      final RegExp garbageRegex = RegExp(r'(正文|VIP卷|默认卷)');
+      // Step 5: 章节提取（使用公共 TextProcessing 工具）
+      final chapterRegex = TextProcessing.chapterTitleRegex;
+      final noiseRegex = TextProcessing.noiseLineRegex;
+      final garbageRegex = TextProcessing.titleGarbageRegex;
 
       final List<ChapterModel> chapters = [];
       for (int i = 0; i < lines.length; i++) {

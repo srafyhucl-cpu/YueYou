@@ -93,6 +93,7 @@ class TtsCacheManager {
     CyberLogger.captureMessage(
       '[TtsCacheManager] 定期清理已启动 '
       '(每 $_intervalMinutes 分钟，阈值: ${_maxCacheSize ~/ 1024 ~/ 1024}MB / ${_maxFileAgeMs ~/ 3600000}h)',
+      tag: 'tts',
     );
   }
 
@@ -223,6 +224,7 @@ class TtsCacheManager {
 
       CyberLogger.captureMessage(
         '[TtsCacheManager] 清理完成：删除 $deletedCount 个文件，释放 ${freedBytes ~/ 1024} KB',
+        tag: 'tts',
       );
 
       return TtsCacheCleanResult(
@@ -247,24 +249,28 @@ class TtsCacheManager {
     final result = <_TtsFileInfo>[];
     try {
       if (!await dir.exists()) return result;
-      final entities = dir.listSync();
+      final entities = await dir.list().toList();
+      final futures = <Future<void>>[];
       for (final entity in entities) {
         if (entity is File) {
           final name = entity.path.split(Platform.pathSeparator).last;
           if (name.startsWith('tts_') && name.endsWith('.mp3')) {
-            try {
-              final stat = await entity.stat();
-              result.add(
-                _TtsFileInfo(
-                  path: entity.path,
-                  sizeBytes: stat.size,
-                  modifiedAtMs: stat.modified.millisecondsSinceEpoch,
-                ),
-              );
-            } catch (_) {}
+            futures.add(() async {
+              try {
+                final stat = await entity.stat();
+                result.add(
+                  _TtsFileInfo(
+                    path: entity.path,
+                    sizeBytes: stat.size,
+                    modifiedAtMs: stat.modified.millisecondsSinceEpoch,
+                  ),
+                );
+              } catch (_) {}
+            }());
           }
         }
       }
+      await Future.wait(futures);
     } catch (e, st) {
       CyberLogger.captureWarning(
         e,

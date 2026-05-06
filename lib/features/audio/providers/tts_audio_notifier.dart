@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
@@ -116,7 +114,10 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     if (state is TtsAudioIdle) return;
 
     _idleTimer = Timer(Duration(minutes: minutes), () {
-      CyberLogger.captureMessage('[TTS] 静默暂停：用户已空闲 ${minutes}m，自动停播');
+      CyberLogger.captureMessage(
+        '[TTS] 静默暂停：用户已空闲 ${minutes}m，自动停播',
+        tag: 'tts',
+      );
       pause();
     });
   }
@@ -499,7 +500,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     // 2. 暂停校验：如果是因暂停导致的 stopAudio()，不应推进进度
     if (_isPausing || _isPausedInterrupt(item)) {
-      CyberLogger.captureMessage('[TTS] 暂停引起的播放中断，保留进度');
+      CyberLogger.captureMessage('[TTS] 暂停引起的播放中断，保留进度', tag: 'tts');
       _clearPausedInterrupt();
       return;
     }
@@ -632,18 +633,12 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     await _degradeToLocal(request);
     // 每句播完后探测一次网络，恢复则退出降级
     if (!_disposed && _isDegradedToLocal) {
-      try {
-        final resp = await http
-            .head(Uri.parse('${TtsConfig.bookApiBase}/ping'))
-            .timeout(const Duration(seconds: 3));
-        if (resp.statusCode < 500) {
-          _isDegradedToLocal = false;
-          _consecutiveFailures = 0;
-          _fallbackMessage = null;
-          CyberLogger.captureMessage('[TTS] 网络已恢复，退出降级模式');
-        }
-      } catch (_) {
-        // 仍无网络，继续降级
+      final reachable = await _engine.pingServer();
+      if (reachable) {
+        _isDegradedToLocal = false;
+        _consecutiveFailures = 0;
+        _fallbackMessage = null;
+        CyberLogger.captureMessage('[TTS] 网络已恢复，退出降级模式', tag: 'tts');
       }
     }
   }
