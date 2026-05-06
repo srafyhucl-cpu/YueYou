@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
@@ -155,6 +156,46 @@ void main() {
       final provider = container.read(bookshelfProvider.notifier);
       expect(provider.getReadingPercent(1), 0.0);
       expect(provider.getReadingCursor(1), 0);
+    });
+
+    test('deleteBook 删除默认书时写入粘性位，防止下次启动再次自动注入', () async {
+      // 先清除粘性位，模拟首次启动状态
+      await StorageService.setHasSelectedBook(false);
+
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
+
+      // 向书架添加默认书（使用 defaultBookId）
+      await provider.addBook(
+        id: BookConstants.defaultBookId,
+        title: '西游记',
+        lines: ['第一回'],
+        chapters: [const ChapterModel(title: '第一回', lineIndex: 0)],
+      );
+
+      // 删除默认书
+      await provider.deleteBook(BookConstants.defaultBookId);
+
+      // 粘性位必须已写入（E2 修复验证：await 保证写盘完成）
+      expect(StorageService.hasSelectedBook(), isTrue);
+      expect(provider.shelf, isEmpty);
+    });
+
+    test('deleteBook 删除非默认书不写粘性位', () async {
+      await StorageService.setHasSelectedBook(false);
+
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
+      await provider.addBook(
+        id: 7,
+        title: '三国演义',
+        lines: ['第一回'],
+        chapters: [],
+      );
+      await provider.deleteBook(7);
+
+      // 删除普通书不应改变粘性位
+      expect(StorageService.hasSelectedBook(), isFalse);
     });
   });
 }

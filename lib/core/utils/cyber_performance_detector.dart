@@ -42,6 +42,7 @@ class CyberPerformanceDetector {
 
     CyberLogger.captureMessage(
       '[性能自适应] CPU 评分: ${cpuTimeMs}ms, 内存占用: ${(memoryBytes / 1024 / 1024).toStringAsFixed(1)}MB',
+      tag: 'dashboard',
     );
 
     // 紧急熔断：App 内存占用过高，为防 OOM 直接降为低配

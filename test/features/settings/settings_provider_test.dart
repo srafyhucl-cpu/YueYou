@@ -5,7 +5,6 @@ import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import '../../utils/test_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 void main() {
   setUp(() async {
     await initializeTestEnvironment();
@@ -52,6 +51,46 @@ void main() {
       expect(p.storyTts, isFalse);
       expect(StorageService.getSettingStoryTts(), isFalse);
       expect(notified, greaterThan(0));
+    });
+
+    test('setVoice 非白名单音色回退为默认值', () async {
+      final container = ProviderContainer();
+      final p = container.read(settingsProvider.notifier);
+      p.loadFromStorage();
+
+      await p.setVoice('zh-CN-InvalidVoice');
+      expect(p.voice, 'zh-CN-XiaoxiaoNeural');
+      expect(StorageService.getSettingVoice(), 'zh-CN-XiaoxiaoNeural');
+    });
+
+    test('loadFromStorage 读到残留非法音色时自动修正为默认值', () async {
+      // 直接写入一个非法音色到存储层，模拟旧版数据残留
+      await StorageService.setSettingVoice('zh-CN-ObsoleteVoice');
+
+      final container = ProviderContainer();
+      final p = container.read(settingsProvider.notifier);
+      p.loadFromStorage();
+
+      expect(p.voice, 'zh-CN-XiaoxiaoNeural');
+    });
+
+    test('setVoice 白名单内所有有效音色均可设置', () async {
+      final container = ProviderContainer();
+      final p = container.read(settingsProvider.notifier);
+      p.loadFromStorage();
+
+      final validVoices = [
+        'zh-CN-XiaoxiaoNeural',
+        'zh-CN-YunxiNeural',
+        'zh-CN-YunjianNeural',
+        'zh-CN-XiaoyiNeural',
+        'zh-CN-XiaomengNeural',
+      ];
+      for (final v in validVoices) {
+        await p.setVoice(v);
+        expect(p.voice, v, reason: '$v 应可成功设置');
+        expect(StorageService.getSettingVoice(), v);
+      }
     });
 
     test(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 import '../../../core/constants/book_constants.dart';
+import '../../../core/utils/text_processing.dart';
 import '../../../core/database/storage_service.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/library/services/default_book_service.dart';
@@ -64,37 +65,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   bool _isDefaultBookMode = false;
   DefaultBookService? _defaultBookService;
 
-  // 🔥 章节标题正则（与 file_import_service 同步）
-  static final RegExp _chapterRegex = RegExp(
-    r'^\s*(?:(?:正文|卷[0-9零一二三四五六七八九十百千两\s]+|.{0,4})\s*第?\s*[0-9零一二三四五六七八九十百千两]+\s*[章回节卷集部篇]|Chapter\s*[0-9]+|引子|序言|楔子|前言|内容简介|致读者)',
-    caseSensitive: false,
-  );
-
-  // 🔥 噪音词正则：独立出现的「正文」「VIP卷」「默认卷」等无意义行
-  static final RegExp _noiseRegex = RegExp(
-    r'^\s*(正文|正\s*文|正文卷|VIP卷|默认卷|上架感言|作品相关|\*{3,}|\-{3,}|={3,})\s*$',
-    caseSensitive: false,
-  );
-
-  // 🔥 标题清洗正则：移除标题中的垃圾前缀词
-  static final RegExp _titleGarbageRegex = RegExp(r'(正文|VIP卷|默认卷)');
-
-  /// 清洗章节标题：移除「正文」「VIP卷」等垃圾前缀
-  static String cleanChapterTitle(String raw) {
-    return raw.replaceAll(_titleGarbageRegex, '').trim();
-  }
-
   /// 噪音/空行判定（TTS 和游标均应跳过，绝不朗读）
-  bool _isNoise(String text) {
-    if (text.isEmpty) return true;
-    if (_noiseRegex.hasMatch(text)) return true;
-    return false;
-  }
+  bool _isNoise(String text) => TextProcessing.isNoiseLine(text);
 
   /// 章节标题判定（TTS 应朗读，但需要清洗）
-  bool _isChapterTitle(String text) {
-    return text.isNotEmpty && text.length < 50 && _chapterRegex.hasMatch(text);
-  }
+  bool _isChapterTitle(String text) => TextProcessing.isChapterTitle(text);
 
   ReaderProvider(
     this._ttsEngine, {
@@ -131,7 +106,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
       // 🔥 章节标题 → 清洗后朗读（如「正文 第一章 新的开始」→「第一章 新的开始」）
       if (_isChapterTitle(text)) {
-        text = cleanChapterTitle(text);
+        text = TextProcessing.cleanChapterTitle(text);
         if (text.isEmpty) {
           cursor = (cursor + 1) % _sentences.length;
           scanned++;
@@ -293,7 +268,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     }
 
     final raw = currentChapter?.title ?? _chapters.first.title;
-    return cleanChapterTitle(raw);
+    return TextProcessing.cleanChapterTitle(raw);
   }
 
   /// 进度引擎：当前进度百分比 (0.01 - 1.0)
@@ -338,7 +313,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
     final rawChapters = chapters ?? <ChapterModel>[];
     _chapters = rawChapters.map((c) {
-      final cleaned = cleanChapterTitle(c.title);
+      final cleaned = TextProcessing.cleanChapterTitle(c.title);
       final mappedIdx = rawLineToSentIdx[c.lineIndex] ?? c.lineIndex;
       return ChapterModel(title: cleaned, lineIndex: mappedIdx);
     }).toList();
@@ -595,7 +570,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       _ttsNotifier?.refreshSession();
     }
     notifyListeners();
-    _saveProgress();
+    _saveProgress().catchError((e) {
+      CyberLogger.captureWarning(
+        e,
+        tag: 'reader',
+        extra: {'context': 'switchChapter 进度保存失败'},
+      );
+    });
   }
 
   /// 🔥 任务 1.3：级联重置——当当前正在阅读的书籍被删除时，完全重置阅读器状态
@@ -618,10 +599,21 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     _chapterLoadState = ChapterLoadState.idle;
 
     // 异步清除持久化的当前小说标识
-    StorageService.setCurrentNovelId(null);
+    StorageService.setCurrentNovelId(null)
+        .catchError((Object e, StackTrace st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'reader',
+        extra: {'context': 'resetForDeletedBook 清除 novelId 持久化失败'},
+      );
+    });
 
     notifyListeners();
-    CyberLogger.captureMessage('级联重置：书籍 $bookId 已删除，ReaderProvider 已清空');
+    CyberLogger.captureMessage(
+      '级联重置：书籍 $bookId 已删除，ReaderProvider 已清空',
+      tag: 'reader',
+    );
   }
 
   // ── 分章懒加载：核心方法 ──────────────────────────────────────────────────
@@ -684,7 +676,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   void restoreDefaultBook() {
     if (_isDefaultBookMode) return;
     final chapterIndex = StorageService.getCurrentChapterIndex();
-    CyberLogger.captureMessage('自动恢复默认书第 $chapterIndex 章');
+    CyberLogger.captureMessage('自动恢复默认书第 $chapterIndex 章', tag: 'reader');
     // 先用常量填充标题，让 UI 立即有内容可显示
     _isDefaultBookMode = true;
     _currentChapterIndex = chapterIndex;
@@ -707,10 +699,10 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   Future<void> _autoAdvanceChapter() async {
     final nextChapter = (_currentChapterIndex ?? -1) + 1;
     if (nextChapter >= BookConstants.defaultTotalChapters) {
-      CyberLogger.captureMessage('已到最后一章，停止自动推进');
+      CyberLogger.captureMessage('已到最后一章，停止自动推进', tag: 'reader');
       return;
     }
-    CyberLogger.captureMessage('章末自动推进到第 $nextChapter 章');
+    CyberLogger.captureMessage('章末自动推进到第 $nextChapter 章', tag: 'reader');
     await loadChapter(nextChapter, resume: false);
   }
 

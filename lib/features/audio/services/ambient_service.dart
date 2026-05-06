@@ -92,7 +92,7 @@ class AmbientService {
   /// - `false`：立即停止播放
   static Future<void> setEnabled(bool enabled) async {
     _enabled = enabled;
-    CyberLogger.captureMessage('环境氛围音开关变更: $enabled');
+    CyberLogger.captureMessage('环境氛围音开关变更: $enabled', tag: 'audio');
     if (!_initialized) return;
     if (_enabled) {
       await _startIfNeeded();
@@ -145,14 +145,20 @@ class AmbientService {
 
   // ── 内部实现 ──────────────────────────────────────────────────────────────
 
+  static final Map<String, Uint8List> _wavCache = {};
+
   /// 生成并开始播放（仅在 _enabled=true 时调用）
   static Future<void> _startIfNeeded() async {
     if (_player == null) return;
     try {
-      final wav = _generateAmbientWav(style: _style);
+      final wav = _wavCache.putIfAbsent(
+        _style,
+        () => _generateAmbientWav(style: _style),
+      );
       await _player!.setVolume(_volume);
       CyberLogger.captureMessage(
         '启动环境氛围音: style=$_style, volume=${_volume.toStringAsFixed(2)}, bytes=${wav.length}',
+        tag: 'audio',
       );
       await _player!.play(BytesSource(wav));
     } catch (e, stack) {
@@ -285,6 +291,7 @@ class AmbientService {
     _enabled = true;
     _volume = 0.5;
     _pausedByLifecycle = false;
+    _wavCache.clear();
   }
 
   /// 测试专用：注入初始化状态（避免真实平台调用）

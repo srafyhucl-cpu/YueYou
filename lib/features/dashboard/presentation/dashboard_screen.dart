@@ -641,9 +641,16 @@ class _UpdateDialog extends StatelessWidget {
   }
 
   Future<void> _launchUpdate(BuildContext context) async {
-    final url = info.downloadUrl.isNotEmpty
+    final rawUrl = info.downloadUrl.isNotEmpty
         ? info.downloadUrl
         : AppInfoConfig.marketDownloadUrl;
+
+    // scheme 校验：仅允许 https/http，防止 API 被篡改后返回 file:// 等非法协议
+    final parsedScheme = Uri.tryParse(rawUrl)?.scheme ?? '';
+    final url = (parsedScheme == 'https' || parsedScheme == 'http')
+        ? rawUrl
+        : AppInfoConfig.marketDownloadUrl;
+
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

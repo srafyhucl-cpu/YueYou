@@ -92,7 +92,7 @@ class BookshelfProvider with ChangeNotifier {
 
     // 删除西游记视为「主动放弃」，设置粘性位防止下次启动再次自动注入
     if (id == BookConstants.defaultBookId) {
-      StorageService.setHasSelectedBook(true);
+      await StorageService.setHasSelectedBook(true);
     }
 
     _shelf.removeWhere((b) => b.id == id);
