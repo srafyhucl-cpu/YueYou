@@ -38,6 +38,7 @@ class SettingsProvider with ChangeNotifier {
     storyTts = StorageService.getSettingStoryTts();
     voice = StorageService.getSettingVoice();
     // 校验音色有效性，无效则回退默认（防止 storage 残留无效音色名）
+    // 注意：此白名单须与 server/handler_tts.go allowedVoices 保持同步。
     if (voice != 'zh-CN-XiaoxiaoNeural' &&
         voice != 'zh-CN-YunxiNeural' &&
         voice != 'zh-CN-YunjianNeural' &&

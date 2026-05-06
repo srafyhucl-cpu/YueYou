@@ -65,14 +65,17 @@ void main() {
 
     test('grid getter 应返回正确的数值矩阵', () {
       final p = _newProvider();
-      p.setStateForTesting(board: [
-        [const TileModel(id: 1, value: 2), null, null, null],
-        [null, const TileModel(id: 2, value: 4), null, null],
-        [null, null, null, null],
-        [null, null, null, null],
-      ],);
+      p.setStateForTesting(
+        board: [
+          [const TileModel(id: 1, value: 2), null, null, null],
+          [null, const TileModel(id: 2, value: 4), null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
 
-      final g = p.grid;
+      final g =
+          p.board.map((r) => r.map((t) => t?.value ?? 0).toList()).toList();
       expect(g[0][0], 2);
       expect(g[1][1], 4);
       expect(g[3][3], 0);
@@ -773,12 +776,18 @@ void main() {
     test('board_data 行数不为 4 时降级新局', () async {
       // 构造一个 3 行的存档（不合法）
       final badBoard = [
-        [{'id': 1, 'value': 2}, null, null, null],
+        [
+          {'id': 1, 'value': 2},
+          null,
+          null,
+          null
+        ],
         [null, null, null, null],
         [null, null, null, null],
       ];
       SharedPreferences.setMockInitialValues({
-        'local_save_data': '{"board_data":"${_encodeBoard(badBoard)}","score":0}',
+        'local_save_data':
+            '{"board_data":"${_encodeBoard(badBoard)}","score":0}',
       });
       StorageService.resetForTesting();
       await StorageService.init();
@@ -836,9 +845,9 @@ void main() {
 /// 辅助：将棋盘列表编码为 JSON 字符串（用于构造 SharedPreferences mock 数据）
 String _encodeBoard(List<List<dynamic>> board) {
   return board
-      .map((row) => '[${row.map((c) => c == null ? 'null' : '{"id":${c["id"]},"value":${c["value"]}}').join(',')}]')
+      .map((row) =>
+          '[${row.map((c) => c == null ? 'null' : '{"id":${c["id"]},"value":${c["value"]}}').join(',')}]')
       .join(',')
       .replaceAll('[', '[')
       .replaceAll(']', ']');
 }
-

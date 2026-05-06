@@ -9,7 +9,7 @@ import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
-import '../../../../shared/widgets/cyber_modal.dart';
+import 'package:yueyou/shared/widgets/cyber_modal.dart';
 import 'voice_waveform.dart';
 import 'neon_progress_painter.dart';
 

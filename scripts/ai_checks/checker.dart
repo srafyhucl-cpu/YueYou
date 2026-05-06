@@ -14,6 +14,7 @@ class AiCodeChecker {
     RequiredTestsRule(),
     IllegalConsoleOutputRule(),
     HardcodedUrlRule(),
+    DuplicateRegexRule(),
   ];
 
   final Directory repoRoot;

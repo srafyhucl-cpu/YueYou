@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/utils/audio_utils.dart';
 import '../../../core/utils/cyber_logger.dart';
 
 /// 环境背景音乐服务（赛博朋克氛围音）
@@ -137,7 +138,9 @@ class AmbientService {
   static void dispose() {
     try {
       _player?.dispose();
-    } catch (_) {}
+    } catch (_) {
+      // 忽略平台通道异常（测试环境或热重载时可能发生）
+    }
     _player = null;
     _initialized = false;
     _pausedByLifecycle = false;
@@ -199,7 +202,7 @@ class AmbientService {
     final numSamples = (sampleRate * durationMs / 1000).round();
     final dataSize = numSamples * 2;
     final buffer = ByteData(44 + dataSize);
-    _writeWavHeader(buffer, sampleRate, dataSize);
+    AudioUtils.writeWavHeader(buffer, sampleRate, dataSize);
 
     final rand = Random(42);
     final pinkState = List<double>.filled(16, 0.0);
@@ -244,39 +247,6 @@ class AmbientService {
     return buffer.buffer.asUint8List();
   }
 
-  /// 写入标准 16-bit mono PCM WAV 文件头（44 字节）
-  static void _writeWavHeader(ByteData buf, int sampleRate, int dataSize) {
-    // RIFF 块
-    buf
-      ..setUint8(0, 0x52)
-      ..setUint8(1, 0x49)
-      ..setUint8(2, 0x46)
-      ..setUint8(3, 0x46)
-      ..setUint32(4, 36 + dataSize, Endian.little)
-      // WAVE
-      ..setUint8(8, 0x57)
-      ..setUint8(9, 0x41)
-      ..setUint8(10, 0x56)
-      ..setUint8(11, 0x45)
-      // fmt 子块
-      ..setUint8(12, 0x66)
-      ..setUint8(13, 0x6D)
-      ..setUint8(14, 0x74)
-      ..setUint8(15, 0x20)
-      ..setUint32(16, 16, Endian.little) // fmt 块大小
-      ..setUint16(20, 1, Endian.little) // PCM 格式
-      ..setUint16(22, 1, Endian.little) // 单声道
-      ..setUint32(24, sampleRate, Endian.little)
-      ..setUint32(28, sampleRate * 2, Endian.little) // 字节率
-      ..setUint16(32, 2, Endian.little) // 块对齐
-      ..setUint16(34, 16, Endian.little) // 位深度
-      // data 子块
-      ..setUint8(36, 0x64)
-      ..setUint8(37, 0x61)
-      ..setUint8(38, 0x74)
-      ..setUint8(39, 0x61)
-      ..setUint32(40, dataSize, Endian.little);
-  }
 
   // ── 测试专用 ──────────────────────────────────────────────────────────────
 
@@ -285,7 +255,9 @@ class AmbientService {
   static void resetForTesting() {
     try {
       _player?.dispose();
-    } catch (_) {}
+    } catch (_) {
+      // 忽略平台通道异常（测试环境或热重载时可能发生）
+    }
     _player = null;
     _initialized = false;
     _enabled = true;

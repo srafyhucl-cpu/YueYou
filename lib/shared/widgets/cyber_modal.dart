@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/utils/cyber_performance_detector.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
 /// 赛博朋克风格全局弹窗封装
 /// 替代 Navigator.push 全屏跳转，点击外部可关闭
@@ -62,7 +64,7 @@ Future<T?> showCyberModal<T>({
                     borderRadius: BorderRadius.circular(
                       CyberDimensions.radiusL - CyberDimensions.borderThick,
                     ),
-                    child: CyberPerformanceDetector.detectLevel() ==
+                    child: ProviderScope.containerOf(context).read(settingsProvider).currentAnimationLevel ==
                             CyberAnimationLevel.low
                         ? Container(
                             color:

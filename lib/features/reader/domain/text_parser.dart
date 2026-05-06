@@ -89,11 +89,11 @@ class TextParser {
     while (start < longText.length) {
       final int end = start + limit;
       if (end >= longText.length) {
-        chunks.add(safeSubstring(longText, start, longText.length));
+        chunks.add(longText.safeSubstring(start, longText.length));
         break;
       }
 
-      final sub = safeSubstring(longText, start, end);
+      final sub = longText.safeSubstring(start, end);
 
       // 第一遍：寻找强断点（标点、空格、顿号）
       int lastBreak = sub.lastIndexOf(RegExp(r'[，, 、\s]'));
@@ -108,10 +108,10 @@ class TextParser {
 
       // 如果断点位置合理，则在此处截断；否则强制物理截断
       if (lastBreak != -1 && lastBreak > limit * 0.5) {
-        chunks.add(safeSubstring(longText, start, start + lastBreak + 1));
+        chunks.add(longText.safeSubstring(start, start + lastBreak + 1));
         start += lastBreak + 1;
       } else {
-        chunks.add(safeSubstring(longText, start, end));
+        chunks.add(longText.safeSubstring(start, end));
         start = end;
       }
     }

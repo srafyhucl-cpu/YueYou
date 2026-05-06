@@ -129,7 +129,9 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
     _currentSpeech = null;
     try {
       await _tts.stop();
-    } catch (_) {}
+    } catch (_) {
+      // dispose 路径允许静默失败：音频播放器可能已处于 stopped/completed 状态
+    }
   }
 
   @override
@@ -669,6 +671,7 @@ class TtsEngineService extends ChangeNotifier {
       client.close(force: true);
       return response.statusCode < 500;
     } catch (_) {
+      // 网络不可达，ping 失败即返回 false
       return false;
     }
   }
@@ -692,7 +695,9 @@ class TtsEngineService extends ChangeNotifier {
             try {
               await entity.delete();
               cleaned++;
-            } catch (_) {}
+            } catch (_) {
+              // 单个缓存文件删除失败不阻塞清理流程
+            }
           }
         }
       }
@@ -1118,9 +1123,13 @@ class TtsEngineService extends ChangeNotifier {
   /// 部分版本限制），自动降级到主线程 [TtsHttpClient] 重试。
   Future<String?> _executeDownload(TtsAudioRequest request) async {
     final voice = _initCompleted ? _voice : _settings.voice;
-    final filePath =
-        await _mainThreadDownload(request, voice, _config.serverUrl);
-
+    String? filePath;
+    try {
+      filePath = await _mainThreadDownload(request, voice, _config.serverUrl);
+    } catch (_) {
+      unawaited(_deleteFileIfExists(filePath));
+      rethrow;
+    }
     if (_disposed) {
       unawaited(_deleteFileIfExists(filePath));
       return null;

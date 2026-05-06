@@ -1,0 +1,3 @@
+本项目已迁移至 Claude Code。所有行为规范与红线请参见 `CLAUDE.md`。
+工程门禁规则定义在 `scripts/ai_checks/rules.dart` 中。
+Windsurf 工作流残留文件位于 `.windsurf/workflows/`，仅供 AI 检查器扫描使用，不代表活跃工具链。

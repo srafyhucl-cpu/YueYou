@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/utils/audio_utils.dart';
 import '../../../core/utils/cyber_logger.dart';
 
 /// 物理音效引擎（V4 — 基于旧版 Web 端已验证音效移植）
@@ -152,7 +153,7 @@ class SfxService {
     final numSamples = (sampleRate * durationMs / 1000).round();
     final dataSize = numSamples * 2;
     final buffer = ByteData(44 + dataSize);
-    _writeWavHeader(buffer, sampleRate, dataSize, 36 + dataSize);
+    AudioUtils.writeWavHeader(buffer, sampleRate, dataSize);
 
     final chirpT = chirpMs / 1000.0;
     final attackEnd = (sampleRate * 0.003).round();
@@ -188,40 +189,6 @@ class SfxService {
       buffer.setInt16(44 + i * 2, sample, Endian.little);
     }
     return buffer.buffer.asUint8List();
-  }
-
-  /// 写入标准 16-bit mono PCM WAV 文件头
-  static void _writeWavHeader(
-    ByteData buffer,
-    int sampleRate,
-    int dataSize,
-    int fileSize,
-  ) {
-    const riff = [0x52, 0x49, 0x46, 0x46];
-    const wave = [0x57, 0x41, 0x56, 0x45];
-    const fmt = [0x66, 0x6D, 0x74, 0x20];
-    const data = [0x64, 0x61, 0x74, 0x61];
-    for (int i = 0; i < 4; i++) {
-      buffer.setUint8(i, riff[i]);
-    }
-    buffer.setUint32(4, fileSize, Endian.little);
-    for (int i = 0; i < 4; i++) {
-      buffer.setUint8(8 + i, wave[i]);
-    }
-    for (int i = 0; i < 4; i++) {
-      buffer.setUint8(12 + i, fmt[i]);
-    }
-    buffer.setUint32(16, 16, Endian.little);
-    buffer.setUint16(20, 1, Endian.little);
-    buffer.setUint16(22, 1, Endian.little);
-    buffer.setUint32(24, sampleRate, Endian.little);
-    buffer.setUint32(28, sampleRate * 2, Endian.little);
-    buffer.setUint16(32, 2, Endian.little);
-    buffer.setUint16(34, 16, Endian.little);
-    for (int i = 0; i < 4; i++) {
-      buffer.setUint8(36 + i, data[i]);
-    }
-    buffer.setUint32(40, dataSize, Endian.little);
   }
 
   static void dispose() {

@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 import '../../../core/theme/cyber_colors.dart';
 import '../../../core/theme/cyber_dimensions.dart';
 import '../../../core/theme/cyber_text_styles.dart';
 import '../../../core/utils/cyber_performance_detector.dart';
 import '../../../features/game_2048/presentation/widgets/board_mascot.dart';
+import '../../../features/settings/providers/settings_provider.dart';
 import '../../../main.dart';
 
 enum ToastType {
@@ -69,10 +71,10 @@ class _CyberToastWidget extends StatefulWidget {
   });
 
   @override
-  __CyberToastWidgetState createState() => __CyberToastWidgetState();
+  _CyberToastWidgetState createState() => _CyberToastWidgetState();
 }
 
-class __CyberToastWidgetState extends State<_CyberToastWidget>
+class _CyberToastWidgetState extends State<_CyberToastWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
@@ -160,7 +162,7 @@ class __CyberToastWidgetState extends State<_CyberToastWidget>
                   borderRadius: BorderRadius.circular(
                     CyberDimensions.radiusL - CyberDimensions.borderThick,
                   ),
-                  child: CyberPerformanceDetector.detectLevel() ==
+                  child: ProviderScope.containerOf(context).read(settingsProvider).currentAnimationLevel ==
                           CyberAnimationLevel.low
                       ? Container(
                           color: CyberColors.glassDark.withValues(alpha: 0.98),

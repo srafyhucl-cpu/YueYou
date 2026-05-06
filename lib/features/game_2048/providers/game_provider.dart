@@ -33,14 +33,6 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
   List<List<TileModel?>> _board = [];
   List<List<TileModel?>> get board => _board;
 
-  // 兼容层：对齐旧版 UI 的 List<List<int>> 接口
-  List<List<int>> get grid {
-    return List.generate(
-      size,
-      (r) => List.generate(size, (c) => _board[r][c]?.value ?? 0),
-    );
-  }
-
   // 游戏实时分 (溯源：JS L17)
   int _score = 0;
   int get score => _score;

@@ -261,6 +261,39 @@ void _requireFile(
   );
 }
 
+/// 跨文件正则表达式重复检测：若同一 RegExp 字面量出现在 ≥2 个不同文件中 → BLOCKING。
+class DuplicateRegexRule extends AiCheckRule {
+  const DuplicateRegexRule();
+
+  static final RegExp _regexLiteral = RegExp(r"""RegExp\(\s*r['"](.+?)['"]""");
+
+  @override
+  void apply(AiRepoContext context, List<AiFinding> findings) {
+    final regexMap = <String, List<String>>{}; // pattern → [filePaths]
+    for (final snapshot in context.readDartFilesUnder('lib')) {
+      final matches = _regexLiteral.allMatches(snapshot.content);
+      for (final match in matches) {
+        final pattern = match.group(1) ?? '';
+        if (pattern.length < 10) continue; // 跳过过短的正则（如 r'\s'）
+        regexMap.putIfAbsent(pattern, () => []).add(snapshot.relativePath);
+      }
+    }
+    for (final entry in regexMap.entries) {
+      final files = entry.value.toSet().toList();
+      if (files.length < 2) continue;
+      findings.add(
+        AiFinding(
+          id: 'reuse.duplicate_regex',
+          severity: FindingSeverity.blocking,
+          filePath: files.first,
+          message:
+              '跨文件正则重复（${files.length} 处）：${files.join(', ')}。请抽取到 core/utils/ 公共工具类。',
+        ),
+      );
+    }
+  }
+}
+
 void _requireSnippet(
   AiRepoContext context,
   List<AiFinding> findings, {

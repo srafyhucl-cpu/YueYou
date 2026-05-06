@@ -273,7 +273,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _startPump();
   }
 
-  /// @deprecated 仅用于测试兼容，请直接使用 refreshSession。
+  @Deprecated('仅用于测试兼容，请使用 refreshSession/stopAll')
   void setEnabled(bool enabled) {
     if (enabled) {
       _consecutiveFailures = 0;
@@ -463,7 +463,18 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     if (_sentenceSource != null) {
       unawaited(
-        Future.microtask(() => _sentenceSource!.onTtsItemStarted(startItem)),
+        Future.microtask(() async {
+          try {
+            _sentenceSource!.onTtsItemStarted(startItem);
+          } catch (e, st) {
+            CyberLogger.captureWarning(
+              e,
+              stack: st,
+              tag: 'tts',
+              extra: {'context': 'onTtsItemStarted 回调异常'},
+            );
+          }
+        }),
       );
     }
 
@@ -511,7 +522,18 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     }
     if (_sentenceSource != null) {
       unawaited(
-        Future.microtask(() => _sentenceSource!.onTtsItemFinished(item)),
+        Future.microtask(() async {
+          try {
+            _sentenceSource!.onTtsItemFinished(item);
+          } catch (e, st) {
+            CyberLogger.captureWarning(
+              e,
+              stack: st,
+              tag: 'tts',
+              extra: {'context': 'onTtsItemFinished 回调异常'},
+            );
+          }
+        }),
       );
     }
   }
@@ -587,9 +609,18 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     if (_sentenceSource != null) {
       unawaited(
-        Future.microtask(
-          () => _sentenceSource!.onTtsItemStarted(fallbackItem),
-        ),
+        Future.microtask(() async {
+          try {
+            _sentenceSource!.onTtsItemStarted(fallbackItem);
+          } catch (e, st) {
+            CyberLogger.captureWarning(
+              e,
+              stack: st,
+              tag: 'tts',
+              extra: {'context': '降级 onTtsItemStarted 回调异常'},
+            );
+          }
+        }),
       );
     }
 
@@ -608,9 +639,18 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       _currentItem = null;
       if (_sentenceSource != null) {
         unawaited(
-          Future.microtask(
-            () => _sentenceSource!.onTtsItemFinished(fallbackItem),
-          ),
+          Future.microtask(() async {
+            try {
+              _sentenceSource!.onTtsItemFinished(fallbackItem);
+            } catch (e, st) {
+              CyberLogger.captureWarning(
+                e,
+                stack: st,
+                tag: 'tts',
+                extra: {'context': '降级 onTtsItemFinished 回调异常'},
+              );
+            }
+          }),
         );
       }
     }
