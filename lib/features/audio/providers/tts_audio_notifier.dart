@@ -498,6 +498,23 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     if (_disposed) return;
 
+    // P0-4：暂停中断时绝不能阅后即焚。
+    //
+    // pause() 通过 stopAudio() 强制 complete `_playCompleter` → playFile 提前返回。
+    // 若此处直接 _deleteFile，下次 resume 时 _buffer.prepend 回的当前文件路径已不存在，
+    // playFile 会因 file.exists()==false 立即 onComplete → _onPlaybackComplete 推进游标，
+    // 导致用户发现暂停的句子被跳过。
+    //
+    // 判定方式：使用 `_currentFilePath` 作为"耐久"标识。
+    // - 自然完成时，_onPlaybackComplete 会把 `_currentFilePath` 置 null（line 521）；
+    // - 暂停中断时，_onPlaybackComplete 早返回，`_currentFilePath` 保持指向当前文件；
+    // - 会话切换/全停时，_currentFilePath 也已被清为 null。
+    // 因此 _currentFilePath 仍等于本次的 item.filePath ⇔ 暂停中断 → 保留文件。
+    if (_currentFilePath == item.filePath) {
+      // 保留文件供 resume 复用；最终清理由 stopAll() / refreshSession() / play() 重播完成时托管。
+      return;
+    }
+
     // 阅后即焚：删除已播完的临时文件
     _deleteFile(item.filePath);
 

@@ -41,9 +41,20 @@ class StorageService {
   @visibleForTesting
   static void resetForTesting() => _prefs = null;
 
+  /// SharedPreferences 单例访问入口。
+  ///
+  /// P0-2：release 模式下 `assert` 会被擦除，原代码紧跟的 `_prefs!` 会抛
+  /// 不带语义的 `Null check operator used on a null value`，无法 fail-fast 定位。
+  /// 改为显式 `StateError`，确保 release 包未初始化访问时崩溃信息清晰。
   static SharedPreferences get _p {
-    assert(_prefs != null, 'StorageService.init() 必须在 runApp 前调用');
-    return _prefs!;
+    final prefs = _prefs;
+    if (prefs == null) {
+      throw StateError(
+        'StorageService.init() 必须在 runApp 之前调用，'
+        '未初始化时禁止访问 SharedPreferences。',
+      );
+    }
+    return prefs;
   }
 
   // ── 游戏状态 (local_save_data) ────────────────────────────────────────────
@@ -70,8 +81,11 @@ class StorageService {
     await _p.setInt(_kBestScore, bestScore);
     await _p.setInt(_kMaxCombo, maxCombo);
     await _p.setInt(_kNovelIndex, novelIndex);
+    // P1-7：currentNovelId 为 null 时显式删除键，避免删书后旧 id 残留 prefs。
     if (currentNovelId != null) {
       await _p.setString(_kCurrentNovelId, currentNovelId);
+    } else {
+      await _p.remove(_kCurrentNovelId);
     }
   }
 

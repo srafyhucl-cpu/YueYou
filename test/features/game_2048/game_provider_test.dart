@@ -474,6 +474,46 @@ void main() {
       expect(mergedVal, isNotNull);
     });
 
+    // ── P1-4 回归用例：无效滑动不得触发任何音效/触觉反馈 ────────────────────
+    test('无效滑动（已贴边、无可移动方向）绝不触发 onPlayMerge', () {
+      int callCount = 0;
+      final p = GameProvider(
+        onPlayMerge: (_) => callCount++,
+        autoLoadState: false,
+      )..soundEnabled = true;
+      // 构造仅有一个 tile，且已贴在最左侧 → 向左滑动绝无位移。
+      p.setStateForTesting(
+        board: [
+          [const TileModel(id: 1, value: 256), null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      p.move(Direction.left);
+      expect(callCount, 0, reason: 'P1-4：无位移的滑动不得触发任何音效，否则按一下就响一下');
+    });
+
+    test('有效滑动但无合并时仅触发一次轻量级触觉（onPlayMerge 一次）', () {
+      int callCount = 0;
+      final p = GameProvider(
+        onPlayMerge: (_) => callCount++,
+        autoLoadState: false,
+      )..soundEnabled = true;
+      // 构造右上角一个 tile，向左滑动 → 必有位移、无合并。
+      p.setStateForTesting(
+        board: [
+          [null, null, null, const TileModel(id: 1, value: 16)],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      p.move(Direction.left);
+      expect(callCount, 1, reason: 'P1-4：有效滑动但无合并时，应恰好触发一次触觉反馈');
+      expect(p.lastMoveNoMerge, isTrue);
+    });
+
     test('默认音效路径 (覆盖 SfxService 分支)', () {
       final p = GameProvider(autoLoadState: false)..soundEnabled = true;
       p.setStateForTesting(
@@ -661,6 +701,74 @@ void main() {
       );
       p.eliminateTileById(99);
       expect(playedValue, 2048);
+    });
+
+    // ── T-4 / P1-2 回归用例：消除后必须重算分数 ─────────────────────────────
+    // 旧实现仅清空 tile + 改写 _isOver，没有调 updateScore()，
+    // 导致全盘求和模式下分数显示与盘面严重不符（虚高）。
+    test('消除一个 tile 后 score 必须刷新为剩余 tile 的总和', () {
+      final p = _newProvider();
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 1, value: 256),
+            const TileModel(id: 2, value: 128),
+            null,
+            null,
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+      );
+      // setStateForTesting 不会主动 updateScore，需手动触发一次。
+      p.updateScore();
+      expect(p.score, 384, reason: '初始全盘求和 = 256 + 128 = 384');
+
+      p.eliminateTileById(1);
+      expect(p.board[0][0], isNull);
+      expect(p.score, 128,
+          reason: 'P1-2：消除 256 后 score 必须降为 128（仅剩 128 这一个 tile）');
+    });
+
+    test('GameOver 状态下消除一个块后仍无路可走时，必须保持 isOver=true', () {
+      final p = _newProvider();
+      // 构造一个"消除一格但仍无路可走"的极端棋盘：
+      // 全部相邻位置数值不同且无空位与目标相同。
+      p.setStateForTesting(
+        isOver: true,
+        board: [
+          [
+            const TileModel(id: 0, value: 2),
+            const TileModel(id: 1, value: 4),
+            const TileModel(id: 2, value: 8),
+            const TileModel(id: 3, value: 16),
+          ],
+          [
+            const TileModel(id: 4, value: 32),
+            const TileModel(id: 5, value: 64),
+            const TileModel(id: 6, value: 128),
+            const TileModel(id: 7, value: 256),
+          ],
+          [
+            const TileModel(id: 8, value: 2),
+            const TileModel(id: 9, value: 4),
+            const TileModel(id: 10, value: 8),
+            const TileModel(id: 11, value: 16),
+          ],
+          [
+            const TileModel(id: 12, value: 32),
+            const TileModel(id: 13, value: 64),
+            const TileModel(id: 14, value: 128),
+            const TileModel(id: 15, value: 256),
+          ],
+        ],
+      );
+      // 消除一格出现空位 → 必然有路可走（等价于一个空格放新 tile 后可继续）。
+      // 这里的核心是：移除后 _movesAvailable 立即为 true，因此 isOver 应为 false。
+      p.eliminateTileById(5);
+      expect(p.isOver, isFalse,
+          reason: 'P1-2：消除一格后空位存在即有路可走，isOver 必须刷新为 false');
     });
   });
 

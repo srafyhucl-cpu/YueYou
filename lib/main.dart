@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'core/constants/book_constants.dart';
 import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
 import 'core/utils/cyber_logger.dart';
@@ -113,19 +114,25 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
     }
   }
 
-  /// App 生命周期：切后台暂停，切前台恢复
+  /// App 生命周期：切后台暂停，切前台恢复。
+  ///
+  /// P0-3：原实现把 `hidden` 与 `detached` 一并 `dispose()`，但 Android `hidden`
+  /// 是瞬态状态（电源键熄屏、最近任务、画中画切换），dispose 后 `_initialized=false`
+  /// 会让本次进程内 AmbientService 永久哑火。改为：
+  /// - paused / inactive / hidden ：均仅 `pause()`，资源保留以便快速恢复；
+  /// - detached ：仅在进程将被销毁时才 `dispose()`。
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
         AmbientService.pause();
         ref.read(ttsAudioProvider.notifier).setBackgroundTolerant(true);
       case AppLifecycleState.resumed:
         AmbientService.resume();
         ref.read(ttsAudioProvider.notifier).setBackgroundTolerant(false);
       case AppLifecycleState.detached:
-      case AppLifecycleState.hidden:
         AmbientService.dispose();
     }
   }
@@ -173,6 +180,10 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
     final reader = ref.read(readerProvider);
     final currentNovelId = StorageService.getCurrentNovelId();
     if (currentNovelId == null) return;
+    // P1-8：默认书《西游记》走分章懒加载路径，由 readerProvider 创建时
+    // 触发的 restoreDefaultBook() 独占恢复，_bootstrap 不再读其全书内容，
+    // 避免与 microtask 形成竞态把空数据写入 _sentences。
+    if (currentNovelId == BookConstants.defaultBookKey) return;
 
     final content = await StorageService.loadBookContent(currentNovelId);
     if (!mounted || content == null) return;

@@ -1,5 +1,26 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-08**
+
+- **修复(audit): 深度代码评审与回归修复（P0 × 8 + P1 × 6）**：
+  - **P0-1 ReaderProvider build 副作用**：`_handleErrorState` 移到 `postFrameCallback`，杜绝 build 期间 setState 异常。
+  - **P0-2 StorageService NPE 防护**：`_p` 未初始化时显式抛 `StateError` 替代隐式空指针。
+  - **P0-3 main.dart 生命周期**：AppLifecycleState.hidden 走 paused 同分支，避免后台残留 wakelock。
+  - **P0-4 暂停 mp3 不得阅后即焚**：`_playNext` 用 `_currentFilePath == item.filePath` 作为暂停中断耐久标识，命中即保留文件供 resume 复用，杜绝“暂停后跳一句”。
+  - **P0-5 nextTtsSentence 取模回卷**：删除 `(cursor + 1) % length`，章末仅剩噪音时返回 `null` 钉到 `length`，根除“重复朗读章首句”。
+  - **P0-6 TtsAudioBuffer 排序**：`add()` 不再隐式 sort，prepend/add 顺序由调用方决定，解决 resume 插队失效。
+  - **P0-7 cleartext 关闭 + NetworkSecurityConfig**：仅放行调试 host，生产域名一律 https。
+  - **P0-8 TtsConfig 默认 localhost + 工程门禁规则**：新增 `ProductionDomainDefaultRule` 扫描全仓 `String.fromEnvironment.defaultValue` 中的非 localhost 远程 URL。
+  - **P1-1 Wakelock 重构**：删除 `playFile` 内每句结束时的 `_syncWakeLock(false)`，wakelock 完全交给状态机驱动，根除“听到第二句就熄屏”。
+  - **P1-2 eliminateTileById 重算分**：消除后 `updateScore()` + `isOver = !_movesAvailable()`，杜绝虚高分数。
+  - **P1-3 默认书《西游记》标题**：抽出 `resolveNovelTitle` 顶层纯函数，默认书 key 命中即返回内置标题。
+  - **P1-4 滑动音效**：迁到 `if (moved)` 分支内，无效滑动不再空响。
+  - **P1-5 cancelImport**：补幂等性回归用例，证明 `_CyberImportButtonState.dispose()` 调用安全。
+  - **P1-6 流式下载**：`_RealHttpClient.download` 改为 `IOSink.openWrite()` 边读边写，异常路径自动清理半成品。
+  - **新增 12 条针对性回归用例**：T-1（暂停 mp3 保留）、T-2（章末噪音回卷 ×2）、T-3（buffer 顺序 ×8）、T-4（消除算分 ×2）、T-5（默认书标题 ×5）、T-6（wakelock 连读）、P1-4 滑动音效 ×2、P1-5 cancelImport 幂等。
+  - **工程门禁白名单**：`ProductionDomainDefaultRule` 引入 `_allowedMarketingEnvNames = { PRIVACY_POLICY_URL, MARKET_DOWNLOAD_URL }` 排除合规营销链接误伤。
+  - **验证**：`flutter analyze` 零错误零警告（No issues found），`flutter test` 484 用例 / 5 skipped / 0 failed。
+
 ## **2026-05-06**
 
 - **修复(full-stack): 全栈代码质量评审修复**：

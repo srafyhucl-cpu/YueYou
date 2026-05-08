@@ -78,18 +78,28 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
     super.dispose();
   }
 
+  /// 处理 TTS 错误条幅的显隐状态。
+  ///
+  /// P0-1：本方法由 [build] 同步调用，必须避免在 build 流程中执行 `setState`
+  /// 触发 `setState() called during build` 框架断言。
+  /// 因此所有状态变更都包裹在 `addPostFrameCallback` 内，等待当前帧绘制结束后再切换。
   void _handleErrorState(String? errorMessage) {
     if (errorMessage != null && !_showError) {
-      setState(() => _showError = true);
-      _errorTimer?.cancel();
-      _errorTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _showError) return;
+        setState(() => _showError = true);
+        _errorTimer?.cancel();
+        _errorTimer = Timer(const Duration(seconds: 3), () {
+          if (!mounted) return;
           setState(() => _showError = false);
-        }
+        });
       });
-    } else if (errorMessage == null) {
-      _showError = false;
-      _errorTimer?.cancel();
+    } else if (errorMessage == null && _showError) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_showError) return;
+        setState(() => _showError = false);
+        _errorTimer?.cancel();
+      });
     }
   }
 
@@ -167,8 +177,8 @@ class _TeleprompterViewState extends ConsumerState<TeleprompterView>
     return LayoutBuilder(
       builder: (context, constraints) {
         final halfWidth = constraints.maxWidth / 2;
-        final isLowPerf =
-            ref.watch(settingsProvider).currentAnimationLevel == CyberAnimationLevel.low;
+        final isLowPerf = ref.watch(settingsProvider).currentAnimationLevel ==
+            CyberAnimationLevel.low;
 
         return Container(
           height: CyberDimensions.teleprompterHeight,
