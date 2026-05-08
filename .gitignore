@@ -84,3 +84,6 @@ __pycache__/
 
 # 本地脚本：章节音频批量生成（仅本机使用）
 books/generate_chapter_audio.py
+
+# 测试覆盖率产物（每次 flutter test --coverage 都会重新生成）
+coverage/
