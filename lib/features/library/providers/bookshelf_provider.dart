@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants/book_constants.dart';
-import '../../../core/database/storage_service.dart';
-import '../../../core/utils/cyber_logger.dart';
-import '../domain/book_model.dart';
-import '../services/default_book_service.dart';
-import '../../reader/providers/reader_provider.dart';
+import 'package:yueyou/core/constants/book_constants.dart';
+import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
+import 'package:yueyou/features/library/domain/book_model.dart';
+import 'package:yueyou/features/library/services/default_book_service.dart';
+import 'package:yueyou/features/reader/providers/reader_provider.dart';
 
 /// 供 Riverpod 使用的全局书架 Provider
 final bookshelfProvider = ChangeNotifierProvider<BookshelfProvider>((ref) {

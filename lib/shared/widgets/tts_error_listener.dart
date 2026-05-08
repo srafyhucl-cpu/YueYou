@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../features/audio/domain/tts_audio_state.dart';
-import '../../features/audio/providers/tts_audio_notifier.dart';
+import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
+import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'cyber_toast.dart';
 
 /// TTS 错误全局监听器组件

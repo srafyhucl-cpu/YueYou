@@ -1,5 +1,5 @@
 import 'dart:isolate';
-import '../../../core/utils/safe_string.dart';
+import 'package:yueyou/core/utils/safe_string.dart';
 
 /// 解析结果：句子列表 + 每句对应的原始行号
 class ParseResult {

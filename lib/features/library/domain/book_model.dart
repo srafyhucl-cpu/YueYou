@@ -1,5 +1,5 @@
-import '../../../core/utils/safe_string.dart';
-import '../../../core/utils/text_processing.dart';
+import 'package:yueyou/core/utils/safe_string.dart';
+import 'package:yueyou/core/utils/text_processing.dart';
 
 /// 书架书目模型
 /// 对应旧版 JS local_bookshelf 数组中的单个对象: { id, title, total, cursor }

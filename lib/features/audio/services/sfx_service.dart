@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/utils/audio_utils.dart';
-import '../../../core/utils/cyber_logger.dart';
+import 'package:yueyou/core/utils/audio_utils.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 
 /// 物理音效引擎（V4 — 基于旧版 Web 端已验证音效移植）
 ///
