@@ -375,7 +375,8 @@ void main() {
   });
 
   group('GameProvider - addRandomTile()', () {
-    test('棋盘已满时调用不崩溃且方块数不变', () {
+    // 升级后：不仅验证“不崩溃”，还需验证棋盘快照完全不变。
+    test('棋盘已满时 addRandomTile 必须不修改任何 tile（无作为幂等）', () {
       final p = _newProvider();
       int id = 0;
       p.setStateForTesting(
@@ -387,8 +388,24 @@ void main() {
           ),
         ),
       );
-      expect(() => p.addRandomTile(), returnsNormally);
+      // 快照原棋盘 ids 与总和。
+      final beforeIds = p.board
+          .expand((row) => row.map((t) => t?.id))
+          .whereType<int>()
+          .toList();
+      final beforeSum = _boardSum(p);
+
+      p.addRandomTile();
+
+      // 棋盘还是 16 个 tile、ids 集合与总和必须完全不变。
       expect(_tileCount(p), 16);
+      final afterIds = p.board
+          .expand((row) => row.map((t) => t?.id))
+          .whereType<int>()
+          .toList();
+      expect(afterIds, equals(beforeIds),
+          reason: '棋盘满时 addRandomTile 不得插入新 tile');
+      expect(_boardSum(p), beforeSum, reason: '棋盘满时 addRandomTile 不得修改 tile 值');
     });
   });
 
@@ -514,7 +531,7 @@ void main() {
       expect(p.lastMoveNoMerge, isTrue);
     });
 
-    test('默认音效路径 (覆盖 SfxService 分支)', () {
+    test('默认音效路径 (覆盖 SfxService 分支) 并验证合并发生', () {
       final p = GameProvider(autoLoadState: false)..soundEnabled = true;
       p.setStateForTesting(
         board: [
@@ -529,7 +546,11 @@ void main() {
           [null, null, null, null],
         ],
       );
-      expect(() => p.move(Direction.left), returnsNormally);
+      p.move(Direction.left);
+      // 合并后棋盘首行首列为 8，其余为空（除了 addRandomTile 可能在其它位置插入一个新 tile）。
+      expect(p.board[0][0]?.value, 8, reason: '4+4 合并后首位必为 8');
+      expect(p.lastMoveNoMerge, isFalse,
+          reason: '发生了合并，lastMoveNoMerge 必为 false');
     });
 
     test('移动后填满且无路可走触发 isOver', () {
@@ -644,8 +665,13 @@ void main() {
           [null, null, null, null],
         ],
       );
-      expect(() => p.eliminateTileById(9999), returnsNormally);
+      // 升级后：除了“不崩溃”还需验证棋盘快照完全未变。
+      final score0 = p.score;
+      final tileCount0 = _tileCount(p);
+      p.eliminateTileById(9999);
       expect(p.board[0][0]?.id, 1);
+      expect(_tileCount(p), tileCount0, reason: '不存在的 id 消除后 tile 总数不得变化');
+      expect(p.score, score0, reason: '不存在的 id 消除后分数不得变化');
     });
 
     test('清除后有空位，isOver 重置为 false', () {
@@ -920,15 +946,49 @@ void main() {
   // ── flushPersistState ────────────────────────────────────────────────────
 
   group('GameProvider - flushPersistState()', () {
-    test('flushPersistState 不崩溃', () {
+    // T-E / 大厂标准升级：flushPersistState 必须真实写入 SharedPreferences。
+    test('flushPersistState 后 StorageService 实际读出与当前棋盘一致的快照', () {
       final p = _newProvider();
-      expect(() => p.flushPersistState(), returnsNormally);
+      p.setStateForTesting(
+        board: [
+          [
+            const TileModel(id: 7, value: 32),
+            null,
+            null,
+            null,
+          ],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ],
+        score: 1234,
+        combo: 3,
+      );
+
+      p.flushPersistState();
+
+      final loaded = StorageService.loadGameState();
+      expect(loaded, isNotNull,
+          reason: 'flushPersistState 后 loadGameState 必须返回非 null');
+      expect(loaded!['score'], 1234);
+      expect(loaded['combo'], 3);
+      // board_data 是二重序列化的 JSON，只需验证 id=7 存在即可。
+      final boardJson = loaded['board_data'] as String;
+      expect(boardJson, contains('"id":7'),
+          reason: '棋盘快照必须包含当前 tile id，否则插者设计不完整');
+      expect(boardJson, contains('"value":32'));
     });
 
-    test('flushPersistState 后再次调用不崩溃', () {
+    // 升级后：二次调用仍能写入，验证幂等与读会一致。
+    test('flushPersistState 二次调用后 SP 中的快照仍与棋盘一致', () {
       final p = _newProvider();
+      p.setStateForTesting(score: 99);
       p.flushPersistState();
-      expect(() => p.flushPersistState(), returnsNormally);
+      p.flushPersistState();
+
+      final loaded = StorageService.loadGameState();
+      expect(loaded, isNotNull);
+      expect(loaded!['score'], 99, reason: '幂等调用后分数快照不得变化');
     });
   });
 

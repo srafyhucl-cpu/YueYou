@@ -106,12 +106,39 @@ void main() {
     // ── P1-5 回归用例：cancelImport 必须幂等且无副作用 ─────────────────────
     // CyberImportButton.dispose() 会无条件调用 cancelImport()，
     // 即便当时没有正在运行的导入 Isolate，也不能崩溃。
-    test('cancelImport 在无导入运行时调用必须无副作用且幂等', () {
-      expect(FileImportService.cancelImport, returnsNormally);
-      // 二次调用同样安全
-      expect(FileImportService.cancelImport, returnsNormally);
-      // 第三次仍然安全（确保没有"首次后埋雷"的状态）
-      expect(FileImportService.cancelImport, returnsNormally);
+    //
+    // 大厂标准升级：除了"不崩溃"还需验证 isImporting 状态机契约，
+    // 确保 dispose 后业务层能正确感知"无导入运行"。
+    test('cancelImport 在无导入运行时调用必须无副作用且幂等且 isImporting=false', () {
+      // 前置：初始无导入
+      expect(FileImportService.isImporting, isFalse, reason: '前置：初始无导入运行');
+
+      // 调用 1
+      FileImportService.cancelImport();
+      expect(FileImportService.isImporting, isFalse,
+          reason: 'cancelImport 后 isImporting 必须为 false');
+
+      // 调用 2（幂等）
+      FileImportService.cancelImport();
+      expect(FileImportService.isImporting, isFalse,
+          reason: '幂等调用后 isImporting 必须保持 false');
+
+      // 调用 3（确保没有"首次后埋雷"的状态）
+      FileImportService.cancelImport();
+      expect(FileImportService.isImporting, isFalse);
+    });
+
+    // ── T-C / 大厂标准：cancelImport 在 dispose 时调用必须立即解除 isImporting ──
+    // 模拟 CyberImportButton.dispose() 在导入按钮 widget 销毁时的调用路径，
+    // 验证此调用绝不阻塞、绝不抛异常、且 isImporting 立即归零。
+    test('T-C dispose 路径：cancelImport 必须同步完成且不阻塞', () {
+      final stopwatch = Stopwatch()..start();
+      FileImportService.cancelImport();
+      stopwatch.stop();
+
+      expect(stopwatch.elapsedMilliseconds, lessThan(100),
+          reason: 'T-C：cancelImport 必须同步快速完成（<100ms），不阻塞 dispose');
+      expect(FileImportService.isImporting, isFalse);
     });
   });
 }
