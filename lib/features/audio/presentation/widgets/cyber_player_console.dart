@@ -1,17 +1,39 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
+import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
 import 'package:yueyou/shared/widgets/cyber_modal.dart';
 import 'voice_waveform.dart';
 import 'neon_progress_painter.dart';
+
+/// 解析当前 bookId 对应的小说标题。
+///
+/// P1-3：抽出为顶层纯函数，便于直接单元测试覆盖默认书 key 特例。
+/// - `null` → 兜底"阅游"（无书状态）；
+/// - 默认书 key（'xiyouji'）→ 直接返回内置常量，绕过书架 id 比对；
+/// - 普通书：在 [shelf] 中按 `id.toString() == bookId` 匹配。
+@visibleForTesting
+String resolveNovelTitle(String? bookId, List<BookModel> shelf) {
+  if (bookId == null) return '阅游';
+  if (bookId == BookConstants.defaultBookKey) {
+    return BookConstants.defaultBookTitle;
+  }
+  for (final book in shelf) {
+    if (book.id.toString() == bookId) {
+      return book.displayTitle;
+    }
+  }
+  return '阅游';
+}
 
 /// 阅游赛博控播台 (CyberPlayerConsole)
 /// 1:1 复刻 style.css 中的 .cyber-player 与 .bottom-controls 视觉设定
@@ -231,13 +253,7 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
   }
 
   String _getNovelTitle(ReaderProvider reader, BookshelfProvider bookshelf) {
-    final bookId = reader.currentBookId;
-    if (bookId == null) return '阅游';
-    final book = bookshelf.shelf.cast<dynamic>().firstWhere(
-          (b) => b.id.toString() == bookId,
-          orElse: () => null,
-        );
-    return book?.displayTitle ?? '阅游';
+    return resolveNovelTitle(reader.currentBookId, bookshelf.shelf);
   }
 
   Widget _buildSpeedCapsule(ReaderProvider reader, double playbackRate) {

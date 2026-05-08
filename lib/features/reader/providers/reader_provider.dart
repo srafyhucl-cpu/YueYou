@@ -91,16 +91,19 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     }
 
     int cursor = _fetchIndex;
-    int scanned = 0;
 
-    while (scanned < _sentences.length) {
+    // P0-5：彻底取消 `(cursor + 1) % _sentences.length` 取模回卷。
+    // 章末若干噪音行会让旧实现把游标绕回章首，触发 TTS "鬼畜重读章首"，
+    // 与默认书的"章末自动推进下一章"逻辑直接互斥。
+    // 现在统一在到达 _sentences.length 时把 _fetchIndex 推进到末尾并返回 null，
+    // 由上层 `_autoAdvanceChapter` / Notifier 决定是否切章或停止。
+    while (cursor < _sentences.length) {
       final int lineIndex = cursor;
       String text = _sentences[lineIndex].trim();
 
       // 跳过噪音词和空行（始终不读）
       if (_isNoise(text)) {
-        cursor = (cursor + 1) % _sentences.length;
-        scanned++;
+        cursor++;
         continue;
       }
 
@@ -108,8 +111,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       if (_isChapterTitle(text)) {
         text = TextProcessing.cleanChapterTitle(text);
         if (text.isEmpty) {
-          cursor = (cursor + 1) % _sentences.length;
-          scanned++;
+          cursor++;
           continue;
         }
       }
@@ -129,16 +131,15 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         if (text.length >= 5) break;
       }
 
-      // 合并后仍然太短 → 跳过整段
+      // 合并后仍然太短 → 跳过整段，cursor 直接前移到 consumed（不取模）
       if (text.length < 5) {
-        cursor = consumed % _sentences.length;
-        scanned += (consumed - lineIndex);
+        cursor = consumed;
         continue;
       }
 
       // 🔥 立即推进 _fetchIndex 到所有已消耗行之后，杜绝重复
       if (consumed >= _sentences.length) {
-        // 到达书籍末尾，不再推进 _fetchIndex，由下一次调用返回 null 终止
+        // 到达书籍末尾，下一次调用直接返回 null 终止
         _fetchIndex = _sentences.length;
       } else {
         _fetchIndex = consumed;
@@ -151,6 +152,9 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
         title: currentChapterTitle,
       );
     }
+
+    // 扫到末尾仍未找到可读内容：标记已耗尽，避免下次重复扫描。
+    _fetchIndex = _sentences.length;
     return null;
   }
 

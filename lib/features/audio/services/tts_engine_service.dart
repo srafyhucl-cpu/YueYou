@@ -256,14 +256,40 @@ class _RealHttpClient implements HttpClientInterface {
       if (statusCode >= 400) {
         throw _TtsHttpStatusException(statusCode, uri: url);
       }
-      final bytes = <int>[];
-      await for (final chunk in response) {
-        bytes.addAll(chunk);
+      // P1-6：流式落盘。
+      // 旧实现：先 bytes.addAll(chunk) 累积全部字节，再 writeAsBytes —— 对一段
+      // 长句子的 mp3（数百 KB ~ 数 MB）瞬时占用 2x 内存，且对低端机型 GC 压力陡增。
+      // 现改为打开 IOSink 边读边写；任何异常都删除半成品文件，避免
+      // 损坏的缓存被后续 playFile 误认为可播放。
+      final IOSink sink = targetFile.openWrite();
+      int totalBytes = 0;
+      try {
+        try {
+          await for (final chunk in response) {
+            totalBytes += chunk.length;
+            sink.add(chunk);
+          }
+          await sink.flush();
+        } finally {
+          // 无论成败都只关一次 sink，避免重复关闭抛 StateError。
+          try {
+            await sink.close();
+          } catch (_) {}
+        }
+      } catch (_) {
+        // 流读取/写入失败：清理半成品后让异常继续向上传播。
+        try {
+          if (await targetFile.exists()) await targetFile.delete();
+        } catch (_) {}
+        rethrow;
       }
-      if (bytes.isEmpty) {
+      if (totalBytes == 0) {
+        // 写入了 0 字节：清理空文件并按原契约抛 HttpException
+        try {
+          if (await targetFile.exists()) await targetFile.delete();
+        } catch (_) {}
         throw const HttpException('下载音频失败: 响应体为空');
       }
-      await targetFile.writeAsBytes(bytes, flush: true);
     } finally {
       client.close();
     }
@@ -1229,7 +1255,11 @@ class TtsEngineService extends ChangeNotifier {
             unawaited(_audioPlayer.stop());
           },
         );
-        _syncWakeLock(false);
+        // P1-1：原代码在每句播完后调用 _syncWakeLock(false)，
+        // 但下一句进入相同 TtsPlaybackState.playing 时 syncShadow 因 _state 未变化
+        // 不会重新申请 wakelock，导致从第二句起屏幕熄灭。
+        // 现在 wakelock 完全由状态机驱动：进入 playing/buffering 时申请，
+        // 由 stopAll/pause/dispose 集中释放，单句结束不再触发释放。
         onComplete?.call();
       } finally {
         await sub.cancel();

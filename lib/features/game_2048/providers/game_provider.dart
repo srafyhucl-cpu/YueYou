@@ -220,32 +220,9 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     // 记录是否有任何合并发生，用于维护 combo
     final List<Map<String, dynamic>> mergedTiles = [];
 
-    // 触发滑动音效（轻量级触觉反馈）
-    bool hasMerge = false;
-    for (final row in _board) {
-      for (final tile in row) {
-        if (tile != null && tile.value > 2) {
-          hasMerge = true;
-          break;
-        }
-      }
-    }
-    if (_soundEnabled && hasMerge) {
-      // 传入合并后的最大数值，用于分级震动
-      int maxMergedValue = 0;
-      for (final row in _board) {
-        for (final tile in row) {
-          if (tile != null && tile.value > maxMergedValue) {
-            maxMergedValue = tile.value;
-          }
-        }
-      }
-      if (_onPlayMerge != null) {
-        _onPlayMerge(maxMergedValue);
-      } else {
-        SfxService.playMoveFeedback(maxMergedValue);
-      }
-    }
+    // P1-4：滑动音效/触觉反馈必须在确认实际位移后才能触发，
+    // 否则在棋盘已满或边角无效滑动时会出现"按一下就响一下"的体感杂音。
+    // 故移除原本 move() 入口处的预触发块，改在下方 `if (moved)` 内统一处理。
 
     // 获取移动向量 (溯源：JS L147-154)
     final vector = _getVector(direction);
@@ -339,6 +316,24 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
           _onPlayMerge(_lastMergedValue);
         } else {
           SfxService.playMerge(_lastMergedValue);
+        }
+      } else if (_soundEnabled) {
+        // P1-4：有效滑动但无合并 → 仅给一次轻量级触觉反馈，
+        // 避免无效滑动空响。playMerge 内部已自带 playMoveFeedback，
+        // 所以仅在无合并分支补一次。
+        // 取盘面最大值作为震动强度参考，与旧实现的"分级震动"语义保持一致。
+        int maxBoardValue = 0;
+        for (final row in _board) {
+          for (final tile in row) {
+            if (tile != null && tile.value > maxBoardValue) {
+              maxBoardValue = tile.value;
+            }
+          }
+        }
+        if (_onPlayMerge != null) {
+          _onPlayMerge(maxBoardValue);
+        } else {
+          SfxService.playMoveFeedback(maxBoardValue);
         }
       }
       _schedulePersistState();
@@ -523,6 +518,12 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     if (removed) {
+      // P1-2：消除一个 tile 后必须刷新全盘得分。
+      // 旧版"全盘求和"得分模式下，移除任意 tile 都会让总和减少，
+      // 不调 updateScore() 会让 UI 显示一个虚高的旧分数（与盘面不一致）。
+      // 同时若之前已 GameOver，复活后必须重判：依旧无路可走时维持 over，
+      // 而不是只在 _movesAvailable()==true 时静默改写 _isOver。
+      updateScore();
       if (_soundEnabled) {
         if (_onPlayMerge != null) {
           _onPlayMerge(2048);
@@ -530,9 +531,7 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
           SfxService.playMoveFeedback(2048);
         }
       }
-      if (_movesAvailable()) {
-        _isOver = false;
-      }
+      _isOver = !_movesAvailable();
       _schedulePersistState();
       notifyListeners();
     }

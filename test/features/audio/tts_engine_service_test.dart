@@ -462,6 +462,55 @@ void main() {
       h.service.dispose();
     });
 
+    // ── T-6 / P1-1 回归用例：playFile 不再在每句结束时释放 wakelock ───────
+    // 旧实现会在每句结束调 _syncWakeLock(false)，下一句进入相同 playing 状态时
+    // syncShadow 因 _state 未变化不会重新申请 → 屏幕从第二句开始熄灭。
+    // 修复后 wakelock 仅由 stopAll/pause/dispose 释放，连读不再触发。
+    test('连读两句之间 playFile 不得调用 wakelock.disable（P1-1）', () async {
+      final h = await _makeMockService(storyTts: true);
+      // 等待 _initTtsHardware 异步任务完成
+      await pumpEventQueue(times: 10);
+      final disableSnapshot = h.fakeWakeLock.disableCalls;
+
+      // 准备一个临时 mp3 文件，长度 > 1024 byte 以通过 playFile 的"过小校验"。
+      final tmp = await Directory.systemTemp.createTemp('yueyou_p1_1_');
+      addTearDown(() async {
+        if (await tmp.exists()) {
+          await tmp.delete(recursive: true);
+        }
+      });
+      final tmpFile = File('${tmp.path}/sample.mp3');
+      await tmpFile.writeAsBytes(List<int>.filled(2048, 1));
+
+      // 模拟连读两句：连续调用 playFile，期间通过 completePlayback 触发自然结束。
+      Future<void> playOnce() async {
+        final onCompleteFired = Completer<void>();
+        final playFileFuture = h.service.playFile(tmpFile.path, onComplete: () {
+          if (!onCompleteFired.isCompleted) onCompleteFired.complete();
+        });
+        // 等 audioPlayer.resume 被调用后再触发 onPlayerComplete。
+        for (int i = 0; i < 200; i++) {
+          if (h.fakeAudioPlayer.resumeCalls > 0) break;
+          await pumpEventQueue(times: 1);
+        }
+        h.fakeAudioPlayer.completePlayback();
+        await onCompleteFired.future.timeout(const Duration(seconds: 5));
+        await playFileFuture.timeout(const Duration(seconds: 5));
+        // 重置 resumeCalls 计数，便于下一次 playOnce 等待。
+        h.fakeAudioPlayer.resumeCalls = 0;
+      }
+
+      await playOnce();
+      // 第一句结束后立刻紧跟第二句，模拟 _playRunner 连续消费 buffer。
+      await playOnce();
+
+      expect(h.fakeWakeLock.disableCalls, equals(disableSnapshot),
+          reason: 'P1-1：playFile 不得在每句结束时调用 wakelock.disable，'
+              '否则连读时屏幕会从第二句开始熄灭');
+
+      h.service.dispose();
+    });
+
     test('cycleSpeed 应调用 AudioPlayer.setPlaybackRate', () async {
       final h = await _makeMockService(ttsRate: 1.0);
       final beforeCalls = h.fakeAudioPlayer.setPlaybackRateCalls;

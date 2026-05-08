@@ -54,7 +54,8 @@ void main() {
       expect(result, isNotNull);
       expect(result!.title, 'novel');
       expect(result.lines, containsAll(<String>['第一章 开始', '你好世界。', '第二章 继续']));
-      expect(result.chapters.map((chapter) => chapter.title), <String>['第一章 开始', '第二章 继续']);
+      expect(result.chapters.map((chapter) => chapter.title),
+          <String>['第一章 开始', '第二章 继续']);
     });
 
     test('parseFileForTesting 能跳过 BOM 且过滤空行', () async {
@@ -86,7 +87,8 @@ void main() {
     });
 
     test('parseFileForTesting 对不存在文件返回 null', () async {
-      final dir = await Directory.systemTemp.createTemp('yueyou_import_missing_');
+      final dir =
+          await Directory.systemTemp.createTemp('yueyou_import_missing_');
       addTearDown(() async {
         if (await dir.exists()) {
           await dir.delete(recursive: true);
@@ -99,6 +101,17 @@ void main() {
       );
 
       expect(result, isNull);
+    });
+
+    // ── P1-5 回归用例：cancelImport 必须幂等且无副作用 ─────────────────────
+    // CyberImportButton.dispose() 会无条件调用 cancelImport()，
+    // 即便当时没有正在运行的导入 Isolate，也不能崩溃。
+    test('cancelImport 在无导入运行时调用必须无副作用且幂等', () {
+      expect(FileImportService.cancelImport, returnsNormally);
+      // 二次调用同样安全
+      expect(FileImportService.cancelImport, returnsNormally);
+      // 第三次仍然安全（确保没有"首次后埋雷"的状态）
+      expect(FileImportService.cancelImport, returnsNormally);
     });
   });
 }

@@ -240,6 +240,70 @@ class HardcodedUrlRule extends AiCheckRule {
   }
 }
 
+/// P0-8 衍生：扫描 `String.fromEnvironment` 的 defaultValue，
+/// 如果是非 localhost 的远程 URL（http(s)://...），视为违反"零硬编码"红线 → BLOCKING。
+///
+/// 允许的本地默认值：localhost / 127.0.0.1 / 10.0.2.2 / 空字符串。
+class ProductionDomainDefaultRule extends AiCheckRule {
+  const ProductionDomainDefaultRule();
+
+  static final RegExp _fromEnvBlock = RegExp(
+    r'''String\.fromEnvironment\s*\(\s*['"]([A-Z0-9_]+)['"]\s*,\s*defaultValue\s*:\s*['"]([^'"]*)['"]''',
+    multiLine: true,
+  );
+
+  static final List<String> _allowedHosts = <String>[
+    'localhost',
+    '127.0.0.1',
+    '10.0.2.2',
+  ];
+
+  /// 允许使用生产域名作为 defaultValue 的 env 白名单。
+  /// 这些是公开的"营销/合规"链接（隐私政策、应用市场等），与"零硬编码"红线
+  /// 关注的"误连生产 API/TTS 后端"无关，可以安全地随包发布。
+  /// 新增条目前必须在 PR 描述中说明合规理由。
+  static const Set<String> _allowedMarketingEnvNames = <String>{
+    'PRIVACY_POLICY_URL',
+    'MARKET_DOWNLOAD_URL',
+  };
+
+  @override
+  void apply(AiRepoContext context, List<AiFinding> findings) {
+    for (final snapshot in context.readDartFilesUnder('lib')) {
+      final matches = _fromEnvBlock.allMatches(snapshot.content);
+      for (final match in matches) {
+        final envName = match.group(1) ?? '';
+        final defaultValue = match.group(2) ?? '';
+        if (defaultValue.isEmpty) continue;
+        if (!defaultValue.startsWith('http://') &&
+            !defaultValue.startsWith('https://')) {
+          continue;
+        }
+        if (_allowedMarketingEnvNames.contains(envName)) continue;
+        final isAllowedHost = _allowedHosts.any(
+          (host) =>
+              defaultValue.startsWith('http://$host') ||
+              defaultValue.startsWith('https://$host'),
+        );
+        if (isAllowedHost) continue;
+        // 计算所在行号（粗略定位到匹配开头）
+        final upToMatch = snapshot.content.substring(0, match.start);
+        final line = '\n'.allMatches(upToMatch).length + 1;
+        findings.add(
+          AiFinding(
+            id: 'config.production_default_domain',
+            severity: FindingSeverity.blocking,
+            filePath: snapshot.relativePath,
+            line: line,
+            message:
+                'String.fromEnvironment("$envName") 的 defaultValue 不得包含非 localhost 的远程域名（当前：$defaultValue）。生产地址必须通过 --dart-define 注入。',
+          ),
+        );
+      }
+    }
+  }
+}
+
 void _requireFile(
   AiRepoContext context,
   List<AiFinding> findings, {

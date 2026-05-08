@@ -16,16 +16,22 @@ class TtsConfig {
     this.maxPrefetchQueue = 6,
   });
 
-  /// 编译时注入的 TTS 服务器地址（--dart-define=TTS_SERVER_URL=https://...）
+  /// 编译时注入的 TTS 服务器地址（--dart-define=TTS_SERVER_URL=https://...）。
+  ///
+  /// P0-8：默认值为本地 localhost，严禁硬编码生产域名。
+  /// 发布构建必须通过 `--dart-define=TTS_SERVER_URL=...` 注入真实服务器地址。
   static const String _ttsServerUrl = String.fromEnvironment(
     'TTS_SERVER_URL',
-    defaultValue: 'https://hclstudio.cn/api/v1/tts',
+    defaultValue: 'http://localhost:8081/api/v1/tts',
   );
 
-  /// 编译时注入的书籍 API 基础地址（--dart-define=BOOK_API_BASE=https://...）
+  /// 编译时注入的书籍 API 基础地址（--dart-define=BOOK_API_BASE=https://...）。
+  ///
+  /// P0-8：默认值为本地 localhost，严禁硬编码生产域名。
+  /// 发布构建必须通过 `--dart-define=BOOK_API_BASE=...` 注入真实服务器地址。
   static const String bookApiBase = String.fromEnvironment(
     'BOOK_API_BASE',
-    defaultValue: 'https://hclstudio.cn/api/v1',
+    defaultValue: 'http://localhost:8081/api/v1',
   );
 
   // ── 网络层超时常量 ──────────────────────────────────────────────────────────

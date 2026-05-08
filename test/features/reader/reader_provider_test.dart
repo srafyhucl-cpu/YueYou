@@ -133,8 +133,59 @@ void main() {
       expect(req, isNotNull);
       expect(req!.text.length, greaterThanOrEqualTo(5));
       expect(req.text.startsWith('短'), isTrue);
-      // 当 consumed 正好到达末尾时，内部会将 fetchIndex 取模为 0
-      expect(reader.fetchIndex, anyOf(greaterThan(before), equals(0)));
+      // P0-5：取消 (cursor + 1) % length 取模回卷后，
+      // consumed 到达末尾时 _fetchIndex 必须严格等于 sentences.length，
+      // 不再有"绕回 0"的合法路径。
+      expect(reader.fetchIndex, greaterThan(before));
+      expect(reader.fetchIndex, reader.sentences.length);
+    });
+
+    // ── T-2 / P0-5 回归用例：章末全噪音不得回卷重读章首 ─────────────────────
+    test('章末连续噪音行：nextTtsSentence 必须返回 null 而非回卷至章首', () async {
+      final reader = await _makeReaderProvider();
+      // 构造一个"前段有效 + 章末连续 5 行噪音"的极端样本，
+      // 旧实现会因取模回卷把 cursor 绕回 0，把第 0 行可读句返回。
+      const raw = '第一段有效内容。\n第二段也是有效内容。\n正文\nVIP卷\n默认卷\n***\n----\n';
+      await reader.loadBook(
+        raw,
+        bookId: 'b_chapter_end_noise',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+
+      // 先把游标推到章末噪音段起始位置（第三句开始全是噪音）。
+      // 直接强制 _fetchIndex 到噪音段起点，模拟连续读完前两句之后的状态。
+      final firstReq = await reader.nextTtsSentence(0);
+      expect(firstReq, isNotNull, reason: '第一句必须能正常返回');
+
+      final secondReq = await reader.nextTtsSentence(0);
+      expect(secondReq, isNotNull, reason: '第二句必须能正常返回');
+
+      // 此时 fetchIndex 已推进到噪音段，再次调用必须返回 null
+      final tailReq = await reader.nextTtsSentence(0);
+      expect(tailReq, isNull, reason: '章末仅剩噪音行时必须返回 null，绝不能回卷至章首重读');
+      expect(reader.fetchIndex, reader.sentences.length,
+          reason: '_fetchIndex 必须钉到末尾，避免下次重复扫描');
+
+      // 再次调用仍必须返回 null（_fetchIndex >= length 早期返回路径）
+      final repeatReq = await reader.nextTtsSentence(0);
+      expect(repeatReq, isNull);
+    });
+
+    test('全文皆噪音：nextTtsSentence 必须返回 null，不得死循环', () async {
+      final reader = await _makeReaderProvider();
+      const raw = '正文\nVIP卷\n默认卷\n***\n';
+      await reader.loadBook(
+        raw,
+        bookId: 'b_all_noise',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+
+      final req = await reader.nextTtsSentence(0);
+      expect(req, isNull, reason: '全噪音输入必须返回 null');
+      expect(reader.fetchIndex, reader.sentences.length,
+          reason: '扫描到末尾必须把 _fetchIndex 钉到 length');
     });
 
     test('nextSentence 步进：currentIndex 与 fetchIndex 同步递增', () async {

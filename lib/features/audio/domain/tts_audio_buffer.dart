@@ -66,10 +66,15 @@ class TtsAudioBuffer {
   /// 是否需要补充预加载（低于 60% 即触发）。
   bool get needsRefill => !isFull && healthRatio < 0.6;
 
-  /// 向队列添加一个缓冲项，并按 [lineIndex] 排序。
+  /// 向队列尾部添加一个缓冲项，严格遵循 FIFO 语义。
+  ///
+  /// P0-6：原实现在 add 后按 lineIndex 排序，破坏 FIFO 语义。
+  /// 一旦 lineIndex 非单调（例如：章末 wrap-around、跳章、双轨竞态等），
+  /// 排序会让"较小 lineIndex 的新加入项"插队到队首，
+  /// 与 [prepend] 互相打架，最终导致 TTS 重读章首或乱序播放。
+  /// 并发安全完全由上层 session 哨兵保证，缓冲队列只负责严格 FIFO。
   void add(BufferedAudio item) {
     _items.add(item);
-    _items.sort((a, b) => a.lineIndex.compareTo(b.lineIndex));
   }
 
   /// 取出队列头部的项（FIFO）。
