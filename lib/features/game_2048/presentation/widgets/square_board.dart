@@ -9,7 +9,7 @@ import 'package:yueyou/core/theme/cyber_shadows.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
-import '../../../../core/theme/cyber_text_styles.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'tile_widget.dart';
 import 'board_reset_animation.dart';
 import 'rain_effect.dart';

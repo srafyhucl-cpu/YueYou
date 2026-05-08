@@ -4,8 +4,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/utils/audio_utils.dart';
-import '../../../core/utils/cyber_logger.dart';
+import 'package:yueyou/core/utils/audio_utils.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 
 /// 环境背景音乐服务（赛博朋克氛围音）
 ///

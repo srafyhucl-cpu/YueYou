@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:ui';
-import '../../../core/theme/cyber_colors.dart';
-import '../../../core/theme/cyber_dimensions.dart';
-import '../../../core/theme/cyber_text_styles.dart';
-import '../../../core/utils/cyber_performance_detector.dart';
-import '../../../features/game_2048/presentation/widgets/board_mascot.dart';
-import '../../../features/settings/providers/settings_provider.dart';
-import '../../../main.dart';
+import 'package:yueyou/core/theme/cyber_colors.dart';
+import 'package:yueyou/core/theme/cyber_dimensions.dart';
+import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/core/utils/cyber_performance_detector.dart';
+import 'package:yueyou/features/game_2048/presentation/widgets/board_mascot.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
+import 'package:yueyou/main.dart';
 
 enum ToastType {
   info,
@@ -19,34 +20,42 @@ enum ToastType {
 class CyberToast {
   static OverlayEntry? _currentEntry;
   static Timer? _currentTimer;
+  // P2-1：去重 + 滑动续期所需的"当前 Toast"标识。
+  // 同一消息在短时间内重复触发时，只续期不重建，避免连续闪烁。
+  static String? _currentMessage;
+  static ToastType? _currentType;
 
   static void show(
     String message, {
     ToastType type = ToastType.info,
     Duration duration = CyberDimensions.toastDuration,
   }) {
-    // 移除之前的 Toast
+    // P2-1：相同 message + type 的连续触发只刷新计时器，
+    // 避免 OverlayEntry 反复 remove/insert 引发动画闪烁与无谓重建。
+    if (_currentEntry != null &&
+        _currentMessage == message &&
+        _currentType == type) {
+      _currentTimer?.cancel();
+      _currentTimer = Timer(duration, _removeCurrentEntry);
+      return;
+    }
+
+    // 不同消息：移除旧 Toast，创建新 OverlayEntry
     _removeCurrentEntry();
 
-    // 创建新的 OverlayEntry
     final overlay = globalNavigatorKey.currentState?.overlay;
     if (overlay == null) return;
     final entry = OverlayEntry(
-      builder: (context) => _CyberToastWidget(
-        message: message,
-        type: type,
-        onRemove: () => _currentEntry = null,
-      ),
+      builder: (context) => _CyberToastWidget(message: message, type: type),
     );
 
     _currentEntry = entry;
+    _currentMessage = message;
+    _currentType = type;
     overlay.insert(entry);
 
-    // 设置定时器，自动移除
-    _currentTimer?.cancel();
-    _currentTimer = Timer(duration, () {
-      _removeCurrentEntry();
-    });
+    // 自动移除定时器
+    _currentTimer = Timer(duration, _removeCurrentEntry);
   }
 
   static void _removeCurrentEntry() {
@@ -56,18 +65,18 @@ class CyberToast {
     }
     _currentTimer?.cancel();
     _currentTimer = null;
+    _currentMessage = null;
+    _currentType = null;
   }
 }
 
 class _CyberToastWidget extends StatefulWidget {
   final String message;
   final ToastType type;
-  final VoidCallback onRemove;
 
   const _CyberToastWidget({
     required this.message,
     required this.type,
-    required this.onRemove,
   });
 
   @override
@@ -162,7 +171,9 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
                   borderRadius: BorderRadius.circular(
                     CyberDimensions.radiusL - CyberDimensions.borderThick,
                   ),
-                  child: ProviderScope.containerOf(context).read(settingsProvider).currentAnimationLevel ==
+                  child: ProviderScope.containerOf(context)
+                              .read(settingsProvider)
+                              .currentAnimationLevel ==
                           CyberAnimationLevel.low
                       ? Container(
                           color: CyberColors.glassDark.withValues(alpha: 0.98),

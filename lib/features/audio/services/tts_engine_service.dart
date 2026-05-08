@@ -10,9 +10,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
-import '../../settings/providers/settings_provider.dart';
-import '../../../core/config/tts_config.dart';
-import '../../../core/utils/tts_cache_manager.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
+import 'package:yueyou/core/config/tts_config.dart';
+import 'package:yueyou/core/utils/tts_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 export 'package:yueyou/features/audio/domain/tts_audio_models.dart';

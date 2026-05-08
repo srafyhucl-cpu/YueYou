@@ -21,6 +21,11 @@
   - **工程门禁白名单**：`ProductionDomainDefaultRule` 引入 `_allowedMarketingEnvNames = { PRIVACY_POLICY_URL, MARKET_DOWNLOAD_URL }` 排除合规营销链接误伤。
   - **验证**：`flutter analyze` 零错误零警告（No issues found），`flutter test` 484 用例 / 5 skipped / 0 failed。
 
+- **维护(p2): P2 系列规范裁剪同日补完**：
+  - **P2-1 Toast 去重**：`CyberToast.show()` 引入 `_currentMessage` / `_currentType` 哨兵；相同消息+类型在显示期内连续触发只续期 Timer，不再 remove/insert OverlayEntry，杜绝快速重复触发时的"闪烁"动画；顺带删除 `_CyberToastWidget.onRemove` 死字段。
+  - **P2-3 import 路径统一**：全仓 `lib/` 内 35 处跨目录相对导入（涉及 13 文件）一次性收口为 `package:yueyou/...` 包内 URI；新增 `scripts/fix_relative_imports.py` 作为后续维护工具，按文件深度自动计算包内绝对路径，跳过非 `lib/` 目标，幂等可重复执行。
+  - **验证**：`flutter analyze` 零警告，`flutter test` 484 / 5 / 0，`dart scripts/ai_code_checker.dart` 阻断 0 / 警告 0。
+
 ## **2026-05-06**
 
 - **修复(full-stack): 全栈代码质量评审修复**：

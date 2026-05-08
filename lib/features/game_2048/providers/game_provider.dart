@@ -7,8 +7,8 @@ import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/features/audio/services/sfx_service.dart';
 import 'package:yueyou/features/game_2048/domain/tile_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../settings/providers/settings_provider.dart';
-import '../../audio/services/tts_engine_service.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
+import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 
 final gameProvider = ChangeNotifierProvider<GameProvider>((ref) {
   final gp = GameProvider();

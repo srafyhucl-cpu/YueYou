@@ -2,15 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
-import '../../../core/constants/book_constants.dart';
-import '../../../core/utils/text_processing.dart';
-import '../../../core/database/storage_service.dart';
+import 'package:yueyou/core/constants/book_constants.dart';
+import 'package:yueyou/core/utils/text_processing.dart';
+import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/library/services/default_book_service.dart';
 import 'package:yueyou/features/reader/domain/chapter_load_state.dart';
 import 'package:yueyou/features/reader/domain/text_parser.dart';
-import '../../audio/services/tts_engine_service.dart';
-import '../../library/domain/book_model.dart';
+import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 阻读器全局 Provider（Riverpod 生命周期托管版）

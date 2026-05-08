@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 
-import '../domain/update_info.dart';
+import 'package:yueyou/features/update/domain/update_info.dart';
 
 /// 热更新版本检测服务
 ///
