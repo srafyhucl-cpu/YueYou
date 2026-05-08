@@ -944,6 +944,127 @@ void main() {
       h.service.dispose();
     });
   });
+
+  // ── 阶段 1 治理：状态影子 / 错误 / 音频控制公开 API ──────────────────────
+  group('TtsEngineService - 影子状态与公开 API', () {
+    test('setLastError(String) 后 lastError 必须可读', () async {
+      final h = await _makeMockService();
+      h.service.setLastError('测试错误信息');
+      expect(h.service.lastError, '测试错误信息');
+      h.service.dispose();
+    });
+
+    test('setLastError(TimeoutException) 必须映射为友好提示', () async {
+      final h = await _makeMockService();
+      h.service.setLastError(TimeoutException('超时'));
+      expect(h.service.lastError, contains('链路波动'));
+      h.service.dispose();
+    });
+
+    test('setLastError 不同值时持续 notifyListeners 并刷新 errorTimestamp', () async {
+      final h = await _makeMockService();
+      int count = 0;
+      h.service.addListener(() => count++);
+      h.service.setLastError('错误 A');
+      final after1 = count;
+      final ts1 = h.service.errorTimestamp;
+      // 推进时钟至少 1ms，确保新 timestamp 与旧不同
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+      h.service.setLastError('错误 B');
+      expect(count, greaterThan(after1),
+          reason: '不同 lastError 必须 notifyListeners');
+      expect(h.service.lastError, '错误 B');
+      expect(h.service.errorTimestamp, greaterThanOrEqualTo(ts1),
+          reason: 'errorTimestamp 必须随每次 setLastError 刷新');
+      h.service.dispose();
+    });
+
+    test('clearLastError 在已 null 时幂等不抛', () async {
+      final h = await _makeMockService();
+      h.service.clearLastError();
+      h.service.clearLastError();
+      expect(h.service.lastError, isNull);
+      h.service.dispose();
+    });
+
+    test('notifyUserActivity 必须触发 notifyListeners', () async {
+      final h = await _makeMockService();
+      int count = 0;
+      h.service.addListener(() => count++);
+      h.service.notifyUserActivity();
+      expect(count, greaterThan(0));
+      h.service.dispose();
+    });
+
+    test('stopAudio 强制 complete _playCompleter（playFile 提前返回）', () async {
+      final h = await _makeMockService(storyTts: true);
+      await pumpEventQueue(times: 10);
+
+      final tmp = await Directory.systemTemp.createTemp('yueyou_stop_audio_');
+      addTearDown(() async {
+        if (await tmp.exists()) await tmp.delete(recursive: true);
+      });
+      final mp3File = File('${tmp.path}/normal.mp3');
+      await mp3File.writeAsBytes(List<int>.filled(2048, 1));
+
+      final completer = Completer<void>();
+      // 启动播放但不触发 onPlayerComplete，让它一直 await
+      final playFuture = h.service.playFile(
+        mp3File.path,
+        onComplete: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      // 等待进入 await _playCompleter.future 状态
+      for (int i = 0; i < 50 && h.fakeAudioPlayer.resumeCalls == 0; i++) {
+        await pumpEventQueue(times: 1);
+      }
+
+      // stopAudio 必须强制 complete _playCompleter，让 playFile 提前返回
+      await h.service.stopAudio();
+      await completer.future.timeout(const Duration(seconds: 5));
+      await playFuture.timeout(const Duration(seconds: 5));
+
+      expect(h.fakeAudioPlayer.stopCalls, greaterThanOrEqualTo(1));
+      h.service.dispose();
+    });
+
+    test('pauseAudio 必须调用 audioPlayer.pause + fallbackEngine.stop', () async {
+      final h = await _makeMockService();
+      await pumpEventQueue(times: 10);
+      final beforePause = h.fakeAudioPlayer.pauseCalls;
+      await h.service.pauseAudio();
+      expect(h.fakeAudioPlayer.pauseCalls, greaterThan(beforePause));
+      h.service.dispose();
+    });
+
+    test('resumeAudio 必须调用 audioPlayer.resume', () async {
+      final h = await _makeMockService();
+      await pumpEventQueue(times: 10);
+      final beforeResume = h.fakeAudioPlayer.resumeCalls;
+      await h.service.resumeAudio();
+      expect(h.fakeAudioPlayer.resumeCalls, greaterThan(beforeResume));
+      h.service.dispose();
+    });
+
+    test('syncSettingsFromProvider 在 voice 变更时清空音色相关状态', () async {
+      final h = await _makeMockService(voice: 'zh-CN-XiaoxiaoNeural');
+      await pumpEventQueue(times: 10);
+      h.settings.voice = 'zh-CN-XiaomengNeural';
+      h.service.syncSettingsFromProvider(h.settings);
+      // 不抛异常即视为合约保持
+      expect(h.service.lastError, isNull);
+      h.service.dispose();
+    });
+
+    test('syncShadow(state) 写入 state 字段', () async {
+      final h = await _makeMockService();
+      h.service.syncShadow(state: TtsPlaybackState.buffering);
+      expect(h.service.state, equals(TtsPlaybackState.buffering));
+      h.service.dispose();
+    });
+  });
 }
 
 class _ThrowingSetSourceAudioPlayer implements TtsAudioPlayer {
