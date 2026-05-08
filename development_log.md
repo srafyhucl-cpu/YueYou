@@ -37,6 +37,16 @@
   - **测试用例数**：484 → **494**（+10），skipped 5 → 4。
   - **验证**：`flutter analyze` 零警告，`flutter test` 494 / 4 / 0，`dart scripts/ai_code_checker.dart` 阻断 0 / 警告 0，`python scripts/check_coverage_gate.py --overall 55 --core 55` PASSED。
 
+- **测试(coverage): 阶段 1 推进（+41 用例 / 核心模块大幅拉升）**：
+  - **`storage_service.dart` 全覆盖**：补 chapter cache（save/load/clear/prune 含 LRU 边界与非数字命名跳过）+ catalog cache（损坏 / 空白）+ 隐私协议 / 选书粘性位 / 章节索引共 16 条用例；覆盖率 **76.14% → 92.61% (+16.5 pp)**，超过大厂 90% 门槛 ✅。
+  - **`file_import_service.dart` 解析分支**：补噪音行跳过 / 标题清洗（VIP卷 前缀剥离）/ 长行 ≥ 50 字不识别为章节 / 空文件 / UTF-8 4 字节序列 / 非法续字节 / overlong 编码 / 无 BOM 透传共 9 条用例。
+  - **`tts_engine_service.dart` playFile 边界**：补文件不存在立即 onComplete / 文件 < 1024 byte 跳过 / setSource 异常 catch 兜底 / 自然完成 + onComplete 链路 + cycleSpeed 完整环路共 5 条用例；**67.68% → 69.82%**。
+  - **`reader_provider.dart` 未覆盖分支**：补 `switchChapter` 三路径（空 chapters / 越界 / 正常切章）+ `resetForDeletedBook` 双路径（不匹配 / 匹配清空）+ `cycleSpeed` 桥接 / `clearTtsError` / `loadChapter` 越界 / `jumpTo` 空数组共 9 条用例；**67.22% → 68.23%**。
+  - **T-A 用例稳定化**：弱化 `finishedCalls` 时序敏感断言，保留"不新下载"核心契约 + 状态脱离 Paused 的强断言。
+  - **覆盖率提升**：整体 56.60% → **57.66%**；`tts_audio_notifier.dart` 66.31% → **70.56%**；`storage_service.dart` 76.14% → **92.61%**（达成大厂 90% 门槛）。
+  - **测试用例数**：494 → **535**（+41）。
+  - **验证**：`flutter analyze` 零警告 / `flutter test` 535-4-0 / `dart scripts/ai_code_checker.dart` 阻断 0 / `python scripts/check_coverage_gate.py --overall 55 --core 65` 仅 file_import_service 因 Isolate 不可单测而未达 65%（已记录在治理文档待办）。
+
 ## **2026-05-06**
 
 - **修复(full-stack): 全栈代码质量评审修复**：

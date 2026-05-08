@@ -428,4 +428,119 @@ void main() {
       expect(notified, afterFirst);
     });
   });
+
+  // ── 阶段 1 治理：补 ReaderProvider 未覆盖分支 ──────────────────────────
+  group('ReaderProvider - switchChapter / resetForDeletedBook / 边界', () {
+    test('switchChapter 在 chapters 为空时静默返回（无副作用）', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        'A。\nB。\n',
+        bookId: 'b_no_chapters',
+        initialIndex: 1,
+        forceIndex: true,
+      );
+      final beforeIndex = reader.currentIndex;
+      reader.switchChapter(0);
+      expect(reader.currentIndex, beforeIndex,
+          reason: 'chapters 为空时 switchChapter 不得改变 currentIndex');
+    });
+
+    test('switchChapter 越界（负 / 超长）时静默返回', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        '第一章 起\nA。\n第二章 续\nB。\n',
+        bookId: 'b_bound',
+        chapters: const [
+          ChapterModel(title: '第一章 起', lineIndex: 0),
+          ChapterModel(title: '第二章 续', lineIndex: 2),
+        ],
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      reader.switchChapter(-1);
+      expect(reader.currentIndex, 0);
+      reader.switchChapter(999);
+      expect(reader.currentIndex, 0);
+    });
+
+    test('switchChapter 正常路径：跳到第二章并同步 fetchIndex', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        '第一章 起\nA。\n第二章 续\nB。\n',
+        bookId: 'b_switch_ok',
+        chapters: const [
+          ChapterModel(title: '第一章 起', lineIndex: 0),
+          ChapterModel(title: '第二章 续', lineIndex: 2),
+        ],
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      reader.switchChapter(1);
+      expect(reader.currentIndex, 2);
+      expect(reader.fetchIndex, reader.currentIndex,
+          reason: 'switchChapter 必须同步 fetchIndex');
+    });
+
+    test('resetForDeletedBook：bookId 不匹配时不得重置当前阅读', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        'A。\nB。\n',
+        bookId: 'book_keep',
+        initialIndex: 1,
+        forceIndex: true,
+      );
+      reader.resetForDeletedBook('some_other_book_id');
+      // currentIndex 必须保留
+      expect(reader.currentIndex, 1);
+      expect(reader.sentences, isNotEmpty);
+    });
+
+    test('resetForDeletedBook：bookId 匹配时彻底清空状态', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        'A。\nB。\nC。\n',
+        bookId: 'book_to_delete',
+        initialIndex: 2,
+        forceIndex: true,
+      );
+      reader.resetForDeletedBook('book_to_delete');
+      expect(reader.sentences, isEmpty,
+          reason: 'resetForDeletedBook 必须清空 sentences');
+      expect(reader.currentIndex, 0);
+      expect(reader.fetchIndex, 0);
+    });
+
+    test('cycleSpeed 桥接：调用后 ttsEngine.playbackRate 必须变化', () async {
+      final reader = await _makeReaderProvider();
+      final before = reader.ttsEngine.playbackRate;
+      reader.cycleSpeed();
+      expect(reader.ttsEngine.playbackRate, isNot(equals(before)));
+    });
+
+    test('clearTtsError 必须清空 ttsEngine.lastError', () async {
+      final reader = await _makeReaderProvider();
+      reader.ttsEngine.setLastError('某错误');
+      expect(reader.ttsEngine.lastError, isNotNull);
+
+      reader.clearTtsError();
+      expect(reader.ttsEngine.lastError, isNull);
+    });
+
+    test('loadChapter 越界（< 0 或 >= defaultTotalChapters）必须立即返回', () async {
+      final reader = await _makeReaderProvider();
+      // 越界 → 不抛异常 / 不修改任何状态
+      await reader.loadChapter(-1);
+      await reader.loadChapter(999);
+      expect(reader.sentences, isEmpty,
+          reason: '越界 loadChapter 不得修改 sentences');
+    });
+
+    test('jumpTo 在 sentences 为空时静默返回', () async {
+      final reader = await _makeReaderProvider();
+      // 不调用 loadBook → sentences 为空
+      await reader.jumpTo(5);
+      expect(reader.currentIndex, 0);
+      expect(reader.sentences, isEmpty);
+    });
+  });
 }

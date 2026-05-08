@@ -807,6 +807,143 @@ void main() {
       });
     });
   });
+
+  // ── 阶段 1 治理：playFile 边界路径补全 ──────────────────────────────────
+  // 目标：把 tts_engine_service.dart 覆盖率从 67.68% 拉升到 75%+。
+  // 重点覆盖：文件不存在 / 文件太小 / setSource 抛异常 / 自然完成 + onComplete。
+  group('TtsEngineService - playFile 边界路径', () {
+    test('playFile 在文件不存在时立即调用 onComplete 并返回', () async {
+      final h = await _makeMockService(storyTts: false);
+      bool completed = false;
+      await h.service.playFile(
+        '/non/existent/path/foo.mp3',
+        onComplete: () => completed = true,
+      );
+      expect(completed, isTrue,
+          reason: 'playFile 检测到文件不存在必须立即触发 onComplete 让上层推进游标');
+      // 不应触发 audioplayers 的 setSource
+      expect(h.fakeAudioPlayer.setSourceCalls, equals(0));
+      h.service.dispose();
+    });
+
+    test('playFile 在文件 < 1024 字节时跳过播放并 onComplete', () async {
+      final h = await _makeMockService(storyTts: false);
+
+      final tmp = await Directory.systemTemp.createTemp('yueyou_tiny_mp3_');
+      addTearDown(() async {
+        if (await tmp.exists()) await tmp.delete(recursive: true);
+      });
+      final tinyFile = File('${tmp.path}/tiny.mp3');
+      // 写入 < 1024 byte（仅 200 byte），触发"文件太小"守卫
+      await tinyFile.writeAsBytes(List<int>.filled(200, 0));
+
+      bool completed = false;
+      await h.service.playFile(
+        tinyFile.path,
+        onComplete: () => completed = true,
+      );
+
+      expect(completed, isTrue,
+          reason: 'playFile 文件 < 1024 byte 必须跳过播放并立即 onComplete');
+      expect(h.fakeAudioPlayer.setSourceCalls, equals(0),
+          reason: '文件太小时不得调用 setSource');
+      h.service.dispose();
+    });
+
+    test('playFile 在 setSource 抛异常时仍调用 onComplete（catch 兜底）', () async {
+      // 用 _ThrowingSetSourceAudioPlayer 让 setSource 必抛
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+      await StorageService.init();
+      _mockPathProviderTempDir(_testTempDir?.path ?? Directory.systemTemp.path);
+
+      final settings = SettingsProvider()..loadFromStorage();
+      final fakeAudioPlayer = _FakeAudioPlayer();
+      final throwingPlayer = _ThrowingSetSourceAudioPlayer(fakeAudioPlayer);
+      final service = TtsEngineService(
+        settings,
+        audioPlayer: throwingPlayer,
+        wakeLock: _FakeWakeLock(),
+        httpClient: _FakeHttpClient(),
+        delayFn: (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
+        config: const TtsConfig(serverUrl: 'http://test.invalid/tts'),
+      );
+      service.onNeedPrefetch = (s) async => null;
+      service.onItemStarted = (i) {};
+      service.onItemFinished = (i) {};
+
+      await pumpEventQueue(times: 10);
+
+      final tmp = await Directory.systemTemp.createTemp('yueyou_throw_mp3_');
+      addTearDown(() async {
+        if (await tmp.exists()) await tmp.delete(recursive: true);
+      });
+      final mp3File = File('${tmp.path}/normal.mp3');
+      await mp3File.writeAsBytes(List<int>.filled(2048, 1));
+
+      bool completed = false;
+      await service.playFile(
+        mp3File.path,
+        onComplete: () => completed = true,
+      );
+
+      expect(completed, isTrue,
+          reason: 'setSource 抛异常时 catch 兜底必须调用 onComplete，避免上层卡死');
+      service.dispose();
+    });
+
+    test('playFile 自然完成必须调用 onComplete 且 sub.cancel 被调用', () async {
+      final h = await _makeMockService(storyTts: true);
+      await pumpEventQueue(times: 10);
+
+      final tmp = await Directory.systemTemp.createTemp('yueyou_normal_mp3_');
+      addTearDown(() async {
+        if (await tmp.exists()) await tmp.delete(recursive: true);
+      });
+      final mp3File = File('${tmp.path}/normal.mp3');
+      await mp3File.writeAsBytes(List<int>.filled(2048, 1));
+
+      final completer = Completer<void>();
+      final playFuture = h.service.playFile(
+        mp3File.path,
+        onComplete: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      // 等 audioPlayer.resume 被调用后再发 onPlayerComplete 信号
+      for (int i = 0; i < 50 && h.fakeAudioPlayer.resumeCalls == 0; i++) {
+        await pumpEventQueue(times: 1);
+      }
+      h.fakeAudioPlayer.completePlayback();
+      await completer.future.timeout(const Duration(seconds: 5));
+      await playFuture.timeout(const Duration(seconds: 5));
+
+      expect(h.fakeAudioPlayer.setSourceCalls, equals(1));
+      expect(h.fakeAudioPlayer.resumeCalls, greaterThanOrEqualTo(1));
+      expect(h.fakeAudioPlayer.stopCalls, greaterThanOrEqualTo(1),
+          reason: '进入 playFile 时会先 stop 一次清理状态');
+      h.service.dispose();
+    });
+  });
+
+  // ── 阶段 1 治理：cycleSpeed 完整速度环 ───────────────────────────────────
+  group('TtsEngineService - cycleSpeed 完整环路', () {
+    test('cycleSpeed 多次调用应循环遍历所有速度档位并最终回到初始值', () async {
+      final h = await _makeMockService(ttsRate: 1.0);
+      final initial = h.service.playbackRate;
+      // _speedTiers 长度未知但有限 → 最多 10 次必回到初始值
+      final seen = <double>{initial};
+      for (int i = 0; i < 10; i++) {
+        h.service.cycleSpeed();
+        seen.add(h.service.playbackRate);
+        if (h.service.playbackRate == initial && i > 0) break;
+      }
+      expect(seen.length, greaterThanOrEqualTo(2),
+          reason: 'cycleSpeed 必须至少能切换到 ≥ 2 个不同的速度档位');
+      h.service.dispose();
+    });
+  });
 }
 
 class _ThrowingSetSourceAudioPlayer implements TtsAudioPlayer {

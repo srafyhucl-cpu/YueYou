@@ -296,8 +296,10 @@ void main() {
     test('deleteBookContent 在文件不存在时不抛异常', () async {
       final dir = await Directory.systemTemp.createTemp('yueyou_books_');
       _mockPathProvider(dir.path);
-      expect(() async => StorageService.deleteBookContent('not_exists'),
-          returnsNormally,);
+      expect(
+        () async => StorageService.deleteBookContent('not_exists'),
+        returnsNormally,
+      );
     });
 
     test('deleteBookContent 在文件存在时会删除，随后 loadBookContent 返回 null', () async {
@@ -342,6 +344,204 @@ void main() {
         ),
         returnsNormally,
       );
+    });
+  });
+
+  // ── 分章正文缓存（chapter cache）─────────────────────────────────────────
+  // 阶段 1 治理目标：补 chapter cache 全链路（save/load/clear/prune），
+  // 拉动 storage_service.dart 覆盖率 76% → 85%+。
+  group('StorageService - 分章缓存', () {
+    test('saveChapterCache + loadChapterCache 往返一致', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      await StorageService.saveChapterCache('book_a', 5, '第六章正文内容');
+      final loaded = await StorageService.loadChapterCache('book_a', 5);
+
+      expect(loaded, '第六章正文内容');
+    });
+
+    test('loadChapterCache 在文件不存在时返回 null', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      final loaded = await StorageService.loadChapterCache('book_b', 99);
+      expect(loaded, isNull);
+    });
+
+    test('loadChapterCache 在文件内容为空白时返回 null（防御）', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      // 写入仅有空白字符的章节缓存文件
+      await StorageService.saveChapterCache('book_blank', 0, '   \n\t  ');
+
+      final loaded = await StorageService.loadChapterCache('book_blank', 0);
+      expect(loaded, isNull, reason: '空白缓存等同于无缓存，必须返回 null 让上层走真正的下载链路');
+    });
+
+    test('clearChapterCache 删除整个 book 的章节目录', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      await StorageService.saveChapterCache('book_clear', 0, '一');
+      await StorageService.saveChapterCache('book_clear', 1, '二');
+      expect(await StorageService.loadChapterCache('book_clear', 0), '一');
+
+      await StorageService.clearChapterCache('book_clear');
+      expect(await StorageService.loadChapterCache('book_clear', 0), isNull);
+      expect(await StorageService.loadChapterCache('book_clear', 1), isNull);
+    });
+
+    test('clearChapterCache 在目录不存在时不抛异常', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      expect(() async => StorageService.clearChapterCache('book_never_saved'),
+          returnsNormally);
+    });
+
+    test('pruneChapterCache 仅保留 currentIndex ± keepAround 范围内文件', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      // 写入 0..9 共 10 章缓存
+      for (int i = 0; i < 10; i++) {
+        await StorageService.saveChapterCache('book_lru', i, '第${i + 1}章');
+      }
+
+      // 当前章节 5，保留 ±2 窗口（即 3..7）
+      await StorageService.pruneChapterCache(
+        'book_lru',
+        5,
+        keepAround: 2,
+      );
+
+      // 验证：3..7 在，0..2 / 8..9 已删除
+      for (final keep in [3, 4, 5, 6, 7]) {
+        expect(
+            await StorageService.loadChapterCache('book_lru', keep), isNotNull,
+            reason: 'pruneChapterCache 必须保留 [$keep]');
+      }
+      for (final dropped in [0, 1, 2, 8, 9]) {
+        expect(
+            await StorageService.loadChapterCache('book_lru', dropped), isNull,
+            reason: 'pruneChapterCache 必须清理 [$dropped]');
+      }
+    });
+
+    test('pruneChapterCache 在缓存目录不存在时不抛异常', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      expect(
+        () async => StorageService.pruneChapterCache('book_no_cache', 0),
+        returnsNormally,
+      );
+    });
+
+    test('pruneChapterCache 忽略非数字命名的文件', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_chcache_');
+      _mockPathProvider(dir.path);
+
+      // 先正常缓存一个章节，让目录存在
+      await StorageService.saveChapterCache('book_mixed', 5, '正常章节');
+
+      // 在目录里手动放一个非数字命名的 .txt 文件（如：脏数据 / 旧版本残留）
+      final cacheDir = Directory('${dir.path}/books/chapters/book_mixed');
+      final junkFile = File('${cacheDir.path}/junk.txt');
+      await junkFile.writeAsString('garbage');
+
+      await StorageService.pruneChapterCache('book_mixed', 5, keepAround: 1);
+
+      // junk.txt 不在删除范围内（int.tryParse 返回 null → continue）
+      expect(await junkFile.exists(), isTrue,
+          reason: 'pruneChapterCache 必须跳过非数字命名的文件');
+    });
+  });
+
+  // ── 书目录缓存（catalog cache）──────────────────────────────────────────
+  group('StorageService - 书目录缓存', () {
+    test('saveBookCatalog + loadBookCatalog 往返一致', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_catalog_');
+      _mockPathProvider(dir.path);
+
+      final chapters = <Map<String, dynamic>>[
+        {'title': '第一章', 'lineIndex': 0},
+        {'title': '第二章', 'lineIndex': 100},
+      ];
+      await StorageService.saveBookCatalog('book_cat', chapters);
+
+      final loaded = await StorageService.loadBookCatalog('book_cat');
+      expect(loaded, isNotNull);
+      expect(loaded!.length, 2);
+      expect(loaded.first['title'], '第一章');
+      expect(loaded.last['lineIndex'], 100);
+    });
+
+    test('loadBookCatalog 在文件不存在时返回 null', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_catalog_');
+      _mockPathProvider(dir.path);
+
+      final loaded = await StorageService.loadBookCatalog('book_no_catalog');
+      expect(loaded, isNull);
+    });
+
+    test('loadBookCatalog 在 JSON 损坏时返回 null', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_catalog_');
+      _mockPathProvider(dir.path);
+
+      final file = File('${dir.path}/books/catalogs/bad_catalog.json');
+      await file.parent.create(recursive: true);
+      await file.writeAsString('{');
+
+      final loaded = await StorageService.loadBookCatalog('bad');
+      expect(loaded, isNull);
+    });
+
+    test('loadBookCatalog 在文件为空白时返回 null', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_catalog_');
+      _mockPathProvider(dir.path);
+
+      final file = File('${dir.path}/books/catalogs/blank_catalog.json');
+      await file.parent.create(recursive: true);
+      await file.writeAsString('   \n  ');
+
+      final loaded = await StorageService.loadBookCatalog('blank');
+      expect(loaded, isNull);
+    });
+  });
+
+  // ── 隐私协议 / 选书粘性位 ────────────────────────────────────────────────
+  group('StorageService - 隐私 & 粘性位', () {
+    test('hasAgreedPrivacy 默认 false', () {
+      expect(StorageService.hasAgreedPrivacy(), isFalse);
+    });
+
+    test('setHasAgreedPrivacy(true) 后可读取', () async {
+      await StorageService.setHasAgreedPrivacy(true);
+      expect(StorageService.hasAgreedPrivacy(), isTrue);
+    });
+
+    test('hasSelectedBook 默认 false', () {
+      expect(StorageService.hasSelectedBook(), isFalse);
+    });
+
+    test('setHasSelectedBook(true) 后可读取（删书后防默认书重投粘性位）', () async {
+      await StorageService.setHasSelectedBook(true);
+      expect(StorageService.hasSelectedBook(), isTrue);
+    });
+  });
+
+  // ── 章节索引 ─────────────────────────────────────────────────────────────
+  group('StorageService - 当前章节', () {
+    test('getCurrentChapterIndex 默认 0', () {
+      expect(StorageService.getCurrentChapterIndex(), 0);
+    });
+
+    test('setCurrentChapterIndex 后可读取', () async {
+      await StorageService.setCurrentChapterIndex(42);
+      expect(StorageService.getCurrentChapterIndex(), 42);
     });
   });
 }
