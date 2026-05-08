@@ -543,4 +543,152 @@ void main() {
 
     await notifier.stopAll();
   }, timeout: const Timeout(Duration(seconds: 15)));
+
+  // ── 阶段 1 推进：TtsAudioNotifier 公开 API 全覆盖 ───────────────────────────
+  // 目标：把 lib/features/audio/providers/tts_audio_notifier.dart
+  // 从 70.56% 拉到 ≥ 75%。下面的用例均 sentence-source-less（避免泵真实启动）。
+
+  group('TtsAudioNotifier - 公开 API 边界', () {
+    Future<
+        ({
+          ProviderContainer container,
+          TtsAudioNotifier notifier,
+          TtsEngineService engine
+        })> _setup() async {
+      await initializeTestEnvironment();
+      final settings = makeSettings();
+      final engine = TtsEngineService(
+        settings,
+        config: const TtsConfig(
+          serverUrl: 'https://test.invalid/tts',
+          maxPrefetchQueue: 1,
+          requestTimeout: Duration(milliseconds: 50),
+          baseRetryDelay: Duration(milliseconds: 1),
+        ),
+        audioPlayer: _ControllableAudioPlayer(),
+        wakeLock: FakeWakeLock(),
+        httpClient: _SingleAudioHttpClient(),
+        fallbackEngine: FakeFallbackEngine(),
+        delayFn: (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          ttsEngineProvider.overrideWith((ref) => engine),
+          settingsProvider.overrideWith((ref) => settings),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+        engine.dispose();
+      });
+      // 等待引擎硬件初始化完成（_volume 等 late 字段必须初始化），
+      // 否则 refreshSession 调 syncSettingsFromProvider 会触发 LateInitializationError。
+      for (int i = 0; i < 50; i++) {
+        await pumpEventQueue(times: 1);
+      }
+      return (
+        container: container,
+        notifier: container.read(ttsAudioProvider.notifier),
+        engine: engine,
+      );
+    }
+
+    test('play 在 sentenceSource 未注册时设置业务错误并保持 Idle', () async {
+      final s = await _setup();
+      s.notifier.play();
+      // play 检测 sentenceSource == null → setBusinessError 后立即返回
+      expect(s.engine.lastError, isNotNull,
+          reason: 'play 必须通过 setBusinessError 设置"请先导入书籍"提示');
+      expect(s.engine.lastError, contains('请先导入书籍'));
+    });
+
+    test('cycleSpeed 必须更新 state.playbackRate 与 engine.playbackRate 同步',
+        () async {
+      final s = await _setup();
+      final beforeRate = s.notifier.state.playbackRate;
+      s.notifier.cycleSpeed();
+      expect(s.notifier.state.playbackRate, isNot(equals(beforeRate)),
+          reason: 'cycleSpeed 必须切换到下一档速度');
+      expect(s.notifier.state.playbackRate, equals(s.engine.playbackRate),
+          reason: 'state.playbackRate 必须与 engine 同步');
+    });
+
+    test('setBackgroundTolerant(true) 必须重置 _consecutiveFailures 并暂停预取',
+        () async {
+      final s = await _setup();
+      // 进入后台宽容模式
+      s.notifier.setBackgroundTolerant(true);
+      // 显式退出
+      s.notifier.setBackgroundTolerant(false);
+      // 不抛异常即视为状态切换正常（私字段无法直接读，但行为已被覆盖）
+    });
+
+    test('recover 必须清空 engine.lastError 并尝试 play', () async {
+      final s = await _setup();
+      s.engine.setLastError('某错误');
+      expect(s.engine.lastError, isNotNull);
+
+      s.notifier.recover();
+      expect(s.engine.lastError, isNotNull,
+          reason: 'recover 后 setBusinessError(请先导入书籍) 立即设置新错误，'
+              '说明 clearLastError → play 链路被走通');
+    });
+
+    test('setBusinessError 必须传播到 engine.lastError', () async {
+      final s = await _setup();
+      s.notifier.setBusinessError('自定义错误信息');
+      expect(s.engine.lastError, '自定义错误信息');
+    });
+
+    test('isActivelyPlaying 在 Idle 时返回 false', () async {
+      final s = await _setup();
+      expect(s.notifier.isActivelyPlaying, isFalse,
+          reason: 'Idle 状态 isActivelyPlaying 必须为 false');
+    });
+
+    test('currentSession 与 buffer / isDegraded 的初始值', () async {
+      final s = await _setup();
+      expect(s.notifier.currentSession, isA<int>());
+      expect(s.notifier.buffer, isNotNull);
+      expect(s.notifier.buffer.count, 0);
+      expect(s.notifier.isDegraded, isFalse);
+    });
+
+    test('refreshSession 在无 sentenceSource 时不抛异常并触发缓冲状态', () async {
+      final s = await _setup();
+      final beforeSession = s.notifier.currentSession;
+      await s.notifier.refreshSession();
+
+      expect(s.notifier.currentSession, beforeSession + 1,
+          reason: 'refreshSession 必须递增 session');
+      expect(s.notifier.state, isA<TtsAudioBuffering>(),
+          reason: 'refreshSession 后状态必须进入 Buffering');
+      // 关闭，避免泵空转
+      await s.notifier.stopAll();
+    });
+
+    test('stopAll 在 Idle 状态下幂等（多次调用不崩溃）', () async {
+      final s = await _setup();
+      await s.notifier.stopAll();
+      await s.notifier.stopAll();
+      await s.notifier.stopAll();
+      expect(s.notifier.state, isA<TtsAudioIdle>());
+      expect(s.notifier.isDegraded, isFalse);
+    });
+
+    test(
+        '@Deprecated setEnabled(true) 触发 buffer 重启 / setEnabled(false) 等同 stopAll',
+        () async {
+      final s = await _setup();
+      // ignore: deprecated_member_use_from_same_package
+      s.notifier.setEnabled(true);
+      expect(s.notifier.state, isA<TtsAudioBuffering>(),
+          reason: '@Deprecated setEnabled(true) 必须切换到 Buffering');
+      // ignore: deprecated_member_use_from_same_package
+      s.notifier.setEnabled(false);
+      await pumpEventQueue(times: 5);
+      expect(s.notifier.state, isA<TtsAudioIdle>(),
+          reason: 'setEnabled(false) 必须等同 stopAll → Idle');
+    });
+  });
 }

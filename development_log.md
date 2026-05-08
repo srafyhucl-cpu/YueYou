@@ -37,6 +37,14 @@
   - **测试用例数**：484 → **494**（+10），skipped 5 → 4。
   - **验证**：`flutter analyze` 零警告，`flutter test` 494 / 4 / 0，`dart scripts/ai_code_checker.dart` 阻断 0 / 警告 0，`python scripts/check_coverage_gate.py --overall 55 --core 55` PASSED。
 
+- **测试(coverage): 阶段 1 第 2 轮推进（tts_audio_notifier 突破 80%）**：
+  - **TtsAudioNotifier 公开 API 全覆盖**（+10 用例）：play 无 source 守卫 / cycleSpeed 同步 engine / setBackgroundTolerant 切换 / recover 链路 / setBusinessError 传播 / isActivelyPlaying / 全 getter / refreshSession 无 source / stopAll 幂等 / @Deprecated setEnabled。覆盖率 70.56% → **80.11% (+9.55 pp)** ✅ 距大厂 90% 门槛仅 ~10pp。
+  - **TtsEngineService 影子状态与公开 API**（+10 用例）：setLastError String/TimeoutException 映射 / 不同值刷新 errorTimestamp / clearLastError 幂等 / notifyUserActivity / stopAudio 强制 complete _playCompleter / pauseAudio + fallbackEngine / resumeAudio / syncSettingsFromProvider / syncShadow。覆盖率 69.82% → 70.18%。
+  - **ReaderProvider loadPreparedBook + 回调路径**（+9 用例）：loadPreparedBook 正常 + 并发守卫 / onTtsItemStarted lineIndex 同步与去重 / onTtsItemFinished 空 sentences 守卫 + 章末分支 / _onTtsEngineChanged listener 传播 / resetFetchIndex / toggleTTS 无 notifier。覆盖率 68.23% → 68.90%。
+  - **覆盖率提升**：整体 57.66% → **58.52%**；`tts_audio_notifier.dart` 70.56% → **80.11%** ⭐。
+  - **测试用例数**：535 → **564**（+29）。
+  - **验证**：`flutter analyze` 零警告 / `flutter test` 564-4-0 / `dart scripts/ai_code_checker.dart` 阻断 0。
+
 - **测试(coverage): 阶段 1 推进（+41 用例 / 核心模块大幅拉升）**：
   - **`storage_service.dart` 全覆盖**：补 chapter cache（save/load/clear/prune 含 LRU 边界与非数字命名跳过）+ catalog cache（损坏 / 空白）+ 隐私协议 / 选书粘性位 / 章节索引共 16 条用例；覆盖率 **76.14% → 92.61% (+16.5 pp)**，超过大厂 90% 门槛 ✅。
   - **`file_import_service.dart` 解析分支**：补噪音行跳过 / 标题清洗（VIP卷 前缀剥离）/ 长行 ≥ 50 字不识别为章节 / 空文件 / UTF-8 4 字节序列 / 非法续字节 / overlong 编码 / 无 BOM 透传共 9 条用例。

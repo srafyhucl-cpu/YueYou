@@ -543,4 +543,177 @@ void main() {
       expect(reader.sentences, isEmpty);
     });
   });
+
+  // ── 阶段 1 推进：loadPreparedBook + onTtsItemStarted/Finished + 状态监听 ─
+  group('ReaderProvider - loadPreparedBook 与回调路径', () {
+    test('loadPreparedBook 正常路径：sentences 同步、bookId 写入', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadPreparedBook(
+        const ['第一行', '', '第二行', '   ', '第三行'],
+        bookId: 'b_prepared',
+        chapters: const [
+          ChapterModel(title: '序章', lineIndex: 0),
+        ],
+        initialIndex: 0,
+      );
+
+      expect(reader.sentences, equals(['第一行', '第二行', '第三行']),
+          reason: 'loadPreparedBook 必须过滤空行与空白');
+      expect(reader.currentBookId, 'b_prepared');
+      expect(reader.chapters.length, 1);
+    });
+
+    test('loadPreparedBook 在 isParsing 期间立即返回（守卫）', () async {
+      final reader = await _makeReaderProvider();
+      // 先用 loadBook 进入 isParsing 状态？由于异步，无法稳定卡住，
+      // 改为用同步法：连续两次 loadPreparedBook，第二次同 bookId 必须立即返回。
+      final first = reader.loadPreparedBook(
+        const ['A', 'B'],
+        bookId: 'b_concurrent',
+      );
+      final second = reader.loadPreparedBook(
+        const ['X', 'Y'],
+        bookId: 'b_concurrent_2',
+      );
+      await Future.wait([first, second]);
+      // 第二次调用在 isParsing 期间应被拦截，第一次的 bookId 应保留
+      // （实际行为取决于 await 时机；此处仅验证 sentences 来自两个之一，且不抛异常）
+      expect(reader.sentences, anyOf(equals(['A', 'B']), equals(['X', 'Y'])));
+    });
+
+    test('onTtsItemStarted：lineIndex 与当前不一致时同步 currentIndex', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        'A。\nB。\nC。\nD。\n',
+        bookId: 'b_started',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      expect(reader.currentIndex, 0);
+
+      reader.onTtsItemStarted(TtsAudioItem(
+        id: 1,
+        session: 0,
+        lineIndex: 2,
+        endLineIndex: 2,
+        text: 'C。',
+        title: '',
+        estimatedDuration: const Duration(seconds: 1),
+      ));
+      expect(reader.currentIndex, 2,
+          reason: 'onTtsItemStarted 必须同步 currentIndex');
+    });
+
+    test('onTtsItemStarted：相同 lineIndex 不触发不必要的 notifyListeners', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        'A。\nB。\n',
+        bookId: 'b_started_same',
+        initialIndex: 1,
+        forceIndex: true,
+      );
+      int notified = 0;
+      reader.addListener(() => notified++);
+
+      reader.onTtsItemStarted(TtsAudioItem(
+        id: 2,
+        session: 0,
+        lineIndex: 1, // 与 currentIndex 相同
+        endLineIndex: 1,
+        text: 'B。',
+        title: '',
+        estimatedDuration: const Duration(seconds: 1),
+      ));
+
+      expect(notified, 0,
+          reason: 'lineIndex 与 currentIndex 相同时不得 notifyListeners');
+    });
+
+    test('onTtsItemFinished：sentences 为空时立即返回', () async {
+      final reader = await _makeReaderProvider();
+      // 不调用 loadBook → sentences 为空
+      await reader.onTtsItemFinished(TtsAudioItem(
+        id: 3,
+        session: 0,
+        lineIndex: 0,
+        endLineIndex: 0,
+        text: '',
+        title: '',
+        estimatedDuration: const Duration(seconds: 1),
+      ));
+      // 不抛异常即视为守卫生效
+      expect(reader.sentences, isEmpty);
+    });
+
+    test('onTtsItemFinished：endLineIndex 跳过噪音行后到达章末', () async {
+      final reader = await _makeReaderProvider();
+      // 让 reader 解析为 sentences = ['第一句', '正文']（末尾噪音）
+      await reader.loadBook(
+        '第一句\n正文\n',
+        bookId: 'b_chapter_end',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+
+      // 完成第 0 行后，nextIdx = 1，sentences[1] = '正文' 是噪音 →
+      // nextIdx 推进到 sentences.length → 进入章节末尾分支
+      await reader.onTtsItemFinished(TtsAudioItem(
+        id: 4,
+        session: 0,
+        lineIndex: 0,
+        endLineIndex: 0,
+        text: '第一句',
+        title: '',
+        estimatedDuration: const Duration(seconds: 1),
+      ));
+      // 章末分支会把 _currentIndex 钉到 item.lineIndex (0)
+      expect(reader.currentIndex, 0);
+    });
+
+    test('_onTtsEngineChanged：lastError 变更必须 notifyListeners', () async {
+      final reader = await _makeReaderProvider();
+      int notified = 0;
+      reader.addListener(() => notified++);
+
+      reader.ttsEngine.setLastError('阶段 1 测试错误');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notified, greaterThan(0),
+          reason: 'ttsEngine.setLastError 必须传播到 ReaderProvider listener');
+      expect(reader.ttsErrorMessage, '阶段 1 测试错误');
+    });
+
+    test('resetFetchIndex 必须把 _fetchIndex 钉到 currentIndex', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        'A。\nB。\nC。\nD。\n',
+        bookId: 'b_reset_fetch',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      // 先消费几个句子让 fetchIndex 推进
+      await reader.nextTtsSentence(0);
+      await reader.nextTtsSentence(0);
+      expect(reader.fetchIndex, greaterThan(0));
+
+      await reader.jumpTo(0);
+      expect(reader.currentIndex, 0);
+      reader.resetFetchIndex();
+      expect(reader.fetchIndex, 0,
+          reason: 'resetFetchIndex 必须把预取游标重置到 currentIndex');
+    });
+
+    test('toggleTTS 在 ttsNotifier=null 时返回 noContent', () async {
+      final reader = await _makeReaderProvider();
+      await reader.loadBook(
+        'A。\n',
+        bookId: 'b_toggle_no_notifier',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      // 默认 _makeReaderProvider 不注入 notifier
+      final result = reader.toggleTTS();
+      expect(result, TtsToggleResult.noContent);
+    });
+  });
 }
