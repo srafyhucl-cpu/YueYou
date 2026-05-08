@@ -602,55 +602,10 @@ void main() {
     });
   });
 
-  group('TtsEngineService - idle timeout', () {
-    test('空闲超时触发后应自动 setEnabled(false) 并写回 storyTts=false',
-        skip: '空闲超时逻辑已迁移至 TtsAudioNotifier 编排层，TtsEngineService 无内置 idle timer',
-        () async {
-      SharedPreferences.setMockInitialValues({
-        'setting_story_tts': false,
-        'setting_tts_rate': 1.0,
-        'setting_ambient_vol': 0.5,
-        'setting_voice': 'zh-CN-XiaoxiaoNeural',
-        'setting_idle_timeout': 1,
-      });
-      StorageService.resetForTesting();
-      await StorageService.init();
-
-      final settings = SettingsProvider()..loadFromStorage();
-      final fakeAudioPlayer = _FakeAudioPlayer();
-      final fakeWakeLock = _FakeWakeLock();
-      final service = TtsEngineService(
-        settings,
-        audioPlayer: fakeAudioPlayer,
-        wakeLock: fakeWakeLock,
-        httpClient: _FakeHttpClient(),
-        delayFn: (d) => Future<void>.delayed(d),
-        config: const TtsConfig(
-          serverUrl: 'https://test.invalid/tts',
-          maxRetries: 1,
-          requestTimeout: Duration(milliseconds: 10),
-          baseRetryDelay: Duration(milliseconds: 1),
-          maxPrefetchQueue: 0,
-        ),
-      );
-
-      service.onNeedPrefetch = (session) async => null;
-
-      fakeAsync((async) {
-        async.flushMicrotasks();
-        service.setEnabled(true);
-        async.flushMicrotasks();
-        async.elapse(const Duration(minutes: 1));
-        async.flushMicrotasks();
-
-        expect(service.isEnabled, isFalse);
-        expect(settings.storyTts, isFalse);
-        expect(StorageService.getSettingStoryTts(), isFalse);
-      });
-
-      service.dispose();
-    });
-  });
+  // ── 大厂标准清理：原 idle timeout skip 用例已删除 ─────────────────────────
+  // 该用例在 TtsEngineService 不再持有 _idleTimer 后变为永远跳过，长期挂靠
+  // 会让维护者误以为"待修复"。空闲超时逻辑已 100% 迁移至 TtsAudioNotifier，
+  // 对应回归在 test/features/audio/tts_audio_notifier_test.dart 中覆盖。
 
   group('TtsEngineService - testConnection branches', () {
     late DebugPrintCallback oldDebugPrint;

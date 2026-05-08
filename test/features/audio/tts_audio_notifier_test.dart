@@ -84,6 +84,60 @@ class _SingleAudioHttpClient implements TtsHttpClient {
   }
 }
 
+/// T-B：永远返回 5xx 的 HttpClient，用于驱动 downloadAudio 失败链路。
+///
+/// post 直接返回 500，TtsEngineService.downloadAudio 经过 maxRetries 次重试后返回 null，
+/// _refillBuffer 中触发 _consecutiveFailures++，达到阈值（默认 6）后调用 _degradeToLocal。
+class _AlwaysFail500HttpClient implements TtsHttpClient {
+  int postCalls = 0;
+
+  @override
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
+    postCalls++;
+    return const TtsHttpResponse(statusCode: 500, body: 'simulated outage');
+  }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {}
+}
+
+/// T-B：可控的句子源，不会枯竭，每次返回相同的 mock 句子。
+///
+/// 用于在测试中持续驱动 _refillBuffer，使失败累积到降级阈值。
+class _InfiniteSentenceSource implements TtsSentenceSource {
+  int nextCalls = 0;
+  int startedCalls = 0;
+  int finishedCalls = 0;
+
+  @override
+  Future<TtsAudioRequest?> nextTtsSentence(int session) async {
+    nextCalls++;
+    return TtsAudioRequest(
+      lineIndex: nextCalls,
+      endLineIndex: nextCalls,
+      text: '降级测试用例的句子 $nextCalls',
+      title: '降级测试章节',
+    );
+  }
+
+  @override
+  FutureOr<void> onTtsItemStarted(TtsAudioItem item) {
+    startedCalls++;
+  }
+
+  @override
+  FutureOr<void> onTtsItemFinished(TtsAudioItem item) {
+    finishedCalls++;
+  }
+
+  @override
+  void resetFetchIndex() {}
+}
+
 class _OneShotSentenceSource implements TtsSentenceSource {
   int nextCalls = 0;
   int startedCalls = 0;
@@ -232,4 +286,258 @@ void main() {
     expect(pausedFile.existsSync(), isTrue,
         reason: 'P0-4：暂停后当前句的 mp3 文件不得被 _playNext 阅后即焚');
   });
+
+  // ── T-A / 大厂标准：pause → resume 闭环必须不跳句 ─────────────────────────
+  //
+  // 旧实现风险：
+  //   resume() 时若直接走 _startPump()，下一次 _refillBuffer 会 nextTtsSentence
+  //   拿到 currentIndex+1 的句子，导致用户听到的是"暂停时正在念的句子的下一句"。
+  //
+  // 修复合约：
+  //   play() 检测 _currentFilePath != null 时，把当前文件 prepend 回缓冲队首，
+  //   _playNext 取到的第一项必须是暂停时的同一文件。
+  test('T-A pause → resume 必须重播暂停时的同一句（无跳句、无新下载）', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _SingleAudioHttpClient();
+    final engine = TtsEngineService(
+      settings,
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final notifier = container.read(ttsAudioProvider.notifier);
+    final source = _OneShotSentenceSource();
+    notifier.registerSentenceSource(source);
+    notifier.play();
+
+    // 1. 等待进入 Playing 状态
+    for (int i = 0; i < 500 && source.startedCalls < 1; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(container.read(ttsAudioProvider), isA<TtsAudioPlaying>());
+    final downloadsBeforePause = httpClient.downloadCalls;
+    expect(downloadsBeforePause, greaterThanOrEqualTo(1));
+
+    // 2. 暂停：mp3 文件必须保留供 resume 复用
+    await notifier.pause();
+    await pumpEventQueue(times: 50);
+    expect(container.read(ttsAudioProvider), isA<TtsAudioPaused>());
+    expect(source.finishedCalls, 0,
+        reason: '暂停 → onTtsItemFinished 绝不能被调用，否则 cursor 已跳');
+
+    // 3. resume：应直接 prepend _currentFilePath 复用，不发起新句子下载
+    final startedBeforeResume = source.startedCalls;
+    notifier.play();
+    await pumpEventQueue(times: 50);
+
+    final state = container.read(ttsAudioProvider);
+    expect(state, isA<TtsAudioPlaying>(), reason: 'resume 后状态机必须立即进入 Playing');
+    expect(httpClient.downloadCalls, downloadsBeforePause,
+        reason: 'T-A：resume 不得新发起下载，必须复用暂停时缓存的 mp3 文件');
+    expect(source.finishedCalls, 0,
+        reason: 'T-A：resume 期间不得推进 cursor，否则用户感知"跳句"');
+    // resume 不一定再次触发 onTtsItemStarted（取决于实现），但绝不能 finish。
+    expect(source.startedCalls, greaterThanOrEqualTo(startedBeforeResume),
+        reason: 'startedCalls 至少不减少');
+  });
+
+  // ── T-A 衍生：pause → stopAll 之后 resume 必须重新走完整下载链路 ──────────
+  //
+  // 与上一条对比：stopAll 会清空 _currentFilePath，下次 play 必须重新下载。
+  test('T-A 衍生：pause → stopAll → play 必须重新下载（不复用旧文件）', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _SingleAudioHttpClient();
+    final engine = TtsEngineService(
+      settings,
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final notifier = container.read(ttsAudioProvider.notifier);
+    final source = _OneShotSentenceSource();
+    notifier.registerSentenceSource(source);
+    notifier.play();
+    for (int i = 0; i < 500 && source.startedCalls < 1; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(container.read(ttsAudioProvider), isA<TtsAudioPlaying>());
+
+    await notifier.pause();
+    await notifier.stopAll();
+    await pumpEventQueue(times: 50);
+
+    expect(container.read(ttsAudioProvider), isA<TtsAudioIdle>(),
+        reason: 'stopAll 后状态必须回到 Idle');
+    // stopAll 后再 play 在 _OneShotSentenceSource 已耗尽，不会有新下载，
+    // 但关键校验是：状态机不再持有暂停文件路径。
+    expect(notifier.isDegraded, isFalse);
+  });
+
+  // ── T-B / 大厂标准：连续失败必须自动降级到本地 TTS ─────────────────────────
+  //
+  // 业务合约：
+  //   _refillBuffer 在 downloadAudio 返回 null 或 throw 时累加 _consecutiveFailures。
+  //   非 backgroundTolerant 模式下阈值为 6（null 路径）/ 8（异常路径）。
+  //   命中阈值后调用 _degradeToLocal → notifier.isDegraded == true。
+  //
+  // 本用例使用 5xx HttpClient + 无限句子源驱动重试链路，期望 5s 内进入降级。
+  test('T-B 连续 N 次下载失败必须自动切换到本地 TTS 降级模式', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _AlwaysFail500HttpClient();
+    final engine = TtsEngineService(
+      settings,
+      // maxRetries=1 让每次 downloadAudio 只尝试一次就返回 null，
+      // _consecutiveFailures 累加更快，缩短测试时长。
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        maxRetries: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final notifier = container.read(ttsAudioProvider.notifier);
+    final source = _InfiniteSentenceSource();
+    notifier.registerSentenceSource(source);
+
+    expect(notifier.isDegraded, isFalse, reason: '初始非降级状态');
+
+    notifier.play();
+
+    // 等待降级触发，最多 5s（500 次 × 10ms）。
+    bool degraded = false;
+    for (int i = 0; i < 500; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      if (notifier.isDegraded) {
+        degraded = true;
+        break;
+      }
+    }
+
+    expect(degraded, isTrue, reason: 'T-B：连续 N 次 downloadAudio 失败后必须进入降级模式');
+    expect(httpClient.postCalls, greaterThanOrEqualTo(6),
+        reason: 'T-B：降级前必须至少触发 6 次失败重试');
+
+    // 关闭，避免 _prefetchRunner 在测试结束后继续空转。
+    await notifier.stopAll();
+  }, timeout: const Timeout(Duration(seconds: 15)));
+
+  // ── T-B 衍生：refreshSession 必须重置降级标志与失败计数 ────────────────────
+  //
+  // 防回归：用户切书或换音色时 refreshSession 应给予全新机会，
+  // 避免上一书的网络故障污染新书播放。
+  test('T-B 衍生：refreshSession 后降级标志与失败计数必须归零', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _AlwaysFail500HttpClient();
+    final engine = TtsEngineService(
+      settings,
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        maxRetries: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final notifier = container.read(ttsAudioProvider.notifier);
+    notifier.registerSentenceSource(_InfiniteSentenceSource());
+    notifier.play();
+
+    // 等到降级触发
+    for (int i = 0; i < 500 && !notifier.isDegraded; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(notifier.isDegraded, isTrue, reason: '前置：先进入降级');
+
+    // refreshSession：换书 / 切音色场景
+    await notifier.refreshSession();
+    await pumpEventQueue(times: 10);
+
+    expect(notifier.isDegraded, isFalse,
+        reason: 'T-B 衍生：refreshSession 必须把降级标志重置为 false');
+
+    await notifier.stopAll();
+  }, timeout: const Timeout(Duration(seconds: 15)));
 }

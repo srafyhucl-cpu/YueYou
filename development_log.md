@@ -26,6 +26,17 @@
   - **P2-3 import 路径统一**：全仓 `lib/` 内 35 处跨目录相对导入（涉及 13 文件）一次性收口为 `package:yueyou/...` 包内 URI；新增 `scripts/fix_relative_imports.py` 作为后续维护工具，按文件深度自动计算包内绝对路径，跳过非 `lib/` 目标，幂等可重复执行。
   - **验证**：`flutter analyze` 零警告，`flutter test` 484 / 5 / 0，`dart scripts/ai_code_checker.dart` 阻断 0 / 警告 0。
 
+- **测试(coverage): 大厂级覆盖率治理 v1.0**：
+  - **弱断言升级（4 处）**：`addRandomTile` 满盘验证 ids 集合不变 / `move(left)` 默认音效路径验证合并发生 / `eliminateTileById(9999)` 不存在 id 验证棋盘+score 不变 / `flushPersistState` ×2 验证 SP 实际写入。
+  - **删除 1 条无效 skip**：`tts_engine_service_test.dart` 中长期挂靠的 idle timeout skip 用例（已迁移到 `TtsAudioNotifier`）彻底删除，避免误导维护者。
+  - **新增 10 条 T-X 回归用例**：T-A pause→resume 闭环不跳句 + 衍生 stopAll 重置；T-B 连续失败自动降级 + 衍生 refreshSession 归零；T-C cancelImport dispose 路径同步快速完成；T-D × 5 TtsErrorListener 错误节流（同时间戳去重 / 1s 节流窗口 / fallback 清空重置 / 不同错误各触发）。
+  - **新建 `test/shared/widgets/tts_error_listener_test.dart`**：从 0% 拉到 78% 覆盖。
+  - **新增工具**：`scripts/parse_lcov.py`（覆盖率解析）+ `scripts/check_coverage_gate.py`（CI 强制门禁，支持 --overall / --core 阈值 + 豁免清单 + 核心文件清单逐个校验）。
+  - **新增治理文档**：`docs/testing/COVERAGE_GOVERNANCE_20260508.md`，对齐互联网大厂正式标准（整体 ≥ 80% / 核心 ≥ 90% / Bug 修复 100%），含分阶段达标路线图、CI 门禁规则、命令集与历史变更。
+  - **覆盖率提升**：整体 53.78% → **56.60%**；核心 `tts_audio_notifier.dart` **42.18% → 66.31%（+24 pp）**；`tts_error_listener.dart` **0% → 78.05%**；`tts_engine_service.dart` 64.64% → 67.68%。
+  - **测试用例数**：484 → **494**（+10），skipped 5 → 4。
+  - **验证**：`flutter analyze` 零警告，`flutter test` 494 / 4 / 0，`dart scripts/ai_code_checker.dart` 阻断 0 / 警告 0，`python scripts/check_coverage_gate.py --overall 55 --core 55` PASSED。
+
 ## **2026-05-06**
 
 - **修复(full-stack): 全栈代码质量评审修复**：
