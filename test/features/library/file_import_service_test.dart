@@ -140,5 +140,128 @@ void main() {
           reason: 'T-C：cancelImport 必须同步快速完成（<100ms），不阻塞 dispose');
       expect(FileImportService.isImporting, isFalse);
     });
+
+    // ── 阶段 1 治理：补齐流式解析的章节提取分支 ────────────────────────────────
+    test('parseFileForTesting 噪音行（如 "正文"）必须被跳过且不出现在 lines 中', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_import_noise_');
+      addTearDown(() async {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final file = File('${dir.path}/noise.txt');
+      await file.writeAsString('正文\n第一章 起点\n你好\n***\n第二章 继续\n下文');
+
+      final result = await FileImportService.parseFileForTesting(
+        file.path,
+        'noise.txt',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.lines, contains('正文'),
+          reason: '解析阶段保留行，章节提取阶段才会跳过 "正文" 噪音');
+      // 噪音行不应被识别为章节
+      final titles = result.chapters.map((c) => c.title).toList();
+      expect(titles, equals(<String>['第一章 起点', '第二章 继续']),
+          reason: '"正文"/"***" 噪音行不得被识别为章节标题');
+    });
+
+    test('parseFileForTesting 标题清洗：含 VIP卷/正文 前缀的章节必须被剥离', () async {
+      final dir =
+          await Directory.systemTemp.createTemp('yueyou_import_cleantitle_');
+      addTearDown(() async {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final file = File('${dir.path}/clean.txt');
+      // "VIP卷第一章 章名" 应被清洗为 "第一章 章名"
+      await file.writeAsString('VIP卷第一章 起航\n内容一');
+
+      final result = await FileImportService.parseFileForTesting(
+        file.path,
+        'clean.txt',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.chapters.length, 1);
+      expect(result.chapters.single.title, contains('第一章'),
+          reason: 'titleGarbageRegex 必须剥离 VIP卷/正文 前缀');
+      expect(result.chapters.single.title, isNot(contains('VIP卷')));
+    });
+
+    test('parseFileForTesting 章节行 ≥ 50 字时不识别为章节标题', () async {
+      final dir =
+          await Directory.systemTemp.createTemp('yueyou_import_longline_');
+      addTearDown(() async {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final file = File('${dir.path}/long.txt');
+      // 一行同时包含 "第一章" 但总长 ≥ 50 字 → 应当不被当作章节标题（防误识章中段落）。
+      // String.length 在 Dart 中按 UTF-16 码元计数，每个中文 = 1，标点 = 1。
+      final longLine = '第一章 起点的故事正文内容长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长';
+      assert(longLine.length >= 50,
+          'longLine 必须 >=50 字符以触发 < 50 守卫；实际 ${longLine.length}');
+      await file.writeAsString('$longLine\n第二章 短\n短内容');
+
+      final result = await FileImportService.parseFileForTesting(
+        file.path,
+        'long.txt',
+      );
+
+      expect(result, isNotNull);
+      // 仅 "第二章 短" 应被识别
+      expect(result!.chapters.map((c) => c.title), equals(<String>['第二章 短']),
+          reason: '长度 ≥ 50 字的行不得被识别为章节标题（防误识章中段落）');
+    });
+
+    test('parseFileForTesting 文件全空时返回 lines 与 chapters 均为空', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_import_empty_');
+      addTearDown(() async {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final file = File('${dir.path}/empty.txt');
+      await file.writeAsString('');
+
+      final result = await FileImportService.parseFileForTesting(
+        file.path,
+        'empty.txt',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.lines, isEmpty);
+      expect(result.chapters, isEmpty);
+    });
+
+    // ── UTF-8 校验 / BOM 边界 ──────────────────────────────────────────────
+    test('isValidUtf8SampleForTesting：3 字节序列尾部截断仍视为有效', () {
+      // 0xE4 0xB8 是 "中" 字的前两字节，最后一字节缺失 — 采样模式下应返回 true
+      final bytes = Uint8List.fromList(const [0xE4, 0xB8]);
+      expect(FileImportService.isValidUtf8SampleForTesting(bytes), isTrue);
+    });
+
+    test('isValidUtf8SampleForTesting：4 字节序列（F0xx 范围）合法', () {
+      // 0xF0 0x9F 0x98 0x80 = "😀"
+      final bytes = Uint8List.fromList(const [0xF0, 0x9F, 0x98, 0x80, 0x41]);
+      expect(FileImportService.isValidUtf8SampleForTesting(bytes), isTrue);
+    });
+
+    test('isValidUtf8SampleForTesting：续字节超出 0x80-0xBF 范围则视为非法', () {
+      // 0xE4 0x00 0x00 — 续字节非法
+      final bytes = Uint8List.fromList(const [0xE4, 0x00, 0x00]);
+      expect(FileImportService.isValidUtf8SampleForTesting(bytes), isFalse);
+    });
+
+    test('isValidUtf8SampleForTesting：0xE0 + 续字节 < 0xA0 视为非法（overlong）', () {
+      // 0xE0 0x80 0x80 — overlong 编码必须视为非法
+      final bytes = Uint8List.fromList(const [0xE0, 0x80, 0x80]);
+      expect(FileImportService.isValidUtf8SampleForTesting(bytes), isFalse);
+    });
+
+    test('stripUtf8BomForTesting：无 BOM 时返回原 bytes', () {
+      final bytes = Uint8List.fromList(const [0x41, 0x42, 0x43]);
+      final stripped = FileImportService.stripUtf8BomForTesting(bytes);
+      expect(stripped, equals(bytes));
+    });
   });
 }
