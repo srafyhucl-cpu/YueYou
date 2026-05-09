@@ -9,9 +9,12 @@
 | --- | --- | --- | --- | --- |
 | `TtsAudioNotifier` | 80.11% | **85.15%** (+5.04pp) | ≥ 85% | ✅ 跨越阈值 |
 | `TtsEngineService` | 70.18% | **76.83%** (+6.65pp) | ≥ 75% | ✅ 跨越阈值 |
-| `FileImportService` | 56.00% | 56.00% | ≥ 75% | ⏳ 待下轮 |
-| 测试用例总数 | 590 | **610** (+20) | — | 全过 / 0 失败 |
+| `FileImportService` | 56.00% | **90.40%** (+34.40pp) | ≥ 75% | ✅ **超额完成** |
+| 整体覆盖率 | 60.14% | **61.65%** (+1.51pp) | ≥ 70%（阶段 2） | ⏳ 阶段 2 |
+| 测试用例总数 | 590 | **611** (+21) | — | 全过 / 4 skipped / 0 失败 |
 | `flutter analyze` | 0 错 0 警 | 0 错 0 警 | 强制零警告 | ✅ |
+
+**阶段 1 三大攻坚目标全部跨越阈值。** 进入阶段 2 整体覆盖率冲刺前先收口。
 
 ## 第 1 段：TtsAudioNotifier 覆盖率攻坚（80.11% → 85.15%）
 
@@ -104,26 +107,67 @@ listener 是 dead code：`SettingsProvider` 是 ChangeNotifier，notify 时 `pre
 4. **`_safeSetVolume` catchError 路径**：同上但抛错点为 `setVolume`，通过
    `settings.setAmbientVol(0.9)` 触发，覆盖 line 546-556。
 
-### 测试基础设施补充
+### 测试基础设施补充（第 2 段）
 
 - 新增 `_ThrowingRateVolumeAudioPlayer`：`setPlaybackRate` / `setVolume`
   抛错，其余方法透传到内部 `_FakeAudioPlayer`。
 
-## 下一轮入口
+## 第 3 段：FileImportService 覆盖率攻坚（56.00% → 90.40%）
 
-- **FileImportService 56.00% → ≥75%**（阶段 1 主线，剩余 +19pp 缺口最大）：
-  Isolate 流式解析的边界与异常路径仍为最低洼地，需要小批量补齐。
+`FileImportService` 起点最低（56%），但通过 `FilePicker` 平台 mock 走通完整
+公开 API 链路一次性拿下大段连续未覆盖代码，覆盖 `importTxtFileStructured`
+、`_spawnParseIsolate` 与 `_isolateEntryPoint` 三处。
+
+### 新增用例（7 条）
+
+1. **`FileTooLargeException.toString` 包含 15MB 限制**：覆盖 line 23-24。
+2. **GBK 编码文件流式解析**：用 `fast_gbk` 包反向编码生成纯 GBK 字节，前 4KB
+   嗅探判定 `useUtf8=false` → `gbk.decoder` 分支生效，覆盖 line 245。
+3. **`importTxtFileStructured` 用户取消（pickFiles 返回 null）**：覆盖 line 76-78。
+4. **`importTxtFileStructured` filePath 为空 → catch FileSystemException 返回 null**：
+   覆盖 line 80-82 + 100-106。
+5. **`importTxtFileStructured` 文件超过 15MB → rethrow FileTooLargeException**：
+   覆盖 line 88, 91-94, 99（rethrow 路径）。
+6. **`importTxtFileStructured` happy path（完整 Isolate 解析）**：覆盖 line 96-97，
+   同时覆盖 `_spawnParseIsolate` line 111-159 与 `_isolateEntryPoint` line 162-184。
+7. **`cancelImport` 在 `_activeIsolate != null` 时走 kill 路径**：fire-and-forget
+   启动大文件解析后立即调 `cancelImport`，覆盖 line 188-194。
+
+### 测试基础设施补充（第 3 段）
+
+- 新增 `_FakeFilePicker extends FilePicker`：通过 PlatformInterface token 验证，
+  仅 override `pickFiles` 让其返回受控的 `FilePickerResult`。
+- 测试环境下 `FilePicker._instance` 是 late 字段且无 platform plugin 注册，
+  直接读 `FilePicker.platform` 会抛 LateInitializationError，因此每个用例
+  独立 set 新 fake，不备份 / 不恢复。
+
+### Windows tempDir 清理踩坑
+
+`cancelImport` 用例启动大文件解析 Isolate 后立即 kill，Windows 下被 kill
+的 Isolate 可能仍持有文件句柄短暂时刻，`addTearDown` 内 `dir.delete` 会抛
+`PathAccessException`（错误码 32：文件被另一进程占用）。**结论**：mock
+Isolate kill 路径的 cleanup 必须用 try/catch 容忍删除失败。
+
+## 下一轮入口（阶段 2：整体覆盖率冲刺）
+
+- **整体覆盖率 61.65% → ≥70%**（阶段 2 门禁）：剩余 +8.35pp，需要扫荡 lib 中
+  尚未覆盖的中等模块（widget 测试、provider 边界、core/utils）。
 - **TtsAudioNotifier 85.15% → 90%**（可选加强）：补 `_onPlaybackComplete` 多分支 +
   `_copyStateWithRate` Playing/Error case + `_isPausedInterrupt`。
 - **TtsEngineService 76.83% → 85%**（可选加强）：剩余 `_RealHttpClient` 真网络
   分支大概率需要本地 HttpServer fixture 支撑，ROI 偏低。
+- **lib 治理**：修复 `tts_audio_notifier.dart:95-99` settings listener dead code。
 
 ## 验收
 
 | 项 | 指标 | 结果 |
 | --- | --- | --- |
+| `flutter test`（全量） | 全过 | ✅ 611 / 4 skipped / 0 失败 / 20 秒 |
 | `flutter test test/features/audio/tts_audio_notifier_test.dart` | 全过 | ✅ 27 / 0 失败 / 7 秒 |
 | `flutter test test/features/audio/tts_engine_service_test.dart` | 全过 | ✅ 45 / 0 失败 / 6 秒 |
+| `flutter test test/features/library/file_import_service_test.dart` | 全过 | ✅ 25 / 0 失败 / 8 秒 |
 | `flutter analyze` | 零错误零警告 | ✅ No issues found |
 | `coverage_focus.py --files tts_audio_notifier.dart` | ≥ 85% | ✅ **85.15%** (321/377) |
 | `coverage_focus.py --files tts_engine_service.dart` | ≥ 75% | ✅ **76.83%** (431/561) |
+| `coverage_focus.py --files file_import_service.dart` | ≥ 75% | ✅ **90.40%** (113/125) |
+| 整体覆盖率 | 阶段 1 持平不下降 | ✅ **61.65%** (3190/5174, +1.51pp) |
