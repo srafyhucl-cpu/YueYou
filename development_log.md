@@ -1,5 +1,27 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-09**
+
+- **测试(coverage): TtsAudioNotifier 覆盖率攻坚（80.11% → 85.15%，+5.04pp，跨越 P4 阈值 85%）**：
+  - **新增 6 条用例**（27 全过 / 7 秒）：
+    - `cycleSpeed Idle` / `stopAll Idle 保留 playbackRate` 两条字段级防御断言。
+    - `idleTimer 到期 fire 自动 pause`（fakeAsync）：通过 `engine.notifyUserActivity()`
+      触发 `ttsEngineProvider` listener 路径绕过 lib 侧 settings listener 的 dead code 缺陷。
+    - `setBackgroundTolerant(true) 后 _prefetchPaused` 退避（fakeAsync）：覆盖
+      `_prefetchRunner` 2000ms 退避分支。
+    - `T-B 衍生 2`：`_pumpDegraded` 在 sentenceSource 耗尽时早返自动退出降级，
+      `_LimitedSentenceSource(returnLimit=6)` 与 `_refillBuffer` filePath==null
+      路径降级阈值齐平，绕过 `pingServer` 真网络 3s 超时。
+    - `T-B 衍生 3`：`_pumpDegraded` 在 `pingServer` 可达时退出降级，flutter_test
+      默认 mock HttpClient 返回 400 status → reachable=true → 命中 line 695-698 路径。
+  - **新增** `_LimitedSentenceSource` 测试基础设施，限定返回次数后返回 null，
+    专门用于驱动 `_pumpDegraded` 的不同分支。
+  - **lib 侧已知缺陷记录**：`tts_audio_notifier.dart:95-99` 的 settings listener
+    是 dead code（`SettingsProvider` 是 ChangeNotifier，notify 时 prev 与 next 同对象），
+    后续治理需改为快照对比上一次 `idleTimeout` 数值。
+  - **验证**：`flutter analyze` 零警告；聚焦覆盖率 **85.15%** (321/377)。
+  - **任务单**：`DevelopmentPlan/20260509_TtsAudioNotifier覆盖率突破85.md`。
+
 ## **2026-05-08**
 
 - **修复(audit): 深度代码评审与回归修复（P0 × 8 + P1 × 6）**：
