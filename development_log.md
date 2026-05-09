@@ -2,6 +2,30 @@
 
 ## **2026-05-09**
 
+- **修复(audit): lib 治理 P3 收口（测试基础设施完善：fake httpClient.download + 隔离 temp dir 工具方法）**：
+  - **P3 修复 · `_AlwaysFail500HttpClient.download` 测试盲区**：
+    - **位置**：`@/test/features/audio/tts_audio_notifier_test.dart:92-113`
+    - **缺陷**：fake httpClient 仅实现 post 返回 500，`download` 是空实现
+      `async {}`，导致只调 download 的路径无法被覆盖率工具探测到。
+    - **修复**：`download` 同步抛 `HttpException('simulated outage on download')`
+      并增加 `downloadCalls` 计数，与 post 失败语义一致。
+  - **P3 修复 · `initializeTestEnvironmentWithIsolatedTempDir` 工具方法抽离**：
+    - **位置**：`@/test/utils/test_utils.dart:140-174`
+    - **缺陷**：`default_book_service_test.dart` 等多处测试为隔离 temp dir 重复
+      实现「mock path_provider channel + createTemp + StorageService.reset」
+      样板，违反 DRY。
+    - **修复**：在 `test_utils.dart` 新增工具方法：
+      1. `initializeTestEnvironment()` 基础初始化
+      2. `StorageService.resetForTesting() + init()` 隔离持久层
+      3. `Directory.systemTemp.createTemp(prefix)` 创建独立目录
+      4. 重写 path_provider channel 指向该目录
+      5. 返回 tempDir 供 tearDown 清理使用。
+  - **代码评审待办清单更新**：`DevelopmentPlan/20260509_代码评审待办清单.md`
+    标记 6 条 ✅（1 P1 + 1 P2 + 4 P3），剩余 2 条 P3 待后续迭代消化（缓存写入
+    失败 in-process fallback / markdownlint 警告）。
+  - **验证**：`flutter analyze` 零警告；`tts_audio_notifier_test.dart` 28 用例
+    全过 / 8 秒。
+
 - **修复(audit): lib 治理（P1 dead code listener + 2 个 P3 容错一致性 / 协议字段校验）**：
   - **P1 修复 · TtsAudioNotifier settings listener dead code**：
     - **位置**：`@/lib/features/audio/providers/tts_audio_notifier.dart:95-99`

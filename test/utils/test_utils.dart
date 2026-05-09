@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
@@ -136,6 +137,40 @@ Future<void> initializeTestEnvironment() async {
     const MethodChannel('flutter/system_sound'),
     (methodCall) async => null,
   );
+}
+
+/// 初始化测试环境并把 path_provider 重定向到独立 [Directory.systemTemp] 子目录。
+///
+/// 用于需要文件读写隔离的测试（如 [DefaultBookService] 的章节缓存、
+/// [FileImportService] 的临时文件）。每个用例独立 temp dir 可避免缓存交叉
+/// 污染、跨用例残留文件。
+///
+/// 用法：
+/// ```dart
+/// late Directory tempDir;
+/// setUp(() async {
+///   tempDir = await initializeTestEnvironmentWithIsolatedTempDir('yueyou_book_');
+/// });
+/// tearDown(() async {
+///   try {
+///     if (await tempDir.exists()) await tempDir.delete(recursive: true);
+///   } catch (_) {}
+/// });
+/// ```
+Future<Directory> initializeTestEnvironmentWithIsolatedTempDir(
+  String prefix,
+) async {
+  await initializeTestEnvironment();
+  StorageService.resetForTesting();
+  await StorageService.init();
+
+  final tempDir = await Directory.systemTemp.createTemp(prefix);
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('plugins.flutter.io/path_provider'),
+    (call) async => tempDir.path,
+  );
+  return tempDir;
 }
 
 // ── 共享工厂方法 ──────────────────────────────────────────────────────────

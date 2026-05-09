@@ -89,8 +89,12 @@ class _SingleAudioHttpClient implements TtsHttpClient {
 ///
 /// post 直接返回 500，TtsEngineService.downloadAudio 经过 maxRetries 次重试后返回 null，
 /// _refillBuffer 中触发 _consecutiveFailures++，达到阈值（默认 6）后调用 _degradeToLocal。
+///
+/// P3 修复：`download` 同步抛 [HttpException] 以保持失败语义一致，避免某些
+/// 路径只调 `download` 时被静默吞掉造成测试盲区。
 class _AlwaysFail500HttpClient implements TtsHttpClient {
   int postCalls = 0;
+  int downloadCalls = 0;
 
   @override
   Future<TtsHttpResponse> post(
@@ -103,7 +107,10 @@ class _AlwaysFail500HttpClient implements TtsHttpClient {
   }
 
   @override
-  Future<void> download(Uri url, String savePath) async {}
+  Future<void> download(Uri url, String savePath) async {
+    downloadCalls++;
+    throw const HttpException('simulated outage on download');
+  }
 }
 
 /// T-B：可控的句子源，不会枯竭，每次返回相同的 mock 句子。
