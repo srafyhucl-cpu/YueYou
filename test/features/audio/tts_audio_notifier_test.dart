@@ -139,6 +139,45 @@ class _InfiniteSentenceSource implements TtsSentenceSource {
   void resetFetchIndex() {}
 }
 
+/// 限定返回次数的句子源：calls ≤ [returnLimit] 时返回非 null，超过后返回 null。
+///
+/// 用途：让 `_pumpDegraded` 在降级激活后，下一轮取句子时返回 null，命中
+/// `lib/features/audio/providers/tts_audio_notifier.dart:683-688` 的"无更多内容
+/// → 自动退出降级"分支，**避免触发 pingServer 真网络 3s 超时**。
+class _LimitedSentenceSource implements TtsSentenceSource {
+  final int returnLimit;
+  int nextCalls = 0;
+  int startedCalls = 0;
+  int finishedCalls = 0;
+
+  _LimitedSentenceSource({required this.returnLimit});
+
+  @override
+  Future<TtsAudioRequest?> nextTtsSentence(int session) async {
+    nextCalls++;
+    if (nextCalls > returnLimit) return null;
+    return TtsAudioRequest(
+      lineIndex: nextCalls,
+      endLineIndex: nextCalls,
+      text: '降级回退测试句 $nextCalls',
+      title: '降级回退测试章节',
+    );
+  }
+
+  @override
+  FutureOr<void> onTtsItemStarted(TtsAudioItem item) {
+    startedCalls++;
+  }
+
+  @override
+  FutureOr<void> onTtsItemFinished(TtsAudioItem item) {
+    finishedCalls++;
+  }
+
+  @override
+  void resetFetchIndex() {}
+}
+
 /// fakeAsync 专用：句子源始终返回 null，让 _refillBuffer 走 `await Future.delayed(500ms)`
 /// 分支，避免 _prefetchRunner 在没有 sentenceSource 时进入 microtask 死循环（while 内
 /// _refillBuffer 早返 + 无 await ⇒ flushMicrotasks 无法终结）。
@@ -562,6 +601,151 @@ void main() {
     await notifier.stopAll();
   }, timeout: const Timeout(Duration(seconds: 15)));
 
+  // ── T-B 衍生 2：sentenceSource 耗尽时 _pumpDegraded 必须自动退出降级 ───────
+  //
+  // 覆盖 lib/features/audio/providers/tts_audio_notifier.dart:679-688：
+  //   _pumpDegraded → nextTtsSentence == null → 重置 _isDegradedToLocal=false。
+  //
+  // 设计要点：
+  //   * _LimitedSentenceSource(returnLimit=8)：前 8 次 _refillBuffer 调用
+  //     拿到非 null request → downloadAudio 全部 500 失败 → 第 8 次累计触发
+  //     _degradeToLocal → _isDegradedToLocal=true。
+  //   * 降级激活后 _prefetchRunner 退避不再调 nextTtsSentence；
+  //     _playRunner 走 _pumpDegraded 调第 9 次 nextTtsSentence → 返回 null
+  //     → 命中早返分支 → _isDegradedToLocal=false。
+  //   * **关键**：nextTtsSentence==null 在 pingServer 之前早返，
+  //     绕过真 dart:io HttpClient 的 3s 连接超时，避免测试阻塞。
+  test('T-B 衍生 2：降级激活后 sentenceSource 耗尽必须自动退出降级模式', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _AlwaysFail500HttpClient();
+    final engine = TtsEngineService(
+      settings,
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        maxRetries: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final notifier = container.read(ttsAudioProvider.notifier);
+    // returnLimit=6 与 _refillBuffer 的 filePath==null 路径降级阈值（6）齐平：
+    // 前 6 次 nextTtsSentence 返回非 null 触发降级；第 7+ 次（含 _pumpDegraded
+    // 调用）返回 null 让 _pumpDegraded 命中 line 683-688 早返路径。
+    final source = _LimitedSentenceSource(returnLimit: 6);
+    notifier.registerSentenceSource(source);
+    notifier.play();
+
+    // 等到 _refillBuffer 失败累计触发 _degradeToLocal → isDegraded=true
+    for (int i = 0; i < 500 && !notifier.isDegraded; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(notifier.isDegraded, isTrue,
+        reason: '前置：6 次 downloadAudio 失败必须先触发降级');
+
+    // 等到 _playRunner → _pumpDegraded → nextTtsSentence(==null) → 退出降级
+    for (int i = 0; i < 500 && notifier.isDegraded; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(notifier.isDegraded, isFalse,
+        reason:
+            'sentenceSource 耗尽时 _pumpDegraded 必须把 _isDegradedToLocal 重置为 false');
+
+    await notifier.stopAll();
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  // ── T-B 衍生 3：_pumpDegraded 在 pingServer 可达时必须自动退出降级 ──────────
+  //
+  // 覆盖 lib/features/audio/providers/tts_audio_notifier.dart:690-698：
+  //   _pumpDegraded → request != null → await _degradeToLocal(request)
+  //                 → await pingServer() == true → 退出降级 (line 694-698)
+  //
+  // 与 T-B 衍生 2 互补：
+  //   * 衍生 2 覆盖 line 683-688（request==null 早返）
+  //   * 本用例覆盖 line 690-698（request!=null + ping 成功退出降级）
+  //
+  // 设计要点：
+  //   * returnLimit=999999 让 _pumpDegraded 始终拿到非 null request，
+  //     不会因句子源耗尽走 line 685-688 早返路径。
+  //   * pingServer 走真 dart:io HttpClient；flutter_test 默认通过
+  //     HttpOverrides 注入 mock client，response.statusCode=400 < 500
+  //     → reachable=true → 命中 line 695-698 退出降级路径。
+  test('T-B 衍生 3：_pumpDegraded 在 pingServer 可达时必须自动退出降级', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _AlwaysFail500HttpClient();
+    final engine = TtsEngineService(
+      settings,
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        maxRetries: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final notifier = container.read(ttsAudioProvider.notifier);
+    final source = _LimitedSentenceSource(returnLimit: 999999);
+    notifier.registerSentenceSource(source);
+    notifier.play();
+
+    // 等到 isDegraded=true（≤ 5s 内触发）
+    for (int i = 0; i < 500 && !notifier.isDegraded; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(notifier.isDegraded, isTrue, reason: '前置：先进入降级模式');
+
+    // 等 _pumpDegraded 跑 _degradeToLocal+pingServer：mock HttpClient 返回 400
+    // → reachable=true → 退出降级。最多等 5s。
+    for (int i = 0; i < 500 && notifier.isDegraded; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(notifier.isDegraded, isFalse,
+        reason: 'pingServer 可达时 _pumpDegraded 必须退出降级（covered line 695-698）');
+    expect(source.nextCalls, greaterThan(6),
+        reason:
+            '_pumpDegraded 必须至少调用过 1 次 nextTtsSentence（_degradeToLocal 路径）');
+
+    await notifier.stopAll();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
   // ── 阶段 1 推进：TtsAudioNotifier 公开 API 全覆盖 ───────────────────────────
   // 目标：把 lib/features/audio/providers/tts_audio_notifier.dart
   // 从 70.56% 拉到 ≥ 75%。下面的用例均 sentence-source-less（避免泵真实启动）。
@@ -733,6 +917,47 @@ void main() {
       await s.notifier.stopAll();
     });
 
+    // ── _copyStateWithRate switch 分支：Idle 状态下 cycleSpeed ────────────
+    // 默认 _setup() 后 state 为 Idle，cycleSpeed 走 _copyStateWithRate 的
+    // TtsAudioIdle() 分支（lib/features/audio/providers/tts_audio_notifier.dart
+    // :708-711）+ _toEnginePlaybackState Idle 分支（line 763）。
+    // 不启动 pump，不需 fakeAsync。
+    test('cycleSpeed 在 Idle 状态下必须保留 fallbackMessage 字段', () async {
+      final s = await _setup();
+      expect(s.notifier.state, isA<TtsAudioIdle>(),
+          reason: '_setup 后 state 默认为 Idle');
+
+      final beforeRate = s.notifier.state.playbackRate;
+      final beforeFallback = s.notifier.state.fallbackMessage;
+
+      s.notifier.cycleSpeed();
+
+      final after = s.notifier.state;
+      expect(after, isA<TtsAudioIdle>(), reason: 'cycleSpeed 在 Idle 下不得改变状态类型');
+      expect(after.playbackRate, isNot(equals(beforeRate)),
+          reason: 'playbackRate 必须切换到下一档');
+      expect(after.fallbackMessage, beforeFallback,
+          reason: 'cycleSpeed 必须保留 fallbackMessage（不丢失降级提示）');
+    });
+
+    // ── stopAll 在 Idle 状态下幂等回到 Idle（覆盖 stopAll → _applyState(Idle)）──
+    // 现有 'stopAll 在 Idle 状态下幂等' 用例只验 state 类型；此处补充
+    // playbackRate 与 fallbackMessage 字段必须保留，覆盖 _toEnginePlaybackState
+    // Idle 分支与 syncShadow 调用链。
+    test('stopAll 在 Idle 状态下保留 playbackRate（不重置）', () async {
+      final s = await _setup();
+      // 先 cycle 一次让 playbackRate ≠ 默认
+      s.notifier.cycleSpeed();
+      final rateAfterCycle = s.notifier.state.playbackRate;
+      expect(rateAfterCycle, isNot(equals(1.0)));
+
+      await s.notifier.stopAll();
+      expect(s.notifier.state, isA<TtsAudioIdle>());
+      // stopAll 重新构造 TtsAudioIdle(playbackRate: _playbackRate)
+      expect(s.notifier.state.playbackRate, rateAfterCycle,
+          reason: 'stopAll 必须保留当前 playbackRate（_playbackRate 字段）');
+    });
+
     // ─────────────────────────────────────────────────────────────────
     // 阶段 1 第 4 轮：fakeAsync 安全推进 pump-timer 相关分支
     // ─────────────────────────────────────────────────────────────────
@@ -902,6 +1127,74 @@ void main() {
 
         // 已在测试内调过 stopAll，_fakeTeardown 中再调一次幂等
         s.settings.idleTimeout = 0;
+        _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
+      });
+    });
+
+    // ── idleTimer fire 后必须自动 pause ──────────────────────────────
+    // 覆盖 lib/features/audio/providers/tts_audio_notifier.dart:116-122
+    // (Timer callback：CyberLogger.captureMessage + pause())
+    //
+    // 触发说明：settingsProvider 是 ChangeNotifierProvider，prev 与 next 引用
+    // 同一个 SettingsProvider 实例，`prev?.idleTimeout != next.idleTimeout`
+    // 永远 false（这是 settings listener 的已知缺陷），所以单独改字段不会
+    // 触发 _resetIdleTimer。改用 ttsEngineProvider listener 路径：
+    // engine.notifyUserActivity() → notifyListeners → _resetIdleTimer 创建 Timer。
+    test('idleTimer 到期 fire 必须自动调用 pause()', () {
+      fakeAsync((ctrl) {
+        final s = _fakeSetup(ctrl);
+        // ignore: deprecated_member_use_from_same_package
+        s.notifier.setEnabled(true);
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioBuffering>());
+
+        // 1) 直接置字段为 1 分钟（_resetIdleTimer 读 settings.idleTimeout）
+        s.settings.idleTimeout = 1;
+        // 2) 通过 engine 心跳路径触发 _resetIdleTimer → Timer(1min) 创建
+        s.engine.notifyUserActivity();
+        ctrl.flushMicrotasks();
+
+        // 推进 1 分 1 秒（>1min），idleTimer 必须 fire 触发 pause callback
+        ctrl.elapse(const Duration(seconds: 61));
+        ctrl.flushMicrotasks();
+
+        expect(s.notifier.state, isA<TtsAudioPaused>(),
+            reason: 'idleTimer fire 后必须自动 pause → state 进入 Paused');
+
+        s.settings.idleTimeout = 0;
+        _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
+      });
+    });
+
+    // ── setBackgroundTolerant(true) 后 _prefetchPaused 分支必须被 pump 走到 ──
+    // 覆盖 tts_audio_notifier.dart:317-320 (_prefetchRunner 内
+    // if (_prefetchPaused) { await Future.delayed(2000ms); continue; })
+    test('setBackgroundTolerant(true) 后 pump 必须进入 _prefetchPaused 退避', () {
+      fakeAsync((ctrl) {
+        final s = _fakeSetup(ctrl);
+        // ignore: deprecated_member_use_from_same_package
+        s.notifier.setEnabled(true);
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioBuffering>());
+
+        // 切换为后台宽容模式：_prefetchPaused = true
+        s.notifier.setBackgroundTolerant(true);
+        ctrl.flushMicrotasks();
+
+        // 推进 5 秒让 pump 至少转一圈进入 _prefetchPaused await Future.delayed(2000ms)
+        ctrl.elapse(const Duration(seconds: 5));
+        ctrl.flushMicrotasks();
+
+        // 仍处于 Buffering（pump 没新增 buffer，因为预取被暂停）
+        expect(s.notifier.state, isA<TtsAudioBuffering>(),
+            reason: '_prefetchPaused 期间 state 不变');
+        expect(s.notifier.buffer.count, 0,
+            reason: '_prefetchPaused 期间不应继续填充 buffer');
+
+        // 退出后台宽容
+        s.notifier.setBackgroundTolerant(false);
+        ctrl.flushMicrotasks();
+
         _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
       });
     });
