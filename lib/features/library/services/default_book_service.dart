@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/constants/book_constants.dart';
@@ -28,21 +29,47 @@ class DefaultBookService {
   /// HTTP 客户端：默认走 [http.Client()]（dart:io），测试可注入 [MockClient]。
   final http.Client _httpClient;
 
+  /// 进程内目录缓存（P3 优化）。
+  ///
+  /// 在网络成功或本地磁盘命中后填充，规避「磁盘写入失败但同会话仍需复用」的
+  /// 重复网络拉取。**降级到内置常量时不写入**，以保留下次重试网络的机会。
+  List<ChapterModel>? _catalogMemCache;
+
+  /// 进程内章节正文缓存（P3 优化）。
+  ///
+  /// 同上：磁盘 fire-and-forget 写入失败时确保同一会话再次请求该章无需走网络。
+  /// 章节总数上限 100，全量驻留约几百 KB，可接受。
+  final Map<int, String> _chapterMemCache = {};
+
   DefaultBookService({
     this.bookKey = BookConstants.defaultBookKey,
     http.Client? httpClient,
   }) : _httpClient = httpClient ?? http.Client();
 
+  /// 测试钩子：清空进程内缓存。
+  @visibleForTesting
+  void clearMemoryCacheForTesting() {
+    _catalogMemCache = null;
+    _chapterMemCache.clear();
+  }
+
   // ── 目录获取：缓存 → 网络 → 内置常量 ───────────────────────────────────
 
   /// 获取书目（章节标题列表）
   ///
-  /// 优先级：本地文件缓存 → GET 网络拉取 → 内置 Dart 常量（离线兜底）
+  /// 优先级：进程内内存缓存 → 本地文件缓存 → GET 网络拉取 → 内置 Dart 常量
   Future<List<ChapterModel>> getCatalog() async {
+    // 0. 进程内缓存（P3 优化：规避磁盘写入失败导致同会话重复网络拉取）
+    if (_catalogMemCache != null && _catalogMemCache!.isNotEmpty) {
+      return _catalogMemCache!;
+    }
+
     // 1. 本地缓存
     final cached = await StorageService.loadBookCatalog(bookKey);
     if (cached != null && cached.isNotEmpty) {
-      return cached.map(ChapterModel.fromJson).toList();
+      final models = cached.map(ChapterModel.fromJson).toList();
+      _catalogMemCache = models;
+      return models;
     }
 
     // 2. 网络拉取
@@ -78,6 +105,8 @@ class DefaultBookService {
                 ),
               )
               .toList();
+          // P3 优化：先写内存缓存，确保即使磁盘写入失败本会话也能复用
+          _catalogMemCache = models;
           // 异步写缓存，不阻塞返回
           StorageService.saveBookCatalog(
             bookKey,
@@ -131,9 +160,16 @@ class DefaultBookService {
       return null;
     }
 
+    // 0. 进程内缓存命中（P3 优化）
+    final memCached = _chapterMemCache[chapterIndex];
+    if (memCached != null) return memCached;
+
     // 1. 本地缓存命中
     final cached = await StorageService.loadChapterCache(bookKey, chapterIndex);
-    if (cached != null) return cached;
+    if (cached != null) {
+      _chapterMemCache[chapterIndex] = cached;
+      return cached;
+    }
 
     // 2. 并发去重：如果该章节正在下载，等待同一个 Completer
     if (_inFlight.containsKey(chapterIndex)) {
@@ -145,6 +181,8 @@ class DefaultBookService {
     try {
       final text = await _downloadChapter(chapterIndex);
       if (text != null) {
+        // P3 优化：先写内存缓存，确保磁盘写入失败时同会话仍可复用
+        _chapterMemCache[chapterIndex] = text;
         // 写缓存后触发 LRU 清理（fire-and-forget）
         StorageService.saveChapterCache(bookKey, chapterIndex, text)
             .then(
@@ -200,8 +238,9 @@ class DefaultBookService {
     );
   }
 
-  /// 检查某章是否已有本地缓存（无需网络）。
+  /// 检查某章是否已有缓存（无需网络）。同时覆盖进程内缓存与本地磁盘缓存。
   Future<bool> isChapterCached(int chapterIndex) async {
+    if (_chapterMemCache.containsKey(chapterIndex)) return true;
     final text = await StorageService.loadChapterCache(bookKey, chapterIndex);
     return text != null;
   }
