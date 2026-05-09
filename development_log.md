@@ -2,6 +2,29 @@
 
 ## **2026-05-09**
 
+- **测试(coverage): 阶段 2 整体覆盖率冲刺（61.65% → 73.40%，跨越 P2 阈值 70%）**：
+  - **service/utils 第一波**（+0.72pp）：
+    - DefaultBookService 48.30% → 86.96%（+38.66pp，+11 用例）：lib 加 `httpClient`
+      可注入参数，MockClient 注入受控响应覆盖 getCatalog / fetchChapter /
+      _downloadChapter / prefetchNextChapter 全链路；测试基础设施加 path_provider
+      mock 重定向到独立 temp dir 避免缓存交叉污染。
+    - CyberLogger 59.70% → 66.67%（+5 用例）：补 `_sentryReady=true` 分支用例。
+    - AmbientService 64.40% → 68.49%（+8 用例）：补 `_initialized=true` 真实分支
+      （setEnabled / setStyle warm / setVolume / pause / resume / init 早返）。
+  - **widget screens 第二波**（+10.03pp，决定性突破）：
+    - LibraryScreen 0.87% → 76.52%（+75.65pp，+87 行）：4 条 widget 测试覆盖空
+      书架占位、单本书 BookCard 渲染、多本书 ListView.builder、CyberImportButton
+      FAB 挂载。
+    - DashboardScreen 0.41% → 63.41%（+63.00pp，+155 行）：3 条 widget 测试一次
+      性渲染整个仪表盘嵌套树（顶部导航 + 状态面板 + SquareBoard + BoardMascot +
+      TeleprompterView + CyberPlayerConsole），同时间接拉动多个子 widget。
+  - **测试基础设施**：`_FakeFilePicker`、`_LimitedSentenceSource`、
+    `_ThrowingRateVolumeAudioPlayer`、独立 temp dir + path_provider mock。
+  - **lib 改动**：DefaultBookService 加 `httpClient` 可注入参数（默认仍 `http.Client()`）。
+  - **验证**：`flutter analyze` 零警告；642 用例全过 / 4 skipped / 0 失败 / 33 秒；
+    整体覆盖率 60.14% → **73.40%** (+13.26pp 累计)。
+  - **下一阶段**：可选加强（widget 细节分支）/ lib 治理（settings listener dead code）。
+
 - **测试(coverage): 阶段 1 单点突破（TtsAudioNotifier + TtsEngineService 双跨阈值）**：
   - **TtsAudioNotifier 80.11% → 85.15%（+5.04pp，跨越 P4 阈值 85%）**：新增 6 条用例。
     - `cycleSpeed Idle` / `stopAll Idle 保留 playbackRate` 两条字段级防御断言。
