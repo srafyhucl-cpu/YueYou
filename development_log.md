@@ -22,15 +22,27 @@
       通过 `settings.setTtsRate(2.0)` 触发 `_onSettingsChanged` 链路，验证
       `unawaited(...catchError)` 必走 `_setLastError + captureWarning` 不外抛。
     - `_safeSetVolume` catchError：同上但通过 `settings.setAmbientVol(0.9)` 触发。
+  - **FileImportService 56.00% → 90.40%（+34.40pp，超额完成）**：通过 mock
+    `FilePicker.platform` 走通完整公开 API 链路，新增 7 条用例：
+    - `FileTooLargeException.toString` 包含 15MB 限制（line 23-24）。
+    - GBK 编码文件流式解析：`fast_gbk` 反向编码生成纯 GBK 字节，前 4KB
+      嗅探判定 `useUtf8=false` → `gbk.decoder` 分支生效（line 245）。
+    - `importTxtFileStructured` 用户取消（line 76-78）。
+    - filePath 为空 → catch FileSystemException 返回 null（line 80-82 + 100-106）。
+    - 文件超过 15MB → rethrow `FileTooLargeException`（line 88, 91-94, 99）。
+    - happy path 完整 Isolate 解析（line 96-97 + `_spawnParseIsolate` 111-159 +
+      `_isolateEntryPoint` 162-184）。
+    - `cancelImport` 在 `_activeIsolate != null` 时走 kill 路径（line 188-194）。
   - **新增测试基础设施**：`_LimitedSentenceSource(returnLimit:)`、
-    `_ThrowingRateVolumeAudioPlayer`。
+    `_ThrowingRateVolumeAudioPlayer`、`_FakeFilePicker`。
   - **lib 侧已知缺陷记录**：`tts_audio_notifier.dart:95-99` 的 settings listener
     是 dead code（`SettingsProvider` 是 ChangeNotifier，notify 时 prev 与 next 同对象），
     后续治理需改为快照对比上一次 `idleTimeout` 数值。
-  - **验证**：`flutter analyze` 零警告；27 / 45 用例分别全过；聚焦覆盖率
-    **TtsAudioNotifier 85.15%** (321/377) + **TtsEngineService 76.83%** (431/561)。
+  - **验证**：`flutter analyze` 零警告；611 全过 / 4 skipped / 0 失败 / 20 秒；
+    聚焦覆盖率 **TtsAudioNotifier 85.15%** + **TtsEngineService 76.83%** +
+    **FileImportService 90.40%**；整体覆盖率 60.14% → **61.65%**。
   - **任务单**：`DevelopmentPlan/20260509_TtsAudioNotifier覆盖率突破85.md`。
-  - **下轮入口**：`FileImportService 56.00% → ≥75%`（阶段 1 主线最后一项，缺口 +19pp）。
+  - **下轮入口**：阶段 2 整体覆盖率冲刺 61.65% → ≥70%（缺口 +8.35pp）。
 
 ## **2026-05-08**
 

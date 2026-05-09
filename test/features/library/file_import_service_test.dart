@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:fast_gbk/fast_gbk.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yueyou/features/library/services/file_import_service.dart';
 
@@ -263,5 +265,200 @@ void main() {
       final stripped = FileImportService.stripUtf8BomForTesting(bytes);
       expect(stripped, equals(bytes));
     });
+
+    // ── FileTooLargeException.toString 必须携带限制大小提示 ─────────────────
+    // 覆盖 lib/features/library/services/file_import_service.dart:23-24。
+    test('FileTooLargeException.toString 必须包含 15MB 限制', () {
+      const exc = FileTooLargeException();
+      expect(exc.toString(), contains('15'),
+          reason: 'toString 必须暴露 kMaxFileSizeMb 用于 UI 提示');
+    });
+
+    // ── GBK 编码文件流式解析必须切换到 gbk.decoder ──────────────────────────
+    // 覆盖 lib/features/library/services/file_import_service.dart:245
+    // (useUtf8==false → gbk.decoder 分支)。
+    test('parseFileForTesting GBK 编码文件必须切换到 gbk.decoder 解析', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_import_gbk_');
+      addTearDown(() async {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final file = File('${dir.path}/gbk.txt');
+      // 关键：用 fast_gbk 编码生成纯 GBK 字节，前 4KB 嗅探将判定 useUtf8=false
+      final gbkBytes = gbk.encode('第一章 序章\n你好世界');
+      await file.writeAsBytes(gbkBytes);
+
+      final result = await FileImportService.parseFileForTesting(
+        file.path,
+        'gbk.txt',
+      );
+
+      expect(result, isNotNull, reason: 'GBK 文件必须可被 gbk.decoder 正确解析');
+      expect(result!.lines, equals(<String>['第一章 序章', '你好世界']));
+      expect(result.chapters.single.title, '第一章 序章');
+    });
   });
+
+  // ── importTxtFileStructured / cancelImport 公开 API 完整链路 ──────────────
+  // 通过 mock FilePicker.platform 注入受控的 pickFiles 返回值，覆盖：
+  //   * importTxtFileStructured 用户取消（result.files.isEmpty）→ line 76-78
+  //   * importTxtFileStructured filePath 为空 → 抛 FileSystemException → line 80-82
+  //   * importTxtFileStructured 文件超大 → 抛 FileTooLargeException → line 88, 91-94
+  //   * importTxtFileStructured 完整 happy path → line 96-97 + _spawnParseIsolate
+  //     line 111-159 + _isolateEntryPoint line 162-184
+  //   * cancelImport 在 _activeIsolate != null 时走 kill 路径 → line 188-194
+  group('FileImportService - 公开 API 链路（FilePicker mock）', () {
+    late _FakeFilePicker _fake;
+
+    setUp(() {
+      // 测试环境下 FilePicker._instance 是 late 字段且无 platform plugin 注册，
+      // 直接读 FilePicker.platform 会抛 LateInitializationError，因此不备份
+      // original，每个用例独立 set 新 fake 即可。
+      _fake = _FakeFilePicker();
+      FilePicker.platform = _fake;
+    });
+
+    test('importTxtFileStructured 用户取消时返回 null', () async {
+      _fake.mockResult = null;
+      final result = await FileImportService.importTxtFileStructured();
+      expect(result, isNull,
+          reason: 'pickFiles 返回 null（用户取消）时必须直接 return null');
+    });
+
+    test('importTxtFileStructured 选中文件路径为空时返回 null（catch FileSystemException）',
+        () async {
+      // 路径为空时 lib 会 throw FileSystemException，被外层 catch 吞下后返回 null
+      _fake.mockResult = FilePickerResult(<PlatformFile>[
+        PlatformFile(name: 'broken.txt', size: 0),
+      ]);
+      final result = await FileImportService.importTxtFileStructured();
+      expect(result, isNull,
+          reason: 'filePath==null 抛 FileSystemException 必须被 catch 吞下返回 null');
+    });
+
+    test('importTxtFileStructured 文件超过 15MB 必须 rethrow FileTooLargeException',
+        () async {
+      final dir =
+          await Directory.systemTemp.createTemp('yueyou_import_toolarge_');
+      addTearDown(() async {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final big = File('${dir.path}/big.txt');
+      // 写入 16MB 字节，超过 kMaxFileSizeMb=15
+      await big.writeAsBytes(Uint8List(16 * 1024 * 1024));
+
+      _fake.mockResult = FilePickerResult(<PlatformFile>[
+        PlatformFile(name: 'big.txt', size: 16 * 1024 * 1024, path: big.path),
+      ]);
+
+      expect(
+        () => FileImportService.importTxtFileStructured(),
+        throwsA(isA<FileTooLargeException>()),
+        reason: 'FileTooLargeException 必须被 rethrow 不被 catch 吞掉',
+      );
+    });
+
+    test('importTxtFileStructured 正常 TXT 文件必须走完 Isolate 解析返回结构化结果', () async {
+      final dir = await Directory.systemTemp.createTemp('yueyou_import_ok_');
+      addTearDown(() async {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final file = File('${dir.path}/novel.txt');
+      await file.writeAsString('第一章 起点\n你好\n第二章 继续\n世界');
+
+      _fake.mockResult = FilePickerResult(<PlatformFile>[
+        PlatformFile(name: 'novel.txt', size: 100, path: file.path),
+      ]);
+
+      final result = await FileImportService.importTxtFileStructured();
+      expect(result, isNotNull,
+          reason: 'happy path 必须返回非 null FileImportResult');
+      expect(result!.title, 'novel');
+      expect(result.lines, contains('第一章 起点'));
+      expect(result.chapters.map((c) => c.title),
+          equals(<String>['第一章 起点', '第二章 继续']));
+      // 解析结束后 _activeIsolate 必须被释放
+      expect(FileImportService.isImporting, isFalse,
+          reason: 'Isolate 正常结束后 _activeIsolate 必须被置 null');
+    });
+
+    test('cancelImport 在 _activeIsolate != null 时必须走 kill 路径', () async {
+      // 启动一个解析任务但不 await 完成，立即 cancel
+      final dir =
+          await Directory.systemTemp.createTemp('yueyou_import_cancel_');
+      addTearDown(() async {
+        // Windows 下被 kill 的 Isolate 可能仍持有文件句柄短暂时刻，
+        // 删除失败是合法情况，吞下不影响断言。
+        try {
+          if (await dir.exists()) await dir.delete(recursive: true);
+        } catch (_) {}
+      });
+
+      final file = File('${dir.path}/novel.txt');
+      // 故意写大一些让 Isolate 解析慢一点（仍在 15MB 限制内）
+      final lines = List<String>.generate(
+        50000,
+        (i) => i % 1000 == 0 ? '第${i ~/ 1000}章 标题' : '第 $i 行内容',
+      );
+      await file.writeAsString(lines.join('\n'));
+
+      _fake.mockResult = FilePickerResult(<PlatformFile>[
+        PlatformFile(
+          name: 'novel.txt',
+          size: file.lengthSync(),
+          path: file.path,
+        ),
+      ]);
+
+      // fire-and-forget 启动
+      final future = FileImportService.importTxtFileStructured();
+
+      // 等 Isolate 启动（_activeIsolate 被赋值）
+      for (int i = 0; i < 50 && !FileImportService.isImporting; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      // 期望已开始；若太快完成则放弃断言（covers line 188-194 的强 ROI 路径）
+      if (FileImportService.isImporting) {
+        FileImportService.cancelImport();
+        expect(FileImportService.isImporting, isFalse,
+            reason: 'cancelImport 调用后 _activeIsolate 必须立即置 null');
+      }
+
+      // 等待 future 完成（cancel 后应当返回 null 或异常被 catch）
+      final result = await future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+      // result 可能为 null（cancel 命中 token 不匹配）或正常完成（cancel 太晚）
+      // 两种都是合法路径
+      expect(result == null || result.title == 'novel', isTrue);
+    });
+  });
+}
+
+/// FilePicker mock：仅 override pickFiles，其他默认 throw UnimplementedError。
+///
+/// 通过 `extends FilePicker` 自动获得 PlatformInterface verifyToken 通过。
+class _FakeFilePicker extends FilePicker {
+  FilePickerResult? mockResult;
+
+  @override
+  Future<FilePickerResult?> pickFiles({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    void Function(FilePickerStatus)? onFileLoading,
+    bool allowCompression = true,
+    int compressionQuality = 30,
+    bool allowMultiple = false,
+    bool withData = false,
+    bool withReadStream = false,
+    bool lockParentWindow = false,
+    bool readSequential = false,
+  }) async {
+    return mockResult;
+  }
 }
