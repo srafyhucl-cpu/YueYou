@@ -764,7 +764,10 @@ class TtsEngineService extends ChangeNotifier {
     final int currentIndex = _speedTiers.indexOf(_playbackRate);
     final int nextIndex = (currentIndex + 1) % _speedTiers.length;
     _playbackRate = _speedTiers[nextIndex];
-    _audioPlayer.setPlaybackRate(_playbackRate);
+    // P3 修复：统一走 `_safeSetPlaybackRate`（内部 `unawaited(.catchError)`），
+    // 与 `_syncSettingsInternal` 的容错口径一致：播放器底层故障时必走
+    // `_setLastError + captureWarning`，不向 UI 层抛出未处理异常导致红屏。
+    _safeSetPlaybackRate(_playbackRate);
     _settings.setTtsRate(_playbackRate);
     notifyListeners();
   }
@@ -772,7 +775,8 @@ class TtsEngineService extends ChangeNotifier {
   void syncSpeedFromSettings(double logicalRate, double hardwareRate) {
     if (_playbackRate == logicalRate) return;
     _playbackRate = logicalRate;
-    _audioPlayer.setPlaybackRate(logicalRate);
+    // P3 修复：同 `cycleSpeed`，改走 `_safeSetPlaybackRate` 统一容错。
+    _safeSetPlaybackRate(logicalRate);
     notifyListeners();
   }
 

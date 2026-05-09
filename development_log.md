@@ -2,6 +2,36 @@
 
 ## **2026-05-09**
 
+- **修复(audit): lib 治理（P1 dead code listener + 2 个 P3 容错一致性 / 协议字段校验）**：
+  - **P1 修复 · TtsAudioNotifier settings listener dead code**：
+    - **位置**：`@/lib/features/audio/providers/tts_audio_notifier.dart:95-99`
+    - **缺陷**：`ref.listen(settingsProvider, (prev, next) {...})` 中 prev 与
+      next 引用同一个 SettingsProvider 实例（ChangeNotifier in-place 修改），
+      `prev?.idleTimeout != next.idleTimeout` 永远 false，分支永远不触发。
+    - **修复**：改用 `settingsProvider.select((s) => s.idleTimeout)` 让 Riverpod
+      内部对 idleTimeout 数值做快照对比，数值真变化才 fire callback。
+    - **回归**：新增「P1 回归：settings.setIdleTimeout 必须经 listener 触发
+      _resetIdleTimer」fakeAsync 用例（28 用例 / 6 秒）。
+  - **P3 修复 · TtsEngineService.cycleSpeed / syncSpeedFromSettings 容错口径不一致**：
+    - **位置**：`@/lib/features/audio/services/tts_engine_service.dart:763-781`
+    - **缺陷**：直接调 `_audioPlayer.setPlaybackRate(rate)` 不走 `_safeSetPlaybackRate`，
+      与 `_syncSettingsInternal` 的容错口径不一致；播放器底层故障时错误向上抛
+      可能触发 setState 红屏。
+    - **修复**：统一改走 `_safeSetPlaybackRate(rate)`（内部 `unawaited(catchError)`
+      → `_setLastError + captureWarning`）。
+  - **P3 修复 · DefaultBookService.getCatalog 协议字段缺失未显式校验**：
+    - **位置**：`@/lib/features/library/services/default_book_service.dart:55-95`
+    - **缺陷**：响应 status=success 后直接 `body['chapters'] as List`，字段
+      缺失或 null 时抛 `_TypeError` 被外层 catch 误判为网络异常。
+    - **修复**：抽出 `_fallbackBuiltinCatalog()` 辅助方法；显式 `if (rawChapters
+      is! List)` 校验失败 → `captureWarning('协议字段缺失 chapters')` + 降级。
+    - **回归**：新增 2 条 default_book_service_test.dart 用例（chapters 字段
+      缺失 / null 必须降级到内置 100 章）。
+  - **代码评审待办清单更新**：`DevelopmentPlan/20260509_代码评审待办清单.md`
+    标记 4 条 ✅（1 P1 + 3 P3），剩余 6 条 P2/P3 待后续迭代消化。
+  - **验证**：`flutter analyze` 零警告；655 全过 / 4 skipped / 0 失败 / 36 秒；
+    整体覆盖率 79.47% → **79.62%**（+0.15pp）。
+
 - **测试(coverage): 阶段 2 整体覆盖率冲刺（61.65% → 73.40%，跨越 P2 阈值 70%）**：
   - **service/utils 第一波**（+0.72pp）：
     - DefaultBookService 48.30% → 86.96%（+38.66pp，+11 用例）：lib 加 `httpClient`
