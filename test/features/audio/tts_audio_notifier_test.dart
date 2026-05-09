@@ -547,6 +547,10 @@ void main() {
     expect(degraded, isTrue, reason: 'T-B：连续 N 次 downloadAudio 失败后必须进入降级模式');
     expect(httpClient.postCalls, greaterThanOrEqualTo(6),
         reason: 'T-B：降级前必须至少触发 6 次失败重试');
+    // P3 防御性断言：POST 500 短路路径必然不会触达 CDN download。
+    // 若未来 lib 改成 POST 失败仍试图 download，该断言会捕获此回归。
+    expect(httpClient.downloadCalls, 0,
+        reason: 'T-B：POST 500 短路路径禁止触达 download（lib 不变量）');
 
     // 关闭，避免 _prefetchRunner 在测试结束后继续空转。
     await notifier.stopAll();

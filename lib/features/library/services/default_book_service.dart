@@ -239,6 +239,11 @@ class DefaultBookService {
   }
 
   /// 检查某章是否已有缓存（无需网络）。同时覆盖进程内缓存与本地磁盘缓存。
+  ///
+  /// **副作用警告**：返回 `true` **不代表磁盘上已持久化**。
+  /// - 进程内 `_chapterMemCache` 命中也会返回 `true`，但**重启 App 后失效**。
+  /// - 若调用方需要"是否磁盘持久化"语义（如冷启动预读决策），请直接调用
+  ///   [StorageService.loadChapterCache] 而非本方法。
   Future<bool> isChapterCached(int chapterIndex) async {
     if (_chapterMemCache.containsKey(chapterIndex)) return true;
     final text = await StorageService.loadChapterCache(bookKey, chapterIndex);
