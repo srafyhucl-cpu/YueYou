@@ -2,8 +2,8 @@
 
 ## **2026-05-09**
 
-- **测试(coverage): TtsAudioNotifier 覆盖率攻坚（80.11% → 85.15%，+5.04pp，跨越 P4 阈值 85%）**：
-  - **新增 6 条用例**（27 全过 / 7 秒）：
+- **测试(coverage): 阶段 1 单点突破（TtsAudioNotifier + TtsEngineService 双跨阈值）**：
+  - **TtsAudioNotifier 80.11% → 85.15%（+5.04pp，跨越 P4 阈值 85%）**：新增 6 条用例。
     - `cycleSpeed Idle` / `stopAll Idle 保留 playbackRate` 两条字段级防御断言。
     - `idleTimer 到期 fire 自动 pause`（fakeAsync）：通过 `engine.notifyUserActivity()`
       触发 `ttsEngineProvider` listener 路径绕过 lib 侧 settings listener 的 dead code 缺陷。
@@ -14,13 +14,23 @@
       路径降级阈值齐平，绕过 `pingServer` 真网络 3s 超时。
     - `T-B 衍生 3`：`_pumpDegraded` 在 `pingServer` 可达时退出降级，flutter_test
       默认 mock HttpClient 返回 400 status → reachable=true → 命中 line 695-698 路径。
-  - **新增** `_LimitedSentenceSource` 测试基础设施，限定返回次数后返回 null，
-    专门用于驱动 `_pumpDegraded` 的不同分支。
+  - **TtsEngineService 70.18% → 76.83%（+6.65pp，跨越 P4 阈值 75%）**：阶段 1
+    用例先间接拉到 71.84%，再补 4 条直接覆盖：
+    - `syncShadow` 多分支切换：error / item / fallbackMessage 双向 null↔非 null。
+    - `cleanCacheNow` + `getCacheStat` 公开 API 烟测。
+    - `_safeSetPlaybackRate` catchError：注入 `_ThrowingRateVolumeAudioPlayer`，
+      通过 `settings.setTtsRate(2.0)` 触发 `_onSettingsChanged` 链路，验证
+      `unawaited(...catchError)` 必走 `_setLastError + captureWarning` 不外抛。
+    - `_safeSetVolume` catchError：同上但通过 `settings.setAmbientVol(0.9)` 触发。
+  - **新增测试基础设施**：`_LimitedSentenceSource(returnLimit:)`、
+    `_ThrowingRateVolumeAudioPlayer`。
   - **lib 侧已知缺陷记录**：`tts_audio_notifier.dart:95-99` 的 settings listener
     是 dead code（`SettingsProvider` 是 ChangeNotifier，notify 时 prev 与 next 同对象），
     后续治理需改为快照对比上一次 `idleTimeout` 数值。
-  - **验证**：`flutter analyze` 零警告；聚焦覆盖率 **85.15%** (321/377)。
+  - **验证**：`flutter analyze` 零警告；27 / 45 用例分别全过；聚焦覆盖率
+    **TtsAudioNotifier 85.15%** (321/377) + **TtsEngineService 76.83%** (431/561)。
   - **任务单**：`DevelopmentPlan/20260509_TtsAudioNotifier覆盖率突破85.md`。
+  - **下轮入口**：`FileImportService 56.00% → ≥75%`（阶段 1 主线最后一项，缺口 +19pp）。
 
 ## **2026-05-08**
 
