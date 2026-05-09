@@ -270,8 +270,8 @@ Future<_Harness> _makeService({
   _mockPathProviderTempDir(_testTempDir?.path ?? Directory.systemTemp.path);
   final settings = SettingsProvider()..loadFromStorage();
   final service = TtsEngineService(settings);
-  await pumpEventQueue(times: 50);
-  await Future<void>.delayed(const Duration(milliseconds: 10));
+  // 直接等引擎硬件初始化完成，免去 50 次空轮询。
+  await service.initialized;
   return _Harness(settings: settings, service: service);
 }
 
@@ -310,14 +310,8 @@ Future<_MockHarness> _makeMockService({
   service.onItemStarted = (item) {};
   service.onItemFinished = (item) {};
 
-  await pumpEventQueue(times: 20);
-  for (int i = 0;
-      i < 100 &&
-          (fakeAudioPlayer.setVolumeCalls == 0 ||
-              fakeAudioPlayer.setPlaybackRateCalls == 0);
-      i++) {
-    await pumpEventQueue(times: 1);
-  }
+  // 等引擎硬件初始化完成 → setVolume / setPlaybackRate 必已被调用。
+  await service.initialized;
   return _MockHarness(
     settings: settings,
     service: service,
@@ -403,10 +397,7 @@ void main() {
   group('TtsEngineService with Mocks', () {
     test('play 在暂停时应调用 AudioPlayer.resume 和 WakeLock.enable', () async {
       final h = await _makeMockService(storyTts: true);
-      // 等待初始化完成并进入 buffering
-      for (int i = 0; i < 100 && !h.service.isEnabled; i++) {
-        await pumpEventQueue(times: 1);
-      }
+      // 初始化已在 _makeMockService 内部 await initialized 完成，storyTts=true 同步设 buffering。
 
       // 1. 先暂停
       await h.service.pause();
@@ -424,12 +415,8 @@ void main() {
 
     test('pause 应调用 AudioPlayer.pause 和 WakeLock.disable', () async {
       final h = await _makeMockService(storyTts: true);
-      // 等待初始化完成
-      for (int i = 0; i < 100 && !h.service.isEnabled; i++) {
-        await pumpEventQueue(times: 1);
-      }
-      // 额外等待以确保 _syncWakeLock(true) 异步任务执行完成
-      await pumpEventQueue(times: 10);
+      // 初始化已 await；额外调 1 拍以让 _syncWakeLock(true) 的微任务排干净。
+      await pumpEventQueue();
 
       await h.service.pause();
 
@@ -440,15 +427,11 @@ void main() {
 
     test('setEnabled(false) 应调用 stop 和 disable', () async {
       final h = await _makeMockService(storyTts: true);
-      // 等待初始化完成
-      for (int i = 0; i < 100 && !h.service.isEnabled; i++) {
-        await pumpEventQueue(times: 1);
-      }
-      // 额外等待以确保 _syncWakeLock(true) 异步任务执行完成
-      await pumpEventQueue(times: 10);
+      // 初始化已 await；额外调 1 拍以让 _syncWakeLock(true) 的微任务排干净。
+      await pumpEventQueue();
 
       h.service.setEnabled(false);
-      await pumpEventQueue(times: 10);
+      await pumpEventQueue();
 
       expect(h.fakeAudioPlayer.stopCalls, equals(1));
       expect(h.fakeWakeLock.disableCalls, equals(1));

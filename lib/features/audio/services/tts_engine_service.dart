@@ -408,6 +408,11 @@ class TtsEngineService extends ChangeNotifier {
   /// 硬件初始化 Future，用于守卫异步初始化流程
   late final Future<void> _initFuture;
   bool _initCompleted = false;
+
+  /// 引擎硬件初始化完成 Future（测试 / 集成测试可 await 等待 _volume / _playbackRate
+  /// 等 late 字段就绪，避免在初始化未完成前调用 syncSettingsFromProvider 触发
+  /// LateInitializationError）。生产环境通常无需显式等待，硬件初始化是 fire-and-forget。
+  Future<void> get initialized => _initFuture;
   String? _lastGeneratedAudioPath;
 
   TtsPlaybackState get state => _state;

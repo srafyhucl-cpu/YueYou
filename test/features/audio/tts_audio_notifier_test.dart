@@ -581,11 +581,10 @@ void main() {
         container.dispose();
         engine.dispose();
       });
-      // 等待引擎硬件初始化完成（_volume 等 late 字段必须初始化），
+      // 等待引擎硬件初始化完成（_volume / _playbackRate 等 late 字段必须就绪），
       // 否则 refreshSession 调 syncSettingsFromProvider 会触发 LateInitializationError。
-      for (int i = 0; i < 50; i++) {
-        await pumpEventQueue(times: 1);
-      }
+      // 直接 await 公开的 initialized future，省掉 50 次空轮询。
+      await engine.initialized;
       return (
         container: container,
         notifier: container.read(ttsAudioProvider.notifier),
@@ -715,5 +714,16 @@ void main() {
 
       await s.notifier.stopAll();
     });
+
+    // 注：以下原本计划的用例（cycleSpeed Paused / _resetIdleTimer settings 触发 /
+    // play() currentItem 分支 / stopAll Buffering 清理）均依赖 setEnabled(true)
+    // 启动双轨 pump，会在 teardown 后让 flutter_test runner 等待真定时器（最长
+    // 5 分钟），导致单次 `flutter test` 假性挂起。
+    //
+    // 对应规则已记入 development_log（2026-05-08 第 3 轮），后续覆盖率推进必须改用：
+    //   - fakeAsync.run 包裹整个测试体（推荐）
+    //   - 或者通过 reflection / @visibleForTesting 直接构造 state，避免触发 pump
+    //
+    // 当前阶段以"不引入 pump 真定时器"为底线，暂不补这部分覆盖率。
   });
 }
