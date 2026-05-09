@@ -1,17 +1,19 @@
-# 20260509 · TtsAudioNotifier 覆盖率攻坚（80.11% → 85.15%）
+# 20260509 · 阶段 1 单点突破：TtsAudioNotifier + TtsEngineService
 
-承接 `20260508_深度代码评审与回归修复.md` 的阶段 1 入口。本轮单点突破 `TtsAudioNotifier`，
-覆盖率从 80.11% 推到 85.15%（+5.04pp），跨越 P4 门禁阈值 85%。
+承接 `20260508_深度代码评审与回归修复.md` 的阶段 1 入口。本轮连续突破两个核心
+目标模块，全部跨越各自门禁阈值。
 
-## 目标
+## 总进度
 
 | 模块 | 起点 | 终点 | 阶段 1 目标 | 状态 |
 | --- | --- | --- | --- | --- |
 | `TtsAudioNotifier` | 80.11% | **85.15%** (+5.04pp) | ≥ 85% | ✅ 跨越阈值 |
-| 测试用例总数 | 23 | **27** (+4) | — | 全过 / 7 秒 |
+| `TtsEngineService` | 70.18% | **76.83%** (+6.65pp) | ≥ 75% | ✅ 跨越阈值 |
+| `FileImportService` | 56.00% | 56.00% | ≥ 75% | ⏳ 待下轮 |
+| 测试用例总数 | 590 | **610** (+20) | — | 全过 / 0 失败 |
 | `flutter analyze` | 0 错 0 警 | 0 错 0 警 | 强制零警告 | ✅ |
 
-## 关键改动
+## 第 1 段：TtsAudioNotifier 覆盖率攻坚（80.11% → 85.15%）
 
 ### 新增 fakeAsync / 真异步用例（4 条核心 + 2 条防御）
 
@@ -79,19 +81,49 @@ listener 是 dead code：`SettingsProvider` 是 ChangeNotifier，notify 时 `pre
 真实 idleTimer 触发依赖 `ttsEngineProvider` listener 路径（已工作）。
 **后续治理**：将 listener 改为快照对比（保存上一次 `idleTimeout` 数值）。
 
+## 第 2 段：TtsEngineService 覆盖率攻坚（70.18% → 76.83%）
+
+第 1 段完成后，因 `T-B 衍生 2/3` 用例驱动了 `_pumpDegraded` 与
+`speakWithLocalTts` 链路，间接拉动 `TtsEngineService` 到 71.84%。
+第 2 段在 `tts_engine_service_test.dart` 末尾追加 4 条用例直接补足公开 API
+未覆盖分支。
+
+### 新增用例（4 条）
+
+1. **`syncShadow` 多分支切换**：直接调 `engine.syncShadow(error: ...)` /
+   `(item: ...)` / `(fallbackMessage: ...)` / `(session: ...)`，覆盖 line
+   1340-1359 的 error null↔非 null、item null↔非 null、fallbackMessage null↔非 null
+   双向切换分支。
+2. **`cleanCacheNow` + `getCacheStat` 烟测**：覆盖 line 752-756 / 759-761
+   两个公开 API 直通调用链路。
+3. **`_safeSetPlaybackRate` catchError 路径**：注入 `_ThrowingRateVolumeAudioPlayer`
+   让 `setPlaybackRate` 抛错，通过 `settings.setTtsRate(2.0)` 触发
+   `_onSettingsChanged → _syncSettingsInternal → _safeSetPlaybackRate`，
+   验证 `unawaited(...catchError)` 必走 `_setLastError + captureWarning`
+   不外抛，覆盖 line 533-543。
+4. **`_safeSetVolume` catchError 路径**：同上但抛错点为 `setVolume`，通过
+   `settings.setAmbientVol(0.9)` 触发，覆盖 line 546-556。
+
+### 测试基础设施补充
+
+- 新增 `_ThrowingRateVolumeAudioPlayer`：`setPlaybackRate` / `setVolume`
+  抛错，其余方法透传到内部 `_FakeAudioPlayer`。
+
 ## 下一轮入口
 
-- **TtsAudioNotifier 85.15% → 90%**（可选）：补 `_onPlaybackComplete` 多分支 +
+- **FileImportService 56.00% → ≥75%**（阶段 1 主线，剩余 +19pp 缺口最大）：
+  Isolate 流式解析的边界与异常路径仍为最低洼地，需要小批量补齐。
+- **TtsAudioNotifier 85.15% → 90%**（可选加强）：补 `_onPlaybackComplete` 多分支 +
   `_copyStateWithRate` Playing/Error case + `_isPausedInterrupt`。
-- **TtsEngineService 70.18% → ≥75%**（阶段 1 主线）：未覆盖集中在 `_RealHttpClient`
-  实例化分支、初始化兜底、`pingServer` / `testConnection` 网络分支、
-  `speakWithLocalTts` 降级链路。
-- **FileImportService 56.00% → ≥75%**（阶段 1 主线）：Isolate 流式解析的边界与异常路径。
+- **TtsEngineService 76.83% → 85%**（可选加强）：剩余 `_RealHttpClient` 真网络
+  分支大概率需要本地 HttpServer fixture 支撑，ROI 偏低。
 
 ## 验收
 
 | 项 | 指标 | 结果 |
 | --- | --- | --- |
 | `flutter test test/features/audio/tts_audio_notifier_test.dart` | 全过 | ✅ 27 / 0 失败 / 7 秒 |
+| `flutter test test/features/audio/tts_engine_service_test.dart` | 全过 | ✅ 45 / 0 失败 / 6 秒 |
 | `flutter analyze` | 零错误零警告 | ✅ No issues found |
-| `python scripts/coverage_focus.py --files lib/features/audio/providers/tts_audio_notifier.dart` | ≥ 85% | ✅ **85.15%** (321/377) |
+| `coverage_focus.py --files tts_audio_notifier.dart` | ≥ 85% | ✅ **85.15%** (321/377) |
+| `coverage_focus.py --files tts_engine_service.dart` | ≥ 75% | ✅ **76.83%** (431/561) |

@@ -1047,7 +1047,194 @@ void main() {
       expect(h.service.state, equals(TtsPlaybackState.buffering));
       h.service.dispose();
     });
+
+    // ── syncShadow 完整分支覆盖 ───────────────────────────────────────────
+    // 覆盖 lib/features/audio/services/tts_engine_service.dart:1340-1359：
+    //   * session 不变 / 改变分支
+    //   * error null↔非 null 双向切换
+    //   * item null↔非 null 双向切换
+    //   * fallbackMessage null↔非 null 双向切换
+    test('syncShadow 必须正确处理 error/item/fallbackMessage 多分支切换', () async {
+      final h = await _makeMockService();
+      int notifyCount = 0;
+      h.service.addListener(() => notifyCount++);
+
+      // 1) session 改变 → 不计 changed
+      final notifyBefore = notifyCount;
+      h.service.syncShadow(session: 999);
+      // 仅 session 变更不必触发 notifyListeners（只有 state/error/fallback 算 changed）
+      expect(notifyCount, equals(notifyBefore));
+
+      // 2) error 写入（line 1343-1345）
+      h.service.syncShadow(error: '网络故障');
+      expect(h.service.lastError, '网络故障');
+      expect(h.service.errorTimestamp, greaterThan(0));
+
+      // 3) error 清空（line 1348-1350）
+      h.service.syncShadow();
+      expect(h.service.lastError, isNull);
+
+      // 4) item 写入 + 清空（line 1352-1353）
+      final item = TtsAudioItem(
+        id: 1,
+        session: 1,
+        lineIndex: 0,
+        endLineIndex: 0,
+        text: 'item-1',
+        title: 'chap',
+        estimatedDuration: Duration.zero,
+      );
+      h.service.syncShadow(item: item);
+      expect(h.service.currentItem?.id, 1);
+      h.service.syncShadow(); // item=null 但 _currentItem 非 null → 触发清空
+      expect(h.service.currentItem, isNull);
+
+      // 5) fallbackMessage 写入（line 1355-1357）+ 清空（line 1358-1359）
+      h.service.syncShadow(fallbackMessage: '已切换至本地语音');
+      expect(h.service.fallbackNotification, '已切换至本地语音');
+      h.service.syncShadow();
+      expect(h.service.fallbackNotification, isNull);
+
+      h.service.dispose();
+    });
+
+    // ── cleanCacheNow + getCacheStat 直通调用 ─────────────────────────────
+    // 覆盖 line 752-756（cleanCacheNow）、759-761（getCacheStat）。
+    test('cleanCacheNow / getCacheStat 必须可被直接调用（公开 API 烟测）', () async {
+      final h = await _makeMockService();
+      // 不期望具体清理结果（依赖真实文件系统状态），只验证调用链路打通
+      final cleanResult = await h.service.cleanCacheNow();
+      expect(cleanResult, isNotNull);
+
+      final stat = await h.service.getCacheStat();
+      expect(stat, isNotNull);
+
+      h.service.dispose();
+    });
+
+    // ── _safeSetPlaybackRate catchError 路径 ──────────────────────────────
+    // 覆盖 line 533-543：setPlaybackRate 抛错时 catchError 必须 setLastError +
+    // captureWarning，不抛到外层。
+    //
+    // 触发链路：settings.setTtsRate(2.0) → settings.notifyListeners
+    //   → engine._onSettingsChanged → _syncSettingsInternal → _safeSetPlaybackRate
+    //   → _audioPlayer.setPlaybackRate(2.0).catchError(...)
+    test('_safeSetPlaybackRate 在 setPlaybackRate 失败时必须设置 lastError 不外抛',
+        () async {
+      final fakeInner = _FakeAudioPlayer();
+      final throwingPlayer = _ThrowingRateVolumeAudioPlayer(fakeInner);
+      SharedPreferences.setMockInitialValues({
+        'setting_story_tts': false,
+        'setting_tts_rate': 1.0,
+        'setting_ambient_vol': 0.5,
+      });
+      StorageService.resetForTesting();
+      await StorageService.init();
+      _mockPathProviderTempDir(_testTempDir?.path ?? Directory.systemTemp.path);
+      final settings = SettingsProvider()..loadFromStorage();
+      final service = TtsEngineService(
+        settings,
+        audioPlayer: throwingPlayer,
+        wakeLock: _FakeWakeLock(),
+        delayFn: (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
+      );
+      service.onNeedPrefetch = (s) async => null;
+      service.onItemStarted = (i) {};
+      service.onItemFinished = (i) {};
+      // 等 _initTtsHardware 完成（其内部 setVolume / setPlaybackRate throw 已被
+      // 内部 try/catch 兜住，不影响 service.initialized 的完成）
+      await service.initialized;
+      service.clearLastError();
+
+      // 触发 _safeSetPlaybackRate（rate 必须不同才走 _syncSettingsInternal 内分支）
+      await settings.setTtsRate(2.0);
+      // 等待 unawaited catchError microtask 完成
+      await pumpEventQueue(times: 10);
+
+      expect(
+        service.lastError,
+        isNotNull,
+        reason: 'setPlaybackRate 失败时必须通过 _setLastError 暴露错误信息',
+      );
+
+      service.dispose();
+    });
+
+    // ── _safeSetVolume catchError 路径 ────────────────────────────────────
+    // 覆盖 line 546-556：setVolume 抛错时 catchError 必须 setLastError。
+    test('_safeSetVolume 在 setVolume 失败时必须设置 lastError 不外抛', () async {
+      final fakeInner = _FakeAudioPlayer();
+      final throwingPlayer = _ThrowingRateVolumeAudioPlayer(fakeInner);
+      SharedPreferences.setMockInitialValues({
+        'setting_story_tts': false,
+        'setting_tts_rate': 1.0,
+        'setting_ambient_vol': 0.3,
+      });
+      StorageService.resetForTesting();
+      await StorageService.init();
+      _mockPathProviderTempDir(_testTempDir?.path ?? Directory.systemTemp.path);
+      final settings = SettingsProvider()..loadFromStorage();
+      final service = TtsEngineService(
+        settings,
+        audioPlayer: throwingPlayer,
+        wakeLock: _FakeWakeLock(),
+        delayFn: (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
+      );
+      service.onNeedPrefetch = (s) async => null;
+      service.onItemStarted = (i) {};
+      service.onItemFinished = (i) {};
+      await service.initialized;
+      service.clearLastError();
+
+      await settings.setAmbientVol(0.9);
+      await pumpEventQueue(times: 10);
+
+      expect(
+        service.lastError,
+        isNotNull,
+        reason: 'setVolume 失败时必须通过 _setLastError 暴露错误信息',
+      );
+
+      service.dispose();
+    });
   });
+}
+
+// 用于覆盖 _safeSetPlaybackRate / _safeSetVolume 的 catchError 路径：
+// setPlaybackRate / setVolume 抛错，其余调用透传到内部 _FakeAudioPlayer。
+class _ThrowingRateVolumeAudioPlayer implements TtsAudioPlayer {
+  final _FakeAudioPlayer _inner;
+  _ThrowingRateVolumeAudioPlayer(this._inner);
+
+  @override
+  Future<void> setPlaybackRate(double rate) async {
+    throw Exception('mock setPlaybackRate failure');
+  }
+
+  @override
+  Future<void> setVolume(double volume) async {
+    throw Exception('mock setVolume failure');
+  }
+
+  @override
+  Future<void> setSource(Source source) => _inner.setSource(source);
+  @override
+  Future<void> resume() => _inner.resume();
+  @override
+  Future<void> pause() => _inner.pause();
+  @override
+  Future<void> stop() => _inner.stop();
+  @override
+  Future<void> setAudioContext(AudioContext context) =>
+      _inner.setAudioContext(context);
+  @override
+  Future<void> dispose() => _inner.dispose();
+  @override
+  Stream<void> get onPlayerComplete => _inner.onPlayerComplete;
+  @override
+  Stream<Duration> get onPositionChanged => _inner.onPositionChanged;
+  @override
+  Stream<Duration> get onDurationChanged => _inner.onDurationChanged;
 }
 
 class _ThrowingSetSourceAudioPlayer implements TtsAudioPlayer {
