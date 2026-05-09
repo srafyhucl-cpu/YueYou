@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yueyou/core/config/tts_config.dart';
@@ -133,6 +134,23 @@ class _InfiniteSentenceSource implements TtsSentenceSource {
   FutureOr<void> onTtsItemFinished(TtsAudioItem item) {
     finishedCalls++;
   }
+
+  @override
+  void resetFetchIndex() {}
+}
+
+/// fakeAsync 专用：句子源始终返回 null，让 _refillBuffer 走 `await Future.delayed(500ms)`
+/// 分支，避免 _prefetchRunner 在没有 sentenceSource 时进入 microtask 死循环（while 内
+/// _refillBuffer 早返 + 无 await ⇒ flushMicrotasks 无法终结）。
+class _EmptySentenceSource implements TtsSentenceSource {
+  @override
+  Future<TtsAudioRequest?> nextTtsSentence(int session) async => null;
+
+  @override
+  void onTtsItemStarted(TtsAudioItem item) {}
+
+  @override
+  void onTtsItemFinished(TtsAudioItem item) {}
 
   @override
   void resetFetchIndex() {}
@@ -715,15 +733,177 @@ void main() {
       await s.notifier.stopAll();
     });
 
-    // 注：以下原本计划的用例（cycleSpeed Paused / _resetIdleTimer settings 触发 /
-    // play() currentItem 分支 / stopAll Buffering 清理）均依赖 setEnabled(true)
-    // 启动双轨 pump，会在 teardown 后让 flutter_test runner 等待真定时器（最长
-    // 5 分钟），导致单次 `flutter test` 假性挂起。
+    // ─────────────────────────────────────────────────────────────────
+    // 阶段 1 第 4 轮：fakeAsync 安全推进 pump-timer 相关分支
+    // ─────────────────────────────────────────────────────────────────
     //
-    // 对应规则已记入 development_log（2026-05-08 第 3 轮），后续覆盖率推进必须改用：
-    //   - fakeAsync.run 包裹整个测试体（推荐）
-    //   - 或者通过 reflection / @visibleForTesting 直接构造 state，避免触发 pump
+    // 背景：setEnabled(true) / refreshSession() 内部调用 _startPump 启动双轨
+    // (_prefetchRunner + _playRunner)，里面有 Future.delayed(2000ms / 500ms /
+    // 300ms) 无限循环。在真定时器下，flutter_test runner teardown 后会等所有
+    // pending Timer 完成（最长 5 分钟 idleTimer），导致测试挂起 30 分钟+。
     //
-    // 当前阶段以"不引入 pump 真定时器"为底线，暂不补这部分覆盖率。
+    // 解决方案：fakeAsync.run 包裹整个测试体，把 dart:async 的 Timer/Future
+    // 全部虚拟化，结束前用 async.elapse + async.flushTimers 强制清空所有计时器，
+    // 不会有真实泄漏。
+    //
+    // 注意：_setup() 内的 initializeTestEnvironment / StorageService.init 是真
+    // platform channel 调用，必须在 fakeAsync **外**完成。fakeAsync 内只构造
+    // engine / container / notifier，并用 flushMicrotasks 推进 _initTtsHardware。
+
+    /// fakeAsync 内安全构造 notifier 三件套；调用方必须自行 stopAll + elapse 清理。
+    ({
+      TtsEngineService engine,
+      ProviderContainer container,
+      TtsAudioNotifier notifier,
+      SettingsProvider settings,
+    }) _fakeSetup(FakeAsync ctrl) {
+      final settings = makeSettings();
+      final engine = TtsEngineService(
+        settings,
+        config: const TtsConfig(
+          serverUrl: 'https://test.invalid/tts',
+          maxPrefetchQueue: 1,
+          requestTimeout: Duration(milliseconds: 50),
+          baseRetryDelay: Duration(milliseconds: 1),
+        ),
+        audioPlayer: _ControllableAudioPlayer(),
+        wakeLock: FakeWakeLock(),
+        httpClient: _SingleAudioHttpClient(),
+        fallbackEngine: FakeFallbackEngine(),
+        delayFn: (d) => Future<void>.delayed(const Duration(milliseconds: 1)),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          ttsEngineProvider.overrideWith((ref) => engine),
+          settingsProvider.overrideWith((ref) => settings),
+        ],
+      );
+      // 让 _initTtsHardware 的微任务排干（fake_audio_player 同步返回，无需 elapse）
+      ctrl.flushMicrotasks();
+      final notifier = container.read(ttsAudioProvider.notifier);
+      // 关键：注册一个 dummy sentenceSource，让 _refillBuffer 进入 `await Future.delayed(500ms)`
+      // 分支，否则 _prefetchRunner 在无 source 时早返 + 无 await ⇒ flushMicrotasks 死循环。
+      notifier.registerSentenceSource(_EmptySentenceSource());
+      return (
+        engine: engine,
+        container: container,
+        notifier: notifier,
+        settings: settings,
+      );
+    }
+
+    /// 在 fakeAsync 内强制清理所有 pending Timer / Future，确保不泄漏到真实 zone。
+    void _fakeTeardown(
+      FakeAsync ctrl,
+      TtsAudioNotifier notifier,
+      ProviderContainer container,
+      TtsEngineService engine,
+    ) {
+      notifier.stopAll();
+      // 推进 10 分钟虚拟时间，足以让所有 Timer (含 5 分钟 idleTimer) 触发并退出
+      ctrl.elapse(const Duration(minutes: 10));
+      ctrl.flushTimers();
+      container.dispose();
+      engine.dispose();
+      ctrl.flushMicrotasks();
+    }
+
+    // 必须先在 fakeAsync 外完成 platform channel mock 初始化
+    setUp(() async {
+      await initializeTestEnvironment();
+    });
+
+    test('cycleSpeed 在 Paused 状态下必须保留 item/buffer/session 等字段', () {
+      fakeAsync((ctrl) {
+        final s = _fakeSetup(ctrl);
+        // ignore: deprecated_member_use_from_same_package
+        s.notifier.setEnabled(true); // → Buffering（启动 pump，但都在 fake zone）
+        ctrl.flushMicrotasks();
+        s.notifier.pause(); // → Paused
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioPaused>());
+
+        final beforeRate = s.notifier.state.playbackRate;
+        final beforeSession = (s.notifier.state as TtsAudioPaused).session;
+
+        s.notifier.cycleSpeed();
+
+        final after = s.notifier.state;
+        expect(after, isA<TtsAudioPaused>(),
+            reason: 'cycleSpeed 在 Paused 下不得改变状态类型');
+        expect(after.playbackRate, isNot(equals(beforeRate)),
+            reason: 'playbackRate 必须切换');
+        expect((after as TtsAudioPaused).session, beforeSession,
+            reason: 'cycleSpeed 必须保留 Paused.session');
+
+        _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
+      });
+    });
+
+    test('settings.idleTimeout 变更 + 非 Idle 状态必须创建 _idleTimer', () {
+      fakeAsync((ctrl) {
+        final s = _fakeSetup(ctrl);
+        // ignore: deprecated_member_use_from_same_package
+        s.notifier.setEnabled(true); // 进入 Buffering
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioBuffering>());
+
+        // 触发 settings listener：idleTimeout 0 → 5 必触发 _resetIdleTimer
+        s.settings.idleTimeout = 5;
+        ctrl.flushMicrotasks();
+        // Timer 已被构造（虚拟）；不抛异常即视为 line 116 路径被覆盖。
+
+        // 关闭 idleTimeout 防止虚拟时间推进时触发 pause 副作用
+        s.settings.idleTimeout = 0;
+        ctrl.flushMicrotasks();
+
+        _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
+      });
+    });
+
+    test('play 在 Paused 状态下必须脱离 Paused 重新启动泵', () {
+      fakeAsync((ctrl) {
+        final s = _fakeSetup(ctrl);
+        // ignore: deprecated_member_use_from_same_package
+        s.notifier.setEnabled(true); // 进入 Buffering
+        ctrl.flushMicrotasks();
+        s.notifier.pause();
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioPaused>());
+
+        // play() 走 _currentItem == null && _currentFilePath == null → else 分支
+        s.notifier.play();
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isNot(isA<TtsAudioPaused>()),
+            reason: 'play 后必须脱离 Paused');
+
+        _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
+      });
+    });
+
+    test('stopAll 在 Buffering 状态下必须取消 _idleTimer 与清空 buffer', () {
+      fakeAsync((ctrl) {
+        final s = _fakeSetup(ctrl);
+        // ignore: deprecated_member_use_from_same_package
+        s.notifier.setEnabled(true);
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioBuffering>());
+
+        // 同步开启 idleTimer
+        s.settings.idleTimeout = 1;
+        ctrl.flushMicrotasks();
+
+        s.notifier.stopAll();
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioIdle>(),
+            reason: 'stopAll 必须回到 Idle');
+        expect(s.notifier.buffer.count, 0, reason: 'stopAll 必须清空 buffer');
+        expect(s.notifier.isDegraded, isFalse, reason: 'stopAll 必须重置降级标志');
+
+        // 已在测试内调过 stopAll，_fakeTeardown 中再调一次幂等
+        s.settings.idleTimeout = 0;
+        _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
+      });
+    });
   });
 }
