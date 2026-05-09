@@ -19,7 +19,7 @@
 
 ## 二、当前 Provider 依赖关系图
 
-```
+```text
 SettingsProvider (ChangeNotifier)
     ↓ ProxyProvider          ↓ ProxyProvider2
 TtsEngineService          GameProvider
@@ -122,6 +122,7 @@ final settingsProvider = ChangeNotifierProvider<SettingsProvider>((ref) {
 ```
 
 UI 侧替换：
+
 ```dart
 // 旧
 final settings = context.watch<SettingsProvider>();

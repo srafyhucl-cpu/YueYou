@@ -2,6 +2,27 @@
 
 ## **2026-05-09**
 
+- **修复(docs): markdownlint 警告 300+ 项 → 0（P3 文档质量收口）**：
+  - **缺陷**：`DevelopmentPlan/*.md`、`development_log.md`、`README.md`、
+    `AGENT.md`、`CLAUDE.md` 共 28 个 Markdown 文件，IDE 报告 300+ 项警告，
+    主要由 MD013（line-length 80 字符限制不适合中文文档）、MD032（列表前后
+    空行）、MD022（标题前后空行）、MD040（fenced code 块未标语言）等规则
+    主导，与 AGENT.md「强制零警告」原则冲突。
+  - **修复**：
+    1. 新增 `@/.markdownlint.json` 配置：
+       - 禁用 `MD013`（line-length，中文文档不适用 80 字符限制）
+       - 禁用 `MD033`（允许行内 HTML，如 `<details>` 折叠）
+       - 禁用 `MD036`（允许 `**bold**` 作为日志小节标题，与现有约定一致）
+       - 禁用 `MD041`（首行 H1 不强制）
+       - 禁用 `MD046`（允许混合 fenced/indented 代码块）
+       - `MD024` 改 `siblings_only`（允许跨小节同名标题）
+    2. 运行 `npx markdownlint-cli@0.41.0 --fix` 批量自动修复 7 个文件的
+       MD032/MD022/MD031/MD037/MD024 等可机修项。
+    3. 手工补 3 处 MD040：DevelopmentPlan 中 fenced code 块标 `text` 语言。
+  - **回归**：`npx markdownlint-cli@0.41.0 "DevelopmentPlan/**/*.md"
+    "development_log.md" "README.md" "AGENT.md" "CLAUDE.md"` **零警告输出**。
+  - **代码评审待办清单更新**：标记 ✅；**🎉 全部 9 项治理完成，零待办**。
+
 - **优化(library): DefaultBookService 进程内内存缓存（P3 弱网体验优化）**：
   - **缺陷**：`StorageService.saveBookCatalog().catchError(...)` 仅记录 warning
     不重试，磁盘写入失败时同会话内仍会重复发起网络请求，弱网环境浪费流量。
