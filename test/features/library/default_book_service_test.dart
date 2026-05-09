@@ -520,33 +520,36 @@ void main() {
     });
 
     test('clearMemoryCacheForTesting 必须同时清空 catalog + chapter 两级缓存', () async {
-      // 仅用 throw 网络的 mock，让缓存命中与否决定 getCatalog 返回内容
+      // 设计思路：通过「改写磁盘数据」观察内存被清空。
+      // - 第一次 seed 磁盘 V1 → getCatalog 命中磁盘 → 同时 seed 内存 V1。
+      // - 把磁盘改写为 V2，但不触发 service。getCatalog 应仍命中内存 → V1。
+      // - clearMemoryCacheForTesting 后内存空 → 下次必须重读磁盘 → V2。
+      //   （回避 Windows 上 tempDir.delete 因后台 IO 文件锁失败的脆弱性）
       final mock = MockClient((req) async {
         throw http.ClientException('always offline');
       });
       final svc = DefaultBookService(httpClient: mock);
 
-      // 直接手工 seed 内存缓存：通过磁盘缓存 → loadBookCatalog → 内存缓存填充
       await StorageService.saveBookCatalog(
         svc.bookKey,
-        [ChapterModel(title: 'OnDisk', lineIndex: 0).toJson()],
+        [ChapterModel(title: 'V1', lineIndex: 0).toJson()],
       );
       final first = await svc.getCatalog();
-      expect(first.first.title, 'OnDisk', reason: '磁盘命中后必须把数据 seed 到内存缓存');
+      expect(first.first.title, 'V1', reason: '磁盘命中后必须把数据 seed 到内存缓存');
 
-      // 把磁盘缓存清掉，但内存缓存还在 → 下次仍命中内存
-      try {
-        if (await tempDir.exists()) await tempDir.delete(recursive: true);
-      } catch (_) {}
-      tempDir = await Directory.systemTemp.createTemp('yueyou_default_book_3_');
+      // 直接改写磁盘到 V2；service 内存仍持有 V1。
+      await StorageService.saveBookCatalog(
+        svc.bookKey,
+        [ChapterModel(title: 'V2', lineIndex: 0).toJson()],
+      );
       final memHit = await svc.getCatalog();
-      expect(memHit.first.title, 'OnDisk', reason: '磁盘已清但内存仍有 → 必须命中内存缓存');
+      expect(memHit.first.title, 'V1', reason: '内存优先于磁盘 → 即便磁盘已改 V2 仍命中内存 V1');
 
-      // clearMemoryCacheForTesting 后内存清空 → 磁盘也空 → 网络抛异常 → 降级 100 章
+      // 清空内存 → 下次必须从磁盘 V2 重新读取
       svc.clearMemoryCacheForTesting();
       final afterClear = await svc.getCatalog();
-      expect(afterClear.length, 100,
-          reason: 'clearMemoryCacheForTesting 清空两级缓存后必须走网络降级到内置 100 章');
+      expect(afterClear.first.title, 'V2',
+          reason: 'clearMemoryCacheForTesting 后内存清空，必须读到磁盘 V2 版本');
     });
   });
 }

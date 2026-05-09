@@ -2,6 +2,23 @@
 
 ## **2026-05-09**
 
+- **优化(audit): 评审 Review 后续清理（消除死代码 + 文档警告 + 防御断言）**：
+  - **`default_book_service_test.dart` 死代码清理**：删除 `clearMemoryCacheForTesting`
+    测试中无效的 `tempDir = createTemp(...)` 重建（`initializeTestEnvironmentWithIsolatedTempDir`
+    内部已捕获闭包，测试侧重新赋值不影响 path_provider mock）。同时把测试
+    设计从「依赖文件系统删除」改为「磁盘 V1 → V2 改写观察」语义，回避
+    Windows `tempDir.delete` 因后台 fire-and-forget 写入文件锁失败的脆弱性。
+  - **`isChapterCached` 文档警告**：在
+    `@/lib/features/library/services/default_book_service.dart:241-251` 添加
+    `**副作用警告**`，明确返回 `true` 不代表磁盘持久化，引导调用方在需要
+    冷启动语义时直接调 `StorageService.loadChapterCache`。
+  - **`_AlwaysFail500HttpClient.downloadCalls` 防御断言**：在 T-B 降级测试
+    （`@/test/features/audio/tts_audio_notifier_test.dart:550-553`）添加
+    `expect(httpClient.downloadCalls, 0)` 锁住「POST 500 短路路径不触达
+    download」的 lib 不变量，未来回归会被立即捕获。
+  - **验证**：`flutter analyze` 零警告；`flutter test` **661 通过 / 4 skipped /
+    0 失败 / 26 秒**。
+
 - **修复(docs): markdownlint 警告 300+ 项 → 0（P3 文档质量收口）**：
   - **缺陷**：`DevelopmentPlan/*.md`、`development_log.md`、`README.md`、
     `AGENT.md`、`CLAUDE.md` 共 28 个 Markdown 文件，IDE 报告 300+ 项警告，
