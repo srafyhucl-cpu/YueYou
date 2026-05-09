@@ -208,4 +208,13 @@ class BookshelfProvider with ChangeNotifier {
     final record = StorageService.getReadingRecord(bookId.toString());
     return (record['cursor'] as num?)?.toInt() ?? 0;
   }
+
+  /// 测试专用：直接注入受控 shelf 数据，避免每个用例都得 mock SharedPreferences。
+  ///
+  /// 不会触发持久化写入，仅设置内存状态 + notifyListeners。
+  @visibleForTesting
+  void setShelfForTesting(List<BookModel> shelf) {
+    _shelf = List<BookModel>.of(shelf);
+    notifyListeners();
+  }
 }
