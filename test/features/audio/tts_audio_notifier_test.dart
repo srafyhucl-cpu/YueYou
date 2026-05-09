@@ -1131,16 +1131,14 @@ void main() {
       });
     });
 
-    // ── idleTimer fire 后必须自动 pause ──────────────────────────────
+    // ── idleTimer fire 后必须自动 pause（engine 心跳触发路径） ─────────────
     // 覆盖 lib/features/audio/providers/tts_audio_notifier.dart:116-122
     // (Timer callback：CyberLogger.captureMessage + pause())
     //
-    // 触发说明：settingsProvider 是 ChangeNotifierProvider，prev 与 next 引用
-    // 同一个 SettingsProvider 实例，`prev?.idleTimeout != next.idleTimeout`
-    // 永远 false（这是 settings listener 的已知缺陷），所以单独改字段不会
-    // 触发 _resetIdleTimer。改用 ttsEngineProvider listener 路径：
-    // engine.notifyUserActivity() → notifyListeners → _resetIdleTimer 创建 Timer。
-    test('idleTimer 到期 fire 必须自动调用 pause()', () {
+    // 路径选择：本用例走 ttsEngineProvider listener（engine.notifyUserActivity
+    // → notifyListeners → _resetIdleTimer），与下方 settings.setIdleTimeout
+    // 路径互补，确保两条触发链路都被回归。
+    test('idleTimer 到期 fire 必须自动调用 pause()（engine 心跳路径）', () {
       fakeAsync((ctrl) {
         final s = _fakeSetup(ctrl);
         // ignore: deprecated_member_use_from_same_package
@@ -1160,6 +1158,47 @@ void main() {
 
         expect(s.notifier.state, isA<TtsAudioPaused>(),
             reason: 'idleTimer fire 后必须自动 pause → state 进入 Paused');
+
+        s.settings.idleTimeout = 0;
+        _fakeTeardown(ctrl, s.notifier, s.container, s.engine);
+      });
+    });
+
+    // ── P1 回归：settings.setIdleTimeout 必须直接驱动 _resetIdleTimer ───────
+    //
+    // 修复前缺陷：`tts_audio_notifier.dart:95-99` 的 `ref.listen(settingsProvider)`
+    // 中 prev 与 next 引用同一个 SettingsProvider 实例（ChangeNotifier 在
+    // notify 时不会创建新实例），`prev?.idleTimeout != next.idleTimeout` 永远
+    // 是 false，listener 内部分支永远不会执行 → settings 路径变更被吞掉。
+    //
+    // 修复后：listener 改用 `settingsProvider.select((s) => s.idleTimeout)`，
+    // Riverpod 内部对 idleTimeout 数值做快照对比，数值变化才 fire callback。
+    //
+    // 本用例验证：直接调 `settings.setIdleTimeout(1)`（不通过 engine 心跳），
+    // listener 必须接收到数值变化并触发 _resetIdleTimer 创建 Timer。
+    test('P1 回归：settings.setIdleTimeout 必须经 listener 触发 _resetIdleTimer', () {
+      fakeAsync((ctrl) {
+        final s = _fakeSetup(ctrl);
+        // ignore: deprecated_member_use_from_same_package
+        s.notifier.setEnabled(true);
+        ctrl.flushMicrotasks();
+        expect(s.notifier.state, isA<TtsAudioBuffering>());
+
+        // 关键：通过公开 setter 走完整 ChangeNotifier.notifyListeners 路径，
+        // 不直接置字段（直接置字段不会 notify，无法验证 listener 链路）。
+        // setIdleTimeout 是 Future<void>，但内部 await StorageService.setInt
+        // 在 SharedPreferences mock 下是 microtask 完成，flushMicrotasks 即可 drain。
+        s.settings.setIdleTimeout(1);
+        ctrl.flushMicrotasks();
+
+        // 推进 1 分 1 秒（>1min），idleTimer 必须 fire 触发 pause callback
+        ctrl.elapse(const Duration(seconds: 61));
+        ctrl.flushMicrotasks();
+
+        expect(s.notifier.state, isA<TtsAudioPaused>(),
+            reason:
+                'P1 修复后 settings.setIdleTimeout 必须通过 select listener 触发 _resetIdleTimer 创建 Timer，'
+                '60s 后 fire callback 让 state 进入 Paused');
 
         s.settings.idleTimeout = 0;
         _fakeTeardown(ctrl, s.notifier, s.container, s.engine);

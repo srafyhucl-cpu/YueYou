@@ -55,8 +55,21 @@ class DefaultBookService {
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
         if (body['status'] == 'success') {
-          final chapters =
-              (body['chapters'] as List).cast<Map<String, dynamic>>();
+          // P3 修复：显式校验 `chapters` 字段，缺失时记录协议错误并降级，
+          // 避免 `(null as List)` 抛出 `_TypeError` 被外层 catch 误判为网络异常。
+          final rawChapters = body['chapters'];
+          if (rawChapters is! List) {
+            CyberLogger.captureWarning(
+              StateError('默认书籍目录协议字段缺失 chapters'),
+              tag: 'library',
+              extra: {
+                'context': '协议字段缺失 chapters',
+                'bodyType': rawChapters.runtimeType.toString(),
+              },
+            );
+            return _fallbackBuiltinCatalog();
+          }
+          final chapters = rawChapters.cast<Map<String, dynamic>>();
           final models = chapters
               .map(
                 (e) => ChapterModel(
@@ -90,6 +103,13 @@ class DefaultBookService {
     }
 
     // 3. 降级：内置常量
+    return _fallbackBuiltinCatalog();
+  }
+
+  /// 降级兜底：返回内置西游记章节标题列表。
+  ///
+  /// 抽出为独立辅助以便网络成功但协议字段缺失时也能复用同一份降级逻辑。
+  List<ChapterModel> _fallbackBuiltinCatalog() {
     return BookConstants.xiyoujiChapterTitles
         .asMap()
         .entries

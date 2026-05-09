@@ -219,6 +219,35 @@ void main() {
       expect(catalog.length, 100, reason: '网络异常 → 降级到内置 100 章 BookConstants');
     });
 
+    test('getCatalog 网络成功但 chapters 字段缺失时必须降级返回内置 100 章', () async {
+      final mock = MockClient((req) async {
+        return http.Response(
+          jsonEncode({'status': 'success'}), // 故意不带 chapters 字段
+          200,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      final catalog = await svc.getCatalog();
+      expect(catalog.length, 100,
+          reason: 'P3 修复：chapters 字段缺失必须走 _fallbackBuiltinCatalog 兜底');
+    });
+
+    test('getCatalog 网络成功但 chapters 字段为 null 时必须降级', () async {
+      final mock = MockClient((req) async {
+        return http.Response(
+          jsonEncode({'status': 'success', 'chapters': null}),
+          200,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      final catalog = await svc.getCatalog();
+      expect(catalog.length, 100, reason: 'P3 修复：chapters=null 必须走降级路径而非崩溃');
+    });
+
     test('fetchChapter 缓存命中时不发任何网络请求', () async {
       int requestCount = 0;
       final mock = MockClient((req) async {

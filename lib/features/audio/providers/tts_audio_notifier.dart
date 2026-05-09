@@ -92,11 +92,18 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     });
 
     // 核心：监听设置中的时长变更
-    ref.listen(settingsProvider, (prev, next) {
-      if (prev?.idleTimeout != next.idleTimeout) {
-        _resetIdleTimer();
-      }
-    });
+    //
+    // 修复 P1（dead code）：`settingsProvider` 是 ChangeNotifierProvider，
+    // 在 notify 时 prev 与 next 引用同一个 SettingsProvider 实例，
+    // 直接比较 `prev?.idleTimeout != next.idleTimeout` 永远 false，分支不会触发。
+    // 改用 `select` 让 Riverpod 内部对 idleTimeout 数值做快照对比，
+    // 只在数值真正变化时 fire callback。
+    ref.listen<int>(
+      settingsProvider.select((s) => s.idleTimeout),
+      (prev, next) {
+        if (prev != next) _resetIdleTimer();
+      },
+    );
 
     return TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null);
   }
