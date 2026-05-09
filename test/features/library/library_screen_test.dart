@@ -151,4 +151,53 @@ void main() {
       reason: 'CyberImportButton 必须挂载到 Scaffold.floatingActionButton',
     );
   });
+
+  // ── tap 删除按钮 → 弹 CyberConfirmDialog → tap 取消保留书籍 ─────────────
+  // 覆盖 lib/features/library/presentation/screens/library_screen.dart：
+  //   * line 232-251 GestureDetector 删除按钮 onTap
+  //   * line 297-310 _confirmDelete 内 showCyberConfirmDialog 调用 + cancel 路径
+  testWidgets('LibraryScreen tap 删除按钮必须弹出 CyberConfirmDialog 并支持取消',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final book = const BookModel(
+      id: 42,
+      title: '待删档案.txt',
+      total: 50,
+      cursor: 5,
+    );
+    SharedPreferences.setMockInitialValues({
+      'has_selected_book': true,
+      'local_bookshelf': jsonEncode([book.toJson()]),
+    });
+    StorageService.resetForTesting();
+    await StorageService.init();
+
+    final shelf = BookshelfProvider()..loadFromStorage();
+    await tester.pumpWidget(_wrap(shelf));
+
+    // tap 删除按钮（每个 BookCard 内的「删」字按钮）
+    await tester.tap(find.text('删'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // CyberConfirmDialog 弹出
+    expect(find.text('初始化抹除？'), findsOneWidget,
+        reason: 'tap 删除按钮必须弹出确认对话框「初始化抹除？」');
+    expect(find.text('确定'), findsOneWidget);
+    expect(find.text('取消'), findsOneWidget);
+
+    // tap 取消 → 关闭 dialog 不删除
+    await tester.tap(find.text('取消'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // 书架仍有这本书
+    expect(shelf.shelf.length, 1, reason: 'tap 取消后书籍必须保留');
+  });
 }
