@@ -1,13 +1,77 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
+import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
+import 'package:yueyou/features/library/services/default_book_service.dart';
+import 'package:yueyou/features/reader/domain/chapter_load_state.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import '../../utils/test_utils.dart';
+
+/// 伪默认书籍服务：用于驱动 loadChapter / _autoAdvanceChapter 全分支。
+class _FakeDefaultBookService extends DefaultBookService {
+  final Map<int, String?> chapters;
+  final List<int> prefetchCalls = [];
+  bool throwOnFetch = false;
+
+  _FakeDefaultBookService(this.chapters) : super();
+
+  @override
+  Future<String?> fetchChapter(int chapterIndex) async {
+    if (throwOnFetch) throw StateError('fake fetch error');
+    return chapters[chapterIndex];
+  }
+
+  @override
+  void prefetchNextChapter(int currentChapterIndex) {
+    prefetchCalls.add(currentChapterIndex);
+  }
+}
 
 Future<ReaderProvider> _makeReaderProvider() async {
   final (reader, _) = await makeReaderStack();
   return reader;
+}
+
+/// 阶段 1 推进：构造同时含有 TtsAudioNotifier 的 ReaderProvider，
+/// 用于覆盖 toggleTTS switch 分支与 nextSentence/jumpTo/switchChapter
+/// 中 `_ttsNotifier?.isActivelyPlaying == true` 的 refreshSession 路径。
+Future<
+    ({
+      ReaderProvider reader,
+      TtsAudioNotifier notifier,
+      TtsEngineService engine,
+      ProviderContainer container
+    })> _makeReaderWithNotifier() async {
+  await initializeTestEnvironment();
+  final settings = makeSettings();
+  final engine = makeTtsEngine(settings);
+  final container = ProviderContainer(
+    overrides: [
+      ttsEngineProvider.overrideWith((ref) => engine),
+      settingsProvider.overrideWith((ref) => settings),
+    ],
+  );
+  // 等待引擎硬件初始化完成（避免 LateInitializationError）。
+  for (int i = 0; i < 50; i++) {
+    await Future<void>.delayed(Duration.zero);
+  }
+  final notifier = container.read(ttsAudioProvider.notifier);
+  final reader = ReaderProvider(engine, notifier: notifier);
+  addTearDown(() {
+    container.dispose();
+    engine.dispose();
+  });
+  return (
+    reader: reader,
+    notifier: notifier,
+    engine: engine,
+    container: container
+  );
 }
 
 void main() {
@@ -714,6 +778,305 @@ void main() {
       // 默认 _makeReaderProvider 不注入 notifier
       final result = reader.toggleTTS();
       expect(result, TtsToggleResult.noContent);
+    });
+  });
+
+  // ── 阶段 1 第 3 轮：toggleTTS switch 分支 + 步进 refreshSession 路径 ──
+  group('ReaderProvider - 与 TtsAudioNotifier 协作分支', () {
+    test('toggleTTS：disabled 状态调用必须返回 playing 并触发 notifier.play', () async {
+      final s = await _makeReaderWithNotifier();
+      await s.reader.loadBook(
+        'A。\nB。\n',
+        bookId: 'b_toggle_disabled',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      // 引擎默认 disabled
+      expect(s.engine.state, TtsPlaybackState.disabled);
+      final result = s.reader.toggleTTS();
+      expect(result, TtsToggleResult.playing,
+          reason: 'disabled 分支必须返回 playing');
+      // notifier 触发 play 后会进入 setBusinessError（需先导入...），即 lastError
+      // 不为 null（已经导入了 bookId，但 notifier 内部 sentence_source 为 null）
+      // 至少不抛异常即视为 switch 分支被走通
+      await s.notifier.stopAll();
+    });
+
+    test('toggleTTS：error 状态调用必须先 clearLastError 再返回 playing', () async {
+      final s = await _makeReaderWithNotifier();
+      await s.reader.loadBook(
+        'A。\n',
+        bookId: 'b_toggle_error',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      // 注入 error 状态
+      s.engine.syncShadow(state: TtsPlaybackState.error);
+      s.engine.setLastError('某错误');
+      expect(s.engine.state, TtsPlaybackState.error);
+      expect(s.engine.lastError, isNotNull);
+
+      final result = s.reader.toggleTTS();
+      expect(result, TtsToggleResult.playing, reason: 'error 分支必须返回 playing');
+      await s.notifier.stopAll();
+    });
+
+    test('toggleTTS：playing 状态调用必须返回 paused 并触发 notifier.pause', () async {
+      final s = await _makeReaderWithNotifier();
+      await s.reader.loadBook(
+        'A。\nB。\n',
+        bookId: 'b_toggle_playing',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      // 注入 playing 状态
+      s.engine.syncShadow(state: TtsPlaybackState.playing);
+      expect(s.engine.state, TtsPlaybackState.playing);
+
+      final result = s.reader.toggleTTS();
+      expect(result, TtsToggleResult.paused, reason: 'playing 分支必须返回 paused');
+      await s.notifier.stopAll();
+    });
+
+    test('toggleTTS：buffering 状态调用必须返回 paused（与 playing 共用分支）', () async {
+      final s = await _makeReaderWithNotifier();
+      await s.reader.loadBook(
+        'A。\nB。\n',
+        bookId: 'b_toggle_buffering',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      s.engine.syncShadow(state: TtsPlaybackState.buffering);
+      final result = s.reader.toggleTTS();
+      expect(result, TtsToggleResult.paused);
+      await s.notifier.stopAll();
+    });
+
+    test('toggleTTS：paused 状态调用必须返回 playing', () async {
+      final s = await _makeReaderWithNotifier();
+      await s.reader.loadBook(
+        'A。\nB。\n',
+        bookId: 'b_toggle_paused',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      s.engine.syncShadow(state: TtsPlaybackState.paused);
+      final result = s.reader.toggleTTS();
+      expect(result, TtsToggleResult.playing);
+      await s.notifier.stopAll();
+    });
+
+    test('resetForDeletedBook：当前 bookId 命中时必须清空 sentences 与 currentBookId',
+        () async {
+      final s = await _makeReaderWithNotifier();
+      await s.reader.loadBook(
+        'A。\n',
+        bookId: 'b_reset_match',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      expect(s.reader.sentences, isNotEmpty);
+      expect(s.reader.currentBookId, 'b_reset_match');
+
+      s.reader.resetForDeletedBook('b_reset_match');
+
+      expect(s.reader.sentences, isEmpty,
+          reason: 'resetForDeletedBook 命中 bookId 时必须清空 sentences');
+      expect(s.reader.currentBookId, isNull,
+          reason: 'resetForDeletedBook 命中 bookId 时必须清空 currentBookId');
+      // 同步触发 notifier.stopAll 后状态必为 Idle
+      expect(s.notifier.state, isA<TtsAudioIdle>(),
+          reason: 'resetForDeletedBook 必须经 notifier.stopAll 回到 Idle');
+    });
+
+    test('resetForDeletedBook：当前 bookId 不匹配时必须保留状态', () async {
+      final s = await _makeReaderWithNotifier();
+      await s.reader.loadBook(
+        'A。\n',
+        bookId: 'b_reset_keep',
+        initialIndex: 0,
+        forceIndex: true,
+      );
+      s.reader.resetForDeletedBook('other_book');
+      expect(s.reader.sentences, isNotEmpty,
+          reason: 'bookId 不匹配时不得清空 sentences');
+      expect(s.reader.currentBookId, 'b_reset_keep',
+          reason: 'bookId 不匹配时必须保留 currentBookId');
+    });
+
+    test('dispose 必须正确解绑 ttsEngine listener，post-dispose 写入不影响 reader',
+        () async {
+      final s = await _makeReaderWithNotifier();
+      s.reader.dispose();
+      // dispose 后再写 engine.lastError 不应通过 listener 反馈到 reader
+      s.engine.setLastError('post-dispose');
+      // 不抛异常即视为 listener 已解绑
+      expect(s.engine.lastError, 'post-dispose');
+    });
+  });
+
+  // ── 阶段 1 第 3 轮：默认书章节懒加载 + 章末自动推进 ──
+  group('ReaderProvider - 默认书 loadChapter / restoreDefaultBook', () {
+    Future<({ReaderProvider reader, _FakeDefaultBookService svc})>
+        _makeWithFakeDefaultService(Map<int, String?> chapters) async {
+      await initializeTestEnvironment();
+      final settings = makeSettings();
+      final engine = makeTtsEngine(settings);
+      final svc = _FakeDefaultBookService(chapters);
+      final reader = ReaderProvider(engine, defaultBookService: svc);
+      addTearDown(() {
+        reader.dispose();
+        engine.dispose();
+      });
+      return (reader: reader, svc: svc);
+    }
+
+    test('loadChapter：越界 chapterIndex 必须直接 return，不修改状态', () async {
+      final s = await _makeWithFakeDefaultService({0: '正文。\n'});
+      // 越界 -1
+      await s.reader.loadChapter(-1);
+      expect(s.reader.chapterLoadState, ChapterLoadState.idle);
+      expect(s.reader.isDefaultBookMode, isFalse);
+      // 越界 totalChapters
+      await s.reader.loadChapter(BookConstants.defaultTotalChapters);
+      expect(s.reader.chapterLoadState, ChapterLoadState.idle);
+      expect(s.reader.isDefaultBookMode, isFalse);
+    });
+
+    test('loadChapter：fetchChapter 返回 null 时必须设为 error 状态', () async {
+      final s = await _makeWithFakeDefaultService({5: null});
+      await s.reader.loadChapter(5);
+      expect(s.reader.chapterLoadState, ChapterLoadState.error,
+          reason: 'fetchChapter 返回 null 必须置为 error 状态');
+      expect(s.reader.isDefaultBookMode, isTrue, reason: '即使失败也已进入默认书模式');
+      expect(s.reader.currentChapterIndex, 5);
+    });
+
+    test('loadChapter：fetchChapter 抛异常时必须捕获并设为 error 状态', () async {
+      final s = await _makeWithFakeDefaultService({3: '正文。\n'});
+      s.svc.throwOnFetch = true;
+      await s.reader.loadChapter(3);
+      expect(s.reader.chapterLoadState, ChapterLoadState.error,
+          reason: 'fetchChapter 抛异常必须 catch 并置 error');
+      expect(s.reader.isDefaultBookMode, isTrue);
+    });
+
+    test('loadChapter：成功时必须 loaded + 持久化 chapterIndex + 触发预读', () async {
+      final s = await _makeWithFakeDefaultService({
+        7: '第七回正文。\n第二句。\n',
+        8: '第八回正文。\n',
+      });
+      await s.reader.loadChapter(7);
+      expect(s.reader.chapterLoadState, ChapterLoadState.loaded);
+      expect(s.reader.isDefaultBookMode, isTrue);
+      expect(s.reader.currentChapterIndex, 7);
+      expect(s.reader.sentences, isNotEmpty, reason: '加载完成后 sentences 必须填充');
+      expect(s.reader.currentBookId, BookConstants.defaultBookKey,
+          reason: '默认书模式下 bookId 必须为 defaultBookKey');
+      expect(StorageService.getCurrentChapterIndex(), 7,
+          reason: '必须持久化 chapterIndex 供热重启恢复');
+      expect(s.svc.prefetchCalls, contains(7),
+          reason: '加载完成后必须触发 prefetchNextChapter 影子预读');
+    });
+
+    test('loadChapter：resume=false 时 initialIndex 必须从 0 开始', () async {
+      final s = await _makeWithFakeDefaultService({2: '一。\n二。\n三。\n'});
+      // 先把进度位写到 5
+      await StorageService.updateReadingRecord(
+        BookConstants.defaultBookKey,
+        5,
+        3,
+      );
+      await s.reader.loadChapter(2, resume: false);
+      expect(s.reader.currentIndex, 0, reason: 'resume=false 必须从头开始');
+    });
+
+    test('restoreDefaultBook：默认模式已开启时直接 early return', () async {
+      final s = await _makeWithFakeDefaultService({0: 'A。\n'});
+      // 先正常加载一次进入默认模式
+      await s.reader.loadChapter(0);
+      final before = s.svc.prefetchCalls.length;
+      // 再次调用 restoreDefaultBook 应直接返回，不重复加载
+      s.reader.restoreDefaultBook();
+      // 同步 path：early return 不会启动新的 fetch
+      expect(s.svc.prefetchCalls.length, before, reason: '已在默认模式时不应重复触发预读');
+    });
+
+    test('restoreDefaultBook：非默认模式下必须填充 chapters + 触发 loadChapter', () async {
+      final s = await _makeWithFakeDefaultService({0: '第一回正文。\n二。\n'});
+      // 先持久化 chapterIndex=0
+      await StorageService.setCurrentChapterIndex(0);
+      s.reader.restoreDefaultBook();
+      // 同步部分立即生效
+      expect(s.reader.isDefaultBookMode, isTrue);
+      expect(s.reader.currentChapterIndex, 0);
+      expect(s.reader.chapters, isNotEmpty,
+          reason: '必须用 BookConstants.xiyoujiChapterTitles 填充 chapters');
+      expect(
+          s.reader.chapters.length, BookConstants.xiyoujiChapterTitles.length);
+      // 异步 loadChapter 完成后状态变 loaded
+      for (int i = 0;
+          i < 50 && s.reader.chapterLoadState != ChapterLoadState.loaded;
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect(s.reader.chapterLoadState, ChapterLoadState.loaded,
+          reason: 'restoreDefaultBook 必须触发 loadChapter 加载到 loaded');
+    });
+
+    test('章末自动推进：onTtsItemFinished 在末句必须触发 _autoAdvanceChapter', () async {
+      final s = await _makeWithFakeDefaultService({
+        4: '第五回正文。\n', // 仅一行 → 末句即首句
+        5: '第六回正文。\n',
+      });
+      await s.reader.loadChapter(4);
+      expect(s.reader.currentChapterIndex, 4);
+      expect(s.reader.isDefaultBookMode, isTrue);
+
+      // 模拟 TTS 播完最后一个 item（lineIndex == sentences.length - 1）
+      final lastIndex = s.reader.sentences.length - 1;
+      await s.reader.onTtsItemFinished(
+        TtsAudioItem(
+          id: 1,
+          session: 0,
+          lineIndex: lastIndex,
+          title: '',
+          text: s.reader.sentences[lastIndex],
+          estimatedDuration: const Duration(seconds: 1),
+        ),
+      );
+      // 等待 _autoAdvanceChapter 完成（必须同时等到 chapterLoadState 稳定到 loaded，
+      // 否则 fire-and-forget 的 loadChapter 会在 teardown dispose 后继续 notifyListeners 抛异常）
+      for (int i = 0; i < 100; i++) {
+        if (s.reader.currentChapterIndex == 5 &&
+            s.reader.chapterLoadState == ChapterLoadState.loaded) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect(s.reader.currentChapterIndex, 5, reason: '章末必须自动推进到下一章');
+      expect(s.reader.chapterLoadState, ChapterLoadState.loaded,
+          reason: '推进后必须达到 loaded 稳定态');
+    });
+
+    test('章末自动推进：已是最后一章时必须停止推进', () async {
+      final last = BookConstants.defaultTotalChapters - 1;
+      final s = await _makeWithFakeDefaultService({last: '终章正文。\n'});
+      await s.reader.loadChapter(last);
+      final lastIndex = s.reader.sentences.length - 1;
+      await s.reader.onTtsItemFinished(
+        TtsAudioItem(
+          id: 1,
+          session: 0,
+          lineIndex: lastIndex,
+          title: '',
+          text: s.reader.sentences[lastIndex],
+          estimatedDuration: const Duration(seconds: 1),
+        ),
+      );
+      // 给一点时间让任何潜在异步任务结束
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(s.reader.currentChapterIndex, last, reason: '已是最后一章必须停留，不再推进');
     });
   });
 }

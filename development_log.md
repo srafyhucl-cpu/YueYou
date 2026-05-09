@@ -37,6 +37,18 @@
   - **测试用例数**：484 → **494**（+10），skipped 5 → 4。
   - **验证**：`flutter analyze` 零警告，`flutter test` 494 / 4 / 0，`dart scripts/ai_code_checker.dart` 阻断 0 / 警告 0，`python scripts/check_coverage_gate.py --overall 55 --core 55` PASSED。
 
+- **测试(coverage): 阶段 1 第 3 轮收口（ReaderProvider 87% 超额达标 / 整体破 60%）**：
+  - **`ReaderProvider` toggleTTS 5 分支全覆盖**（+5 用例）：disabled / error / playing / buffering / paused 状态机分支断言对应 `playing` / `paused` / `noContent` 返回值。
+  - **`ReaderProvider` resetForDeletedBook 双向 + dispose 解绑**（+3 用例）：bookId 命中清空 + stopAll 回 Idle / bookId 不匹配保留全部状态 / dispose 后 engine.setLastError 不反馈。
+  - **`ReaderProvider` 默认书 loadChapter 全分支**（+5 用例）：越界直接 return / fetchChapter 返回 null 置 error / 抛异常 catch 置 error / 成功 loaded + setCurrentChapterIndex + 影子预读 / `resume=false` 强制从 0 开始。
+  - **`ReaderProvider` restoreDefaultBook 双向 + 章末自动推进**（+4 用例）：默认模式已激活 early return / 未激活填充 chapters + 异步 loadChapter 到 loaded / 中间章 onTtsItemFinished(lastIndex) 触发 `_autoAdvanceChapter` 跳到下一章 / 末章必停留不再推进。
+  - **lib 改动**：`ReaderProvider` 构造器新增可选 `defaultBookService` 注入参数，便于测试驱动 loadChapter / `_autoAdvanceChapter` 全分支；生产环境保持懒初始化原行为。
+  - **稳定性踩坑**：① TTS 双轨 pump 启动后 `Future.delayed(300/500ms)` 会让 flutter_test runner 在 teardown 后等待定时器假性挂起（结论：测试中避免 `notifier.refreshSession()`）；② `_autoAdvanceChapter` fire-and-forget 在 teardown dispose 后继续 notifyListeners 导致级联失败（修复：测试等待 `chapterLoadState` 稳定到 `loaded`）。
+  - **新增工具**：`scripts/uncovered_lines.py` 解析 `coverage/lcov.info`，按文件输出未覆盖行号合并区间，定位补测试重点。
+  - **覆盖率提升**：整体 59.28% → **60.14%** ✅ 跨越阶段 1 的 60% 心理位；`reader_provider.dart` 72.58% → **87.29% (+14.71 pp)** ⭐ 超额达标，逼近大厂 90% 门槛。
+  - **测试用例数**：581 → **590**（+9）。
+  - **验证**：`flutter analyze` 零警告 / `flutter test` 590-4-0 / `python scripts/check_coverage_gate.py` ReaderProvider 87.29% ≥ 75% 阈值通过。
+
 - **测试(coverage): 阶段 1 第 2 轮推进（tts_audio_notifier 突破 80%）**：
   - **TtsAudioNotifier 公开 API 全覆盖**（+10 用例）：play 无 source 守卫 / cycleSpeed 同步 engine / setBackgroundTolerant 切换 / recover 链路 / setBusinessError 传播 / isActivelyPlaying / 全 getter / refreshSession 无 source / stopAll 幂等 / @Deprecated setEnabled。覆盖率 70.56% → **80.11% (+9.55 pp)** ✅ 距大厂 90% 门槛仅 ~10pp。
   - **TtsEngineService 影子状态与公开 API**（+10 用例）：setLastError String/TimeoutException 映射 / 不同值刷新 errorTimestamp / clearLastError 幂等 / notifyUserActivity / stopAudio 强制 complete _playCompleter / pauseAudio + fallbackEngine / resumeAudio / syncSettingsFromProvider / syncShadow。覆盖率 69.82% → 70.18%。

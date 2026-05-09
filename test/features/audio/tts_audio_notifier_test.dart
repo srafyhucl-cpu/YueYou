@@ -690,5 +690,30 @@ void main() {
       expect(s.notifier.state, isA<TtsAudioIdle>(),
           reason: 'setEnabled(false) 必须等同 stopAll → Idle');
     });
+
+    // ── _copyStateWithRate switch 分支：Buffering 状态下 cycleSpeed ──────
+    // 直接在 Buffering 状态调 cycleSpeed，覆盖 _copyStateWithRate 的
+    // TtsAudioBuffering() 分支（lib/features/audio/providers
+    // /tts_audio_notifier.dart:712-718）。
+    test('cycleSpeed 在 Buffering 状态下必须保留 buffer/target/session 等字段', () async {
+      final s = await _setup();
+      // 进入 Buffering（无 sentenceSource 也能构造空缓冲态）
+      await s.notifier.refreshSession();
+      expect(s.notifier.state, isA<TtsAudioBuffering>());
+
+      final beforeRate = s.notifier.state.playbackRate;
+      final beforeSession = (s.notifier.state as TtsAudioBuffering).session;
+
+      s.notifier.cycleSpeed();
+
+      final after = s.notifier.state;
+      expect(after, isA<TtsAudioBuffering>(), reason: 'cycleSpeed 不得改变状态类型');
+      expect(after.playbackRate, isNot(equals(beforeRate)),
+          reason: 'playbackRate 必须切换');
+      expect((after as TtsAudioBuffering).session, beforeSession,
+          reason: 'cycleSpeed 必须保留 session（不重置）');
+
+      await s.notifier.stopAll();
+    });
   });
 }

@@ -75,8 +75,10 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     this._ttsEngine, {
     TtsAudioNotifier? notifier,
     Future<ParseResult> Function(String rawText)? parseBook,
+    DefaultBookService? defaultBookService,
   })  : _ttsNotifier = notifier,
-        _parseBook = parseBook ?? TextParser.parse {
+        _parseBook = parseBook ?? TextParser.parse,
+        _defaultBookService = defaultBookService {
     _lastTtsError = _ttsEngine.lastError;
     _lastTtsState = _ttsEngine.state;
     _ttsEngine.addListener(_onTtsEngineChanged);
