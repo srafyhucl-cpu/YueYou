@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/features/library/services/default_book_service.dart';
+
+import '../../utils/test_utils.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -16,22 +16,10 @@ void main() {
   late DefaultBookService service;
   late Directory tempDir;
 
-  Future<void> _setupTestEnv() async {
-    SharedPreferences.setMockInitialValues({});
-    StorageService.resetForTesting();
-    await StorageService.init();
-    // 每个用例独立 temp dir，避免缓存文件交叉污染
-    tempDir = await Directory.systemTemp.createTemp('yueyou_default_book_');
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (call) async => tempDir.path,
-    );
-  }
-
   setUp(() async {
-    await _setupTestEnv();
+    // 复用工具方法：基础初始化 + StorageService 重置 + 独立 temp dir + path_provider 重写
+    tempDir = await initializeTestEnvironmentWithIsolatedTempDir(
+        'yueyou_default_book_');
     service = DefaultBookService();
   });
 
@@ -376,6 +364,189 @@ void main() {
 
       expect(postCalls, greaterThanOrEqualTo(1),
           reason: 'prefetchNextChapter 必须 fire-and-forget 调 fetchChapter');
+    });
+  });
+
+  // ── P3 回归：进程内内存缓存（in-process memory cache fallback）────────────
+  // 覆盖 lib/features/library/services/default_book_service.dart：
+  //   * getCatalog 网络成功后填充 _catalogMemCache（line 108-109）
+  //   * getCatalog 第二次调用走 _catalogMemCache 早返（line 62-65）
+  //   * fetchChapter 网络成功后填充 _chapterMemCache（line 184-185）
+  //   * fetchChapter 第二次调用走 _chapterMemCache 早返（line 163-165）
+  //   * isChapterCached 命中内存缓存返回 true（line 242-243）
+  //   * clearMemoryCacheForTesting 清空两层缓存
+  group('DefaultBookService - P3 进程内内存缓存', () {
+    test('getCatalog 网络成功后第二次调用必须命中 _catalogMemCache 不再发请求', () async {
+      int requestCount = 0;
+      final mock = MockClient((req) async {
+        requestCount++;
+        return http.Response(
+          jsonEncode({
+            'status': 'success',
+            'chapters': [
+              {'title': 'MemA'},
+              {'title': 'MemB'},
+            ],
+          }),
+          200,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      // 第一次：走网络
+      final first = await svc.getCatalog();
+      expect(requestCount, 1);
+      expect(first.length, 2);
+
+      // 第二次：必须命中内存缓存，requestCount 不增加
+      final second = await svc.getCatalog();
+      expect(requestCount, 1, reason: 'P3 内存缓存命中后禁止再发网络请求');
+      expect(second.map((c) => c.title), equals(<String>['MemA', 'MemB']));
+    });
+
+    test('getCatalog 内存缓存优先级高于磁盘缓存（同会话不读盘）', () async {
+      int requestCount = 0;
+      final mock = MockClient((req) async {
+        requestCount++;
+        return http.Response(
+          jsonEncode({
+            'status': 'success',
+            'chapters': [
+              {'title': 'NetOnly'},
+            ],
+          }),
+          200,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      await svc.getCatalog();
+      // 即使把磁盘缓存改写成 ['DiskOverride']，下次 getCatalog 仍应返回内存版本
+      await StorageService.saveBookCatalog(
+        svc.bookKey,
+        [ChapterModel(title: 'DiskOverride', lineIndex: 0).toJson()],
+      );
+      final second = await svc.getCatalog();
+      expect(second.first.title, 'NetOnly',
+          reason: 'P3 优先级：内存 > 磁盘，确保即便磁盘有更新也以内存为准');
+    });
+
+    test('getCatalog 降级到内置常量时不写入 _catalogMemCache（保留下次重试机会）', () async {
+      int callCount = 0;
+      final mock = MockClient((req) async {
+        callCount++;
+        if (callCount == 1) {
+          throw http.ClientException('first call fails');
+        }
+        // 第二次成功
+        return http.Response(
+          jsonEncode({
+            'status': 'success',
+            'chapters': [
+              {'title': 'RetrySuccess'},
+            ],
+          }),
+          200,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      // 第一次：网络异常 → 降级 100 章内置常量，但内存缓存保持空
+      final first = await svc.getCatalog();
+      expect(first.length, 100, reason: '第一次降级到内置 100 章');
+
+      // 第二次：内存缓存为空 → 走网络 → 成功
+      final second = await svc.getCatalog();
+      expect(second.length, 1, reason: 'P3 关键：降级时不写内存缓存，下次必须仍能重试网络');
+      expect(second.first.title, 'RetrySuccess');
+    });
+
+    test('fetchChapter 网络成功后第二次调用必须命中 _chapterMemCache 不再发请求', () async {
+      int postCalls = 0;
+      final mock = MockClient((req) async {
+        if (req.method == 'POST') {
+          postCalls++;
+          return http.Response(
+            jsonEncode({
+              'status': 'success',
+              'url': 'https://cdn.test/ch_0.txt',
+            }),
+            200,
+            headers: {'Content-Type': 'application/json; charset=utf-8'},
+          );
+        }
+        return http.Response.bytes(utf8.encode('章节正文 mem'), 200);
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      // 第一次：走完整 POST → GET 链路
+      final first = await svc.fetchChapter(0);
+      expect(first, '章节正文 mem');
+      expect(postCalls, 1);
+
+      // 第二次：命中内存缓存，不再发任何 POST
+      final second = await svc.fetchChapter(0);
+      expect(second, '章节正文 mem');
+      expect(postCalls, 1, reason: 'P3 内存缓存命中后禁止重复 POST');
+    });
+
+    test('isChapterCached 命中内存缓存时无需读盘也返回 true', () async {
+      int postCalls = 0;
+      final mock = MockClient((req) async {
+        if (req.method == 'POST') {
+          postCalls++;
+          return http.Response(
+            jsonEncode({
+              'status': 'success',
+              'url': 'https://cdn.test/ch_0.txt',
+            }),
+            200,
+            headers: {'Content-Type': 'application/json; charset=utf-8'},
+          );
+        }
+        return http.Response.bytes(utf8.encode('cached body'), 200);
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      // 拉一次让内存缓存填充
+      await svc.fetchChapter(0);
+      expect(postCalls, 1);
+
+      final isCached = await svc.isChapterCached(0);
+      expect(isCached, isTrue, reason: 'P3：isChapterCached 必须先查内存缓存命中即返 true');
+    });
+
+    test('clearMemoryCacheForTesting 必须同时清空 catalog + chapter 两级缓存', () async {
+      // 仅用 throw 网络的 mock，让缓存命中与否决定 getCatalog 返回内容
+      final mock = MockClient((req) async {
+        throw http.ClientException('always offline');
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      // 直接手工 seed 内存缓存：通过磁盘缓存 → loadBookCatalog → 内存缓存填充
+      await StorageService.saveBookCatalog(
+        svc.bookKey,
+        [ChapterModel(title: 'OnDisk', lineIndex: 0).toJson()],
+      );
+      final first = await svc.getCatalog();
+      expect(first.first.title, 'OnDisk', reason: '磁盘命中后必须把数据 seed 到内存缓存');
+
+      // 把磁盘缓存清掉，但内存缓存还在 → 下次仍命中内存
+      try {
+        if (await tempDir.exists()) await tempDir.delete(recursive: true);
+      } catch (_) {}
+      tempDir = await Directory.systemTemp.createTemp('yueyou_default_book_3_');
+      final memHit = await svc.getCatalog();
+      expect(memHit.first.title, 'OnDisk', reason: '磁盘已清但内存仍有 → 必须命中内存缓存');
+
+      // clearMemoryCacheForTesting 后内存清空 → 磁盘也空 → 网络抛异常 → 降级 100 章
+      svc.clearMemoryCacheForTesting();
+      final afterClear = await svc.getCatalog();
+      expect(afterClear.length, 100,
+          reason: 'clearMemoryCacheForTesting 清空两级缓存后必须走网络降级到内置 100 章');
     });
   });
 }

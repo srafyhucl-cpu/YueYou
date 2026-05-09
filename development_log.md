@@ -2,6 +2,34 @@
 
 ## **2026-05-09**
 
+- **优化(library): DefaultBookService 进程内内存缓存（P3 弱网体验优化）**：
+  - **缺陷**：`StorageService.saveBookCatalog().catchError(...)` 仅记录 warning
+    不重试，磁盘写入失败时同会话内仍会重复发起网络请求，弱网环境浪费流量。
+  - **修复**：在 `@/lib/features/library/services/default_book_service.dart`
+    新增进程内内存缓存：
+    - `List<ChapterModel>? _catalogMemCache`（目录单例缓存）
+    - `Map<int, String> _chapterMemCache`（章节正文缓存，上限 100 章）
+    - 优先级：**内存 → 磁盘 → 网络**。
+    - 磁盘命中后 seed 内存（避免后续磁盘 IO）；网络成功后先写内存再
+      fire-and-forget 写盘，**即使写盘失败本会话仍可复用**。
+    - **关键约束**：降级到内置常量时**不写内存缓存**，保留下次重试网络的
+      机会（避免一次网络异常后整会话锁死内置降级）。
+    - 新增 `@visibleForTesting void clearMemoryCacheForTesting()` 测试钩子。
+    - `isChapterCached` 同步覆盖内存与磁盘两层。
+  - **配套测试基础设施重构**：`@/test/features/library/default_book_service_test.dart`
+    setUp 改用 `initializeTestEnvironmentWithIsolatedTempDir` 工具方法，
+    去掉重复的 path_provider channel mock 样板（-15 行）。
+  - **回归覆盖**：新增 6 条 default_book_service_test.dart 用例：
+    - `getCatalog` 网络成功后第二次必须命中内存（requestCount 不增加）
+    - `getCatalog` 内存优先级高于磁盘（即便磁盘有更新仍以内存为准）
+    - `getCatalog` 降级到内置 100 章时**不污染**内存（下次仍能重试网络）
+    - `fetchChapter` 网络成功后第二次必须命中内存（postCalls 不增加）
+    - `isChapterCached` 命中内存即返 true 无需读盘
+    - `clearMemoryCacheForTesting` 必须真正清空两层缓存
+  - **代码评审待办清单更新**：标记 ✅；剩余 1 条 P3（markdownlint 文档格式化）。
+  - **验证**：`flutter analyze` 零警告；`flutter test` **661 通过 / 4 skipped /
+    0 失败 / 22 秒**（655 → 661，+6 用例）。
+
 - **修复(audit): lib 治理 P3 收口（测试基础设施完善：fake httpClient.download + 隔离 temp dir 工具方法）**：
   - **P3 修复 · `_AlwaysFail500HttpClient.download` 测试盲区**：
     - **位置**：`@/test/features/audio/tts_audio_notifier_test.dart:92-113`
