@@ -1018,7 +1018,7 @@ void main() {
       for (int i = 0;
           i < 50 && s.reader.chapterLoadState != ChapterLoadState.loaded;
           i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await pumpEventQueue();
       }
       expect(s.reader.chapterLoadState, ChapterLoadState.loaded,
           reason: 'restoreDefaultBook 必须触发 loadChapter 加载到 loaded');
@@ -1046,13 +1046,14 @@ void main() {
         ),
       );
       // 等待 _autoAdvanceChapter 完成（必须同时等到 chapterLoadState 稳定到 loaded，
-      // 否则 fire-and-forget 的 loadChapter 会在 teardown dispose 后继续 notifyListeners 抛异常）
+      // 否则 fire-and-forget 的 loadChapter 会在 teardown dispose 后继续 notifyListeners 抛异常）。
+      // 用 pumpEventQueue 排干微任务，避免真定时器 5ms 累加耗时。
       for (int i = 0; i < 100; i++) {
         if (s.reader.currentChapterIndex == 5 &&
             s.reader.chapterLoadState == ChapterLoadState.loaded) {
           break;
         }
-        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await pumpEventQueue();
       }
       expect(s.reader.currentChapterIndex, 5, reason: '章末必须自动推进到下一章');
       expect(s.reader.chapterLoadState, ChapterLoadState.loaded,
@@ -1074,8 +1075,9 @@ void main() {
           estimatedDuration: const Duration(seconds: 1),
         ),
       );
-      // 给一点时间让任何潜在异步任务结束
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      // 排干任何潜在的微任务，避免中间状态脱锁
+      await pumpEventQueue();
+      await pumpEventQueue();
       expect(s.reader.currentChapterIndex, last, reason: '已是最后一章必须停留，不再推进');
     });
   });
