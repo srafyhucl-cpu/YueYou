@@ -25,7 +25,13 @@ class DefaultBookService {
   /// 并发去重：in-flight 章节下载请求缓存，防止同一章节同时发起两次网络请求。
   final Map<int, Completer<String?>> _inFlight = {};
 
-  DefaultBookService({this.bookKey = BookConstants.defaultBookKey});
+  /// HTTP 客户端：默认走 [http.Client()]（dart:io），测试可注入 [MockClient]。
+  final http.Client _httpClient;
+
+  DefaultBookService({
+    this.bookKey = BookConstants.defaultBookKey,
+    http.Client? httpClient,
+  }) : _httpClient = httpClient ?? http.Client();
 
   // ── 目录获取：缓存 → 网络 → 内置常量 ───────────────────────────────────
 
@@ -42,7 +48,7 @@ class DefaultBookService {
     // 2. 网络拉取
     try {
       final uri = Uri.parse('$_apiBase/book/catalog?bookId=$bookKey');
-      final resp = await http.get(
+      final resp = await _httpClient.get(
         uri,
         headers: {'Accept': 'application/json'},
       ).timeout(TtsConfig.bookApiTimeout);
@@ -186,7 +192,7 @@ class DefaultBookService {
   Future<String?> _downloadChapter(int chapterIndex) async {
     // 步骤一：POST 获取 CDN URL
     final postUri = Uri.parse('$_apiBase/book/chapter');
-    final postResp = await http
+    final postResp = await _httpClient
         .post(
           postUri,
           headers: {'Content-Type': 'application/json'},
@@ -225,7 +231,7 @@ class DefaultBookService {
     if (cdnUrl == null || cdnUrl.isEmpty) return null;
 
     // 步骤二：GET 从 CDN 下载章节纯文本
-    final getResp = await http
+    final getResp = await _httpClient
         .get(Uri.parse(cdnUrl))
         .timeout(TtsConfig.bookCdnDownloadTimeout);
 
