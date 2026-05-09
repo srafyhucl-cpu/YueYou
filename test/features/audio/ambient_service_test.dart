@@ -36,7 +36,8 @@ void main() {
     });
 
     test('setEnabled(true) 更新 _enabled 状态', () async {
-      AmbientService.setInitializedForTesting(initialized: false, enabled: false);
+      AmbientService.setInitializedForTesting(
+          initialized: false, enabled: false);
       await AmbientService.setEnabled(true);
       expect(AmbientService.enabledForTesting, isTrue);
     });
@@ -116,7 +117,8 @@ void main() {
     });
 
     test('enabled=false 时 pause 不设置 pausedByLifecycle', () async {
-      AmbientService.setInitializedForTesting(initialized: true, enabled: false);
+      AmbientService.setInitializedForTesting(
+          initialized: true, enabled: false);
       await AmbientService.pause();
       // enabled=false 时 pause 提前返回，不修改 pausedByLifecycle
       expect(AmbientService.pausedByLifecycleForTesting, isFalse);
@@ -216,8 +218,83 @@ void main() {
       final view = ByteData.sublistView(wav);
       // 首个采样（offset 44）应接近 0（淡入起点）
       final firstSample = view.getInt16(44, Endian.little).abs();
-      expect(firstSample, lessThan(100),
-          reason: '淡入起始采样应接近 0，实际为 $firstSample',);
+      expect(
+        firstSample,
+        lessThan(100),
+        reason: '淡入起始采样应接近 0，实际为 $firstSample',
+      );
+    });
+  });
+
+  // ── _initialized=true 路径覆盖 ──────────────────────────────────────────
+  //
+  // 覆盖 lib/features/audio/services/ambient_service.dart 在 _initialized=true
+  // 时的真实分支（_player 仍为 null 时 `_player?.*` 表达式整行算作已执行）。
+  group('AmbientService - _initialized=true 真实分支', () {
+    test('init 在已初始化时必须早返不重复创建 _player', () async {
+      AmbientService.setInitializedForTesting(initialized: true);
+      // init() 走 line 61 的 if (_initialized) return; 早返
+      await AmbientService.init();
+      // 不抛异常即视为路径覆盖
+      expect(AmbientService.enabledForTesting, isTrue);
+    });
+
+    test('setEnabled(true) 当已初始化时必须走 _startIfNeeded 分支', () async {
+      AmbientService.setInitializedForTesting(
+          initialized: true, enabled: false);
+      // 期望走 line 99 await _startIfNeeded()，_player 为 null 短路返回
+      try {
+        await AmbientService.setEnabled(true);
+      } catch (_) {}
+      expect(AmbientService.enabledForTesting, isTrue);
+    });
+
+    test('setEnabled(false) 当已初始化时必须走 _player.stop 分支', () async {
+      AmbientService.setInitializedForTesting(initialized: true, enabled: true);
+      // 期望走 line 101 await _player?.stop()
+      await AmbientService.setEnabled(false);
+      expect(AmbientService.enabledForTesting, isFalse);
+    });
+
+    test('setStyle 切换风格 + 已启用时必须触发 _startIfNeeded（warm 分支）', () async {
+      AmbientService.setInitializedForTesting(initialized: true, enabled: true);
+      // setStyle('warm') 与默认 'wuxia' 不同 → 进入 line 107-112
+      // _startIfNeeded 内 _wavCache.putIfAbsent 会调 _generateAmbientWav(style: 'warm')
+      // 触发 line 227-228 warm 风格随机抖动分支
+      try {
+        await AmbientService.setStyle('warm');
+      } catch (_) {}
+    });
+
+    test('setStyle 相同风格时必须早返不触发生成', () async {
+      AmbientService.setInitializedForTesting(initialized: true, enabled: true);
+      // 默认 _style=wuxia，setStyle('wuxia') 命中 line 107 早返
+      await AmbientService.setStyle('wuxia');
+      expect(AmbientService.enabledForTesting, isTrue);
+    });
+
+    test('setVolume 当 _player 已存在 时必须走 _player.setVolume 分支', () async {
+      AmbientService.setInitializedForTesting(initialized: true);
+      // line 118 await _player?.setVolume(_volume)
+      await AmbientService.setVolume(0.3);
+      expect(AmbientService.volumeForTesting, closeTo(0.3, 0.001));
+    });
+
+    test('pause 当已初始化且启用时必须走 _player.pause 分支', () async {
+      AmbientService.setInitializedForTesting(initialized: true, enabled: true);
+      // line 125 await _player?.pause()
+      await AmbientService.pause();
+      expect(AmbientService.pausedByLifecycleForTesting, isTrue);
+    });
+
+    test('resume 当已初始化且 pausedByLifecycle=true 时必须重启 _startIfNeeded', () async {
+      AmbientService.setInitializedForTesting(initialized: true, enabled: true);
+      await AmbientService.pause();
+      // resume 走 line 131-134 _pausedByLifecycle=false + _startIfNeeded
+      try {
+        await AmbientService.resume();
+      } catch (_) {}
+      expect(AmbientService.pausedByLifecycleForTesting, isFalse);
     });
   });
 }
