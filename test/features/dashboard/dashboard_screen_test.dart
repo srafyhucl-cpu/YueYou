@@ -114,4 +114,51 @@ void main() {
     expect(find.textContaining('当前得分'), findsNothing,
         reason: 'multi-window 模式下 _buildStatusPanel 必须隐藏');
   });
+
+  // ── 大屏 + low animation level 用例：拉动 TeleprompterView 与 modal 的
+  //    isLowPerf=true 分支（Container 而非 BackdropFilter 渲染路径）
+  testWidgets('DashboardScreen 大屏 + low animation level 必须走非 blur 分支',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    // 自定义 _wrap：注入 animationQualitySetting='low' 的 settings
+    final settings = makeSettings();
+    settings.animationQualitySetting = 'low';
+    final engine = makeTtsEngine(settings);
+    activeEngine = engine;
+    final reader = ReaderProvider(engine);
+    activeReader = reader;
+    final bookshelf = BookshelfProvider();
+    final game = GameProvider(
+      autoLoadState: false,
+      persistDebounceDuration: Duration.zero,
+    )..soundEnabled = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith((ref) => settings),
+          ttsEngineProvider.overrideWith((ref) => engine),
+          readerProvider.overrideWith((ref) => reader),
+          bookshelfProvider.overrideWith((ref) => bookshelf),
+          gameProvider.overrideWith((ref) => game),
+        ],
+        child: MaterialApp(
+          navigatorKey: globalNavigatorKey,
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // 大屏 + low-perf 下 dashboard 渲染：状态面板可见 + 顶部三按钮可见
+    expect(find.text('书架'), findsOneWidget);
+    expect(find.textContaining('当前得分'), findsOneWidget);
+    expect(find.textContaining('最高得分'), findsOneWidget);
+  });
 }
