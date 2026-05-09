@@ -404,6 +404,10 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
             tag: 'tts',
             extra: {'context': '连续 8 次下载失败，触发降级'},
           );
+          // P2 修复：同步置 _isDegradedToLocal=true，防止 _degradeToLocal 内部
+          // `await stopAudio/pauseAudio` 完成前 _prefetchRunner 继续 loop 重复
+          // 调用 _refillBuffer 累加 _consecutiveFailures、重复触发 _degradeToLocal。
+          _isDegradedToLocal = true;
           _degradeToLocal(request);
         }
       }
@@ -423,6 +427,9 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           tag: 'tts',
           extra: {'context': '连续 3 次返回空路径'},
         );
+        // P2 修复：同上，同步置标志位防止 _prefetchRunner 在 _degradeToLocal
+        // chain 完成前重复入循环。
+        _isDegradedToLocal = true;
         _degradeToLocal(request);
       }
       return;
