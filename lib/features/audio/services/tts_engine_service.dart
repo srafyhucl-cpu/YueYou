@@ -714,6 +714,12 @@ class TtsEngineService extends ChangeNotifier {
       final dir = Directory(tempDir.path);
       if (!await dir.exists()) return;
 
+      // 跳过 60s 内被修改过的文件——它们大概率是当前会话或并行会话
+      // （含测试 isolate）正在使用的活跃下载产物，本次清理只处理来自上次
+      // App 运行残留的"孤儿"文件，避免误删活跃文件导致 playFile 读到
+      // 「文件不存在」、绕过 pause 守卫提前抢跑 onComplete 的 flake。
+      final activeWindow = DateTime.now().subtract(const Duration(seconds: 60));
+
       final entities = dir.listSync();
       int cleaned = 0;
       for (final entity in entities) {
@@ -723,6 +729,14 @@ class TtsEngineService extends ChangeNotifier {
           if (name.startsWith('tts_') && name.endsWith('.mp3')) {
             // 跳过当前 Session 正在使用的文件
             if (entity.path == _lastGeneratedAudioPath) continue;
+            // 跳过近 60s 内被修改过的文件（活跃下载窗口）
+            try {
+              final mtime = entity.statSync().modified;
+              if (mtime.isAfter(activeWindow)) continue;
+            } catch (_) {
+              // stat 失败时保守跳过，避免误删
+              continue;
+            }
             try {
               await entity.delete();
               cleaned++;
@@ -1095,6 +1109,11 @@ class TtsEngineService extends ChangeNotifier {
 
   /// 下载 TTS 音频文件（带重试机制），返回文件路径或 null。
   Future<String?> downloadAudio(TtsAudioRequest request) async {
+    // 等待硬件初始化完成，确保 _cleanupOrphanedTtsFiles 不会与本次写入并行——
+    // 否则在 CPU 竞争场景下，清理任务可能扫到刚下载完成、_lastGeneratedAudioPath
+    // 尚未赋值（line 1173）窗口内的文件并误删，导致 playFile 读到「文件不存在」
+    // 触发 onComplete 抢跑、绕过 pause 守卫的并发 flake。
+    await _initFuture;
     for (int attempt = 0; attempt < _config.maxRetries; attempt++) {
       try {
         final result = await _executeDownload(request);
