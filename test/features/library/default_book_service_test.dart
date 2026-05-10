@@ -496,7 +496,7 @@ void main() {
     });
 
     test('getCatalog 并发调用必须共享 in-flight Completer，仅触发一次网络拉取', () async {
-      // 模拟慢网络：100ms 延迟，让两次并发调用都来得及汇合到 in-flight。
+      // 模拟慢网络：100ms 延迟，让多路并发调用都来得及汇合到 in-flight。
       int requestCount = 0;
       final mock = MockClient((req) async {
         requestCount++;
@@ -514,17 +514,23 @@ void main() {
       });
       final svc = DefaultBookService(httpClient: mock);
 
-      // 同时发起两次 getCatalog（不 await 第一次）
+      // 3 路并发：同 microtask 发起 + 1 路错开发起，覆盖
+      //   - 同步 microtask 汇合到 step 2 in-flight 检查（f1/f2）
+      //   - 网络进行中加入新调用（f3 通过 Future.delayed 错开）
       final f1 = svc.getCatalog();
       final f2 = svc.getCatalog();
-      final results = await Future.wait([f1, f2]);
+      final f3 = Future<List<ChapterModel>>.delayed(
+        const Duration(milliseconds: 20),
+        () => svc.getCatalog(),
+      );
+      final results = await Future.wait([f1, f2, f3]);
 
-      expect(requestCount, 1, reason: 'in-flight 去重：并发调用必须共享同一次网络请求');
-      expect(results[0].first.title, 'Concurrent');
-      expect(results[1].first.title, 'Concurrent');
-      // 两个 future 解析到完全相同的 list 实例（来自内存缓存）
-      expect(identical(results[0], results[1]), isTrue,
-          reason: '两次并发调用应返回同一个 List 实例');
+      expect(requestCount, 1, reason: 'in-flight 去重：3 路并发调用必须共享同一次网络请求');
+      for (final r in results) {
+        expect(r.first.title, 'Concurrent');
+        expect(identical(r, results[0]), isTrue,
+            reason: '所有并发调用应返回同一个 List 实例（来自共享内存缓存）');
+      }
     });
 
     test('getCatalog in-flight 失败降级后第二次调用仍可触发网络重试', () async {

@@ -1,5 +1,25 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-10**
+
+- **加固(library): `getCatalog` in-flight 严格不变量（disk-miss 后双检查）**：
+  - **隐患**：上一轮 `getCatalog` in-flight 实现存在窄竞态窗口——若 Call A 完整
+    完成网络（写 memory + 清 in-flight）的速度超过 Call B 的 disk read，B 会
+    错过 in-flight 检查启动【第二次】网络。概率极低但违反「绝对单次」契约。
+  - **修复**：在 `@/lib/features/library/services/default_book_service.dart`
+    step 1 disk-miss 与 step 2 in-flight 检查之间，新增 step 1.5 **双检查**：
+    异步 await 缝隙后重新查 `_catalogMemCache`，命中即返。这条防线把
+    in-flight 去重从「常规情况下生效」升级为「严格不变量」。
+  - **回归**：把原 2 路并发测试升级为 **3 路（同 microtask f1/f2 + 错开 20ms 的 f3）**，
+    断言 `requestCount == 1` 且所有结果 `identical`。
+  - **验证**：`flutter analyze` 零警告；`flutter test -j 1` **664 通过 / 4 skipped /
+    0 失败**（serial 验证我的改动 100% 安全）。
+  - **预存在 flake 备注**：`tts_audio_notifier_test.dart` 中
+    `T-A pause → resume 必须重播暂停时的同一句` 在 `flutter test` 默认并行模式下
+    **预存在 CPU 竞争 flake**（HEAD 8738abc 不带我改动也复现），`-j 1` 串行通过。
+    根因为 isolate 调度抢占下 microtask 顺序变化导致 `_isPausedInterrupt` 守卫
+    时序边界。**不在本次范围内**，留作后续单独治理。
+
 ## **2026-05-09**
 
 - **优化(library): `getCatalog` in-flight 并发去重 + MD036 文档约束启用**：

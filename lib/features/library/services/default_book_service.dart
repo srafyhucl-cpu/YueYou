@@ -80,6 +80,13 @@ class DefaultBookService {
       return models;
     }
 
+    // 1.5 双检查（race-condition 防御）：上面 `await` 期间另一个并发 in-flight
+    // 可能已完成网络拉取并填充了内存缓存。此时 in-flight Completer 已被清空，
+    // 若不重检 memory 直接走 step 2，会触发本应被去重的【第二次】网络请求。
+    if (_catalogMemCache != null && _catalogMemCache!.isNotEmpty) {
+      return _catalogMemCache!;
+    }
+
     // 2. 并发去重：若已有 in-flight 拉取，复用同一个 Completer
     final inFlight = _catalogInFlight;
     if (inFlight != null) return inFlight.future;
