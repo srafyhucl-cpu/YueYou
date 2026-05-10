@@ -238,14 +238,22 @@ class DefaultBookService {
     );
   }
 
-  /// 检查某章是否已有缓存（无需网络）。同时覆盖进程内缓存与本地磁盘缓存。
+  /// 章节是否在**进程内内存**中（重启 App 后失效）。
   ///
-  /// **副作用警告**：返回 `true` **不代表磁盘上已持久化**。
-  /// - 进程内 `_chapterMemCache` 命中也会返回 `true`，但**重启 App 后失效**。
-  /// - 若调用方需要"是否磁盘持久化"语义（如冷启动预读决策），请直接调用
-  ///   [StorageService.loadChapterCache] 而非本方法。
-  Future<bool> isChapterCached(int chapterIndex) async {
-    if (_chapterMemCache.containsKey(chapterIndex)) return true;
+  /// 同步方法，无 IO。仅当调用方明确需要「本会话是否已加载」语义时使用。
+  /// - 命中条件：本会话内调用过 [fetchChapter] 成功，或磁盘命中后被 seed。
+  /// - **不代表持久化**：若需要冷启动后仍可用，请用 [hasChapterOnDisk]。
+  bool hasChapterInMemory(int chapterIndex) =>
+      _chapterMemCache.containsKey(chapterIndex);
+
+  /// 章节是否已**持久化到磁盘**（重启 App 后仍有效）。
+  ///
+  /// 异步方法，需要文件 IO。适合「冷启动预读决策」「飞行模式可读性检查」
+  /// 等需要明确持久化保证的场景。
+  /// - 命中条件：磁盘 chapter 缓存文件存在且非空。
+  /// - 不查内存：即便内存有但写盘失败的场景，本方法也会返回 `false`，
+  ///   这正是与 [hasChapterInMemory] 的语义边界。
+  Future<bool> hasChapterOnDisk(int chapterIndex) async {
     final text = await StorageService.loadChapterCache(bookKey, chapterIndex);
     return text != null;
   }

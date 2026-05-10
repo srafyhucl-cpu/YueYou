@@ -84,16 +84,18 @@ void main() {
 
     // ── Cache check tests ────────────────────────────────────────────
 
-    group('isChapterCached', () {
-      test('returns false when no cache exists', () async {
-        final cached = await service.isChapterCached(0);
-        expect(cached, isFalse);
+    group('hasChapterOnDisk / hasChapterInMemory', () {
+      test('hasChapterOnDisk returns false when no cache exists', () async {
+        expect(await service.hasChapterOnDisk(0), isFalse);
       });
 
-      test('returns false for out-of-range index', () async {
-        final cached = await service.isChapterCached(100);
+      test('hasChapterOnDisk returns false for out-of-range index', () async {
         // No cache file would exist for out-of-range index
-        expect(cached, isFalse);
+        expect(await service.hasChapterOnDisk(100), isFalse);
+      });
+
+      test('hasChapterInMemory returns false on fresh service', () {
+        expect(service.hasChapterInMemory(0), isFalse);
       });
     });
 
@@ -373,7 +375,7 @@ void main() {
   //   * getCatalog 第二次调用走 _catalogMemCache 早返（line 62-65）
   //   * fetchChapter 网络成功后填充 _chapterMemCache（line 184-185）
   //   * fetchChapter 第二次调用走 _chapterMemCache 早返（line 163-165）
-  //   * isChapterCached 命中内存缓存返回 true（line 242-243）
+  //   * hasChapterInMemory / hasChapterOnDisk 双层语义边界
   //   * clearMemoryCacheForTesting 清空两层缓存
   group('DefaultBookService - P3 进程内内存缓存', () {
     test('getCatalog 网络成功后第二次调用必须命中 _catalogMemCache 不再发请求', () async {
@@ -493,7 +495,7 @@ void main() {
       expect(postCalls, 1, reason: 'P3 内存缓存命中后禁止重复 POST');
     });
 
-    test('isChapterCached 命中内存缓存时无需读盘也返回 true', () async {
+    test('hasChapterInMemory / hasChapterOnDisk 双层语义边界正确', () async {
       int postCalls = 0;
       final mock = MockClient((req) async {
         if (req.method == 'POST') {
@@ -511,12 +513,27 @@ void main() {
       });
       final svc = DefaultBookService(httpClient: mock);
 
-      // 拉一次让内存缓存填充
+      // 初始两层都空
+      expect(svc.hasChapterInMemory(0), isFalse, reason: '初始内存空');
+      expect(await svc.hasChapterOnDisk(0), isFalse, reason: '初始磁盘空');
+
+      // 拉一次让内存 + 磁盘都填充
       await svc.fetchChapter(0);
       expect(postCalls, 1);
+      // 等待 fire-and-forget 写盘完成（saveChapterCache + pruneChapterCache 链）
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      final isCached = await svc.isChapterCached(0);
-      expect(isCached, isTrue, reason: 'P3：isChapterCached 必须先查内存缓存命中即返 true');
+      expect(svc.hasChapterInMemory(0), isTrue,
+          reason: 'P3 双层 API：内存层应命中（同步无 IO）');
+      expect(await svc.hasChapterOnDisk(0), isTrue,
+          reason: 'P3 双层 API：磁盘层应命中（持久化保证）');
+
+      // clearMemoryCacheForTesting 后内存清空，但磁盘仍在
+      svc.clearMemoryCacheForTesting();
+      expect(svc.hasChapterInMemory(0), isFalse,
+          reason: 'P3 语义边界：clear 后内存层必须为 false');
+      expect(await svc.hasChapterOnDisk(0), isTrue,
+          reason: 'P3 语义边界：clear 不影响磁盘持久化');
     });
 
     test('clearMemoryCacheForTesting 必须同时清空 catalog + chapter 两级缓存', () async {

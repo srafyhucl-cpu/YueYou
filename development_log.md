@@ -2,6 +2,30 @@
 
 ## **2026-05-09**
 
+- **重构(library): `isChapterCached` 拆为 `hasChapterInMemory` + `hasChapterOnDisk` 双层 API**：
+  - **缺陷**：旧 `isChapterCached(idx)` 把「内存命中 OR 磁盘命中」OR 在一起返回，
+    调用方无法区分「本会话能用」与「重启后仍能用」两种语义。配合 P3 内存缓存
+    fallback 后，存在一个隐患场景：网络下载成功 → 写内存 OK → fire-and-forget
+    写盘失败，此时 `isChapterCached` 返 `true`，但 App 重启后磁盘空 → 离线打不开。
+    若未来有人基于本方法做「飞行模式预读」决策会踩坑。
+  - **修复**：在 `@/lib/features/library/services/default_book_service.dart`
+    把 `isChapterCached` 拆成两个语义明确的方法：
+    - `bool hasChapterInMemory(int idx)`（同步，无 IO）：仅查 `_chapterMemCache`，
+      用于「本会话是否已加载」语义
+    - `Future<bool> hasChapterOnDisk(int idx)`（异步）：仅查磁盘文件存在与否，
+      用于「冷启动可用性 / 飞行模式预读决策」语义
+    强制调用方在编码时就明确选择，零歧义即零警告。
+  - **影响面**：lib 内**零生产调用方**（grep 验证），仅测试引用。零破坏性。
+  - **回归**：测试同步重构：
+    - `group('isChapterCached')` 重命名为 `group('hasChapterOnDisk / hasChapterInMemory')`，
+      原 2 条用例改为针对磁盘语义 + 新增 1 条 `hasChapterInMemory` 用例。
+    - P3 测试改名为 `hasChapterInMemory / hasChapterOnDisk 双层语义边界正确`，
+      显式断言 `clear` 后内存层 false / 磁盘层 true 的语义边界。
+  - **验证**：`flutter analyze` 零警告；`flutter test` **662 通过 / 4 skipped /
+    0 失败 / 16 秒**（661 → 662，+1 用例）。
+  - **代码评审待办清单更新**：原中长期 P4 项「`isChapterCached` 双 API 拆分」
+    提前完成，标记 ✅。
+
 - **优化(audit): 评审 Review 后续清理（消除死代码 + 文档警告 + 防御断言）**：
   - **`default_book_service_test.dart` 死代码清理**：删除 `clearMemoryCacheForTesting`
     测试中无效的 `tempDir = createTemp(...)` 重建（`initializeTestEnvironmentWithIsolatedTempDir`
