@@ -2,6 +2,31 @@
 
 ## **2026-05-10**
 
+- **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：
+  - **现象**：`flutter test`（默认并行）下 `tts_audio_notifier_test.dart` 中
+    `T-A pause → resume 必须重播暂停时的同一句` 等用例约 50% 概率出现
+    `Expected: <0> Actual: <1>` —— `onTtsItemFinished` 被错误调用。`-j 1`
+    串行 100% 通过。前一轮 `getCatalog` 加固时已记录但未治理的存量 flake。
+  - **根因**：`@/lib/features/audio/services/tts_engine_service.dart` 中
+    `_initFuture = _initTtsHardware()` 是 fire-and-forget；其内
+    `_cleanupOrphanedTtsFiles` 会扫描 `getTemporaryDirectory()` 删除全部
+    `tts_*.mp3`（仅跳过 `_lastGeneratedAudioPath`）。测试环境下临时目录
+    被 mock 为 `.`（项目根），多个并行 isolate 共享该目录，**清理任务跨
+    isolate 误删其他 isolate 正在使用的下载产物**。`playFile` 读到
+    `!await file.exists()` 触发 `onComplete?.call()`，此时 pause 守卫尚未
+    生效（`_isPausing == false` 且 `_pausedInterruptItemId == null`），
+    `_onPlaybackComplete` 直落 `onTtsItemFinished`。
+  - **修复**（lib 侧最小改动 +19 行，零测试改动）：
+    1. `downloadAudio` 顶部 `await _initFuture` —— 单 isolate 场景下确保
+       清理完成后才下载。
+    2. `_cleanupOrphanedTtsFiles` 增加「跳过 60s 内修改过的文件」判定 ——
+       跨 isolate / 跨进程场景下保护活跃下载窗口；`stat` 失败时保守跳过。
+  - **验证**：`flutter analyze` 零警告；`flutter test`（默认并行）连跑
+    **8/8 全部通过**（664 +4 skipped），之前同样 8 次约 50% flake。
+  - **生产影响**：零副作用。生产环境 init 通常已完成，`await _initFuture`
+    立即返回；60s 窗口对真正孤儿（来自上次 App 运行）零误伤。
+  - **关联**：闭环昨日 `getCatalog` 加固日志中「预存在 flake 备注」遗留项。
+
 - **加固(library): `getCatalog` in-flight 严格不变量（disk-miss 后双检查）**：
   - **隐患**：上一轮 `getCatalog` in-flight 实现存在窄竞态窗口——若 Call A 完整
     完成网络（写 memory + 清 in-flight）的速度超过 Call B 的 disk read，B 会
