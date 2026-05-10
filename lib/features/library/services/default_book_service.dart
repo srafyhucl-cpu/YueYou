@@ -35,6 +35,10 @@ class DefaultBookService {
   /// 重复网络拉取。**降级到内置常量时不写入**，以保留下次重试网络的机会。
   List<ChapterModel>? _catalogMemCache;
 
+  /// 并发去重：in-flight 目录拉取请求，防止 LibraryScreen 与 ReaderScreen
+  /// 同时调用 [getCatalog] 时发起两次网络请求。
+  Completer<List<ChapterModel>>? _catalogInFlight;
+
   /// 进程内章节正文缓存（P3 优化）。
   ///
   /// 同上：磁盘 fire-and-forget 写入失败时确保同一会话再次请求该章无需走网络。
@@ -50,6 +54,7 @@ class DefaultBookService {
   @visibleForTesting
   void clearMemoryCacheForTesting() {
     _catalogMemCache = null;
+    _catalogInFlight = null;
     _chapterMemCache.clear();
   }
 
@@ -58,6 +63,9 @@ class DefaultBookService {
   /// 获取书目（章节标题列表）
   ///
   /// 优先级：进程内内存缓存 → 本地文件缓存 → GET 网络拉取 → 内置 Dart 常量
+  ///
+  /// **并发防护**：同会话内多处同时调用（如 LibraryScreen 与 ReaderScreen
+  /// 抢着初始化）只会触发一次网络拉取，后续调用复用 [_catalogInFlight] 的 future。
   Future<List<ChapterModel>> getCatalog() async {
     // 0. 进程内缓存（P3 优化：规避磁盘写入失败导致同会话重复网络拉取）
     if (_catalogMemCache != null && _catalogMemCache!.isNotEmpty) {
@@ -72,7 +80,31 @@ class DefaultBookService {
       return models;
     }
 
-    // 2. 网络拉取
+    // 2. 并发去重：若已有 in-flight 拉取，复用同一个 Completer
+    final inFlight = _catalogInFlight;
+    if (inFlight != null) return inFlight.future;
+    final completer = Completer<List<ChapterModel>>();
+    _catalogInFlight = completer;
+
+    try {
+      final result = await _fetchCatalogFromNetworkOrFallback();
+      completer.complete(result);
+      return result;
+    } catch (e, stack) {
+      // 防御：理论上 _fetchCatalogFromNetworkOrFallback 已自吞异常并降级，
+      // 此处兜底防止意外异常让 in-flight Completer 永不完成。
+      completer.completeError(e, stack);
+      rethrow;
+    } finally {
+      _catalogInFlight = null;
+    }
+  }
+
+  /// 网络拉取目录，失败降级到内置常量。
+  ///
+  /// 抽出为独立方法以便 [getCatalog] 用 Completer 包一层做并发去重。
+  /// 本方法**保证不抛异常**：所有网络/解析异常内部 capture 后降级。
+  Future<List<ChapterModel>> _fetchCatalogFromNetworkOrFallback() async {
     try {
       final uri = Uri.parse('$_apiBase/book/catalog?bookId=$bookKey');
       final resp = await _httpClient.get(
@@ -131,7 +163,7 @@ class DefaultBookService {
       );
     }
 
-    // 3. 降级：内置常量
+    // 降级：内置常量（不写内存缓存，保留下次重试网络的机会）
     return _fallbackBuiltinCatalog();
   }
 

@@ -2,6 +2,41 @@
 
 ## **2026-05-09**
 
+- **优化(library): `getCatalog` in-flight 并发去重 + MD036 文档约束启用**：
+  - **缺陷 1（getCatalog 并发竞态）**：原 `getCatalog` 缺少 in-flight Completer
+    保护，若 `LibraryScreen` 与 `ReaderScreen` 几乎同时调用（用户从书架直接进
+    阅读器），两次调用都会 miss 内存与磁盘，发起两次相同的网络请求，浪费流量。
+  - **修复 1**：在 `@/lib/features/library/services/default_book_service.dart`
+    按照 `fetchChapter` 现有 `_inFlight` 模式，新增 `Completer<List<ChapterModel>>?
+    _catalogInFlight` 字段：
+    - 重构后流程：内存 → 磁盘 → **in-flight 检查** → 网络降级。
+    - 抽出 `_fetchCatalogFromNetworkOrFallback()` 私有方法承载原网络逻辑，
+      `getCatalog` 用 Completer 包一层做并发去重 + finally 清理。
+    - `clearMemoryCacheForTesting()` 同步清空 `_catalogInFlight`。
+  - **回归 1**：新增 2 条 default_book_service_test.dart 用例：
+    - `getCatalog 并发调用必须共享 in-flight Completer，仅触发一次网络拉取`：
+      模拟慢网络 100ms，并发两次调用，断言 `requestCount == 1` 且两个 future
+      返回**同一个 List 实例**（identical）。
+    - `getCatalog in-flight 失败降级后第二次调用仍可触发网络重试`：第一次
+      ClientException 降级 100 章，第二次必须能重新发请求（`callCount == 2`），
+      验证 in-flight Completer 在降级路径也正确释放。
+  - **缺陷 2（MD036 文档约束被禁用）**：上一轮 markdownlint 收口禁用了 MD036
+    规则（`no-emphasis-as-heading`），属于**对存量违规的让步而非真正合规**。
+  - **修复 2**：从 `@/.markdownlint.json` 移除 `MD036: false`，重启该规则后
+    捕获到 9 处真违规：
+    - `Riverpod迁移方案.md` 6 处 `**1.1 SettingsProvider**` 等加粗当 H4 用 →
+      升级为 `#### 1.1 SettingsProvider` 真标题，并修正 1 处 H2→H4 跳级
+      （`#### 示例：settings 测试迁移` → `### 示例：settings 测试迁移`）。
+    - `20260428_测试清理与CI覆盖率门控加固.md` 3 处 `**全量测试：xxx 通过**`
+      段落式加粗 → 改为 blockquote `> 全量测试：**xxx 通过**`，零结构破坏。
+    - 顺手修了 4 处 `|---|---|` 紧凑型表格分隔符为 `| --- | --- |`
+      （IDE 插件 MD060 规则）。
+  - **验证**：`flutter analyze` 零警告；`flutter test` **664 通过 / 4 skipped /
+    0 失败**（662 → 664，+2 用例）；`markdownlint` 跨 28 个 .md 文件零警告
+    （含 MD036 严格模式）。
+  - **代码评审待办清单更新**：原中长期建议「`getCatalog` in-flight 去重」+
+    「development_log 启用 MD036」**全部完成**。
+
 - **重构(library): `isChapterCached` 拆为 `hasChapterInMemory` + `hasChapterOnDisk` 双层 API**：
   - **缺陷**：旧 `isChapterCached(idx)` 把「内存命中 OR 磁盘命中」OR 在一起返回，
     调用方无法区分「本会话能用」与「重启后仍能用」两种语义。配合 P3 内存缓存
