@@ -495,6 +495,71 @@ void main() {
       expect(postCalls, 1, reason: 'P3 内存缓存命中后禁止重复 POST');
     });
 
+    test('getCatalog 并发调用必须共享 in-flight Completer，仅触发一次网络拉取', () async {
+      // 模拟慢网络：100ms 延迟，让两次并发调用都来得及汇合到 in-flight。
+      int requestCount = 0;
+      final mock = MockClient((req) async {
+        requestCount++;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        return http.Response(
+          jsonEncode({
+            'status': 'success',
+            'chapters': [
+              {'title': 'Concurrent'},
+            ],
+          }),
+          200,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      // 同时发起两次 getCatalog（不 await 第一次）
+      final f1 = svc.getCatalog();
+      final f2 = svc.getCatalog();
+      final results = await Future.wait([f1, f2]);
+
+      expect(requestCount, 1, reason: 'in-flight 去重：并发调用必须共享同一次网络请求');
+      expect(results[0].first.title, 'Concurrent');
+      expect(results[1].first.title, 'Concurrent');
+      // 两个 future 解析到完全相同的 list 实例（来自内存缓存）
+      expect(identical(results[0], results[1]), isTrue,
+          reason: '两次并发调用应返回同一个 List 实例');
+    });
+
+    test('getCatalog in-flight 失败降级后第二次调用仍可触发网络重试', () async {
+      // 第一次调用：模拟网络异常 → 降级 100 章。
+      // 第二次调用（in-flight 已结束）：必须能重新发请求。
+      int callCount = 0;
+      final mock = MockClient((req) async {
+        callCount++;
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        if (callCount == 1) {
+          throw http.ClientException('first call fails');
+        }
+        return http.Response(
+          jsonEncode({
+            'status': 'success',
+            'chapters': [
+              {'title': 'RetryAfterInFlight'},
+            ],
+          }),
+          200,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+      final svc = DefaultBookService(httpClient: mock);
+
+      final first = await svc.getCatalog();
+      expect(first.length, 100, reason: '第一次降级到 100 章');
+      expect(callCount, 1);
+
+      // 第二次：in-flight 已清空，且降级路径未污染内存 → 必须重发请求
+      final second = await svc.getCatalog();
+      expect(second.first.title, 'RetryAfterInFlight');
+      expect(callCount, 2, reason: 'in-flight 完成后必须释放，下次允许重新发请求');
+    });
+
     test('hasChapterInMemory / hasChapterOnDisk 双层语义边界正确', () async {
       int postCalls = 0;
       final mock = MockClient((req) async {

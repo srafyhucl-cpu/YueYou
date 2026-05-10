@@ -8,7 +8,7 @@
 ## 一、迁移动机与收益
 
 | 痛点（现 Provider 6.x） | Riverpod 改善点 |
-|---|---|
+| --- | --- |
 | `ChangeNotifierProxyProvider2` 链式依赖难读 | `ref.watch` 声明式依赖，逻辑清晰 |
 | `context.read` 在 initState 使用有隐患 | `ref.read` 全生命周期安全 |
 | 测试需注入 `MultiProvider` Widget 树 | `ProviderContainer` 零 Widget 纯 Dart 测试 |
@@ -32,7 +32,7 @@ BookshelfProvider (独立 ChangeNotifier)
 **消费侧统计**（截至 2026-04-29）：
 
 | Provider 类型 | 消费文件数 | 消费方式 |
-|---|---|---|
+| --- | --- | --- |
 | `SettingsProvider` | 3 | `Consumer` / `context.watch` |
 | `TtsEngineService` | 6 | `Consumer` / `context.read` |
 | `BookshelfProvider` | 3 | `Consumer` / `context.read/watch` |
@@ -110,7 +110,7 @@ void main() async {
 
 **迁移顺序**：`SettingsProvider` → `BookshelfProvider`
 
-**1.1 SettingsProvider**
+#### 1.1 SettingsProvider
 
 ```dart
 // lib/features/settings/providers/settings_provider_riverpod.dart
@@ -130,7 +130,7 @@ final settings = context.watch<SettingsProvider>();
 final settings = ref.watch(settingsProvider);
 ```
 
-**1.2 BookshelfProvider**
+#### 1.2 BookshelfProvider
 
 ```dart
 final bookshelfProvider = ChangeNotifierProvider<BookshelfProvider>((ref) {
@@ -149,7 +149,7 @@ final bookshelfProvider = ChangeNotifierProvider<BookshelfProvider>((ref) {
 
 **迁移顺序**：`TtsEngineService` → `GameProvider` → `ReaderProvider`
 
-**2.1 TtsEngineService**
+#### 2.1 TtsEngineService
 
 ```dart
 final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
@@ -163,7 +163,7 @@ final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
 
 > ⚠️ **重要**：现有 `TtsEngineService` 的 `init()` 需在 `_BootstrapperState.initState()` 中显式调用，Riverpod 的 lazy 初始化不改变这一要求。
 
-**2.2 GameProvider**
+#### 2.2 GameProvider
 
 ```dart
 final gameProvider = ChangeNotifierProvider<GameProvider>((ref) {
@@ -177,7 +177,7 @@ final gameProvider = ChangeNotifierProvider<GameProvider>((ref) {
 });
 ```
 
-**2.3 ReaderProvider**
+#### 2.3 ReaderProvider
 
 ```dart
 final readerProvider = ChangeNotifierProvider<ReaderProvider>((ref) {
@@ -207,12 +207,12 @@ final readerProvider = ChangeNotifierProvider<ReaderProvider>((ref) {
 ## 五、测试迁移对照
 
 | 场景 | 旧（Provider 6.x） | 新（Riverpod） |
-|---|---|---|
+| --- | --- | --- |
 | 纯 Dart 单元测试 | 需要 `pumpWidget(MultiProvider(...))` | `ProviderContainer` 直接创建 |
 | Provider 覆盖 | `MultiProvider(providers: [ChangeNotifierProvider.value(...)])` | `ProviderScope(overrides: [settingsProvider.overrideWith(...)])` |
 | 监听变化 | `addListener` 手动注册 | `container.listen(provider, ...)` |
 
-**示例：settings 测试迁移**
+### 示例：settings 测试迁移
 
 ```dart
 // 旧
@@ -247,7 +247,7 @@ test('新写法', () {
 ## 六、兼容性风险与规避
 
 | 风险项 | 描述 | 规避方案 |
-|---|---|---|
+| --- | --- | --- |
 | `TtsEngineService.dispose()` 双调用 | Riverpod `ref.onDispose` + `_BootstrapperState.dispose()` 可能双次调用 | 在 `dispose()` 内加 `if (_disposed) return` 幂等守卫 |
 | `GameProvider.onUserMove` 闭包捕获 | `ref.read` 在 Provider 创建时调用可能读到旧实例 | 改为 `ref.read(ttsEngineProvider).notifyUserActivity` 延迟求值 |
 | 测试 `ProviderContainer` 未 dispose | 内存泄漏 | 每个 test 中 `addTearDown(container.dispose)` |
