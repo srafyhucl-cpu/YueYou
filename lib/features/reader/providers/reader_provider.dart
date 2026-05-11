@@ -8,6 +8,7 @@ import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/library/services/default_book_service.dart';
 import 'package:yueyou/features/reader/domain/chapter_load_state.dart';
+import 'package:yueyou/features/reader/domain/reader_sentence_cursor.dart';
 import 'package:yueyou/features/reader/domain/text_parser.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
@@ -65,11 +66,11 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   bool _isDefaultBookMode = false;
   DefaultBookService? _defaultBookService;
 
-  /// 噪音/空行判定（TTS 和游标均应跳过，绝不朗读）
+  /// 噪音/空行判定（TTS 和游标均应跳过，绝不朗读）。
+  /// 句子合并算法已抽到 `reader_sentence_cursor.dart` 直接使用
+  /// [TextProcessing.isNoiseLine]；本 wrapper 仅服务于 `jumpTo` 内部跳过
+  /// 噪音行的细节流程。
   bool _isNoise(String text) => TextProcessing.isNoiseLine(text);
-
-  /// 章节标题判定（TTS 应朗读，但需要清洗）
-  bool _isChapterTitle(String text) => TextProcessing.isChapterTitle(text);
 
   ReaderProvider(
     this._ttsEngine, {
@@ -87,77 +88,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
   @override
   Future<TtsAudioRequest?> nextTtsSentence(int session) async {
-    if (_sentences.isEmpty) return null;
-    if (_fetchIndex >= _sentences.length) {
-      return null;
-    }
-
-    int cursor = _fetchIndex;
-
-    // P0-5：彻底取消 `(cursor + 1) % _sentences.length` 取模回卷。
-    // 章末若干噪音行会让旧实现把游标绕回章首，触发 TTS "鬼畜重读章首"，
-    // 与默认书的"章末自动推进下一章"逻辑直接互斥。
-    // 现在统一在到达 _sentences.length 时把 _fetchIndex 推进到末尾并返回 null，
-    // 由上层 `_autoAdvanceChapter` / Notifier 决定是否切章或停止。
-    while (cursor < _sentences.length) {
-      final int lineIndex = cursor;
-      String text = _sentences[lineIndex].trim();
-
-      // 跳过噪音词和空行（始终不读）
-      if (_isNoise(text)) {
-        cursor++;
-        continue;
-      }
-
-      // 🔥 章节标题 → 清洗后朗读（如「正文 第一章 新的开始」→「第一章 新的开始」）
-      if (_isChapterTitle(text)) {
-        text = TextProcessing.cleanChapterTitle(text);
-        if (text.isEmpty) {
-          cursor++;
-          continue;
-        }
-      }
-
-      // TTS API 要求至少 5 字符，向后合并短句
-      int consumed = cursor + 1; // consumed 指向「下一个未消耗行」
-      int endLine = lineIndex; // 合并消耗到的最后一行（含）
-      while (text.length < 5 && consumed < _sentences.length) {
-        final mergeIdx = consumed;
-        final nextText = _sentences[mergeIdx].trim();
-        consumed++;
-        if (_isNoise(nextText)) continue;
-        // 合并时遇到下一个章节标题则停止，不跨章合并
-        if (_isChapterTitle(nextText)) break;
-        text = text + nextText;
-        endLine = mergeIdx;
-        if (text.length >= 5) break;
-      }
-
-      // 合并后仍然太短 → 跳过整段，cursor 直接前移到 consumed（不取模）
-      if (text.length < 5) {
-        cursor = consumed;
-        continue;
-      }
-
-      // 🔥 立即推进 _fetchIndex 到所有已消耗行之后，杜绝重复
-      if (consumed >= _sentences.length) {
-        // 到达书籍末尾，下一次调用直接返回 null 终止
-        _fetchIndex = _sentences.length;
-      } else {
-        _fetchIndex = consumed;
-      }
-
-      return TtsAudioRequest(
-        lineIndex: lineIndex,
-        endLineIndex: endLine,
-        text: text,
-        title: currentChapterTitle,
-      );
-    }
-
-    // 扫到末尾仍未找到可读内容：标记已耗尽，避免下次重复扫描。
-    _fetchIndex = _sentences.length;
-    return null;
+    final result = fetchNextSentenceRequest(
+      sentences: _sentences,
+      fetchIndex: _fetchIndex,
+      chapterTitle: currentChapterTitle,
+    );
+    _fetchIndex = result.nextFetchIndex;
+    return result.request;
   }
 
   /// 播放开始时，用真实 lineIndex 同步 UI。
