@@ -1,14 +1,19 @@
 // TTS 音频状态机辅助纯函数。
 //
-// 从 `tts_audio_notifier.dart` 抽出（PR-D）。本文件属 domain 层：
+// 本文件属 domain 层：
 // - 仅暴露顶层纯函数，零状态、零副作用；
 // - 不依赖任何 Flutter UI 库；
 // - 输入输出都是 [TtsAudioState] / [TtsAudioItem] / [TtsAudioSnapshot]
 //   等业务数据模型。
+//
+// 抽离动机（规范驱动）：
+// - `copyStateWithRate`：避免在 cycleSpeed 旁塞 40 行 switch 复制粘贴，
+//   独立后可针对 5 种状态分支用纯函数测试覆盖。
+// - `snapshotOf`：被 notifier 与 fallback_controller 共用，是真实的
+//   共享单元，inline 反而要在两处复制。
 
 import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
-import 'package:yueyou/features/audio/domain/tts_http_models.dart';
 
 /// 原地重建 [current] 状态，仅替换 [rate]，其余字段保持不变。
 ///
@@ -52,18 +57,6 @@ TtsAudioState copyStateWithRate(TtsAudioState current, double rate) =>
           fallbackMessage: current.fallbackMessage,
         ),
     };
-
-/// 把音频状态机当前状态映射成 [TtsEngineService] 影子状态机的等价值，
-/// 便于引擎通过 `syncShadow` 向下游 ReaderProvider 透传播放进度。
-TtsPlaybackState audioStateToEngineState(TtsAudioState audioState) {
-  return switch (audioState) {
-    TtsAudioIdle() => TtsPlaybackState.disabled,
-    TtsAudioBuffering() => TtsPlaybackState.buffering,
-    TtsAudioPlaying() => TtsPlaybackState.playing,
-    TtsAudioPaused() => TtsPlaybackState.paused,
-    TtsAudioError() => TtsPlaybackState.error,
-  };
-}
 
 /// 把 [TtsAudioItem] 投影成 UI 友好的快照。
 ///

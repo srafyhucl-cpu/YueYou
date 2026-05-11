@@ -260,6 +260,38 @@
     切换到「规范工具箱」——同一组阈值、同一组规则，但表达的是「这是
     信号、是辅助评估的工具」而不是「这是必须满足的硬性指标」。
 
+- **PR-D 边缘抽出回收：inline audioStateToEngineState 回 notifier**：
+  - **背景**：思想纠偏后二次审视 PR-D 抽出的 `tts_audio_state_helpers.dart`，
+    发现 3 个函数中只有 1 个真凑行数。`copyStateWithRate`（40 行 switch
+    避免 cycleSpeed 函数体爆炸）和 `snapshotOf`（被 notifier + fallback
+    controller 共用）都是真规范驱动；只有 `audioStateToEngineState` 仅在
+    `_applyState` 一处使用、10 行映射，独立无价值。
+  - **调整动作**：
+    - 把 10 行 switch 表达式 inline 回 `_applyState`，加注释「仅一处使用、
+      inline 比抽 helper 更直观」。
+    - 从 helpers 删除 `audioStateToEngineState` 函数；删除已 unused 的
+      `tts_http_models.dart` import。
+    - 在 helpers 头部加「抽离动机（规范驱动）」注释，说明剩余 2 个函数
+      为何应保留——这是给未来阅读者的反例对照。
+  - **行数变化**：
+    - `tts_audio_state_helpers.dart`：70 → 62（-8，回收一个边缘抽出）
+    - `tts_audio_notifier.dart`：574 → 645（+71）
+    - **关键**：notifier 主动接受行数增加，**这是规范驱动的决策样板**——
+      行数不是 KPI，相关逻辑在用方旁阅读更直观才是真目标。
+  - **fallback_controller 13 callback 决策**：保持不动。当前能跑、测试都过、
+    显式 callback 比隐式依赖可读性更好；重构动机如「觉得不够优雅」是
+    形式驱动反模式，按新思想自行驳回。**「不动也是合法结论」的活样板**。
+  - **验证**：
+    - `flutter analyze` 零警告
+    - AI 门禁 0 阻断 / 1 warning（仅 service 698 行自身）
+    - 全量 669 passed + 4 skipped
+  - **经验教训**：**思想纠偏不止改文档，还要改代码动机**。纠偏 commit
+    后真正的考验是「能否按新思想精准修订已有产物」。这次只动了 1 个函数，
+    没有大刀阔斧——因为只有 1 个函数确实违反新原则，其他 11 个产物经过
+    二次审视都站得住脚。**精准 ≠ 收缩**，规范驱动的修订要敢「主动接受
+    行数增加」（notifier +71 行），也要敢「拒绝形式上更优雅的重构」
+    （fallback_controller 不动）。
+
 ## **2026-05-10**
 
 - **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：

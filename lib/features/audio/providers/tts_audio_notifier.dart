@@ -619,8 +619,17 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _playbackRate = newState.playbackRate;
     _fallbackMessage = newState.fallbackMessage;
 
+    // 影子状态机映射：仅 _applyState 一处使用，inline 比抽 helper 更直观。
+    final shadowState = switch (newState) {
+      TtsAudioIdle() => TtsPlaybackState.disabled,
+      TtsAudioBuffering() => TtsPlaybackState.buffering,
+      TtsAudioPlaying() => TtsPlaybackState.playing,
+      TtsAudioPaused() => TtsPlaybackState.paused,
+      TtsAudioError() => TtsPlaybackState.error,
+    };
+
     _engine.syncShadow(
-      state: audioStateToEngineState(newState),
+      state: shadowState,
       session: _session,
       error: (newState is TtsAudioError) ? newState.message : null,
       item: _currentItem,
