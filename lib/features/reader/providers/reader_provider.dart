@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/core/utils/text_processing.dart';
