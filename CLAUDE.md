@@ -36,6 +36,24 @@
 5. **异步解析**：处理 >100KB 的文件，必须使用 `Isolate` (compute)，严禁阻塞主线程。
 6. **数据隐私**：阅读进度与设置必须纯本地存储，禁止向服务端同步用户数据。
 7. **控制台零警告**：**强制要求** - `flutter analyze` 必须零错误零警告，运行时控制台必须完全清洁，无任何警告信息输出。
+8. **单文件体量门禁**：单个 `.dart` 文件不得超过下方阈值表；超线即触发 `yueyou-file-size-guard` 技能与 `large-file-refactor-review` 工作流；`scripts/ai_checks/rules.dart` 的 `FileSizeRule` 在 CI 与提交前自动拦截。
+
+### 📏 单文件体量阈值表
+
+| 层级 | 警戒线（warning） | 硬上限（blocking） |
+| --- | --- | --- |
+| `lib/features/*/services/` | 600 行 | 800 行 |
+| `lib/features/*/providers/` | 700 行 | 900 行 |
+| `lib/features/*/presentation/` | 900 行 | 1100 行 |
+| `lib/features/*/domain/` | 500 行 | 700 行 |
+| `lib/core/` | 500 行 | 700 行 |
+
+附加硬约束（任一违反即 blocking）：
+
+- 单文件公开类（非 `_` 私有）数量 **≤ 3**。
+- 单类公开方法数量 **≤ 25**。
+- 禁止用 `part` / `part of` 规避行数门禁。
+- 私有 `_Foo` 抽出到新文件改 public 时，必须在原文件用 `export ... show ...` 做向后兼容。
 
 ## 📡 TTS 云端通信契约 (极度重要)
 
@@ -66,6 +84,7 @@
 - **提交代码**：每次任务完成进行代码提交，提交信息使用中文，格式：`type(scope): 中文描述`。
 - **推送代码**：提交后立即推送到远程分支。
 - **收口顺序**：代码改动 → 文档更新（任务单 + 日志 + README）→ 提交 → 推送，严格按此顺序执行，不可遗漏任何步骤。
+- **大文件警觉**：每次修改 `.dart` 文件前，先确认当前行数；若已 ≥ 警戒线，必须先走 `large-file-refactor-review` 工作流再开始改造，不得在大文件上追加新职责。
 - **警告处理**：严格编写 Markdown 文档，**控制台零警告是强制要求**，常见规范：代码块必须标注语言、标题层级不可跳级、列表前后必须有空行。
 - **打包规范**：打 Android APK 必须使用以下命令，只输出 arm64-v8a 轻量包（覆盖市面 90%+ 主流机型，体积约 28MB），打包完成后清理其他架构产物：
 
@@ -109,8 +128,9 @@ cd server && go vet ./... && go build ./...  # 服务端编译通过
 以下技能文件包含各领域的详细约束和检查脚本，按需查阅：
 
 | 技能 | 路径 | 覆盖范围 |
-|------|------|---------|
+| --- | --- | --- |
 | 架构守卫 | `.agents/skills/yueyou-architecture-guard/SKILL.md` | 模块边界、Riverpod、Clean Architecture |
+| 文件体量 | `.agents/skills/yueyou-file-size-guard/SKILL.md` | 单文件行数、上帝类反模式、拆分 review checklist |
 | 代码质量 | `.agents/skills/yueyou-code-quality-guard/SKILL.md` | 日志规范、硬编码、异常处理、Dart 3 |
 | 配置常量 | `.agents/skills/yueyou-config-constants-guard/SKILL.md` | 环境变量、常量分类、魔法数字 |
 | 测试与 CI | `.agents/skills/yueyou-test-ci-guard/SKILL.md` | 测试约定、CI 流程、覆盖率 |

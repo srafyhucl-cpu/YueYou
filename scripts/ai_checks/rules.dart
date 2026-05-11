@@ -1,5 +1,6 @@
 import 'context.dart';
 import 'models.dart';
+import 'thresholds.dart';
 
 abstract class AiCheckRule {
   const AiCheckRule();
@@ -389,4 +390,121 @@ void _requireSnippet(
       message: message,
     ),
   );
+}
+
+/// 阅游单文件体量与上帝类反模式门禁。
+///
+/// 红线来源：`.windsurf/rules/AGENT.md` 第 8 条 / `CLAUDE.md` 同名章节。
+/// 联动技能：`.agents/skills/yueyou-file-size-guard/SKILL.md`。
+/// 联动工作流：`.windsurf/workflows/large-file-refactor-review.md`。
+///
+/// 检查范围（仅 `lib/` 下的 `.dart` 文件）：
+/// 1. **行数**：超过 [FileSizeThreshold.warning] 输出 warning；超过
+///    [FileSizeThreshold.blocking] 输出 blocking。
+/// 2. **公开类数量**：超过 [kMaxPublicClassesPerFile] 输出 blocking。
+/// 3. **`part` / `part of` 禁用**：发现即 blocking，禁止用 part 拆分规避行数门禁。
+///
+/// 存量豁免：[kFileSizeGrandfathered] 列表中的文件，1 / 2 类违规会降级为
+/// warning；3 类（part 指令）始终为 blocking。
+class FileSizeRule extends AiCheckRule {
+  const FileSizeRule();
+
+  static final RegExp _topLevelClassPattern = RegExp(
+    r'^(?:abstract\s+)?(?:class|enum|mixin)\s+([A-Za-z_][A-Za-z0-9_]*)',
+    multiLine: true,
+  );
+
+  static final RegExp _partDirectivePattern = RegExp(
+    r'''^\s*part(\s+of)?\s+['"]''',
+  );
+
+  @override
+  void apply(AiRepoContext context, List<AiFinding> findings) {
+    for (final snapshot in context.readDartFilesUnder('lib')) {
+      _checkLineCount(snapshot, findings);
+      _checkPublicClassCount(snapshot, findings);
+      _checkPartDirective(snapshot, findings);
+    }
+  }
+
+  void _checkLineCount(FileSnapshot snapshot, List<AiFinding> findings) {
+    final threshold = resolveFileSizeThreshold(snapshot.relativePath);
+    if (threshold == null) return;
+    final lines = countLines(snapshot.content);
+    final isGrandfathered =
+        kFileSizeGrandfathered.contains(snapshot.relativePath);
+    if (lines >= threshold.blocking) {
+      findings.add(
+        AiFinding(
+          id: 'file_size.exceeds_blocking',
+          severity: isGrandfathered
+              ? FindingSeverity.warning
+              : FindingSeverity.blocking,
+          filePath: snapshot.relativePath,
+          message: isGrandfathered
+              ? '文件行数 $lines 超过硬上限 ${threshold.blocking}'
+                  '（${threshold.pathLabel}）；存量豁免，必须按重构 PR 路线拆分后从 '
+                  'kFileSizeGrandfathered 移除'
+              : '文件行数 $lines 超过硬上限 ${threshold.blocking}'
+                  '（${threshold.pathLabel}）；必须先走 '
+                  'large-file-refactor-review 工作流拆分',
+        ),
+      );
+    } else if (lines >= threshold.warning) {
+      findings.add(
+        AiFinding(
+          id: 'file_size.exceeds_warning',
+          severity: FindingSeverity.warning,
+          filePath: snapshot.relativePath,
+          message: '文件行数 $lines 超过警戒线 ${threshold.warning}'
+              '（${threshold.pathLabel}）；不得继续在该文件追加新职责',
+        ),
+      );
+    }
+  }
+
+  void _checkPublicClassCount(
+    FileSnapshot snapshot,
+    List<AiFinding> findings,
+  ) {
+    var publicCount = 0;
+    for (final match in _topLevelClassPattern.allMatches(snapshot.content)) {
+      final name = match.group(1) ?? '';
+      if (name.isEmpty || name.startsWith('_')) continue;
+      publicCount++;
+    }
+    if (publicCount <= kMaxPublicClassesPerFile) return;
+    final isGrandfathered =
+        kFileSizeGrandfathered.contains(snapshot.relativePath);
+    findings.add(
+      AiFinding(
+        id: 'file_size.too_many_public_classes',
+        severity: isGrandfathered
+            ? FindingSeverity.warning
+            : FindingSeverity.blocking,
+        filePath: snapshot.relativePath,
+        message: isGrandfathered
+            ? '单文件公开类数量 $publicCount 超过上限 '
+                '$kMaxPublicClassesPerFile；存量豁免，必须按四象限拆分'
+            : '单文件公开类数量 $publicCount 超过上限 '
+                '$kMaxPublicClassesPerFile；请按四象限拆分到独立文件',
+      ),
+    );
+  }
+
+  void _checkPartDirective(FileSnapshot snapshot, List<AiFinding> findings) {
+    for (var i = 0; i < snapshot.lines.length; i++) {
+      final line = snapshot.lines[i];
+      if (!_partDirectivePattern.hasMatch(line)) continue;
+      findings.add(
+        AiFinding(
+          id: 'file_size.part_directive',
+          severity: FindingSeverity.blocking,
+          filePath: snapshot.relativePath,
+          line: i + 1,
+          message: '禁止使用 part / part of 规避单文件行数门禁，请拆为独立文件',
+        ),
+      );
+    }
+  }
 }
