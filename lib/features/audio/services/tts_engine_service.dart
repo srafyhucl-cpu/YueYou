@@ -6,13 +6,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_tts/flutter_tts.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
 import 'package:yueyou/features/audio/domain/tts_http_models.dart';
 import 'package:yueyou/features/audio/domain/tts_engine_interfaces.dart';
 import 'package:yueyou/features/audio/domain/tts_network_interfaces.dart';
+import 'package:yueyou/features/audio/services/tts_audio_adapters.dart';
+import 'package:yueyou/features/audio/services/tts_http_client.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/utils/tts_cache_manager.dart';
@@ -42,271 +42,6 @@ final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
   );
   return svc;
 });
-
-/// 生产环境实现：包装系统原生 FlutterTts
-class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
-  final FlutterTts _tts = FlutterTts();
-  Completer<void>? _currentSpeech;
-
-  @override
-  Future<void> initialize() async {
-    await _tts.setLanguage('zh-CN');
-    await _tts.setSpeechRate(0.5);
-    await _tts.setVolume(1.0);
-    _tts.setCompletionHandler(() {
-      if (_currentSpeech?.isCompleted == false) {
-        _currentSpeech?.complete();
-      }
-      _currentSpeech = null;
-    });
-    _tts.setErrorHandler((dynamic msg) {
-      if (_currentSpeech?.isCompleted == false) {
-        _currentSpeech?.completeError(Exception('FlutterTts: $msg'));
-      }
-      _currentSpeech = null;
-    });
-  }
-
-  @override
-  Future<void> speak(String text) async {
-    _currentSpeech = Completer<void>();
-    try {
-      await _tts.speak(text);
-    } catch (e) {
-      if (_currentSpeech?.isCompleted == false) {
-        _currentSpeech?.complete();
-      }
-      _currentSpeech = null;
-      rethrow;
-    }
-    try {
-      await _currentSpeech!.future.timeout(TtsConfig.ttsLocalSpeakTimeout);
-    } on TimeoutException catch (e, st) {
-      CyberLogger.captureWarning(
-        e,
-        stack: st,
-        tag: 'tts',
-        extra: {'context': '本地 TTS 朗读超时'},
-      );
-    } catch (e, st) {
-      CyberLogger.captureWarning(
-        e,
-        stack: st,
-        tag: 'tts',
-        extra: {'context': '本地 TTS 朗读错误'},
-      );
-    }
-  }
-
-  @override
-  Future<void> stop() async {
-    if (_currentSpeech?.isCompleted == false) {
-      _currentSpeech?.complete();
-    }
-    _currentSpeech = null;
-    try {
-      await _tts.stop();
-    } catch (_) {
-      // dispose 路径允许静默失败：音频播放器可能已处于 stopped/completed 状态
-    }
-  }
-
-  @override
-  Future<void> dispose() async {
-    await stop();
-  }
-}
-
-/// 内部异常：携带 HTTP 状态码，供 downloadAudio 区分可重试(5xx)与不可重试(4xx)。
-class _TtsHttpStatusException implements Exception {
-  final int statusCode;
-  final Uri? uri;
-  _TtsHttpStatusException(this.statusCode, {this.uri});
-  bool get isClientError => statusCode >= 400 && statusCode < 500;
-  @override
-  String toString() => '服务端返回 $statusCode';
-}
-
-/// 生产环境实现：包装真实 AudioPlayer
-class _RealAudioPlayer implements TtsAudioPlayer {
-  final AudioPlayer _player;
-  _RealAudioPlayer(this._player);
-  @override
-  Future<void> setSource(Source source) => _player.setSource(source);
-  @override
-  Future<void> resume() => _player.resume();
-  @override
-  Future<void> pause() => _player.pause();
-  @override
-  Future<void> stop() => _player.stop();
-  @override
-  Future<void> setVolume(double volume) => _player.setVolume(volume);
-  @override
-  Future<void> setPlaybackRate(double rate) => _player.setPlaybackRate(rate);
-  @override
-  Future<void> setAudioContext(AudioContext context) =>
-      _player.setAudioContext(context);
-  @override
-  Stream<void> get onPlayerComplete => _player.onPlayerComplete;
-  @override
-  Stream<Duration> get onPositionChanged => _player.onPositionChanged;
-  @override
-  Stream<Duration> get onDurationChanged => _player.onDurationChanged;
-  @override
-  Future<void> dispose() => _player.dispose();
-}
-
-/// 生产环境实现：包装真实 WakelockPlus
-class _RealWakeLock implements TtsWakeLock {
-  @override
-  Future<void> enable() async {
-    try {
-      await WakelockPlus.enable();
-    } catch (_) {}
-  }
-
-  @override
-  Future<void> disable() async {
-    try {
-      await WakelockPlus.disable();
-    } catch (_) {}
-  }
-}
-
-/// 真实 HTTP 客户端实现
-class _RealHttpClient implements HttpClientInterface {
-  @override
-  Future<void> download(Uri url, String savePath) async {
-    final File targetFile = File(savePath);
-    await targetFile.parent.create(recursive: true);
-
-    final client = HttpClient();
-    client.connectionTimeout = TtsConfig.ttsDownloadTimeout;
-    try {
-      var currentUrl = url;
-      HttpClientRequest request = await client.getUrl(currentUrl);
-      HttpClientResponse response;
-      int redirectCount = 0;
-      const int maxRedirects = 5;
-      do {
-        response = await request.close().timeout(
-          TtsConfig.ttsDownloadTimeout,
-          onTimeout: () {
-            throw TimeoutException('TTS 下载超时 (15秒)');
-          },
-        );
-        if (response.statusCode >= 300 &&
-            response.statusCode < 400 &&
-            response.headers.value('location') != null &&
-            redirectCount < maxRedirects) {
-          currentUrl = Uri.parse(response.headers.value('location')!);
-          request = await client.getUrl(currentUrl);
-          redirectCount++;
-        } else {
-          break;
-        }
-      } while (true);
-      final int statusCode = response.statusCode;
-      if (statusCode >= 400) {
-        throw _TtsHttpStatusException(statusCode, uri: url);
-      }
-      // P1-6：流式落盘。
-      // 旧实现：先 bytes.addAll(chunk) 累积全部字节，再 writeAsBytes —— 对一段
-      // 长句子的 mp3（数百 KB ~ 数 MB）瞬时占用 2x 内存，且对低端机型 GC 压力陡增。
-      // 现改为打开 IOSink 边读边写；任何异常都删除半成品文件，避免
-      // 损坏的缓存被后续 playFile 误认为可播放。
-      final IOSink sink = targetFile.openWrite();
-      int totalBytes = 0;
-      try {
-        try {
-          await for (final chunk in response) {
-            totalBytes += chunk.length;
-            sink.add(chunk);
-          }
-          await sink.flush();
-        } finally {
-          // 无论成败都只关一次 sink，避免重复关闭抛 StateError。
-          try {
-            await sink.close();
-          } catch (_) {}
-        }
-      } catch (_) {
-        // 流读取/写入失败：清理半成品后让异常继续向上传播。
-        try {
-          if (await targetFile.exists()) await targetFile.delete();
-        } catch (_) {}
-        rethrow;
-      }
-      if (totalBytes == 0) {
-        // 写入了 0 字节：清理空文件并按原契约抛 HttpException
-        try {
-          if (await targetFile.exists()) await targetFile.delete();
-        } catch (_) {}
-        throw const HttpException('下载音频失败: 响应体为空');
-      }
-    } finally {
-      client.close();
-    }
-  }
-
-  @override
-  Future<String> postJson(Uri url, dynamic body) async {
-    final client = HttpClient();
-    client.connectionTimeout = TtsConfig.ttsPostConnectionTimeout;
-    try {
-      final request = await client.postUrl(url);
-      request.headers.set(
-        HttpHeaders.contentTypeHeader,
-        'application/json; charset=utf-8',
-      );
-      final Map<String, dynamic> bodyMap = body is Map<String, dynamic>
-          ? body
-          : (body is String ? jsonDecode(body) as Map<String, dynamic> : {});
-      final jsonBody = jsonEncode(bodyMap);
-      request.write(jsonBody);
-      final response = await request.close().timeout(
-        TtsConfig.ttsPostResponseTimeout,
-        onTimeout: () {
-          throw TimeoutException('TTS POST 请求超时 (15秒)');
-        },
-      );
-      final statusCode = response.statusCode;
-      final responseBody = await response.transform(utf8.decoder).join();
-      if (statusCode >= 400) {
-        throw _TtsHttpStatusException(statusCode, uri: url);
-      }
-      return responseBody;
-    } finally {
-      client.close();
-    }
-  }
-}
-
-/// 生产环境实现：包装真实 http.Client
-class _RealTtsHttpClient implements TtsHttpClient {
-  final HttpClientInterface _httpClient;
-
-  _RealTtsHttpClient(this._httpClient);
-
-  @override
-  Future<TtsHttpResponse> post(
-    Uri url, {
-    Map<String, String>? headers,
-    Object? body,
-  }) async {
-    final responseBody = await _httpClient.postJson(url, body);
-    final dynamic data = jsonDecode(responseBody);
-    return TtsHttpResponse(
-      statusCode: 200,
-      body: data is String ? data : jsonEncode(data),
-    );
-  }
-
-  @override
-  Future<void> download(Uri url, String savePath) async {
-    await _httpClient.download(url, savePath);
-  }
-}
 
 /// 阅游 TTS 音频执行层
 /// 架构：纯执行服务，由 TtsAudioNotifier 编排调度
@@ -396,10 +131,10 @@ class TtsEngineService extends ChangeNotifier {
     /// - false：由 ttsEngineProvider 的 ref.listen 统一推送，避免双重注册。
     bool externalSettingsListener = true,
   })  : _config = config ?? TtsConfig.current,
-        _audioPlayer = audioPlayer ?? _RealAudioPlayer(AudioPlayer()),
-        _wakeLock = wakeLock ?? _RealWakeLock(),
-        _httpClient = httpClient ?? _RealTtsHttpClient(_RealHttpClient()),
-        _fallbackEngine = fallbackEngine ?? _FlutterTtsFallbackEngine() {
+        _audioPlayer = audioPlayer ?? RealAudioPlayer(AudioPlayer()),
+        _wakeLock = wakeLock ?? RealWakeLock(),
+        _httpClient = httpClient ?? RealTtsHttpClient(RealHttpClient()),
+        _fallbackEngine = fallbackEngine ?? FlutterTtsFallbackEngine() {
     _delayFn = delayFn ?? (d) => Future<void>.delayed(d);
     _settings = settings;
     _voice = settings.voice;
@@ -1071,7 +806,7 @@ class TtsEngineService extends ChangeNotifier {
         if (attempt < _config.maxRetries - 1) {
           await _delayFn(_config.baseRetryDelay * (1 << attempt));
         }
-      } on _TtsHttpStatusException catch (e, st) {
+      } on TtsHttpStatusException catch (e, st) {
         CyberLogger.captureWarning(
           e,
           stack: st,
@@ -1155,7 +890,7 @@ class TtsEngineService extends ChangeNotifier {
     if (_disposed) return null;
     if (response.statusCode != 200) {
       _setLastError(response.statusCode);
-      throw _TtsHttpStatusException(response.statusCode, uri: uri);
+      throw TtsHttpStatusException(response.statusCode, uri: uri);
     }
     final responseBody = response.body.trim();
     if (!(responseBody.startsWith('{') || responseBody.startsWith('['))) {

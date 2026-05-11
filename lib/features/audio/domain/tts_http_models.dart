@@ -17,6 +17,25 @@ class TtsHttpResponse {
   const TtsHttpResponse({required this.statusCode, required this.body});
 }
 
+/// TTS 业务 HTTP 异常，携带 HTTP 状态码，供下载/获取 URL 调用方区分：
+/// - `4xx`（[isClientError] 为 true）：客户端错误，**不可重试**；
+/// - `5xx`：服务端错误，**可重试**。
+///
+/// 从 `tts_engine_service.dart` 抽出（PR-B）。原为私有 `_TtsHttpStatusException`，
+/// 为支持适配器与核心服务跨文件协作而 public 化；由于旧名带前导下划线，
+/// 外部 import 从来拿不到该类型，因此无需 `export show` 向后兼容。
+class TtsHttpStatusException implements Exception {
+  final int statusCode;
+  final Uri? uri;
+
+  TtsHttpStatusException(this.statusCode, {this.uri});
+
+  bool get isClientError => statusCode >= 400 && statusCode < 500;
+
+  @override
+  String toString() => '服务端返回 $statusCode';
+}
+
 /// TTS 音频播放状态机
 ///
 /// Dart 3 模式匹配要求：所有 switch 必须穷尽以下 5 个分支：
