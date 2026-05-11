@@ -188,6 +188,40 @@
     再无单文件超警戒线 blocking。三件套（AGENT.md 红线 + skill +
     FileSizeRule）在每轮中持续提供即时反馈，**门禁机制实战验证完全有效**。
 
+- **重构(reader): 抽 nextTtsSentence 为纯函数（PR-E，reader_provider 跌出警戒线）**：
+  - **目标**：把 `reader_provider.dart`（721 行，超 providers 警戒线 700）
+    中 73 行的 `nextTtsSentence` 句子合并算法抽成 domain 层纯函数，
+    让 provider 跌出警戒线。
+  - **产出**：
+    - 新增 `domain/reader_sentence_cursor.dart`（110 行）：1 个数据类
+      `SentenceFetchResult`（request + nextFetchIndex 2 字段）+ 1 个顶层
+      纯函数 `fetchNextSentenceRequest`，零状态、零副作用、零 IO 依赖。
+    - `reader_provider.dart` 中 `nextTtsSentence` 73 行算法体替换为 8 行
+      薄壳委托（构造 input、调函数、写回 `_fetchIndex`）；同时删除已无
+      引用的 `_isChapterTitle` wrapper，给 `_isNoise` 补用途说明注释。
+  - **行数变化**：
+    - `reader_provider.dart`：721 → **585（-136，-19%）**。
+    - **从警戒线 700 之上跌到之下**，AI 门禁 warning 消失。
+  - **向后兼容**：`TtsSentenceSource.nextTtsSentence` 接口签名完全保留，
+    `TtsAudioNotifier._refillBuffer` 调用链 0 改动。
+  - **验证**：
+    - `flutter analyze` 零警告。
+    - AI 门禁 0 阻断 / **1 warning**（仅 tts_engine_service 自身 698 行）。
+    - reader+audio 268 passed；**全量 669 passed + 4 skipped**。
+  - **经验教训**：
+    - **纯函数抽离是性价比最高的拆分**——零 callback / 零依赖注入 /
+      零反向引用，一次 73 行的抽出直接把 provider 拽出警戒线，
+      远比抽 controller（PR-D 用了 13 个 callback）更轻量。
+    - `session` 参数原本在算法内部完全没用，新函数省略——分层解耦：
+      contract 层保留参数（满足 `TtsSentenceSource` 接口），纯算法层
+      只接受真正需要的输入。
+    - 移除 wrapper `_isChapterTitle` 时 IDE 直接给出 unused warning，
+      门禁机制即时反馈再次生效。
+  - **大文件治理全部收官**：经 PR-A/B/C/D/E **5 轮**拆分，原工程 3 个
+    超警戒线大文件全部合规：tts_engine_service 698（< 硬上限 800）/
+    tts_audio_notifier 575（< 警戒线 700）/ reader_provider 585
+    （< 警戒线 700）。**0 阻断 / 1 warning** 收尾。
+
 ## **2026-05-10**
 
 - **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：
