@@ -93,24 +93,24 @@ class NotifierGuardsRule extends AiCheckRule {
       findings,
       filePath: filePath,
       id: 'tts.pause_interrupt.mark',
-      snippet: '_markPausedInterrupt(',
-      message: '缺少暂停中断哨兵登记逻辑',
+      snippet: '_pausedGuard.mark(',
+      message: '缺少暂停中断哨兵登记逻辑（PR-D 后委托 _pausedGuard.mark(...)）',
     );
     _requireSnippet(
       context,
       findings,
       filePath: filePath,
       id: 'tts.pause_interrupt.guard',
-      snippet: '_isPausedInterrupt(',
-      message: '缺少暂停完成回调拦截逻辑',
+      snippet: '_pausedGuard.isInterrupt(',
+      message: '缺少暂停完成回调拦截逻辑（PR-D 后委托 _pausedGuard.isInterrupt(...)）',
     );
     _requireSnippet(
       context,
       findings,
       filePath: filePath,
       id: 'tts.pause_interrupt.clear',
-      snippet: '_clearPausedInterrupt(',
-      message: '缺少暂停中断哨兵清理逻辑',
+      snippet: '_pausedGuard.clear(',
+      message: '缺少暂停中断哨兵清理逻辑（PR-D 后委托 _pausedGuard.clear()）',
     );
     _requireSnippet(
       context,
