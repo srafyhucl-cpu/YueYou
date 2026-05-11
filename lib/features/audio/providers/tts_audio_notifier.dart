@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:yueyou/core/utils/cyber_logger.dart';
-import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
+import 'package:yueyou/features/audio/domain/tts_audio_state_helpers.dart';
+import 'package:yueyou/features/audio/providers/tts_fallback_controller.dart';
+import 'package:yueyou/features/audio/providers/tts_paused_interrupt_guard.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
 /// TTS 音频流状态机 Provider。
 final ttsAudioProvider =
@@ -39,13 +44,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   bool _disposed = false;
   bool _pumpActive = false;
   int _consecutiveFailures = 0;
-  bool _isDegradedToLocal = false;
   bool _isPausing = false;
   bool _backgroundTolerant = false;
   bool _prefetchPaused = false;
-  int? _pausedInterruptItemId;
-  int? _pausedInterruptSession;
   Timer? _idleTimer; // 静默暂停计时器
+
+  // PR-D 抽出的子系统：暂停中断守卫 + 本地降级控制器。
+  final TtsPausedInterruptGuard _pausedGuard = TtsPausedInterruptGuard();
+  late final TtsFallbackController _fallback;
 
   /// 设置后台宽容模式：提高降级阈值，避免后台限网触发误降级。
   void setBackgroundTolerant(bool value) {
@@ -78,6 +84,21 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _engine = ref.read(ttsEngineProvider);
     _buffer = TtsAudioBuffer(maxSize: _engine.maxBufferedCount);
     _playbackRate = _engine.playbackRate;
+    _fallback = TtsFallbackController(
+      engine: _engine,
+      pausedGuard: _pausedGuard,
+      sentenceSourceGetter: () => _sentenceSource,
+      sessionGetter: () => _session,
+      playbackRateGetter: () => _playbackRate,
+      bufferGetter: () => _buffer,
+      currentItemGetter: () => _currentItem,
+      currentItemSetter: (item) => _currentItem = item,
+      isDisposed: () => _disposed,
+      applyState: _applyState,
+      snapshotOf: snapshotOf,
+      onConsecutiveFailuresReset: (n) => _consecutiveFailures = n,
+      fallbackMessageSetter: (msg) => _fallbackMessage = msg,
+    );
 
     ref.onDispose(() {
       _disposed = true;
@@ -158,7 +179,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
       _startPump();
       _applyState(
         TtsAudioPlaying(
-          item: _snapshotOf(_currentItem!),
+          item: snapshotOf(_currentItem!),
           bufferedCount: _buffer.count,
           targetCount: _buffer.maxSize,
           playbackRate: _playbackRate,
@@ -187,7 +208,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   /// 暂停播放。
   Future<void> pause() async {
     _pumpActive = false;
-    _markPausedInterrupt(_currentItem);
+    _pausedGuard.mark(_currentItem);
     _isPausing = true; // 开启暂停标识，阻止 _onPlaybackComplete 推进进度
     try {
       await _engine.stopAudio();
@@ -198,7 +219,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     _applyState(
       TtsAudioPaused(
-        item: _currentItem != null ? _snapshotOf(_currentItem!) : null,
+        item: _currentItem != null ? snapshotOf(_currentItem!) : null,
         bufferedCount: _buffer.count,
         targetCount: _buffer.maxSize,
         session: _session,
@@ -217,9 +238,9 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _buffer.clear();
     _currentItem = null;
     _currentFilePath = null;
-    _isDegradedToLocal = false;
+    _fallback.isDegradedToLocal = false;
     _consecutiveFailures = 0;
-    _clearPausedInterrupt();
+    _pausedGuard.clear();
     _applyState(
       TtsAudioIdle(playbackRate: _playbackRate, fallbackMessage: null),
     );
@@ -229,7 +250,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   void cycleSpeed() {
     _engine.cycleSpeed();
     _playbackRate = _engine.playbackRate;
-    state = _copyStateWithRate(state, _playbackRate);
+    state = copyStateWithRate(state, _playbackRate);
   }
 
   /// 清除错误并尝试恢复会话。
@@ -253,10 +274,10 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _buffer.clear();
     _currentItem = null;
     _currentFilePath = null;
-    _isDegradedToLocal = false;
+    _fallback.isDegradedToLocal = false;
     _consecutiveFailures = 0;
     _fallbackMessage = null;
-    _clearPausedInterrupt();
+    _pausedGuard.clear();
 
     // 2. 重置句子源游标：确保从当前 currentIndex 重新开始预取
     _sentenceSource?.resetFetchIndex();
@@ -285,7 +306,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     if (enabled) {
       _consecutiveFailures = 0;
       _session++;
-      _isDegradedToLocal = false;
+      _fallback.isDegradedToLocal = false;
       _applyState(
         TtsAudioBuffering(
           bufferedCount: 0,
@@ -317,7 +338,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   Future<void> _prefetchRunner() async {
     try {
       while (_pumpActive && !_disposed) {
-        if (_isDegradedToLocal) {
+        if (_fallback.isDegradedToLocal) {
           await Future.delayed(const Duration(milliseconds: 500));
           continue;
         }
@@ -350,8 +371,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   Future<void> _playRunner() async {
     try {
       while (_pumpActive && !_disposed) {
-        if (_isDegradedToLocal) {
-          await _pumpDegraded();
+        if (_fallback.isDegradedToLocal) {
+          await _fallback.pumpDegraded();
           continue;
         }
         if (!_buffer.isEmpty) {
@@ -404,11 +425,11 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
             tag: 'tts',
             extra: {'context': '连续 8 次下载失败，触发降级'},
           );
-          // P2 修复：同步置 _isDegradedToLocal=true，防止 _degradeToLocal 内部
+          // P2 修复：同步置 isDegradedToLocal=true，防止 degradeToLocal 内部
           // `await stopAudio/pauseAudio` 完成前 _prefetchRunner 继续 loop 重复
-          // 调用 _refillBuffer 累加 _consecutiveFailures、重复触发 _degradeToLocal。
-          _isDegradedToLocal = true;
-          _degradeToLocal(request);
+          // 调用 _refillBuffer 累加 _consecutiveFailures、重复触发 degradeToLocal。
+          _fallback.isDegradedToLocal = true;
+          _fallback.degradeToLocal(request);
         }
       }
       return;
@@ -427,10 +448,10 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           tag: 'tts',
           extra: {'context': '连续 3 次返回空路径'},
         );
-        // P2 修复：同上，同步置标志位防止 _prefetchRunner 在 _degradeToLocal
+        // P2 修复：同上，同步置标志位防止 _prefetchRunner 在 degradeToLocal
         // chain 完成前重复入循环。
-        _isDegradedToLocal = true;
-        _degradeToLocal(request);
+        _fallback.isDegradedToLocal = true;
+        _fallback.degradeToLocal(request);
       }
       return;
     }
@@ -494,7 +515,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
     _applyState(
       TtsAudioPlaying(
-        item: _snapshotOf(startItem),
+        item: snapshotOf(startItem),
         bufferedCount: _buffer.count,
         targetCount: _buffer.maxSize,
         playbackRate: _playbackRate,
@@ -541,9 +562,9 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     if (_disposed || item.session != _session) return;
 
     // 2. 暂停校验：如果是因暂停导致的 stopAudio()，不应推进进度
-    if (_isPausing || _isPausedInterrupt(item)) {
+    if (_isPausing || _pausedGuard.isInterrupt(item)) {
       CyberLogger.captureMessage('[TTS] 暂停引起的播放中断，保留进度', tag: 'tts');
-      _clearPausedInterrupt();
+      _pausedGuard.clear();
       return;
     }
 
@@ -569,25 +590,6 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     }
   }
 
-  void _markPausedInterrupt(TtsAudioItem? item) {
-    if (item == null) {
-      _clearPausedInterrupt();
-      return;
-    }
-    _pausedInterruptItemId = item.id;
-    _pausedInterruptSession = item.session;
-  }
-
-  bool _isPausedInterrupt(TtsAudioItem item) {
-    return _pausedInterruptItemId == item.id &&
-        _pausedInterruptSession == item.session;
-  }
-
-  void _clearPausedInterrupt() {
-    _pausedInterruptItemId = null;
-    _pausedInterruptSession = null;
-  }
-
   /// 删除已播完的临时文件（阅后即焚）。
   void _deleteFile(String path) {
     unawaited(
@@ -609,153 +611,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     );
   }
 
-  // ─── 降级与恢复 ───────────────────────────────────────────
-
-  /// 降级到本地 TTS。
-  ///
-  /// 前置条件：先停用远程播放器，再启动本地降级，杜绝二重唱。
-  Future<void> _degradeToLocal(TtsAudioRequest request) async {
-    // 停用远程播放器，确保不二重唱
-    _clearPausedInterrupt();
-    await _engine.stopAudio();
-    await _engine.pauseAudio();
-
-    _isDegradedToLocal = true;
-    _fallbackMessage = '网络音频加载失败，已切换至本地语音';
-    CyberLogger.captureWarning(
-      Exception('TTS degraded to local engine'),
-      tag: 'tts',
-    );
-
-    final fallbackItem = TtsAudioItem(
-      id: DateTime.now().microsecondsSinceEpoch,
-      session: _session,
-      lineIndex: request.lineIndex,
-      endLineIndex: request.endLineIndex,
-      text: request.text,
-      title: request.title,
-      estimatedDuration: const Duration(seconds: 5),
-    );
-    _currentItem = fallbackItem;
-
-    if (_sentenceSource != null) {
-      unawaited(
-        Future.microtask(() async {
-          try {
-            _sentenceSource!.onTtsItemStarted(fallbackItem);
-          } catch (e, st) {
-            CyberLogger.captureWarning(
-              e,
-              stack: st,
-              tag: 'tts',
-              extra: {'context': '降级 onTtsItemStarted 回调异常'},
-            );
-          }
-        }),
-      );
-    }
-
-    _applyState(
-      TtsAudioPlaying(
-        item: _snapshotOf(fallbackItem),
-        bufferedCount: _buffer.count,
-        targetCount: _buffer.maxSize,
-        playbackRate: _playbackRate,
-        fallbackMessage: _fallbackMessage,
-      ),
-    );
-
-    final ok = await _engine.speakWithLocalTts(request.text);
-    if (!_disposed && ok && _currentItem?.id == fallbackItem.id) {
-      _currentItem = null;
-      if (_sentenceSource != null) {
-        unawaited(
-          Future.microtask(() async {
-            try {
-              _sentenceSource!.onTtsItemFinished(fallbackItem);
-            } catch (e, st) {
-              CyberLogger.captureWarning(
-                e,
-                stack: st,
-                tag: 'tts',
-                extra: {'context': '降级 onTtsItemFinished 回调异常'},
-              );
-            }
-          }),
-        );
-      }
-    }
-  }
-
-  /// 退化模式下的纯本地循环。
-  ///
-  /// 每句播完后探测服务器，网络恢复则自动切回云端 TTS。
-  Future<void> _pumpDegraded() async {
-    if (_sentenceSource == null) return;
-    final request = await _sentenceSource!.nextTtsSentence(_session);
-    if (_disposed) return;
-    if (request == null) {
-      // 无更多内容 → 尝试切回远程
-      _isDegradedToLocal = false;
-      _consecutiveFailures = 0;
-      _fallbackMessage = null;
-      return;
-    }
-    await _degradeToLocal(request);
-    // 每句播完后探测一次网络，恢复则退出降级
-    if (!_disposed && _isDegradedToLocal) {
-      final reachable = await _engine.pingServer();
-      if (reachable) {
-        _isDegradedToLocal = false;
-        _consecutiveFailures = 0;
-        _fallbackMessage = null;
-        CyberLogger.captureMessage('[TTS] 网络已恢复，退出降级模式', tag: 'tts');
-      }
-    }
-  }
-
-  // ─── 状态构造与推送 ────────────────────────────────────────
-
-  /// 原地重建当前状态，仅替换 [playbackRate]，其余字段保持不变。
-  TtsAudioState _copyStateWithRate(TtsAudioState current, double rate) =>
-      switch (current) {
-        TtsAudioIdle() => TtsAudioIdle(
-            playbackRate: rate,
-            fallbackMessage: current.fallbackMessage,
-          ),
-        TtsAudioBuffering() => TtsAudioBuffering(
-            bufferedCount: current.bufferedCount,
-            targetCount: current.targetCount,
-            progress: current.progress,
-            session: current.session,
-            playbackRate: rate,
-            fallbackMessage: current.fallbackMessage,
-          ),
-        TtsAudioPlaying() => TtsAudioPlaying(
-            item: current.item,
-            bufferedCount: current.bufferedCount,
-            targetCount: current.targetCount,
-            playbackRate: rate,
-            fallbackMessage: current.fallbackMessage,
-          ),
-        TtsAudioPaused() => TtsAudioPaused(
-            item: current.item,
-            bufferedCount: current.bufferedCount,
-            targetCount: current.targetCount,
-            session: current.session,
-            playbackRate: rate,
-            fallbackMessage: current.fallbackMessage,
-          ),
-        TtsAudioError() => TtsAudioError(
-            type: current.type,
-            message: current.message,
-            timestamp: current.timestamp,
-            recoverable: current.recoverable,
-            session: current.session,
-            playbackRate: rate,
-            fallbackMessage: current.fallbackMessage,
-          ),
-      };
+  // ─── 状态构造与推送 ─────────────────────────────
 
   void _applyState(TtsAudioState newState) {
     if (_disposed) return;
@@ -764,7 +620,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _fallbackMessage = newState.fallbackMessage;
 
     _engine.syncShadow(
-      state: _toEnginePlaybackState(newState),
+      state: audioStateToEngineState(newState),
       session: _session,
       error: (newState is TtsAudioError) ? newState.message : null,
       item: _currentItem,
@@ -772,30 +628,9 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     );
   }
 
-  TtsPlaybackState _toEnginePlaybackState(TtsAudioState audioState) {
-    return switch (audioState) {
-      TtsAudioIdle() => TtsPlaybackState.disabled,
-      TtsAudioBuffering() => TtsPlaybackState.buffering,
-      TtsAudioPlaying() => TtsPlaybackState.playing,
-      TtsAudioPaused() => TtsPlaybackState.paused,
-      TtsAudioError() => TtsPlaybackState.error,
-    };
-  }
-
-  TtsAudioSnapshot _snapshotOf(TtsAudioItem item) {
-    return TtsAudioSnapshot(
-      id: item.id,
-      session: item.session,
-      lineIndex: item.lineIndex,
-      title: item.title,
-      // 提词器需要完整朗读文本（合并短句时常远超 20 字），不再截断
-      textPreview: item.text,
-    );
-  }
-
-  // ─── 对外暴露（供 UI/测试 读取） ──────────────────────────
+  // ─── 对外暴露（供 UI/测试 读取） ──────────────────
 
   int get currentSession => _session;
   TtsAudioBuffer get buffer => _buffer;
-  bool get isDegraded => _isDegradedToLocal;
+  bool get isDegraded => _fallback.isDegradedToLocal;
 }

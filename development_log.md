@@ -144,6 +144,50 @@
     立即被"公开类 ≤ 3"拦下，PR-B 自然过线，PR-C 一次性把 service
     压到豁免之外。门禁机制实战验证有效。
 
+- **重构(audio): TTS 抽暂停守卫/降级控制器/状态机辅助（PR-D，notifier 跌出警戒线）**：
+  - **目标**：把 `tts_audio_notifier.dart`（802 行，超 providers 警戒线
+    700）中 5 段独立职责（状态复制 / 状态枚举映射 / 快照投影 / 暂停中断
+    守卫 / 本地降级流水线）抽到独立文件，让 notifier 跌回警戒线之下。
+  - **产出**：
+    - 新增 `domain/tts_audio_state_helpers.dart`（90 行）：3 个顶层
+      纯函数 `copyStateWithRate` / `audioStateToEngineState` / `snapshotOf`。
+    - 新增 `providers/tts_paused_interrupt_guard.dart`（38 行）：
+      `TtsPausedInterruptGuard` 封装暂停中断哨兵 id + session。
+    - 新增 `providers/tts_fallback_controller.dart`（170 行）：
+      `TtsFallbackController` 通过 13 个 callback 与 notifier 解耦，
+      封装 `degradeToLocal` + `pumpDegraded` 整条本地降级流水线。
+    - `tts_audio_notifier.dart` 删除 5 段内联实现，引用改为对子系统的
+      薄壳委托。
+    - `scripts/ai_checks/rules.dart`：`NotifierGuardsRule` 的 3 个 snippet
+      从旧方法名（`_markPausedInterrupt(` 等）演进到新委托式
+      （`_pausedGuard.mark(` 等），保持契约不丢。
+    - `test/scripts/ai_code_checker_test.dart`：同步 fixture 中的 snippet。
+  - **行数变化**：
+    - `tts_audio_notifier.dart`：802 → **575（-227，-28%）**。
+    - **从警戒线 700 之上跌到之下**，AI 门禁 warning 消失。
+  - **向后兼容**：notifier 公开 API（play/pause/stopAll/cycleSpeed/
+    refreshSession/recover/isDegraded 等）签名完全保留。
+    `tts_audio_notifier_test` 与 reader 测试 0 改动。
+  - **验证**：
+    - `flutter analyze` 零警告。
+    - AI 门禁 0 阻断 / 2 warning（tts_engine_service 自身 + reader_provider，
+      reader 由 PR-E 处理）。
+    - audio+reader 268 passed；**全量 669 passed + 4 skipped**。
+  - **经验教训**：
+    - `multi_edit` 在删除大段（含 100+ 行 old_string）方法体时 fuzzy match
+      失败，残留旧 `_degradeToLocal` / `_pumpDegraded` 与错误引用
+      （`_fallback.clearPausedInterrupt` 等不存在的方法）。**单次 edit
+      old_string 应控制在 30~50 行以内**，超过就拆分为多个精确小 edit。
+    - 抽 `audioStateToEngineState` 一开始遗漏，导致 `_applyState` 内
+      `syncShadow` 无法工作；事后补到 helpers。**抽公共函数前要把所有
+      调用点的依赖一次性穷举**。
+    - `NotifierGuardsRule` 等检查方法名 snippet 的规则在重构方法名后
+      必须同步演进——契约不丢，写法升级。**门禁规则也要随业务进化**。
+  - **TTS 大文件治理总收官**：原 1387 行上帝类经 PR-A/B/C/D 4 轮拆分后，
+    业务代码分布到 12 个独立文件（domain 5 / services 6 / providers 3），
+    再无单文件超警戒线 blocking。三件套（AGENT.md 红线 + skill +
+    FileSizeRule）在每轮中持续提供即时反馈，**门禁机制实战验证完全有效**。
+
 ## **2026-05-10**
 
 - **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：

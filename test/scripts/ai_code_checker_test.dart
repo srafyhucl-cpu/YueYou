@@ -274,14 +274,14 @@ class TtsEngineService {
     '''
 class TtsAudioNotifier {
   void pause() {
-    _markPausedInterrupt(_currentItem);
-    _clearPausedInterrupt();
+    _pausedGuard.mark(_currentItem);
+    _pausedGuard.clear();
   }
 
   void play() {
     if (item.session != _session) {}
     if (currentSession != _session) {}
-    _isPausedInterrupt(item);
+    _pausedGuard.isInterrupt(item);
   }
 }
 ''',
