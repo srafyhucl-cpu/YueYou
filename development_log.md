@@ -71,6 +71,36 @@
   - **遗留**：`tts_engine_service.dart` 仍在 `kFileSizeGrandfathered` 豁免
     内，PR-B（抽适配器 public 化）与 PR-C（核心分组）完成后移除。
 
+- **重构(audio): TTS 抽适配器与 HTTP 客户端（PR-B）**：
+  - **目标**：把上帝类中 5 个「包装第三方 SDK」的真实实现剥离到独立文件，
+    并把原私有 `_TtsHttpStatusException` public 化进入 domain 层，为 PR-C
+    核心分组铺路。继续遵循"拆分不改语义、测试断言不动、原 import 路径不变"。
+  - **产出**：
+    - 新增 `services/tts_audio_adapters.dart`：`FlutterTtsFallbackEngine` /
+      `RealAudioPlayer` / `RealWakeLock`（3 public 适配器）。
+    - 新增 `services/tts_http_client.dart`：`RealHttpClient` /
+      `RealTtsHttpClient`（2 public 适配器）。
+    - `domain/tts_http_models.dart` 新增 `TtsHttpStatusException`（原
+      `_TtsHttpStatusException` public 化）。
+    - `tts_engine_service.dart`：删除 6 段内联定义；全局重命名 6 个符号；
+      新增 2 个 service import；移除不再使用的 `flutter_tts` / `wakelock_plus`
+      import（缩小依赖面）。
+  - **行数变化**：
+    - `tts_engine_service.dart`：1330 → **1065（-265）**。
+    - 累计 PR-A+B：1387 → 1065（-322 行，-23%）。
+    - 新文件 142 + 159 = 301 行，全部在 services 警戒线 600 以下。
+  - **向后兼容**：原 5 个类全为私有 `_Xxx`，public 化后外部 import 行为无变化，
+    **无需 `export show`**，测试 0 改动全绿。
+  - **验证**：`flutter analyze` 零警告；AI 门禁 0 阻断 / 3 warning（存量）；
+    audio+reader 268 passed；全量 669 passed + 4 skipped。
+  - **经验教训**：
+    - `_TtsHttpStatusException` 跨文件后必须 public，放入 domain（HTTP 模型层）
+      而非 adapters 文件，避免 adapters 反向依赖 service。
+    - `RealHttpClient` 两处空 `catch (_) {}` 补加中文注释，规避未来可能引入的
+      "空 catch 必须说明"门禁误伤。
+  - **遗留**：`kFileSizeGrandfathered` 仍包含 `tts_engine_service.dart`，
+    等 PR-C（核心分组 + 缓存清理抽离）把 service 压到 ≤ 600 后移除豁免。
+
 ## **2026-05-10**
 
 - **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：
