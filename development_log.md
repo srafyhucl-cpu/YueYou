@@ -41,6 +41,36 @@
   - **关联**：完整重构路线见 `plans/大文件治理三件套与重构路线-cd9012.md`；
     今日任务单见 `DevelopmentPlan/20260511_大文件治理三件套与AI门禁加固.md`。
 
+- **重构(audio): TTS 抽接口与数据模型（PR-A）**：
+  - **目标**：把 `tts_engine_service.dart` 中 5 个抽象接口 + 2 个 public 数据
+    模型抽到 `lib/features/audio/domain/`，为后续 PR-B/C 的适配器/核心拆分
+    铺路。严格遵循"拆分不改语义、测试断言不动、原 import 路径不变"三原则。
+  - **产出**：
+    - 新增 `domain/tts_http_models.dart`：`TtsHttpResponse` + `TtsPlaybackState`。
+    - 新增 `domain/tts_engine_interfaces.dart`：`TtsAudioPlayer` /
+      `TtsWakeLock` / `TtsFallbackEngine`。
+    - 新增 `domain/tts_network_interfaces.dart`：`TtsHttpClient` /
+      `HttpClientInterface`。
+    - `tts_engine_service.dart`：删除内联定义 + 新增 3 个 import + 3 个
+      `export` 重导做向后兼容。
+  - **行数变化**：`tts_engine_service.dart` 1387 → 1330（-57）；三个新
+    domain 文件合计 100 行；均满足公开类 ≤ 3 约束。
+  - **验证**：
+    - `flutter analyze` 零警告。
+    - `dart scripts/ai_code_checker.dart` 0 阻断 / 3 warning（存量，PR-B/C
+      继续处理）。
+    - `flutter test test/features/audio test/features/reader --concurrency=1`
+      268 passed；全量 669 passed + 4 skipped。**0 测试文件变更**，断言未改。
+  - **经验教训**：
+    - 初版把 5 个接口塞进一个 `tts_interfaces.dart`，立即被 PR-H 新加的
+      `FileSizeRule`（公开类 ≤ 3）拦下。按四象限分为 engine（3 接口）/
+      network（2 接口）两个域文件，门禁通过。**三件套在第一次拆分里就
+      发挥了实战价值，防止新建的 domain 文件变成下一个上帝类。**
+    - 文件级 `///` 注释后紧跟 `import` 会触发 `dangling_library_doc_comment`，
+      改用 `//` 即可。
+  - **遗留**：`tts_engine_service.dart` 仍在 `kFileSizeGrandfathered` 豁免
+    内，PR-B（抽适配器 public 化）与 PR-C（核心分组）完成后移除。
+
 ## **2026-05-10**
 
 - **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：

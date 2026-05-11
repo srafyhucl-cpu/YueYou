@@ -10,6 +10,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
+import 'package:yueyou/features/audio/domain/tts_http_models.dart';
+import 'package:yueyou/features/audio/domain/tts_engine_interfaces.dart';
+import 'package:yueyou/features/audio/domain/tts_network_interfaces.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/utils/tts_cache_manager.dart';
@@ -18,6 +21,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 export 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 export 'package:yueyou/features/audio/domain/tts_audio_buffer.dart'
     show TtsBufferStatus;
+export 'package:yueyou/features/audio/domain/tts_http_models.dart';
+export 'package:yueyou/features/audio/domain/tts_engine_interfaces.dart';
+export 'package:yueyou/features/audio/domain/tts_network_interfaces.dart';
 
 /// TTS 引擎全局 Provider（Riverpod 生命周期托管版）
 ///
@@ -36,35 +42,6 @@ final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
   );
   return svc;
 });
-
-/// 抽象接口，用于测试时注入 Mock
-abstract class TtsAudioPlayer {
-  Future<void> setSource(Source source);
-  Future<void> resume();
-  Future<void> pause();
-  Future<void> stop();
-  Future<void> setVolume(double volume);
-  Future<void> setPlaybackRate(double rate);
-  Future<void> setAudioContext(AudioContext context);
-  Stream<void> get onPlayerComplete;
-  Stream<Duration> get onPositionChanged;
-  Stream<Duration> get onDurationChanged;
-  Future<void> dispose();
-}
-
-/// 抽象接口，用于测试时注入 Mock
-abstract class TtsWakeLock {
-  Future<void> enable();
-  Future<void> disable();
-}
-
-/// 抽象接口，用于测试时注入 Mock - 本地 TTS 降级引擎
-abstract class TtsFallbackEngine {
-  Future<void> initialize();
-  Future<void> speak(String text);
-  Future<void> stop();
-  Future<void> dispose();
-}
 
 /// 生产环境实现：包装系统原生 FlutterTts
 class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
@@ -140,23 +117,6 @@ class _FlutterTtsFallbackEngine implements TtsFallbackEngine {
   }
 }
 
-/// 抽象接口，用于测试时注入 Mock
-abstract class TtsHttpClient {
-  Future<TtsHttpResponse> post(
-    Uri url, {
-    Map<String, String>? headers,
-    Object? body,
-  });
-  Future<void> download(Uri url, String savePath);
-}
-
-class TtsHttpResponse {
-  final int statusCode;
-  final String body;
-
-  const TtsHttpResponse({required this.statusCode, required this.body});
-}
-
 /// 内部异常：携带 HTTP 状态码，供 downloadAudio 区分可重试(5xx)与不可重试(4xx)。
 class _TtsHttpStatusException implements Exception {
   final int statusCode;
@@ -211,12 +171,6 @@ class _RealWakeLock implements TtsWakeLock {
       await WakelockPlus.disable();
     } catch (_) {}
   }
-}
-
-/// 抽象 HTTP 客户端接口
-abstract class HttpClientInterface {
-  Future<void> download(Uri url, String savePath);
-  Future<String> postJson(Uri url, dynamic body);
 }
 
 /// 真实 HTTP 客户端实现
@@ -353,17 +307,6 @@ class _RealTtsHttpClient implements TtsHttpClient {
     await _httpClient.download(url, savePath);
   }
 }
-
-/// TTS 音频播放状态机
-///
-/// Dart 3 模式匹配要求：所有 switch 必须穷尽以下 5 个分支：
-/// - [disabled]：引擎关闭，不进行任何音频活动
-/// - [paused]：已暂停，音频流挂起
-/// - [buffering]：正在预加载下一句音频
-/// - [playing]：正在播放音频
-/// - [error]：引擎遭遇不可恢复错误（网络中断、格式异常等），
-///            需用户手动恢复或等待自动降级
-enum TtsPlaybackState { disabled, paused, buffering, playing, error }
 
 /// 阅游 TTS 音频执行层
 /// 架构：纯执行服务，由 TtsAudioNotifier 编排调度
