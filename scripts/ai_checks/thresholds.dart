@@ -69,7 +69,8 @@ const int kMaxPublicMethodsPerClass = 25;
 /// - 仅 blocking 行数 / 公开类数量违规可豁免，`part` / `part of` 违规
 ///   始终为 blocking。
 const Set<String> kFileSizeGrandfathered = <String>{
-  'lib/features/audio/services/tts_engine_service.dart',
+  // PR-C 完成后已从豁免名单移除：
+  // - tts_engine_service.dart（1387 → 698，低于硬上限 800）
 };
 
 /// 根据相对路径（`/` 风格）找到对应的阈值。返回 `null` 表示该路径不在

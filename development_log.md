@@ -101,6 +101,49 @@
   - **遗留**：`kFileSizeGrandfathered` 仍包含 `tts_engine_service.dart`，
     等 PR-C（核心分组 + 缓存清理抽离）把 service 压到 ≤ 600 后移除豁免。
 
+- **重构(audio): TTS 抽诊断 / 缓存 / 下载子系统（PR-C，移除豁免）**：
+  - **目标**：把 service 中 3 块独立职责（连接诊断 / 临时文件清理 / 音频
+    下载 + 本地朗读）抽到独立文件，让 service 聚焦在播放主链路；
+    把 `tts_engine_service.dart` 从 `kFileSizeGrandfathered` 豁免名单
+    移除，门禁严格执行。
+  - **产出**：
+    - 新增 `services/tts_audio_janitor.dart`（70 行）：顶层函数
+      `cleanupOrphanedTtsFiles`，零状态。
+    - 新增 `services/tts_diagnostics_service.dart`（230 行，1 类）：
+      `TtsDiagnosticsService` — pingServer + testConnection。
+    - 新增 `services/tts_audio_downloader.dart`（230 行，1 类）：
+      `TtsAudioDownloader` — downloadAudio + speakWithLocalTts +
+      deleteFileIfExists，通过 5 个 callback 与 service 解耦。
+    - `tts_engine_service.dart`：删除 7 段内联实现，改为对子系统的薄壳
+      委托；移除 `dart:convert` / `path_provider` 两个不再用的 import。
+    - `scripts/ai_checks/thresholds.dart`：清空 `kFileSizeGrandfathered`，
+      添加注释记录 PR-C 完成的数字。
+    - `test/scripts/ai_code_checker_test.dart`：把"豁免降级"测试改造为
+      "已移除豁免后必须 blocking"，保留回归覆盖。
+  - **行数变化**：
+    - `tts_engine_service.dart`：1065 → **698（-367，-34%）**。
+    - 累计 PR-A+B+C：1387 → 698（**-689 行，-50%**）。
+    - service 已低于硬上限 800（仍超警戒线 600 共 98 行，warning 不 blocking）。
+  - **向后兼容**：service 公开 API 签名（4 个公开方法）完全保留，
+    内部实现替换为委托。audio + reader 268 个断言 0 改动。
+  - **验证**：`flutter analyze` 零警告；AI 门禁 0 阻断 / 3 warning（均
+    在 PR-D/E 规划内）；audio+reader 268 passed；**全量 669 passed +
+    4 skipped**。
+  - **经验教训**：
+    - 抽 downloader 时把 5 个状态写回 callback（onError / onClearError /
+      onFallbackNotification / onPathGenerated / progressEmitter）显式
+      注入，避免子系统反向依赖 service 引用——这让 downloader 可独立
+      mock，为后续单测 downloader 铺路。
+    - `_deleteFileIfExists` 里有"清空 `_lastGeneratedAudioPath`"副作用，
+      抽到 downloader 后仅保留文件系统删除；service 端 dispose 配套
+      显式 `_lastGeneratedAudioPath = null`，语义等价。
+    - **移除豁免后测试用例必须同步更新**，否则原本断言"超线降级 warning"
+      的测试会回归失败——已用「测新行为」替代「测旧豁免」，零覆盖丢失。
+  - **TTS 大文件治理收官**：三件套（AGENT.md 红线 + skill +
+    `FileSizeRule`）在 PR-A/B/C 三轮拆分中持续提供反馈：PR-A 拆 5 接口
+    立即被"公开类 ≤ 3"拦下，PR-B 自然过线，PR-C 一次性把 service
+    压到豁免之外。门禁机制实战验证有效。
+
 ## **2026-05-10**
 
 - **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：
