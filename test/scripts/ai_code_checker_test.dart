@@ -100,9 +100,10 @@ void main() {
       expect(blockingIds, contains('file_size.exceeds_blocking'));
     });
 
-    test('豁免名单内的 tts_engine_service 超硬上限时降级为 warning', () {
+    test('PR-C 后 tts_engine_service 已从豁免移除，超硬上限时必须为 blocking', () {
       _createBaselineRepo(tempDir);
-      // 重写豁免路径文件，使其超过 services 硬上限。
+      // 把 tts_engine_service 重写到 1500 行模拟回退到拆分前的状态：
+      // 既然它已不在 kFileSizeGrandfathered，门禁必须严格执行 blocking。
       _writeFile(
         tempDir,
         'lib/features/audio/services/tts_engine_service.dart',
@@ -120,11 +121,11 @@ void main() {
       expect(
         findingsForFile.any((f) =>
             f.id == 'file_size.exceeds_blocking' &&
-            f.severity == FindingSeverity.warning),
+            f.severity == FindingSeverity.blocking),
         isTrue,
-        reason: '豁免名单内的文件 blocking 必须降级为 warning',
+        reason: 'PR-C 完成后 tts_engine_service 不应再享受豁免',
       );
-      expect(summary.blockingCount, 0);
+      expect(summary.blockingCount, greaterThanOrEqualTo(1));
     });
 
     test('非豁免文件公开类数量超过上限时输出 blocking', () {

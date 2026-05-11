@@ -1,22 +1,25 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:io';
+
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
+import 'package:yueyou/core/utils/tts_cache_manager.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_buffer.dart';
-import 'package:yueyou/features/audio/domain/tts_http_models.dart';
+import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 import 'package:yueyou/features/audio/domain/tts_engine_interfaces.dart';
+import 'package:yueyou/features/audio/domain/tts_http_models.dart';
 import 'package:yueyou/features/audio/domain/tts_network_interfaces.dart';
 import 'package:yueyou/features/audio/services/tts_audio_adapters.dart';
+import 'package:yueyou/features/audio/services/tts_audio_downloader.dart';
+import 'package:yueyou/features/audio/services/tts_audio_janitor.dart';
+import 'package:yueyou/features/audio/services/tts_diagnostics_service.dart';
 import 'package:yueyou/features/audio/services/tts_http_client.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
-import 'package:yueyou/core/config/tts_config.dart';
-import 'package:yueyou/core/utils/tts_cache_manager.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 export 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 export 'package:yueyou/features/audio/domain/tts_audio_buffer.dart'
@@ -66,6 +69,11 @@ class TtsEngineService extends ChangeNotifier {
   late final TtsWakeLock _wakeLock;
   late final TtsHttpClient _httpClient;
   late final TtsFallbackEngine _fallbackEngine;
+
+  // 子系统（PR-C 抽出）：诊断 / 下载 由构造器注入依赖 callback 后构建，
+  // 所有「写回引擎」的副作用都通过显式 callback 暴露，便于单元测试。
+  late final TtsDiagnosticsService _diagnostics;
+  late final TtsAudioDownloader _downloader;
   String? _fallbackNotification;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
@@ -173,6 +181,31 @@ class TtsEngineService extends ChangeNotifier {
     }
 
     _initFuture = _initTtsHardware();
+
+    // 实例化子系统：诊断 / 下载。所有依赖与状态写回 callback 全部
+    // 显式传递，便于 Mock 替换。
+    _diagnostics = TtsDiagnosticsService(
+      httpClient: _httpClient,
+      config: _config,
+      voiceGetter: () => _initCompleted ? _voice : _settings.voice,
+      onError: _setLastError,
+      onClearError: _clearLastError,
+    );
+    _downloader = TtsAudioDownloader(
+      httpClient: _httpClient,
+      fallbackEngine: _fallbackEngine,
+      config: _config,
+      voiceGetter: () => _initCompleted ? _voice : _settings.voice,
+      initFuture: _initFuture,
+      isDisposed: () => _disposed,
+      delayFn: _delayFn,
+      playbackRateGetter: () => _playbackRate,
+      onError: _setLastError,
+      onClearError: _clearLastError,
+      onFallbackNotification: _setFallbackNotification,
+      onPathGenerated: (path) => _lastGeneratedAudioPath = path,
+      progressEmitter: _progressController.add,
+    );
 
     // 非 Riverpod 场景（如测试直接构造），仍使用内部监听器
     if (externalSettingsListener) {
@@ -317,14 +350,17 @@ class TtsEngineService extends ChangeNotifier {
     unawaited(_wakeLock.disable());
     unawaited(_audioPlayer.dispose());
     unawaited(_fallbackEngine.dispose());
-    unawaited(_deleteFileIfExists(_lastGeneratedAudioPath));
+    unawaited(_downloader.deleteFileIfExists(_lastGeneratedAudioPath));
+    _lastGeneratedAudioPath = null;
     unawaited(_initFuture); // 确保初始化完成（即使是销毁时）
     super.dispose();
   }
 
   Future<void> _initTtsHardware() async {
     try {
-      await _cleanupOrphanedTtsFiles();
+      await cleanupOrphanedTtsFiles(
+        activePathGetter: () => _lastGeneratedAudioPath,
+      );
 
       _voice = _settings.voice;
       _volume = _settings.ambientVol;
@@ -363,79 +399,8 @@ class TtsEngineService extends ChangeNotifier {
     );
   }
 
-  /// 轻量 ping 探测：检测 TTS 服务端是否可达（非 5xx 即视为可达）
-  ///
-  /// 用于 [TtsAudioNotifier] 在降级模式下探测网络是否恢复，
-  /// 封装于 service 层避免 providers 层直接依赖 http 包。
-  Future<bool> pingServer() async {
-    try {
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 3);
-      final request = await client
-          .headUrl(Uri.parse('${TtsConfig.bookApiBase}/ping'))
-          .timeout(const Duration(seconds: 3));
-      final response =
-          await request.close().timeout(const Duration(seconds: 3));
-      unawaited(response.drain<void>());
-      client.close(force: true);
-      return response.statusCode < 500;
-    } catch (_) {
-      // 网络不可达，ping 失败即返回 false
-      return false;
-    }
-  }
-
-  /// 任务 1.1：遍历临时目录，清理所有 tts_*.mp3 残留文件
-  Future<void> _cleanupOrphanedTtsFiles() async {
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final dir = Directory(tempDir.path);
-      if (!await dir.exists()) return;
-
-      // 跳过 60s 内被修改过的文件——它们大概率是当前会话或并行会话
-      // （含测试 isolate）正在使用的活跃下载产物，本次清理只处理来自上次
-      // App 运行残留的"孤儿"文件，避免误删活跃文件导致 playFile 读到
-      // 「文件不存在」、绕过 pause 守卫提前抢跑 onComplete 的 flake。
-      final activeWindow = DateTime.now().subtract(const Duration(seconds: 60));
-
-      final entities = dir.listSync();
-      int cleaned = 0;
-      for (final entity in entities) {
-        if (entity is File) {
-          final name = entity.path.split(Platform.pathSeparator).last;
-          // 匹配 tts_*.mp3 模式
-          if (name.startsWith('tts_') && name.endsWith('.mp3')) {
-            // 跳过当前 Session 正在使用的文件
-            if (entity.path == _lastGeneratedAudioPath) continue;
-            // 跳过近 60s 内被修改过的文件（活跃下载窗口）
-            try {
-              final mtime = entity.statSync().modified;
-              if (mtime.isAfter(activeWindow)) continue;
-            } catch (_) {
-              // stat 失败时保守跳过，避免误删
-              continue;
-            }
-            try {
-              await entity.delete();
-              cleaned++;
-            } catch (_) {
-              // 单个缓存文件删除失败不阻塞清理流程
-            }
-          }
-        }
-      }
-      if (cleaned > 0) {
-        CyberLogger.captureMessage('已回收 $cleaned 个残留 TTS 临时文件', tag: 'tts');
-      }
-    } catch (e, st) {
-      CyberLogger.captureWarning(
-        e,
-        stack: st,
-        tag: 'tts',
-        extra: {'context': '清理残留 TTS 文件失败'},
-      );
-    }
-  }
+  /// 轻量 ping 探测：委托 [TtsDiagnosticsService] 检测服务端可达性。
+  Future<bool> pingServer() => _diagnostics.pingServer();
 
   /// 手动触发 TTS 缓存清理（供设置页「清理缓存」按钮调用）
   ///
@@ -555,175 +520,9 @@ class TtsEngineService extends ChangeNotifier {
     syncShadow(state: TtsPlaybackState.disabled);
   }
 
-  /// 🛠️ TTS 连接测试工具
-  /// 返回详细的诊断信息，帮助排查问题
-
-  Future<Map<String, dynamic>> testConnection() async {
-    final String voice = _initCompleted ? _voice : _settings.voice;
-    final result = <String, dynamic>{
-      'success': false,
-      'serverUrl': _config.serverUrl,
-      'timestamp': DateTime.now().toIso8601String(),
-      'steps': <Map<String, dynamic>>[],
-    };
-
-    try {
-      // 步骤 1：检查服务器地址格式
-      result['steps'].add({
-        'step': 1,
-        'name': '检查服务器地址',
-        'status': 'success',
-        'message': '服务器地址: ${_config.serverUrl}',
-      });
-
-      // 步骤 2：解析 URL
-      final uri = Uri.parse(_config.serverUrl);
-      result['steps'].add({
-        'step': 2,
-        'name': '解析 URL',
-        'status': 'success',
-        'message': 'Host: ${uri.host}, Port: ${uri.port}, Path: ${uri.path}',
-      });
-
-      // 步骤 3：发送 HTTP 请求
-      const testText = '测试文本一二三四五';
-
-      // 使用注入的 httpClient 以确保可测试性
-      final response = await _httpClient
-          .post(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'text': testText, 'voice': voice}),
-          )
-          .timeout(_config.requestTimeout);
-
-      result['statusCode'] = response.statusCode;
-      result['responseSize'] = response.body.length;
-
-      if (response.statusCode == 200) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is! Map<String, dynamic>) {
-          throw const FormatException(CyberErrorMessages.ttsNotJsonObject);
-        }
-        final String status = (decoded['status'] as String? ?? '').trim();
-        final String audioUrl = (decoded['url'] as String? ?? '').trim();
-        if (status != 'success' || audioUrl.isEmpty) {
-          throw FormatException(
-            CyberErrorMessages.ttsMissingUrlTest(response.body),
-          );
-        }
-
-        result['steps'].add({
-          'step': 3,
-          'name': 'HTTP 请求',
-          'status': 'success',
-          'message': '状态码: ${response.statusCode}, 已获取音频 URL',
-        });
-
-        result['steps'].add({
-          'step': 4,
-          'name': '解析音频地址',
-          'status': 'success',
-          'message': 'URL: $audioUrl',
-        });
-
-        // 步骤 5：尝试下载并写入文件
-        try {
-          final tempDir = await getTemporaryDirectory();
-          final testFile = File('${tempDir.path}/tts_test.mp3');
-          await _httpClient.download(Uri.parse(audioUrl), testFile.path);
-          final int fileSize = await testFile.length();
-
-          result['steps'].add({
-            'step': 5,
-            'name': '下载并写入文件',
-            'status': fileSize < 1024 ? 'warning' : 'success',
-            'message': fileSize < 1024
-                ? '警告：音频文件太小 (<1KB)，可能是错误响应'
-                : '成功写入: ${testFile.path}',
-          });
-
-          // 清理测试文件
-          await testFile.delete();
-        } catch (e, st) {
-          CyberLogger.captureWarning(
-            e is Exception ? e : Exception('$e'),
-            stack: st,
-            tag: 'tts',
-            extra: {'context': 'testConnection 写入文件失败'},
-          );
-          result['steps'].add({
-            'step': 5,
-            'name': '下载并写入文件',
-            'status': 'error',
-            'message': '写入文件失败: $e',
-          });
-        }
-
-        result['success'] = true;
-        result['message'] = 'TTS 服务器连接成功！';
-        _clearLastError();
-      } else {
-        result['steps'].add({
-          'step': 3,
-          'name': 'HTTP 请求',
-          'status': 'error',
-          'message': '服务器返回错误: ${response.statusCode}\n响应: ${response.body}',
-        });
-        result['statusCode'] = response.statusCode;
-        result['message'] =
-            CyberErrorMessages.ttsServerErrorCode(response.statusCode);
-        _setLastError(response.statusCode);
-      }
-    } on TimeoutException catch (e, st) {
-      CyberLogger.captureWarning(
-        e,
-        stack: st,
-        tag: 'tts',
-        extra: {'context': 'testConnection 请求超时'},
-      );
-      result['steps'].add({
-        'step': 3,
-        'name': 'HTTP 请求',
-        'status': 'error',
-        'message': '请求超时: $e',
-      });
-      result['message'] = CyberErrorMessages.ttsRequestTimeout;
-      _setLastError(e);
-    } on SocketException catch (e, st) {
-      CyberLogger.captureWarning(
-        e,
-        stack: st,
-        tag: 'tts',
-        extra: {'context': 'testConnection 网络异常'},
-      );
-      result['steps'].add({
-        'step': 3,
-        'name': 'HTTP 请求',
-        'status': 'error',
-        'message': '网络错误: $e',
-      });
-      result['message'] = CyberErrorMessages.ttsConnectTimeout;
-      _setLastError(e);
-    } catch (e, st) {
-      CyberLogger.captureWarning(
-        e is Exception ? e : Exception('$e'),
-        stack: st,
-        tag: 'tts',
-        extra: {'context': 'testConnection 未知异常'},
-      );
-      result['steps'].add({
-        'step': 3,
-        'name': 'HTTP 请求',
-        'status': 'error',
-        'message': '未知错误: $e',
-      });
-      result['message'] = '测试失败: $e';
-      _setLastError(e);
-    }
-
-    return result;
-  }
+  /// 🛠️ TTS 连接测试工具：委托 [TtsDiagnosticsService]，返回详细的诊断信息。
+  Future<Map<String, dynamic>> testConnection() =>
+      _diagnostics.testConnection();
 
   Future<void> _syncWakeLock(bool enable) async {
     if (_wakeLockHeld == enable) return;
@@ -737,180 +536,14 @@ class TtsEngineService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// 使用本地 TTS 引擎朗读指定文本，返回是否成功。
-  Future<bool> _speakWithLocalTts(String text) async {
-    try {
-      _progressController.add(0.0);
-      final estimatedSeconds = text.length / 4.0 / _playbackRate;
-      final stopwatch = Stopwatch()..start();
-      final progressTimer =
-          Timer.periodic(const Duration(milliseconds: 100), (_) {
-        final elapsed = stopwatch.elapsedMilliseconds / 1000.0;
-        _progressController.add((elapsed / estimatedSeconds).clamp(0.0, 0.95));
-      });
-      try {
-        await _fallbackEngine.speak(text);
-      } finally {
-        progressTimer.cancel();
-      }
-      _progressController.add(1.0);
-      _clearLastError();
-      return true;
-    } catch (e, st) {
-      CyberLogger.captureWarning(
-        e,
-        stack: st,
-        tag: 'tts',
-        extra: {'context': '本地 TTS 降级朗读失败'},
-      );
-      return false;
-    }
-  }
+  /// 使用本地 TTS 引擎朗读指定文本：委托 [TtsAudioDownloader]。
+  Future<bool> speakWithLocalTts(String text) =>
+      _downloader.speakWithLocalTts(text);
 
-  Future<void> _deleteFileIfExists(String? path) async {
-    if (path == null || path.isEmpty) return;
-    try {
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
-      }
-    } catch (_) {}
-    if (_lastGeneratedAudioPath == path) {
-      _lastGeneratedAudioPath = null;
-    }
-  }
-
-  /// 使用本地 TTS 引擎朗读指定文本。
-  Future<bool> speakWithLocalTts(String text) async {
-    return _speakWithLocalTts(text);
-  }
-
-  /// 下载 TTS 音频文件（带重试机制），返回文件路径或 null。
-  Future<String?> downloadAudio(TtsAudioRequest request) async {
-    // 等待硬件初始化完成，确保 _cleanupOrphanedTtsFiles 不会与本次写入并行——
-    // 否则在 CPU 竞争场景下，清理任务可能扫到刚下载完成、_lastGeneratedAudioPath
-    // 尚未赋值（line 1173）窗口内的文件并误删，导致 playFile 读到「文件不存在」
-    // 触发 onComplete 抢跑、绕过 pause 守卫的并发 flake。
-    await _initFuture;
-    for (int attempt = 0; attempt < _config.maxRetries; attempt++) {
-      try {
-        final result = await _executeDownload(request);
-        if (result != null) return result;
-      } on TimeoutException catch (e, st) {
-        CyberLogger.captureWarning(
-          e,
-          stack: st,
-          tag: 'tts',
-          extra: {'context': 'TTS 请求超时', 'attempt': '${attempt + 1}'},
-        );
-        if (attempt < _config.maxRetries - 1) {
-          await _delayFn(_config.baseRetryDelay * (1 << attempt));
-        }
-      } on TtsHttpStatusException catch (e, st) {
-        CyberLogger.captureWarning(
-          e,
-          stack: st,
-          tag: 'tts',
-          extra: {
-            'context': 'TTS HTTP 错误',
-            'statusCode': '${e.statusCode}',
-            'attempt': '${attempt + 1}',
-          },
-        );
-        if (e.isClientError) {
-          // 4xx 客户端错误：不可重试，立即退出
-          break;
-        }
-        // 5xx 服务端错误：可重试
-        if (attempt < _config.maxRetries - 1) {
-          await _delayFn(_config.baseRetryDelay * (1 << attempt));
-        }
-      } catch (e, st) {
-        CyberLogger.captureWarning(
-          e,
-          stack: st,
-          tag: 'tts',
-          extra: {'context': 'TTS 下载失败', 'attempt': '${attempt + 1}'},
-        );
-        if (e is FormatException) {
-          break;
-        }
-        if (attempt < _config.maxRetries - 1) {
-          await _delayFn(_config.baseRetryDelay * (1 << attempt));
-        }
-      }
-    }
-    // 所有重试均失败 → Sentry 上报
-    CyberLogger.captureWarning(
-      Exception('TTS download failed after ${_config.maxRetries} retries'),
-      tag: 'tts',
-    );
-    _setFallbackNotification(CyberErrorMessages.ttsFallbackDisconnected);
-    return null;
-  }
-
-  /// 下载的单一尝试，返回文件路径或 null。
-  ///
-  /// 优先在后台 Isolate 中执行 HTTP 下载；若 Isolate 失败（如 Android
-  /// 部分版本限制），自动降级到主线程 [TtsHttpClient] 重试。
-  Future<String?> _executeDownload(TtsAudioRequest request) async {
-    final voice = _initCompleted ? _voice : _settings.voice;
-    String? filePath;
-    try {
-      filePath = await _mainThreadDownload(request, voice, _config.serverUrl);
-    } catch (_) {
-      unawaited(_deleteFileIfExists(filePath));
-      rethrow;
-    }
-    if (_disposed) {
-      unawaited(_deleteFileIfExists(filePath));
-      return null;
-    }
-    if (filePath == null) return null;
-    _lastGeneratedAudioPath = filePath;
-    _clearLastError();
-    return filePath;
-  }
-
-  /// 主线程 HTTP 客户端下载（Isolate 失败时的降级通道）。
-  Future<String?> _mainThreadDownload(
-    TtsAudioRequest request,
-    String voice,
-    String serverUrl,
-  ) async {
-    final uri = Uri.parse(serverUrl);
-    final response = await _httpClient.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'text': request.text,
-        'voice': voice,
-      }),
-    );
-    if (_disposed) return null;
-    if (response.statusCode != 200) {
-      _setLastError(response.statusCode);
-      throw TtsHttpStatusException(response.statusCode, uri: uri);
-    }
-    final responseBody = response.body.trim();
-    if (!(responseBody.startsWith('{') || responseBody.startsWith('['))) {
-      throw const FormatException(CyberErrorMessages.ttsInvalidFormat);
-    }
-    final decoded = jsonDecode(responseBody);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException(CyberErrorMessages.ttsNotJsonObject);
-    }
-    final status = (decoded['status'] as String? ?? '').trim();
-    final audioUrl = (decoded['url'] as String? ?? '').trim();
-    if (status != 'success' || audioUrl.isEmpty) {
-      throw FormatException(CyberErrorMessages.ttsMissingUrl(responseBody));
-    }
-    final tempDir = await getTemporaryDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filePath = '${tempDir.path}/tts_$timestamp.mp3';
-    await _httpClient.download(Uri.parse(audioUrl), filePath);
-    return filePath;
-  }
+  /// 下载 TTS 音频文件（带重试机制）：委托 [TtsAudioDownloader]，
+  /// 返回文件路径或 null。
+  Future<String?> downloadAudio(TtsAudioRequest request) =>
+      _downloader.downloadAudio(request);
 
   /// 播放指定的本地音频文件。
   ///
