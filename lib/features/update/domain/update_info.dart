@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
 /// 服务端返回的版本信息数据类
 ///
@@ -49,8 +49,7 @@ class UpdateInfo {
   }
 
   @override
-  String toString() =>
-      'UpdateInfo(version=$version, buildNumber=$buildNumber, '
+  String toString() => 'UpdateInfo(version=$version, buildNumber=$buildNumber, '
       'forceUpdate=$forceUpdate)';
 
   @override

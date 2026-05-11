@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:yueyou/core/database/storage_service.dart';
@@ -53,11 +53,11 @@ class SettingsProvider with ChangeNotifier {
     ambientStyle = StorageService.getSettingAmbientStyle();
     AmbientService.setStyle(ambientStyle);
     animationQualitySetting = StorageService.getSettingAnimationQuality();
-    
+
     if (animationQualitySetting == 'auto') {
       _autoDetectedLevel = CyberPerformanceDetector.detectLevel();
     }
-    
+
     notifyListeners();
   }
 
