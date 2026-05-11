@@ -16,6 +16,7 @@ class AiCodeChecker {
     HardcodedUrlRule(),
     ProductionDomainDefaultRule(),
     DuplicateRegexRule(),
+    FileSizeRule(),
   ];
 
   final Directory repoRoot;

@@ -1,5 +1,46 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-11**
+
+- **守卫(arch+ai): 大文件治理三件套与 AI 门禁加固（PR-0 + PR-H）**：
+  - **背景**：行业同事提交报告指出 `tts_engine_service.dart`
+    实测 1387 行 / 14 类 / 8 公开类等"上帝类"反模式。核实数据基本属实，
+    但报告未提及阅游已有 AI 工程门禁与 Riverpod 迁移两条既有轨道。本次
+    在动业务代码前先把"规则 + 工作流 + 技能 + 门禁"四处约束立起来。
+  - **三件套**（Windsurf 优先）：
+    1. `.windsurf/rules/AGENT.md` 新增第 8 条红线《单文件体量门禁》，
+       含 5 层阈值表（services 600/800、providers 700/900、presentation
+       900/1100、domain 500/700、core 500/700）与 4 条附加硬约束
+       （公开类 ≤ 3、单类公开方法 ≤ 25、禁用 part/part of、私有改 public
+       必须 export 兼容）；行为提示新增"大文件警觉"。
+    2. `.windsurf/workflows/large-file-refactor-review.md`（新增）：
+       5 步流程（预检 → 拆分原则 → 中检 → 后检 → 失败处理），含 PR
+       review 结论模板。
+    3. `.agents/skills/yueyou-file-size-guard/SKILL.md`（新增）：
+       上帝类反模式识别、四象限拆分法、向后兼容策略、10 条 review
+       checklist。
+  - **同步**：`CLAUDE.md` 红线第 8 条 + 技能矩阵表 + 行为提示与
+    AGENT.md 单一来源对齐；`.windsurf/workflows/skill-usage-guide.md`
+    决策树补充 file-size-guard 入口。
+  - **AI 门禁 PR-H**：
+    - 新增 `scripts/ai_checks/thresholds.dart`：5 层阈值常量、`kMaxPublicClassesPerFile = 3`、
+      `kFileSizeGrandfathered` 豁免名单（当前仅 `tts_engine_service.dart`）、
+      `resolveFileSizeThreshold`、`countLines`（与 IDE 行号一致）。
+    - `scripts/ai_checks/rules.dart` 新增 `FileSizeRule`，覆盖行数 / 公开类
+      数量 / part 指令三类检查；豁免名单内 blocking 降级为 warning，part
+      指令始终 blocking。
+    - `scripts/ai_checks/checker.dart` 注册 `FileSizeRule`。
+    - `test/scripts/ai_code_checker_test.dart` 新增 5 个回归测试。
+  - **验证**：
+    - `flutter analyze` 零警告。
+    - `dart scripts/ai_code_checker.dart` 0 阻断 / 4 warning（全部为存量
+      已知超线，均在豁免名单或后续拆分 PR 计划内）。
+    - `flutter test --concurrency=1` 669 passed + 4 skipped。
+    - `flutter test test/scripts/ai_code_checker_test.dart` 9/9 通过。
+  - **零业务代码改动**：本任务为门禁先行，后续 PR-A→PR-G 才动业务代码。
+  - **关联**：完整重构路线见 `plans/大文件治理三件套与重构路线-cd9012.md`；
+    今日任务单见 `DevelopmentPlan/20260511_大文件治理三件套与AI门禁加固.md`。
+
 ## **2026-05-10**
 
 - **修复(audio): TTS 测试并发 flake 根因（清理任务误删活跃下载）**：
