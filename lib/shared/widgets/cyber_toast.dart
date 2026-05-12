@@ -158,8 +158,8 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
                   boxShadow: [
                     BoxShadow(
                       color: _getBorderColor().withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      blurRadius: CyberDimensions.spacingM,
+                      offset: const Offset(0, CyberDimensions.spacingXS),
                     ),
                   ],
                 ),
@@ -176,7 +176,10 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
                           child: _buildContent(),
                         )
                       : BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          filter: ImageFilter.blur(
+                            sigmaX: CyberDimensions.blurLight,
+                            sigmaY: CyberDimensions.blurLight,
+                          ),
                           child: Container(
                             color: CyberColors.glassDark,
                             child: _buildContent(),
@@ -194,8 +197,8 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
   Widget _buildContent() {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
+        horizontal: CyberDimensions.spacingM,
+        vertical: CyberDimensions.spacingMS,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -210,12 +213,12 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
               color: CyberColors.background.withValues(alpha: 0.8),
               border: Border.all(
                 color: _getBorderColor().withValues(alpha: 0.7),
-                width: 1,
+                width: CyberDimensions.borderNormal,
               ),
               boxShadow: [
                 BoxShadow(
                   color: _getBorderColor().withValues(alpha: 0.5),
-                  blurRadius: 8,
+                  blurRadius: CyberDimensions.glowBlurRadius,
                 ),
               ],
             ),
@@ -232,7 +235,9 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(
+            width: CyberDimensions.spacingMS + CyberDimensions.spacingXXS,
+          ),
           // Text Section
           Flexible(
             child: Column(
@@ -247,7 +252,7 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
                     letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: CyberDimensions.spacingXS),
                 Text(
                   widget.message,
                   style: CyberTextStyles.bodySmallBold.copyWith(
