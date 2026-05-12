@@ -24,6 +24,8 @@ class FloatingScore extends StatefulWidget {
 class _FloatingScoreState extends State<FloatingScore>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late CurvedAnimation _offsetCurve;
+  late CurvedAnimation _opacityCurve;
   late Animation<double> _offsetAnimation;
   late Animation<double> _opacityAnimation;
 
@@ -36,16 +38,16 @@ class _FloatingScoreState extends State<FloatingScore>
     );
 
     // 向上漂浮动画
-    _offsetAnimation = Tween<double>(begin: 0, end: -80).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _offsetCurve = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _offsetAnimation = Tween<double>(begin: 0, end: -80).animate(_offsetCurve);
 
     // 淡出动画
+    _opacityCurve = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
+    );
     _opacityAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
-      ),
+      _opacityCurve,
     );
 
     _controller.forward().then((_) => widget.onComplete());
@@ -53,6 +55,8 @@ class _FloatingScoreState extends State<FloatingScore>
 
   @override
   void dispose() {
+    _offsetCurve.dispose();
+    _opacityCurve.dispose();
     _controller.dispose();
     super.dispose();
   }
