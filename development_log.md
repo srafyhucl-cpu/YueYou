@@ -16,6 +16,12 @@
   - **验证**：`flutter analyze` 零警告。
   - **关联**：任务单见 `DevelopmentPlan/20260512_全局性能优化P0修复.md`。
 
+- **性能(全局): P1 性能问题集中修复**：
+  - **P1-1**：`board_mascot.dart` `_MascotFacePainter` 五个绘制方法从每帧 ~49 个 inline `Paint()` 改为 2 个 static 复用实例（`_fp` / `_sp`），仅修改动态属性。
+  - **P1-2**：`voice_waveform.dart` 动画 controller 按 `isActive` 启停，空闲时不 tick（与 P0-B 呼吸动画同一模式）。
+  - **P1-3**：`rain_effect.dart` `_RainPainter` 复用单个 static Paint，消除每帧 20 个 Paint 分配。
+  - **验证**：`flutter analyze` 零警告。
+
 ## **2026-05-11**
 
 - **守卫(arch+ai): 大文件治理三件套与 AI 门禁加固（PR-0 + PR-H）**：

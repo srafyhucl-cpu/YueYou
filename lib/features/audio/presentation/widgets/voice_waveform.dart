@@ -31,7 +31,21 @@ class _VoiceWaveformState extends State<VoiceWaveform>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
-    )..repeat();
+    );
+    // P1-2：仅在 isActive 时启动动画，空闲时不 tick
+    if (widget.isActive) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(VoiceWaveform oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      if (widget.isActive) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+      }
+    }
   }
 
   @override
@@ -58,7 +72,8 @@ class _VoiceWaveformState extends State<VoiceWaveform>
               height: 16 * height,
               margin: const EdgeInsets.symmetric(horizontal: 1.5),
               decoration: BoxDecoration(
-                color: widget.color.withValues(alpha: widget.isActive ? 0.9 : 0.3),
+                color:
+                    widget.color.withValues(alpha: widget.isActive ? 0.9 : 0.3),
                 borderRadius: BorderRadius.circular(CyberDimensions.radiusXS),
               ),
             );

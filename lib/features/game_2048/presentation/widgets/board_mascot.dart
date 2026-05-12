@@ -454,6 +454,12 @@ class _MascotFacePainter extends CustomPainter {
   static Shader? _cachedCoreShader;
   static bool? _cachedCoreError;
 
+  // P1-1：复用 Paint 实例，消除每帧 ~49 个 Paint 对象分配
+  // _fp: fill paint（每次设置 color / maskFilter / shader）
+  // _sp: stroke paint（每次设置 color / strokeWidth / strokeCap / maskFilter）
+  static final Paint _fp = Paint();
+  static final Paint _sp = Paint()..style = PaintingStyle.stroke;
+
   @override
   void paint(Canvas canvas, Size size) {
     // 画布中心 = 吉祥物中心（OverflowBox 居中对齐）
@@ -481,38 +487,28 @@ class _MascotFacePainter extends CustomPainter {
 
     // 第一圈（最外层，扩散最远）
     final r1 = coreR * (1.0 + pulseValue * 2.2);
-    canvas.drawCircle(
-      center,
-      r1,
-      Paint()
-        ..color = themeColor.withValues(alpha: fade * 0.5)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
+    _sp
+      ..color = themeColor.withValues(alpha: fade * 0.5)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.butt
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(center, r1, _sp);
 
     // 第二圈（中层）
     final r2 = coreR * (1.0 + pulseValue * 1.4);
-    canvas.drawCircle(
-      center,
-      r2,
-      Paint()
-        ..color = themeColor.withValues(alpha: fade * 0.75)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-    );
+    _sp
+      ..color = themeColor.withValues(alpha: fade * 0.75)
+      ..strokeWidth = 2.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    canvas.drawCircle(center, r2, _sp);
 
     // 第三圈（最内层，最亮，扩散最慢）
     final r3 = coreR * (1.0 + pulseValue * 0.7);
-    canvas.drawCircle(
-      center,
-      r3,
-      Paint()
-        ..color = themeColor.withValues(alpha: fade * 0.9)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
+    _sp
+      ..color = themeColor.withValues(alpha: fade * 0.9)
+      ..strokeWidth = 1.5
+      ..maskFilter = null;
+    canvas.drawCircle(center, r3, _sp);
   }
 
   // ── 能量触手：抓住边框 + 能量扩散 ──
@@ -543,75 +539,61 @@ class _MascotFacePainter extends CustomPainter {
 
       // 底部能量扩散效果（融入边框）
       final bottomX = tx + side * 2;
-      canvas.drawCircle(
-        Offset(bottomX, tentacleBottom),
-        12.0,
-        Paint()
-          ..color = themeColor.withValues(alpha: 0.15)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-      );
-      canvas.drawCircle(
-        Offset(bottomX, tentacleBottom),
-        6.0,
-        Paint()
-          ..color = themeColor.withValues(alpha: 0.3)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
+      _fp
+        ..color = themeColor.withValues(alpha: 0.15)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
+        ..shader = null;
+      canvas.drawCircle(Offset(bottomX, tentacleBottom), 12.0, _fp);
+
+      _fp
+        ..color = themeColor.withValues(alpha: 0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawCircle(Offset(bottomX, tentacleBottom), 6.0, _fp);
 
       // 外发光（霓虹效果）
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = themeColor.withValues(alpha: 0.3)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 8.0
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
+      _sp
+        ..color = themeColor.withValues(alpha: 0.3)
+        ..strokeWidth = 8.0
+        ..strokeCap = StrokeCap.butt
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawPath(path, _sp);
 
       // 核心线条
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = themeColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5
-          ..strokeCap = StrokeCap.round,
-      );
+      _sp
+        ..color = themeColor
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = null;
+      canvas.drawPath(path, _sp);
 
       // 能量节点（3个脉冲发光点）
       for (int i = 0; i < 3; i++) {
         final t = 0.25 + i * 0.25;
         final nodeY = tentacleTop + (tentacleBottom - tentacleTop) * t;
         final nodeX = tx + side * (3 * (1 - t) + 2 * t);
+        final nodePos = Offset(nodeX, nodeY);
 
         // 外外层发光（脉冲效果）
-        canvas.drawCircle(
-          Offset(nodeX, nodeY),
-          5.0,
-          Paint()
-            ..color = themeColor.withValues(alpha: 0.2)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-        );
+        _fp
+          ..color = themeColor.withValues(alpha: 0.2)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+        canvas.drawCircle(nodePos, 5.0, _fp);
+
         // 外发光
-        canvas.drawCircle(
-          Offset(nodeX, nodeY),
-          3.5,
-          Paint()
-            ..color = themeColor.withValues(alpha: 0.5)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-        );
+        _fp
+          ..color = themeColor.withValues(alpha: 0.5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+        canvas.drawCircle(nodePos, 3.5, _fp);
+
         // 核心点
-        canvas.drawCircle(
-          Offset(nodeX, nodeY),
-          1.8,
-          Paint()..color = themeColor,
-        );
+        _fp
+          ..color = themeColor
+          ..maskFilter = null;
+        canvas.drawCircle(nodePos, 1.8, _fp);
+
         // 高光
-        canvas.drawCircle(
-          Offset(nodeX - 0.5, nodeY - 0.5),
-          0.8,
-          Paint()..color = CyberColors.white,
-        );
+        _fp.color = CyberColors.white;
+        canvas.drawCircle(Offset(nodeX - 0.5, nodeY - 0.5), 0.8, _fp);
       }
     }
   }
@@ -623,22 +605,17 @@ class _MascotFacePainter extends CustomPainter {
     final themeColor = hasError ? CyberColors.neonPink : CyberColors.hackerBlue;
 
     // 外外层光晕（远距离辐射）
-    canvas.drawCircle(
-      center,
-      coreR + 12,
-      Paint()
-        ..color = themeColor.withValues(alpha: 0.08)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
-    );
+    _fp
+      ..color = themeColor.withValues(alpha: 0.08)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
+      ..shader = null;
+    canvas.drawCircle(center, coreR + 12, _fp);
 
     // 外发光层（霓虹光晕）
-    canvas.drawCircle(
-      center,
-      coreR + 6,
-      Paint()
-        ..color = themeColor.withValues(alpha: 0.2)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
+    _fp
+      ..color = themeColor.withValues(alpha: 0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(center, coreR + 6, _fp);
 
     // 主体渐变（深黑到半透明青或粉）—— P0-C：shader 走缓存
     if (_cachedCoreShader == null || _cachedCoreError != hasError) {
@@ -654,44 +631,41 @@ class _MascotFacePainter extends CustomPainter {
       ).createShader(rect);
       _cachedCoreError = hasError;
     }
-    canvas.drawCircle(center, coreR, Paint()..shader = _cachedCoreShader);
+    _fp
+      ..color = themeColor // 颜色不影响 shader 渲染，但清理状态
+      ..maskFilter = null
+      ..shader = _cachedCoreShader;
+    canvas.drawCircle(center, coreR, _fp);
 
     // 霓虹边框（双层）
-    canvas.drawCircle(
-      center,
-      coreR + 0.5,
-      Paint()
-        ..color = themeColor.withValues(alpha: 0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0,
-    );
-    canvas.drawCircle(
-      center,
-      coreR,
-      Paint()
-        ..color = themeColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.8,
-    );
+    _sp
+      ..color = themeColor.withValues(alpha: 0.3)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.butt
+      ..maskFilter = null;
+    canvas.drawCircle(center, coreR + 0.5, _sp);
+
+    _sp
+      ..color = themeColor
+      ..strokeWidth = 1.8;
+    canvas.drawCircle(center, coreR, _sp);
 
     // 内部脉冲圆环（根据表情值动态缩放）
     final pulseR = coreR * (0.5 + expressionValue.abs() * 0.2);
-    canvas.drawCircle(
-      center,
-      pulseR,
-      Paint()
-        ..color = themeColor.withValues(alpha: 0.4)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
-    );
+    _sp
+      ..color = themeColor.withValues(alpha: 0.4)
+      ..strokeWidth = 1.2;
+    canvas.drawCircle(center, pulseR, _sp);
 
     // 核心点（最亮点）
+    _fp
+      ..color = themeColor
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
+      ..shader = null;
     canvas.drawCircle(
       Offset(cx - coreR * 0.15, coreCy - coreR * 0.2),
       coreR * 0.08,
-      Paint()
-        ..color = themeColor
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      _fp,
     );
   }
 
@@ -720,24 +694,19 @@ class _MascotFacePainter extends CustomPainter {
           );
 
         // 外发光
-        canvas.drawPath(
-          arcPath,
-          Paint()
-            ..color = themeColor.withValues(alpha: 0.4)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 4.0
-            ..strokeCap = StrokeCap.round
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-        );
+        _sp
+          ..color = themeColor.withValues(alpha: 0.4)
+          ..strokeWidth = 4.0
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+        canvas.drawPath(arcPath, _sp);
+
         // 核心线
-        canvas.drawPath(
-          arcPath,
-          Paint()
-            ..color = themeColor
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.0
-            ..strokeCap = StrokeCap.round,
-        );
+        _sp
+          ..color = themeColor
+          ..strokeWidth = 2.0
+          ..maskFilter = null;
+        canvas.drawPath(arcPath, _sp);
       } else {
         // 错误状态闭眼或跟随滑动
         final double currentBlink = hasError ? 0.1 : blinkScale.clamp(0.1, 1.0);
@@ -752,35 +721,30 @@ class _MascotFacePainter extends CustomPainter {
         );
 
         // 外外层发光（增强辐射）
-        canvas.drawCircle(
-          po,
-          eyeR + 5,
-          Paint()
-            ..color = themeColor.withValues(alpha: 0.25)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-        );
+        _fp
+          ..color = themeColor.withValues(alpha: 0.25)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
+          ..shader = null;
+        canvas.drawCircle(po, eyeR + 5, _fp);
 
         // 外发光
-        canvas.drawCircle(
-          po,
-          eyeR + 3,
-          Paint()
-            ..color = themeColor.withValues(alpha: 0.5)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-        );
+        _fp
+          ..color = themeColor.withValues(alpha: 0.5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+        canvas.drawCircle(po, eyeR + 3, _fp);
 
         // 核心点
-        canvas.drawCircle(
-          po,
-          eyeR,
-          Paint()..color = themeColor,
-        );
+        _fp
+          ..color = themeColor
+          ..maskFilter = null;
+        canvas.drawCircle(po, eyeR, _fp);
 
         // 高光（更亮）
+        _fp.color = CyberColors.white;
         canvas.drawCircle(
           po + Offset(-eyeR * 0.3, -eyeR * 0.3),
           eyeR * 0.4,
-          Paint()..color = CyberColors.white,
+          _fp,
         );
 
         canvas.restore();
@@ -807,25 +771,19 @@ class _MascotFacePainter extends CustomPainter {
       );
 
     // 外发光
-    canvas.drawPath(
-      mouthPath,
-      Paint()
-        ..color = themeColor.withValues(alpha: 0.4)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.0
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
+    _sp
+      ..color = themeColor.withValues(alpha: 0.4)
+      ..strokeWidth = 4.0
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawPath(mouthPath, _sp);
 
     // 核心线
-    canvas.drawPath(
-      mouthPath,
-      Paint()
-        ..color = themeColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.8
-        ..strokeCap = StrokeCap.round,
-    );
+    _sp
+      ..color = themeColor
+      ..strokeWidth = 1.8
+      ..maskFilter = null;
+    canvas.drawPath(mouthPath, _sp);
   }
 
   @override
