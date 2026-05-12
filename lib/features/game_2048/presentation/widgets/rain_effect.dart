@@ -86,6 +86,10 @@ class _RainDrop {
 }
 
 /// 雨滴绘制器
+///
+/// P1-3 性能优化：
+/// - 复用单个 static Paint 实例，消除每帧 20 个 Paint 对象分配
+/// - shader 因每滴 Rect 不同无法跨滴缓存，但 Paint 构造开销已消除
 class _RainPainter extends CustomPainter {
   final List<_RainDrop> rainDrops;
   final double progress;
@@ -93,6 +97,11 @@ class _RainPainter extends CustomPainter {
   // 雨滴固定参数
   static const double dropLength = 15.0;
   static const double dropWidth = 1.5;
+
+  // P1-3：复用 Paint 实例
+  static final Paint _dropPaint = Paint()
+    ..strokeWidth = dropWidth
+    ..strokeCap = StrokeCap.round;
 
   _RainPainter({
     required this.rainDrops,
@@ -125,24 +134,21 @@ class _RainPainter extends CustomPainter {
       }
 
       // 绘制雨滴（简单线条 + 渐变 + 淡入淡出）
-      final paint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            CyberColors.neonCyan
-                .withValues(alpha: drop.opacity * 0.2 * fadeMultiplier),
-            CyberColors.neonCyan
-                .withValues(alpha: drop.opacity * 0.8 * fadeMultiplier),
-          ],
-        ).createShader(Rect.fromLTRB(x - 1, yStart, x + 1, yEnd))
-        ..strokeWidth = dropWidth
-        ..strokeCap = StrokeCap.round;
+      _dropPaint.shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          CyberColors.neonCyan
+              .withValues(alpha: drop.opacity * 0.2 * fadeMultiplier),
+          CyberColors.neonCyan
+              .withValues(alpha: drop.opacity * 0.8 * fadeMultiplier),
+        ],
+      ).createShader(Rect.fromLTRB(x - 1, yStart, x + 1, yEnd));
 
       canvas.drawLine(
         Offset(x, yStart),
         Offset(x, yEnd),
-        paint,
+        _dropPaint,
       );
     }
   }
