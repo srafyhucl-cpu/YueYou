@@ -1,5 +1,21 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-05-12**
+
+- **性能(全局): P0 性能问题集中修复**：
+  - **背景**：经多轮全局性能深度审计，从用户实际感知视角重新分级，确认 4 项 P0 关键问题。
+  - **P0-A + P0-B（灵动岛 GPU 大幅下降）**：
+    - `dashboard_screen.dart`：灵动岛加 `RepaintBoundary` 隔离呼吸动画脏区。
+    - `cyber_player_console.dart`：呼吸动画按 TTS 状态启停，idle 时停止 60fps 驱动。
+    - `neon_progress_painter.dart`：4 个 Paint 实例静态复用 + LinearGradient shader 按 (size, color) 缓存。
+  - **P0-C（游戏滑动期 GPU 下降）**：
+    - `board_mascot.dart` `_drawCore`：RadialGradient shader 按 hasError 缓存。
+  - **P0-D（长 session 不退化）**：
+    - `square_board.dart`：`_triggerTilt` 复用单个 CurvedAnimation + 目标值字段。
+    - `board_mascot.dart`：5 处 CurvedAnimation 持久复用（eye/body/expression/wobble/pulse），dispose 统一清理。
+  - **验证**：`flutter analyze` 零警告。
+  - **关联**：任务单见 `DevelopmentPlan/20260512_全局性能优化P0修复.md`。
+
 ## **2026-05-11**
 
 - **守卫(arch+ai): 大文件治理三件套与 AI 门禁加固（PR-0 + PR-H）**：

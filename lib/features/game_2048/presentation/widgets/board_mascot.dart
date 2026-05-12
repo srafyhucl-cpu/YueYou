@@ -52,6 +52,13 @@ class BoardMascotState extends ConsumerState<BoardMascot>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
+  // P0-D：持久 CurvedAnimation 实例，避免每次交互新建导致 statusListener 泄漏
+  late final CurvedAnimation _eyeCurve;
+  late final CurvedAnimation _bodyCurve;
+  late final CurvedAnimation _expressionCurve;
+  late final CurvedAnimation _wobbleCurve;
+  late final CurvedAnimation _pulseCurve;
+
   // ── GameProvider 监听 ──
   GameProvider? _watchedProvider;
   Direction? _lastDirection;
@@ -78,47 +85,57 @@ class BoardMascotState extends ConsumerState<BoardMascot>
       vsync: this,
       duration: CyberDimensions.animInstant,
     );
-    _eyeAnimation = Tween<Offset>(begin: Offset.zero, end: Offset.zero).animate(
-      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
-    );
+    // P0-D：持久复用，不再在 _moveEyes 中重建
+    _eyeCurve = CurvedAnimation(parent: _eyeController, curve: Curves.easeOut);
+    _eyeAnimation =
+        Tween<Offset>(begin: Offset.zero, end: Offset.zero).animate(_eyeCurve);
 
     // 身体跳跃：480ms 弹跳序列（上弹 → 超出 → 回弹 → 落地）
     _bodyController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 480),
     );
+    _bodyCurve = CurvedAnimation(
+      parent: _bodyController,
+      curve: Curves.easeInOut,
+    );
     _bodyAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -22.0), weight: 30),
       TweenSequenceItem(tween: Tween(begin: -22.0, end: 5.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 5.0, end: -10.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: -10.0, end: 0.0), weight: 30),
-    ]).animate(
-      CurvedAnimation(parent: _bodyController, curve: Curves.easeInOut),
-    );
+    ]).animate(_bodyCurve);
 
     // 表情：200ms 平滑过渡
     _expressionController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _expressionAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
-      CurvedAnimation(parent: _expressionController, curve: Curves.easeInOut),
+    // P0-D：持久复用，不再在 _setExpression 中重建
+    _expressionCurve = CurvedAnimation(
+      parent: _expressionController,
+      curve: Curves.easeInOut,
     );
+    _expressionAnimation =
+        Tween<double>(begin: 0.0, end: 0.0).animate(_expressionCurve);
 
-    // 头部倾斜：复用 _eyeController，初始正立
-    _tiltAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
-      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
-    );
+    // 头部倾斜：复用 _eyeCurve，初始正立
+    _tiltAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(_eyeCurve);
 
     // 棋盘掀起晃动：240ms 弹回，初始静止
     _wobbleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 240),
     );
+    // P0-D：持久复用，不再在 _triggerWobble 中重建
+    _wobbleCurve = CurvedAnimation(
+      parent: _wobbleController,
+      curve: Curves.easeOut,
+    );
     _wobbleAnimation = Tween<Offset>(
       begin: Offset.zero,
       end: Offset.zero,
-    ).animate(_wobbleController);
+    ).animate(_wobbleCurve);
 
     // 眨眼：90ms（前半闭合，后半睁开）
     _blinkController = AnimationController(
@@ -135,9 +152,11 @@ class BoardMascotState extends ConsumerState<BoardMascot>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    _pulseCurve = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeOut,
     );
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_pulseCurve);
   }
 
   /// 随机间隔眨眼（2.5s ~ 5.5s）
@@ -234,6 +253,7 @@ class BoardMascotState extends ConsumerState<BoardMascot>
       Direction.down => const Offset(0, sy),
       null => Offset.zero,
     };
+    // P0-D：复用 _wobbleCurve，仅更换 Tween 包装（轻量 _AnimatedEvaluation，不添加 listener）
     _wobbleAnimation = TweenSequence<Offset>([
       TweenSequenceItem(
         tween: Tween<Offset>(begin: Offset.zero, end: peak),
@@ -243,9 +263,7 @@ class BoardMascotState extends ConsumerState<BoardMascot>
         tween: Tween<Offset>(begin: peak, end: Offset.zero),
         weight: 70,
       ),
-    ]).animate(
-      CurvedAnimation(parent: _wobbleController, curve: Curves.easeOut),
-    );
+    ]).animate(_wobbleCurve);
     _wobbleController.forward(from: 0.0);
   }
 
@@ -267,12 +285,11 @@ class BoardMascotState extends ConsumerState<BoardMascot>
     };
     final curEye = _eyeAnimation.value;
     final curTilt = _tiltAnimation.value;
-    _eyeAnimation = Tween<Offset>(begin: curEye, end: eyeTarget).animate(
-      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
-    );
-    _tiltAnimation = Tween<double>(begin: curTilt, end: tiltTarget).animate(
-      CurvedAnimation(parent: _eyeController, curve: Curves.easeOut),
-    );
+    // P0-D：复用 _eyeCurve，仅更换 Tween 包装（轻量 _AnimatedEvaluation，不添加 listener）
+    _eyeAnimation =
+        Tween<Offset>(begin: curEye, end: eyeTarget).animate(_eyeCurve);
+    _tiltAnimation =
+        Tween<double>(begin: curTilt, end: tiltTarget).animate(_eyeCurve);
     _eyeController.forward(from: 0.0);
   }
 
@@ -310,9 +327,9 @@ class BoardMascotState extends ConsumerState<BoardMascot>
   /// 表情切换：从当前插值位置平滑过渡到目标值
   void _setExpression(double target) {
     final current = _expressionAnimation.value;
-    _expressionAnimation = Tween<double>(begin: current, end: target).animate(
-      CurvedAnimation(parent: _expressionController, curve: Curves.easeInOut),
-    );
+    // P0-D：复用 _expressionCurve，仅更换 Tween 包装
+    _expressionAnimation =
+        Tween<double>(begin: current, end: target).animate(_expressionCurve);
     _expressionController.forward(from: 0.0);
   }
 
@@ -321,6 +338,12 @@ class BoardMascotState extends ConsumerState<BoardMascot>
     _blinkTimer?.cancel();
     _watchedProvider?.removeListener(_onGameChanged);
     _watchedTtsProvider?.removeListener(_onTtsChanged);
+    // P0-D：先 dispose CurvedAnimation（移除其在 parent 上注册的 statusListener）
+    _eyeCurve.dispose();
+    _bodyCurve.dispose();
+    _expressionCurve.dispose();
+    _wobbleCurve.dispose();
+    _pulseCurve.dispose();
     _eyeController.dispose();
     _bodyController.dispose();
     _expressionController.dispose();
@@ -425,6 +448,11 @@ class _MascotFacePainter extends CustomPainter {
     required this.pulseValue,
     required this.hasError,
   });
+
+  // P0-C：RadialGradient shader 缓存，按 (size, hasError) key
+  // size 固定为 200×200 + 内部 coreR 仅依赖 _mW 常量，实际只有 hasError 会变化
+  static Shader? _cachedCoreShader;
+  static bool? _cachedCoreError;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -612,18 +640,21 @@ class _MascotFacePainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
 
-    // 主体渐变（深黑到半透明青或粉）
-    final shader = RadialGradient(
-      center: const Alignment(-0.2, -0.3),
-      radius: 0.9,
-      colors: [
-        CyberColors.surface,
-        CyberColors.background,
-        themeColor.withValues(alpha: hasError ? 0.25 : 0.15),
-      ],
-      stops: const [0.0, 0.6, 1.0],
-    ).createShader(rect);
-    canvas.drawCircle(center, coreR, Paint()..shader = shader);
+    // 主体渐变（深黑到半透明青或粉）—— P0-C：shader 走缓存
+    if (_cachedCoreShader == null || _cachedCoreError != hasError) {
+      _cachedCoreShader = RadialGradient(
+        center: const Alignment(-0.2, -0.3),
+        radius: 0.9,
+        colors: [
+          CyberColors.surface,
+          CyberColors.background,
+          themeColor.withValues(alpha: hasError ? 0.25 : 0.15),
+        ],
+        stops: const [0.0, 0.6, 1.0],
+      ).createShader(rect);
+      _cachedCoreError = hasError;
+    }
+    canvas.drawCircle(center, coreR, Paint()..shader = _cachedCoreShader);
 
     // 霓虹边框（双层）
     canvas.drawCircle(

@@ -4,6 +4,11 @@ import 'package:yueyou/core/theme/cyber_colors.dart';
 
 /// 灵动岛霓虹进度条绘制器
 /// 从顶部中心开始，顺时针绘制进度，带呼吸光晕效果
+///
+/// P0-A 性能优化：
+/// - 4 个 Paint 实例复用（静态可变），仅在 paint() 内修改动态属性
+/// - LinearGradient shader 按 (size, color) 缓存，不再每帧 createShader
+/// - 中层光晕 MaskFilter 使用 const（固定值不随呼吸变化）
 class NeonProgressPainter extends CustomPainter {
   final double progress;
   final Color color;
@@ -16,6 +21,47 @@ class NeonProgressPainter extends CustomPainter {
     this.strokeWidth = 2.5,
     this.animationValue = 0.0,
   });
+
+  // ── P0-A：复用 Paint 实例，避免每帧分配 ──
+  static final Paint _outerGlowPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+
+  static final Paint _middleGlowPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+
+  static final Paint _progressPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+
+  static final Paint _pulsePaint = Paint()..style = PaintingStyle.fill;
+
+  // ── P0-A：LinearGradient shader 缓存，按 (size, color) key ──
+  static Size? _cachedShaderSize;
+  static Color? _cachedShaderColor;
+  static Shader? _cachedShader;
+
+  Shader _getShader(Rect rect) {
+    if (_cachedShader != null &&
+        _cachedShaderSize!.width == rect.width &&
+        _cachedShaderSize!.height == rect.height &&
+        _cachedShaderColor == color) {
+      return _cachedShader!;
+    }
+    _cachedShader = LinearGradient(
+      colors: [
+        color,
+        color.withValues(alpha: 0.8),
+        color,
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    ).createShader(rect);
+    _cachedShaderSize = rect.size;
+    _cachedShaderColor = color;
+    return _cachedShader!;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -54,52 +100,36 @@ class NeonProgressPainter extends CustomPainter {
     // 呼吸效果：光晕强度随动画值变化
     final breathIntensity = 0.7 + 0.3 * math.sin(animationValue * math.pi * 2);
 
-    // 外层光晕（呼吸效果）
-    final outerGlowPaint = Paint()
+    // 外层光晕（呼吸效果）—— 仅修改动态属性
+    _outerGlowPaint
       ..color = color.withValues(alpha: 0.15 * breathIntensity)
-      ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth + 8
-      ..strokeCap = StrokeCap.round
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 * breathIntensity);
 
-    // 中层光晕
-    final middleGlowPaint = Paint()
+    // 中层光晕 —— maskFilter 已是 const，仅更新颜色和宽度
+    _middleGlowPaint
       ..color = color.withValues(alpha: 0.3 * breathIntensity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth + 4
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+      ..strokeWidth = strokeWidth + 4;
 
-    // 主进度条（渐变色）
-    final progressPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          color,
-          color.withValues(alpha: 0.8),
-          color,
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(rect)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    // 主进度条（渐变色）—— shader 走缓存
+    _progressPaint
+      ..shader = _getShader(rect)
+      ..strokeWidth = strokeWidth;
 
     // 绘制层次：外层光晕 -> 中层光晕 -> 主进度条
-    canvas.drawPath(progressPath, outerGlowPaint);
-    canvas.drawPath(progressPath, middleGlowPaint);
-    canvas.drawPath(progressPath, progressPaint);
+    canvas.drawPath(progressPath, _outerGlowPaint);
+    canvas.drawPath(progressPath, _middleGlowPaint);
+    canvas.drawPath(progressPath, _progressPaint);
 
     // 进度条头部高亮点（脉冲效果）
     if (progress > 0.01) {
       final headPoint = pathMetrics.getTangentForOffset(endOffset)?.position;
       if (headPoint != null) {
         final pulseSize = 3.0 + 2.0 * breathIntensity;
-        final pulsePaint = Paint()
+        _pulsePaint
           ..color = color
-          ..style = PaintingStyle.fill
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, pulseSize);
-
-        canvas.drawCircle(headPoint, pulseSize, pulsePaint);
+        canvas.drawCircle(headPoint, pulseSize, _pulsePaint);
       }
     }
   }

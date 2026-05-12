@@ -49,25 +49,44 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
   late AnimationController _breathController;
   late Animation<double> _breathAnimation;
 
+  /// P0-B：呼吸动画与 TTS 状态联动的引用 CurvedAnimation，仅创建一次避免泄漏
+  late final CurvedAnimation _breathCurve;
+
   @override
   void initState() {
     super.initState();
-    // 呼吸动画：2 秒一个周期，无限循环
+    // 呼吸动画：2 秒一个周期
+    // P0-B：不再 initState 即 repeat，改由 build 阶段根据 TTS 是否激活精准启停，
+    // 避免在 TTS 完全空闲时仍持续 60fps 触发 NeonProgressPainter 全树重绘。
     _breathController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
-    )..repeat();
-
-    _breathAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _breathController,
-        curve: Curves.easeInOut,
-      ),
     );
+    _breathCurve = CurvedAnimation(
+      parent: _breathController,
+      curve: Curves.easeInOut,
+    );
+    _breathAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(_breathCurve);
+  }
+
+  /// 根据 TTS 是否处于活跃状态（播放/缓冲）启停呼吸动画。
+  /// idle/paused/error 时停止，避免无意义的 60fps 重绘消耗 GPU。
+  void _syncBreath(bool isActive) {
+    if (isActive) {
+      if (!_breathController.isAnimating) {
+        _breathController.repeat();
+      }
+    } else {
+      if (_breathController.isAnimating) {
+        _breathController.stop();
+      }
+    }
   }
 
   @override
   void dispose() {
+    _breathCurve.dispose();
     _breathController.dispose();
     super.dispose();
   }
@@ -88,6 +107,12 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
       TtsAudioError() =>
         false,
     };
+    // P0-B：仅在 TTS 实际有声音输出时驱动呼吸动画
+    final bool breathActive = switch (ttsState) {
+      TtsAudioPlaying() || TtsAudioBuffering() => true,
+      TtsAudioIdle() || TtsAudioPaused() || TtsAudioError() => false,
+    };
+    _syncBreath(breathActive);
 
     return Padding(
       padding: const EdgeInsets.only(top: CyberDimensions.spacingM),
