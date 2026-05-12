@@ -30,8 +30,10 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
   bool _hasMoved = false;
   bool _showGameOverDialog = false;
   late AnimationController _tiltController;
-  late Animation<double> _tiltX;
-  late Animation<double> _tiltY;
+  // P0-D：复用单个 CurvedAnimation，不再每次滑动新建（避免 statusListener 泄漏）
+  late CurvedAnimation _tiltCurve;
+  double _targetTiltX = 0;
+  double _targetTiltY = 0;
   GameProvider? _provider;
   StreamSubscription<void>? _gameOverSubscription;
 
@@ -42,11 +44,9 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
       vsync: this,
       duration: CyberDimensions.animXFast,
     );
-    _tiltX = Tween<double>(begin: 0, end: 0).animate(
-      CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
-    );
-    _tiltY = Tween<double>(begin: 0, end: 0).animate(
-      CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
+    _tiltCurve = CurvedAnimation(
+      parent: _tiltController,
+      curve: Curves.easeOut,
     );
   }
 
@@ -190,6 +190,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
     if (_tiltController.isAnimating) {
       _tiltController.stop();
     }
+    _tiltCurve.dispose();
     _tiltController.dispose();
     super.dispose();
   }
@@ -211,36 +212,26 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
     }
   }
 
+  // P0-D：复用 _tiltCurve，仅更新目标值，避免每次滑动新建 CurvedAnimation
   void _triggerTilt(Direction direction) {
     const tiltAngle = 0.08; // 约5度
-    double targetX = 0;
-    double targetY = 0;
-
     switch (direction) {
       case Direction.up:
-        targetX = tiltAngle;
-        break;
+        _targetTiltX = tiltAngle;
+        _targetTiltY = 0;
       case Direction.down:
-        targetX = -tiltAngle;
-        break;
+        _targetTiltX = -tiltAngle;
+        _targetTiltY = 0;
       case Direction.left:
-        targetY = tiltAngle;
-        break;
+        _targetTiltX = 0;
+        _targetTiltY = tiltAngle;
       case Direction.right:
-        targetY = -tiltAngle;
-        break;
+        _targetTiltX = 0;
+        _targetTiltY = -tiltAngle;
     }
-
-    setState(() {
-      _tiltX = Tween<double>(begin: 0, end: targetX).animate(
-        CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
-      );
-      _tiltY = Tween<double>(begin: 0, end: targetY).animate(
-        CurvedAnimation(parent: _tiltController, curve: Curves.easeOut),
-      );
+    _tiltController.forward(from: 0).then((_) {
+      if (mounted) _tiltController.reverse();
     });
-
-    _tiltController.forward().then((_) => _tiltController.reverse());
   }
 
   @override
@@ -248,13 +239,14 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
     final provider = ref.watch(gameProvider);
 
     return AnimatedBuilder(
-      animation: _tiltController,
+      animation: _tiltCurve,
       builder: (context, child) {
+        final v = _tiltCurve.value;
         return Transform(
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001)
-            ..rotateX(_tiltX.value)
-            ..rotateY(_tiltY.value),
+            ..rotateX(_targetTiltX * v)
+            ..rotateY(_targetTiltY * v),
           alignment: Alignment.center,
           child: child,
         );

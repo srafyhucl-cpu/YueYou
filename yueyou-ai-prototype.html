@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阅游 AI - 原型演示</title>
+<style>
+  /* ===== 赛博朋克设计系统 ===== */
+  :root {
+    --bg-deep: #0a0e17;
+    --bg-card: #111827;
+    --bg-card-hover: #1a2332;
+    --neon-cyan: #00f0ff;
+    --neon-magenta: #ff00aa;
+    --neon-yellow: #ffe600;
+    --neon-green: #39ff14;
+    --text-primary: #e0e6ed;
+    --text-secondary: #8892a4;
+    --text-dim: #4a5568;
+    --border-glow: rgba(0, 240, 255, 0.15);
+    --shadow-neon: 0 0 15px rgba(0, 240, 255, 0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(0, 240, 255, 0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(255, 0, 170, 0.03) 0%, transparent 50%);
+  }
+
+  /* ===== 手机框架 ===== */
+  .phone-frame {
+    width: 390px;
+    height: 844px;
+    background: var(--bg-deep);
+    border-radius: 40px;
+    border: 2px solid rgba(0, 240, 255, 0.2);
+    box-shadow: 0 0 40px rgba(0, 240, 255, 0.08), inset 0 0 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .phone-notch {
+    width: 160px;
+    height: 30px;
+    background: #000;
+    border-radius: 0 0 20px 20px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 100;
+  }
+
+  .phone-notch::after {
+    content: '';
+    width: 60px;
+    height: 5px;
+    background: #1a1a2e;
+    border-radius: 3px;
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* ===== 状态栏 ===== */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 24px 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 页面容器 ===== */
+  .page-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .page {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 16px 16px;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    scrollbar-width: none;
+  }
+  .page::-webkit-scrollbar { display: none; }
+
+  .page.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  /* ===== 底部导航栏 ===== */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 8px 24px;
+    background: linear-gradient(to top, rgba(10, 14, 23, 0.98), rgba(10, 14, 23, 0.9));
+    border-top: 1px solid var(--border-glow);
+    backdrop-filter: blur(10px);
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  .nav-item:hover { color: var(--text-secondary); }
+  .nav-item.active { color: var(--neon-cyan); }
+
+  .nav-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .nav-item.active .nav-icon {
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.5));
+  }
+
+  /* ===== 通用组件 ===== */
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 16px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title .icon { font-size: 20px; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .card:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(0, 240, 255, 0.3);
+    box-shadow: var(--shadow-neon);
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .badge-cyan {
+    background: rgba(0, 240, 255, 0.12);
+    color: var(--neon-cyan);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+  }
+
+  .badge-magenta {
+    background: rgba(255, 0, 170, 0.12);
+    color: var(--neon-magenta);
+    border: 1px solid rgba(255, 0, 170, 0.2);
+  }
+
+  .badge-green {
+    background: rgba(57, 255, 20, 0.12);
+    color: var(--neon-green);
+    border: 1px solid rgba(57, 255, 20, 0.2);
+  }
+
+  .badge-yellow {
+    background: rgba(255, 230, 0, 0.12);
+    color: var(--neon-yellow);
+    border: 1px solid rgba(255, 230, 0, 0.2);
+  }
+
+  .neon-line {
+    height: 2px;
+    background: linear-gradient(to right, var(--neon-cyan), transparent);
+    margin: 12px 0;
+    border-radius: 1px;
+  }
+
+  .neon-text { color: var(--neon-cyan); }
+  .magenta-text { color: var(--neon-magenta); }
+
+  /* ===== 首页/仪表盘 ===== */
+  .hero-greeting {
+    text-align: center;
+    padding: 20px 0 10px;
+  }
+
+  .hero-greeting h1 {
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+  }
+
+  .hero-greeting p {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .mascot-area {
+    text-align: center;
+    padding: 16px;
+    position: relative;
+  }
+
+  .mascot {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(255, 0, 170, 0.15));
+    border: 2px solid rgba(0, 240, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    animation: float 3s ease-in-out infinite;
+    box-shadow: 0 0 30px rgba(0, 240, 255, 0.1);
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .mascot-speech {
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 16px 16px 16px 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: inline-block;
+    position: relative;
+  }
+
+  .mascot-speech::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid var(--border-glow);
+  }
+
+  .quick-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .quick-action {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    padding: 16px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .quick-action:hover {
+    border-color: rgba(0, 240, 255, 0.4);
+    box-shadow: var(--shadow-neon);
+    transform: translateY(-2px);
+  }
+
+  .quick-action .qa-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  .quick-action .qa-label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .quick-action .qa-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .reading-progress {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: rgba(0, 240, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--neon-cyan), var(--neon-magenta));
+    border-radius: 2px;
+    transition: width 0.5s;
+  }
+
+  /* ===== AI 对话页 ===== */
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--border-glow);
+    margin-bottom: 12px;
+  }
+
+  .chat-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border: 2px solid rgba(0, 240, 255, 0.3);
+    flex-shrink: 0;
+  }
+
+  .chat-info h3 {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .chat-info p {
+    font-size: 11px;
+    color: var(--neon-green);
+  }
+
+  .role-selector {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    scrollbar-width: none;
+  }
+  .role-selector::-webkit-scrollbar { display: none; }
+
+  .role-chip {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border-glow);
+    background: var(--bg-card);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .role-chip:hover { border-color: rgba(0, 240, 255, 0.3); }
+
+  .role-chip.active {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+  }
+
+  .chat-messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 12px;
+  }
+
+  .msg {
+    display: flex;
+    gap: 8px;
+    max-width: 88%;
+  }
+
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-glow);
+    background: var(--bg-card);
+  }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .msg.ai .msg-bubble {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 16px 16px 16px 4px;
+  }
+
+  .msg.user .msg-bubble {
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(255, 0, 170, 0.1));
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    border-radius: 16px 16px 4px 16px;
+  }
+
+  .msg-time {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+  }
+
+  .typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--neon-cyan);
+    opacity: 0.4;
+    animation: typing 1.4s infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typing {
+    0%, 100% { opacity: 0.4; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  .chat-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0 4px;
+    border-top: 1px solid var(--border-glow);
+    margin-top: auto;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 20px;
+    padding: 10px 16px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+  }
+
+  .chat-input::placeholder { color: var(--text-dim); }
+
+  .send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+    border: none;
+    color: #000;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .send-btn:hover { transform: scale(1.1); }
+
+  /* ===== RAG 问答页 ===== */
+  .search-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .search-input {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-input:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+  }
+
+  .search-input::placeholder { color: var(--text-dim); }
+
+  .search-btn {
+    padding: 12px 16px;
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: var(--radius);
+    color: var(--neon-cyan);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .search-btn:hover {
+    background: rgba(0, 240, 255, 0.2);
+  }
+
+  .rag-answer {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .rag-answer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .rag-answer-header .icon { font-size: 18px; }
+  .rag-answer-header span { font-size: 13px; font-weight: 600; }
+
+  .rag-answer-text {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+
+  .rag-source {
+    background: rgba(0, 240, 255, 0.05);
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .rag-source-title {
+    font-weight: 600;
+    color: var(--neon-cyan);
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  .rag-hot-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .hot-q {
+    padding: 6px 12px;
+    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .hot-q:hover {
+    border-color: rgba(0, 240, 255, 0.3);
+    color: var(--neon-cyan);
+  }
+
+  /* ===== 阅读器页 ===== */
+  .reader-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--border-glow);
+    margin-bottom: 12px;
+  }
+
+  .reader-header h3 { font-size: 16px; font-weight: 600; }
+
+  .reader-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .reader-ctrl-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .reader-ctrl-btn:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+  }
+
+  .reader-ctrl-btn.active {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+  }
+
+  .chapter-text {
+    font-size: 15px;
+    line-height: 2;
+    color: var(--text-primary);
+    text-align: justify;
+    padding: 8px 0;
+  }
+
+  .chapter-text .highlight {
+    background: rgba(0, 240, 255, 0.1);
+    border-bottom: 1px solid var(--neon-cyan);
+    padding: 0 2px;
+  }
+
+  .ai-summary-card {
+    background: linear-gradient(135deg, rgba(255, 230, 0, 0.05), rgba(0, 240, 255, 0.05));
+    border: 1px solid rgba(255, 230, 0, 0.2);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin: 16px 0;
+  }
+
+  .ai-summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .ai-summary-header .icon { font-size: 16px; }
+  .ai-summary-header span { font-size: 13px; font-weight: 600; color: var(--neon-yellow); }
+
+  .ai-summary-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  .ai-actions-bar {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+  }
+
+  .ai-action-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .ai-action-btn:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    background: rgba(0, 240, 255, 0.05);
+  }
+
+  .ai-action-btn .btn-icon { font-size: 16px; display: block; margin-bottom: 4px; }
+
+  /* ===== 2048 游戏页 ===== */
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0 12px;
+    margin-bottom: 12px;
+  }
+
+  .game-score {
+    text-align: center;
+  }
+
+  .game-score .label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .game-score .value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--neon-cyan);
+  }
+
+  .game-board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 12px;
+    background: rgba(0, 240, 255, 0.03);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    aspect-ratio: 1;
+  }
+
+  .tile {
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 20px;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .tile-2    { background: rgba(0, 240, 255, 0.08); color: var(--neon-cyan); border-color: rgba(0, 240, 255, 0.15); }
+  .tile-4    { background: rgba(0, 240, 255, 0.12); color: var(--neon-cyan); border-color: rgba(0, 240, 255, 0.2); }
+  .tile-8    { background: rgba(0, 200, 255, 0.18); color: #fff; border-color: rgba(0, 200, 255, 0.3); }
+  .tile-16   { background: rgba(255, 230, 0, 0.15); color: var(--neon-yellow); border-color: rgba(255, 230, 0, 0.25); }
+  .tile-32   { background: rgba(255, 200, 0, 0.2); color: var(--neon-yellow); border-color: rgba(255, 200, 0, 0.35); }
+  .tile-64   { background: rgba(255, 150, 0, 0.25); color: #ffaa00; border-color: rgba(255, 150, 0, 0.4); }
+  .tile-128  { background: rgba(255, 100, 0, 0.25); color: #ff7700; border-color: rgba(255, 100, 0, 0.4); font-size: 17px; }
+  .tile-256  { background: rgba(255, 0, 170, 0.2); color: var(--neon-magenta); border-color: rgba(255, 0, 170, 0.35); font-size: 17px; }
+  .tile-512  { background: rgba(255, 0, 170, 0.3); color: var(--neon-magenta); border-color: rgba(255, 0, 170, 0.5); font-size: 17px; }
+  .tile-1024 { background: rgba(255, 0, 170, 0.4); color: #fff; border-color: rgba(255, 0, 170, 0.6); font-size: 14px; }
+  .tile-2048 { background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta)); color: #000; border-color: transparent; font-size: 14px; box-shadow: 0 0 20px rgba(0, 240, 255, 0.3); }
+  .tile-empty { background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.04); }
+
+  .ai-hint-card {
+    background: linear-gradient(135deg, rgba(57, 255, 20, 0.05), rgba(0, 240, 255, 0.05));
+    border: 1px solid rgba(57, 255, 20, 0.2);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .ai-hint-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .ai-hint-header .left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ai-hint-header .icon { font-size: 16px; }
+  .ai-hint-header span { font-size: 13px; font-weight: 600; color: var(--neon-green); }
+
+  .ai-hint-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .ai-hint-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(57, 255, 20, 0.1);
+    border: 1px solid rgba(57, 255, 20, 0.3);
+    color: var(--neon-green);
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 2px;
+  }
+
+  .game-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .game-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .game-btn:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+  }
+
+  .game-btn.primary {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.3);
+    color: var(--neon-cyan);
+  }
+
+  /* ===== 设置页 ===== */
+  .settings-group {
+    margin-bottom: 16px;
+  }
+
+  .settings-group-title {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+
+  .setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .setting-item:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .setting-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .setting-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .setting-label { font-size: 14px; }
+  .setting-value { font-size: 12px; color: var(--text-dim); }
+
+  .toggle {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--text-dim);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .toggle.on { background: var(--neon-cyan); }
+
+  .toggle::after {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+  }
+
+  .toggle.on::after { transform: translateX(20px); }
+
+  .model-selector {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .model-chip {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    border: 1px solid var(--border-glow);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .model-chip.active {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+  }
+
+  /* ===== 章节列表 ===== */
+  .chapter-list { list-style: none; }
+
+  .chapter-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .chapter-item:hover {
+    border-color: rgba(0, 240, 255, 0.3);
+    background: var(--bg-card-hover);
+  }
+
+  .chapter-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--neon-cyan);
+    flex-shrink: 0;
+  }
+
+  .chapter-title { font-size: 13px; flex: 1; }
+  .chapter-status { font-size: 11px; color: var(--text-dim); }
+
+  /* ===== 页面标题 ===== */
+  .page-title {
+    font-size: 20px;
+    font-weight: 800;
+    padding: 8px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ===== 滚动条 ===== */
+  .page { scrollbar-width: thin; scrollbar-color: rgba(0,240,255,0.15) transparent; }
+
+  /* ===== 动画 ===== */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(0, 240, 255, 0.1); }
+    50% { box-shadow: 0 0 20px rgba(0, 240, 255, 0.2); }
+  }
+
+  .glow-pulse { animation: pulse-glow 2s ease-in-out infinite; }
+
+  /* ===== AI 续写弹窗 ===== */
+  .modal-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 90%;
+    max-height: 70%;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform 0.3s;
+  }
+
+  .modal-overlay.show .modal { transform: scale(1); }
+
+  .modal h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .modal textarea {
+    width: 100%;
+    height: 80px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    color: var(--text-primary);
+    font-size: 13px;
+    resize: none;
+    outline: none;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+
+  .modal textarea:focus {
+    border-color: var(--neon-cyan);
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .modal-btn {
+    padding: 8px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border-glow);
+    transition: all 0.2s;
+  }
+
+  .modal-btn.cancel {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+
+  .modal-btn.confirm {
+    background: rgba(0, 240, 255, 0.1);
+    color: var(--neon-cyan);
+    border-color: rgba(0, 240, 255, 0.3);
+  }
+
+  .modal-btn:hover { opacity: 0.8; }
+
+  .generated-text {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    min-height: 60px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <div class="phone-notch"></div>
+  <div class="status-bar">
+    <span>9:41</span>
+    <span style="font-size:11px;">📶 🔋 86%</span>
+  </div>
+
+  <div class="page-container">
+
+    <!-- ========== 首页 ========== -->
+    <div class="page active" id="page-home">
+      <div class="hero-greeting">
+        <h1>阅游 AI</h1>
+        <p>赛博朋克 · 沉浸式阅读 · AI 陪伴</p>
+      </div>
+
+      <div class="mascot-area">
+        <div class="mascot">📖</div>
+        <div class="mascot-speech">今天想和谁聊天？或者继续阅读西游记？</div>
+      </div>
+
+      <div class="quick-actions">
+        <div class="quick-action" onclick="switchPage('chat')">
+          <div class="qa-icon">🎭</div>
+          <div class="qa-label">AI 角色对话</div>
+          <div class="qa-sub">与悟空聊天</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('rag')">
+          <div class="qa-icon">🔍</div>
+          <div class="qa-label">智能问答</div>
+          <div class="qa-sub">问西游记</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('reader')">
+          <div class="qa-icon">📚</div>
+          <div class="qa-label">继续阅读</div>
+          <div class="qa-sub">第七回</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('game')">
+          <div class="qa-icon">🎮</div>
+          <div class="qa-label">2048</div>
+          <div class="qa-sub">AI 辅助</div>
+        </div>
+      </div>
+
+      <div class="reading-progress">
+        <div class="progress-header">
+          <span style="font-size:13px;font-weight:600;">📖 西游记</span>
+          <span style="font-size:12px;color:var(--neon-cyan);">第七回 / 100回</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 7%;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">上次阅读：八卦炉中逃大圣 · 2分钟前</div>
+      </div>
+
+      <div class="neon-line"></div>
+
+      <div class="section-title"><span class="icon">🤖</span> AI 功能</div>
+
+      <div class="card" onclick="switchPage('chat')">
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div>
+            <div class="card-title">🎭 角色扮演对话</div>
+            <div class="card-desc">选择西游记角色，进入沉浸式 AI 对话</div>
+          </div>
+          <span class="badge badge-cyan">DeepSeek</span>
+        </div>
+      </div>
+
+      <div class="card" onclick="switchPage('rag')">
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div>
+            <div class="card-title">🔍 RAG 智能问答</div>
+            <div class="card-desc">基于 100 章原文的语义检索问答</div>
+          </div>
+          <span class="badge badge-green">通义千问</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div>
+            <div class="card-title">✨ 智能内容生成</div>
+            <div class="card-desc">章节摘要 · AI 续写 · 2048 策略提示</div>
+          </div>
+          <span class="badge badge-yellow">智谱免费</span>
+        </div>
+      </div>
+
+      <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ========== AI 对话页 ========== -->
+    <div class="page" id="page-chat">
+      <div class="chat-header">
+        <div class="chat-avatar" style="background:rgba(255,230,0,0.1);">🐵</div>
+        <div class="chat-info">
+          <h3>孙悟空</h3>
+          <p>● 在线 · DeepSeek-V3</p>
+        </div>
+        <span class="badge badge-cyan">AI 角色</span>
+      </div>
+
+      <div class="role-selector">
+        <div class="role-chip active">🐵 孙悟空</div>
+        <div class="role-chip">🙏 唐僧</div>
+        <div class="role-chip">🐷 猪八戒</div>
+        <div class="role-chip">🌊 沙僧</div>
+        <div class="role-chip">🐍 白龙马</div>
+        <div class="role-chip">🔥 红孩儿</div>
+        <div class="role-chip">💀 白骨精</div>
+      </div>
+
+      <div class="chat-messages">
+        <div class="msg ai">
+          <div class="msg-avatar">🐵</div>
+          <div>
+            <div class="msg-bubble">嘿嘿！俺老孙在此！有什么想问的，尽管说来。俺老孙当年大闹天宫，那可是威风八面！</div>
+            <div class="msg-time">09:38</div>
+          </div>
+        </div>
+
+        <div class="msg user">
+          <div class="msg-avatar" style="background:rgba(0,240,255,0.1);">我</div>
+          <div>
+            <div class="msg-bubble">大圣，你当年是怎么从太上老君的八卦炉里逃出来的？</div>
+            <div class="msg-time">09:39</div>
+          </div>
+        </div>
+
+        <div class="msg ai">
+          <div class="msg-avatar">🐵</div>
+          <div>
+            <div class="msg-bubble">哈哈，你问这个！那太上老君把俺老孙放进八卦炉里，用三昧真火烧了七七四十九天。他以为能把俺炼成丹，殊不知俺老孙躲到了「巽」位——那是风口！三昧真火不但没伤着俺，反倒把俺炼成了一双火眼金睛！🔥<br><br>到了第四十九天，老君开炉，俺一脚踢翻丹炉，一路打到凌霄宝殿！那些天兵天将，没一个挡得住俺老孙的金箍棒！</div>
+            <div class="msg-time">09:39 · 引用：第七回</div>
+          </div>
+        </div>
+
+        <div class="msg ai">
+          <div class="msg-avatar">🐵</div>
+          <div>
+            <div class="msg-bubble typing-indicator">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <input class="chat-input" placeholder="和孙悟空聊聊天..." />
+        <button class="send-btn">➤</button>
+      </div>
+    </div>
+
+    <!-- ========== RAG 问答页 ========== -->
+    <div class="page" id="page-rag">
+      <div class="page-title">🔍 智能问答</div>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">基于西游记 100 章原文的语义检索问答</p>
+
+      <div class="search-box">
+        <input class="search-input" placeholder="问任何关于西游记的问题..." value="孙悟空大闹天宫在哪一章？" />
+        <button class="search-btn">搜索</button>
+      </div>
+
+      <div class="rag-hot-questions">
+        <span style="font-size:11px;color:var(--text-dim);line-height:28px;">热门：</span>
+        <div class="hot-q">唐僧收了几个徒弟？</div>
+        <div class="hot-q">真假美猴王</div>
+        <div class="hot-q">三打白骨精</div>
+        <div class="hot-q">火焰山怎么过的？</div>
+      </div>
+
+      <div class="rag-answer">
+        <div class="rag-answer-header">
+          <span class="icon">🤖</span>
+          <span>AI 回答</span>
+          <span class="badge badge-green" style="margin-left:auto;">通义千问</span>
+        </div>
+        <div class="rag-answer-text">
+          孙悟空大闹天宫的故事主要出现在<strong>第七回</strong>「八卦炉中逃大圣 五行山下定心猿」。
+          <br><br>
+          具体来说，大闹天宫的情节跨越了<strong>第四回至第七回</strong>：
+          <br>
+          • <strong>第四回</strong>：官封弼马心何足 名注齐天意未宁
+          <br>
+          • <strong>第五回</strong>：乱蟠桃大圣偷丹 反天宫诸神捉怪
+          <br>
+          • <strong>第六回</strong>：观音赴会问原因 小圣施威降大圣
+          <br>
+          • <strong>第七回</strong>：八卦炉中逃大圣 五行山下定心猿
+          <br><br>
+          最终如来佛祖将孙悟空压在五行山下，直到唐僧路过将其救出。
+        </div>
+        <div class="rag-source">
+          <div class="rag-source-title">📎 引用来源</div>
+          📖 第七回 · 八卦炉中逃大圣 五行山下定心猿<br>
+          「那大圣在老君炉中…被六丁神火煅了四十九日…忽一日开炉取丹，那大圣双手捂着眼，正自搓揉流涕，只听得炉头声响，猛睁睛看见光明，他就忍不住，将身一纵，跳出丹炉，唿喇一声，蹬倒八卦炉，往外就走。」
+        </div>
+      </div>
+
+      <div class="neon-line"></div>
+
+      <div class="section-title"><span class="icon">📊</span> 检索信息</div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span class="card-title" style="font-size:13px;">检索详情</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">
+          <div>Embedding 模型：<span class="neon-text">通义千问 text-embedding-v3</span></div>
+          <div>检索 Top-K：<span class="neon-text">5</span> 个文本块</div>
+          <div>相似度阈值：<span class="neon-text">0.72</span></div>
+          <div>最高相似度：<span class="neon-text" style="color:var(--neon-green);">0.94</span></div>
+          <div>Token 消耗：<span class="neon-text">输入 1,247 / 输出 386</span></div>
+          <div>响应耗时：<span class="neon-text">1.2s</span></div>
+        </div>
+      </div>
+
+      <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ========== 阅读器页 ========== -->
+    <div class="page" id="page-reader">
+      <div class="reader-header">
+        <h3>第七回 · 八卦炉中逃大圣</h3>
+        <div class="reader-controls">
+          <button class="reader-ctrl-btn" title="目录">☰</button>
+          <button class="reader-ctrl-btn active" title="TTS朗读">🔊</button>
+          <button class="reader-ctrl-btn" title="设置">⚙</button>
+        </div>
+      </div>
+
+      <div class="ai-summary-card">
+        <div class="ai-summary-header">
+          <span class="icon">🤖</span>
+          <span>AI 章节摘要</span>
+          <span class="badge badge-yellow" style="margin-left:auto;">通义千问</span>
+        </div>
+        <div class="ai-summary-text">
+          太上老君将孙悟空放入八卦炉中以三昧真火焚烧四十九天，不料孙悟空躲入巽位风口，非但未被炼化，反而炼成火眼金睛。期满开炉后，孙悟空踢翻丹炉，一路打上凌霄宝殿。最终如来佛祖出手，将其压在五行山下五百年。
+        </div>
+      </div>
+
+      <div class="ai-actions-bar">
+        <button class="ai-action-btn" onclick="showModal('continue')">
+          <span class="btn-icon">✍️</span>
+          AI 续写
+        </button>
+        <button class="ai-action-btn">
+          <span class="btn-icon">📝</span>
+          生成摘要
+        </button>
+        <button class="ai-action-btn">
+          <span class="btn-icon">💬</span>
+          问 AI
+        </button>
+      </div>
+
+      <div class="chapter-text">
+        <p style="text-indent:2em;margin-bottom:12px;">
+          话表<span class="highlight">齐天大圣</span>被众天兵押去斩妖台下，绑在降妖柱上，刀砍斧剁，枪刺剑刳，莫想伤及其身。南斗星奋令火部众神，放火煨烧，亦不能烧着。又着雷部众神，以雷屑钉打，越发不能伤损一毫。
+        </p>
+        <p style="text-indent:2em;margin-bottom:12px;">
+          那大力鬼王与众启奏玉帝，将老君请至殿下，说道：「万岁，这大圣不知是何处所得，来此做了齐天大圣。臣等用刀砍斧剁，雷打火烧，一毫不能伤损，却如之奈何？」
+        </p>
+        <p style="text-indent:2em;margin-bottom:12px;">
+          太上老君即奏道：「那猴吃了蟠桃，饮了御酒，又盗了仙丹。我那五壶丹，有生有熟，被他都吃在肚里。运用三昧火，煅成一块，所以浑做金钢之躯，急不能伤。不若与老道领去，放在<span class="highlight">八卦炉</span>中，以文武火煅炼。炼出我的丹来，他身自为灰烬矣。」
+        </p>
+        <p style="text-indent:2em;margin-bottom:12px;">
+          ……
+        </p>
+        <p style="text-indent:2em;margin-bottom:12px;">
+          真个光阴迅速，不觉七七四十九日，老君的火候俱全。忽一日开炉取丹。那大圣双手捂着眼，正自搓揉流涕，只听得炉头声响，猛睁睛看见光明，他就忍不住，将身一纵，跳出丹炉，<span class="highlight">唿喇一声，蹬倒八卦炉</span>，往外就走。
+        </p>
+      </div>
+
+      <div style="text-align:center;padding:16px 0;">
+        <button class="game-btn primary" style="max-width:200px;margin:0 auto;">下一章 →</button>
+      </div>
+
+      <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ========== 2048 游戏页 ========== -->
+    <div class="page" id="page-game">
+      <div class="game-header">
+        <div>
+          <div style="font-size:18px;font-weight:800;">2048</div>
+          <div style="font-size:11px;color:var(--text-dim);">赛博朋克版</div>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <div class="game-score">
+            <div class="label">分数</div>
+            <div class="value">12,480</div>
+          </div>
+          <div class="game-score">
+            <div class="label">最高</div>
+            <div class="value" style="color:var(--neon-magenta);">38,720</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-hint-card glow-pulse">
+        <div class="ai-hint-header">
+          <div class="left">
+            <span class="icon">🤖</span>
+            <span>AI 策略提示</span>
+          </div>
+          <span class="badge badge-green">GLM-4 免费</span>
+        </div>
+        <div class="ai-hint-text">
+          建议向<span class="ai-hint-arrow">←</span>滑动：左下角 32 和 16 可以合并，同时保持大数字在右上角。当前棋盘结构良好，继续保持角落策略！
+        </div>
+      </div>
+
+      <div class="game-board">
+        <div class="tile tile-empty"></div>
+        <div class="tile tile-2">2</div>
+        <div class="tile tile-16">16</div>
+        <div class="tile tile-256">256</div>
+
+        <div class="tile tile-empty"></div>
+        <div class="tile tile-4">4</div>
+        <div class="tile tile-32">32</div>
+        <div class="tile tile-128">128</div>
+
+        <div class="tile tile-2">2</div>
+        <div class="tile tile-8">8</div>
+        <div class="tile tile-16">16</div>
+        <div class="tile tile-64">64</div>
+
+        <div class="tile tile-4">4</div>
+        <div class="tile tile-empty"></div>
+        <div class="tile tile-4">4</div>
+        <div class="tile tile-8">8</div>
+      </div>
+
+      <div class="game-actions">
+        <button class="game-btn">↺ 撤销</button>
+        <button class="game-btn primary">🔄 新游戏</button>
+        <button class="game-btn" onclick="switchPage('settings')">⚙ 设置</button>
+      </div>
+
+      <div class="neon-line"></div>
+
+      <div class="section-title"><span class="icon">📊</span> AI 分析</div>
+
+      <div class="card">
+        <div class="card-title" style="font-size:13px;margin-bottom:8px;">棋盘评估</div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">
+          <div>空格数：<span class="neon-text">4</span> / 16</div>
+          <div>最大方块：<span class="magenta-text">256</span>（右上角 ✓）</div>
+          <div>单调性评分：<span class="neon-text" style="color:var(--neon-green);">良好</span></div>
+          <div>合并机会：<span class="neon-text">3</span> 处</div>
+          <div>蛇形结构：<span class="neon-text" style="color:var(--neon-green);">保持中 ✓</span></div>
+        </div>
+      </div>
+
+      <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ========== 设置页 ========== -->
+    <div class="page" id="page-settings">
+      <div class="page-title">⚙ 设置</div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">AI 模型配置</div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(0,240,255,0.1);">🎭</div>
+            <div>
+              <div class="setting-label">角色扮演模型</div>
+              <div class="setting-value">DeepSeek-V3</div>
+            </div>
+          </div>
+          <span class="badge badge-cyan">¥1/M</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(57,255,20,0.1);">🔍</div>
+            <div>
+              <div class="setting-label">RAG 问答模型</div>
+              <div class="setting-value">通义千问-Turbo</div>
+            </div>
+          </div>
+          <span class="badge badge-green">¥0.3/M</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(255,230,0,0.1);">🎮</div>
+            <div>
+              <div class="setting-label">2048 策略模型</div>
+              <div class="setting-value">智谱 GLM-4-Flash</div>
+            </div>
+          </div>
+          <span class="badge badge-yellow">免费</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(255,0,170,0.1);">📊</div>
+            <div>
+              <div class="setting-label">Embedding 模型</div>
+              <div class="setting-value">通义千问 text-embedding-v3</div>
+            </div>
+          </div>
+          <span class="badge badge-magenta">¥0.7/M</span>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">AI 功能</div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(0,240,255,0.1);">🎭</div>
+            <div class="setting-label">角色扮演对话</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(57,255,20,0.1);">🔍</div>
+            <div class="setting-label">RAG 智能问答</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(255,230,0,0.1);">📝</div>
+            <div class="setting-label">章节 AI 摘要</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(255,0,170,0.1);">✍️</div>
+            <div class="setting-label">AI 续写</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(57,255,20,0.1);">🎮</div>
+            <div class="setting-label">2048 AI 策略提示</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">阅读设置</div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(0,240,255,0.1);">🔊</div>
+            <div class="setting-label">TTS 朗读</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-left">
+            <div class="setting-icon" style="background:rgba(255,230,0,0.1);">☀️</div>
+            <div class="setting-label">字体大小</div>
+          </div>
+          <span style="font-size:13px;color:var(--neon-cyan);">中</span>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">费用监控</div>
+
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-title" style="font-size:13px;margin-bottom:10px;">本月 API 费用</div>
+          <div style="display:flex;justify-content:space-between;align-items:end;margin-bottom:8px;">
+            <span style="font-size:24px;font-weight:800;color:var(--neon-cyan);">¥3.2</span>
+            <span style="font-size:11px;color:var(--text-dim);">预算 ¥10/月</span>
+          </div>
+          <div class="progress-bar" style="margin-bottom:10px;">
+            <div class="progress-fill" style="width: 32%;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);line-height:1.8;">
+            <div>DeepSeek 对话：¥1.8（180次）</div>
+            <div>通义千问 RAG：¥0.9（120次）</div>
+            <div>通义千问 摘要：¥0.5（80次）</div>
+            <div>智谱 2048：¥0（150次）</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 20px;"></div>
+    </div>
+
+    <!-- ========== AI 续写弹窗 ========== -->
+    <div class="modal-overlay" id="modal-continue">
+      <div class="modal" style="position:relative;">
+        <button class="modal-close" onclick="hideModal('continue')">✕</button>
+        <h3>✍️ AI 续写</h3>
+        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">基于当前章节风格，AI 将为你续写西游记风格的内容</p>
+
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">续写开头（可选）：</div>
+        <textarea placeholder="那大圣跳出八卦炉后，只听得半空中有人叫道……"></textarea>
+
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">生成结果：</div>
+        <div class="generated-text">
+          那大圣跳出八卦炉后，只听得半空中有人叫道：「孙悟空，你这一番闹了天宫，罪业深重，还不快快束手就擒！」大圣抬头一看，却是托塔李天王率领十万天兵，布下天罗地网，将那凌霄宝殿围得水泄不通。大圣冷笑一声：「李老儿，你那天兵天将，俺老孙何曾放在眼里！」说罢，从耳中掣出如意金箍棒，迎风一晃，碗口粗细，直冲天兵阵中杀去……
+        </div>
+
+        <div class="modal-actions">
+          <button class="modal-btn cancel" onclick="hideModal('continue')">取消</button>
+          <button class="modal-btn confirm">🔄 重新生成</button>
+          <button class="modal-btn confirm">✅ 采用</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 底部导航 -->
+  <div class="bottom-nav">
+    <button class="nav-item active" onclick="switchPage('home')">
+      <div class="nav-icon">🏠</div>
+      <span>首页</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('chat')">
+      <div class="nav-icon">🎭</div>
+      <span>AI 对话</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('rag')">
+      <div class="nav-icon">🔍</div>
+      <span>问答</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('reader')">
+      <div class="nav-icon">📚</div>
+      <span>阅读</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('game')">
+      <div class="nav-icon">🎮</div>
+      <span>2048</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  // 页面切换
+  function switchPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + pageId).classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navMap = { home: 0, chat: 1, rag: 2, reader: 3, game: 4, settings: 4 };
+    const idx = navMap[pageId];
+    if (idx !== undefined) {
+      document.querySelectorAll('.nav-item')[idx].classList.add('active');
+    }
+  }
+
+  // 弹窗控制
+  function showModal(id) {
+    document.getElementById('modal-' + id).classList.add('show');
+  }
+
+  function hideModal(id) {
+    document.getElementById('modal-' + id).classList.remove('show');
+  }
+
+  // 角色选择
+  document.querySelectorAll('.role-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      document.querySelectorAll('.role-chip').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // 热门问题点击
+  document.querySelectorAll('.hot-q').forEach(q => {
+    q.addEventListener('click', function() {
+      document.querySelector('.search-input').value = this.textContent;
+    });
+  });
+</script>
+
+</body>
+</html>
