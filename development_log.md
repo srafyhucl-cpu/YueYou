@@ -32,6 +32,14 @@
   - 全局扫描结论：URL/颜色/文字样式均合规；组件私有动画物理参数（吉祥物眨眼/跳跃时长等）保留，不属于全局硬编码范畴。
   - **验证**：`flutter analyze` 零警告，`flutter test` 669 通过。
 
+- **守卫(ai-gate): 新增 HardcodedDimensionRule 门禁**：
+  - **根因**：硬编码尺寸约束仅存在于技能文档和 Memory 中，无自动化拦截 → 反复出现。大文件约束有 `FileSizeRule` 拦截所以守住了。
+  - **方案**：`scripts/ai_checks/rules.dart` 新增 `HardcodedDimensionRule`，扫描 presentation/shared 层的 `blurRadius`、`sigmaX/Y`、`EdgeInsets` 硬编码数值 → warning。
+  - **豁免**：已使用 `CyberDimensions` 的行自动跳过；`// ignore-hardcode` 行尾标记可豁免组件私有微调。`core/theme/` 定义文件不扫描。
+  - **检出存量**：21 处 warning（跨 8 个文件），后续逐步清理。
+  - **回归测试**：3 个新用例覆盖检出/豁免/排除路径，共 12/12 通过。
+  - **验证**：`flutter analyze` 零警告，`dart scripts/ai_code_checker.dart` 通过。
+
 ## **2026-05-11**
 
 - **守卫(arch+ai): 大文件治理三件套与 AI 门禁加固（PR-0 + PR-H）**：

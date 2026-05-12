@@ -189,6 +189,73 @@ class SampleHelper {}
       }
     });
 
+    test('presentation 层硬编码 blurRadius / sigma / EdgeInsets 输出 warning', () {
+      _createBaselineRepo(tempDir);
+      _writeFile(
+        tempDir,
+        'lib/features/demo/presentation/widgets/hard_widget.dart',
+        '''
+class HardWidget {
+  final shadow = BoxShadow(blurRadius: 16);
+  final blur = ImageFilter.blur(sigmaX: 10, sigmaY: 10);
+  final pad = EdgeInsets.all(20);
+}
+''',
+      );
+
+      final checker = AiCodeChecker(tempDir);
+      checker.run();
+      final ids = checker.findings.map((f) => f.id).toList();
+
+      expect(ids, contains('hardcode.dimension.blurRadius'));
+      expect(ids, contains('hardcode.dimension.sigma'));
+      expect(ids, contains('hardcode.dimension.edge_insets'));
+    });
+
+    test('使用 CyberDimensions 或 ignore-hardcode 标记可豁免硬编码检测', () {
+      _createBaselineRepo(tempDir);
+      _writeFile(
+        tempDir,
+        'lib/features/demo/presentation/widgets/good_widget.dart',
+        '''
+class GoodWidget {
+  final shadow = BoxShadow(blurRadius: CyberDimensions.glowBlurRadius);
+  final blur = ImageFilter.blur(sigmaX: CyberDimensions.blurLight);
+  final custom = BoxShadow(blurRadius: 30); // ignore-hardcode
+}
+''',
+      );
+
+      final checker = AiCodeChecker(tempDir);
+      checker.run();
+      final dimensionFindings = checker.findings
+          .where((f) => f.id.startsWith('hardcode.dimension.'))
+          .toList();
+
+      expect(dimensionFindings, isEmpty);
+    });
+
+    test('core/theme 下的常量定义文件不触发硬编码检测', () {
+      _createBaselineRepo(tempDir);
+      _writeFile(
+        tempDir,
+        'lib/core/theme/cyber_shadows.dart',
+        '''
+class CyberShadows {
+  static const elevated = [BoxShadow(blurRadius: 30)];
+}
+''',
+      );
+
+      final checker = AiCodeChecker(tempDir);
+      checker.run();
+      final dimensionFindings = checker.findings
+          .where((f) => f.id.startsWith('hardcode.dimension.'))
+          .toList();
+
+      expect(dimensionFindings, isEmpty);
+    });
+
     test('同一实例重复运行时不会累计旧 findings', () {
       _createBaselineRepo(
         tempDir,

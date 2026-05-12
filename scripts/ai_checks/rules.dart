@@ -392,6 +392,135 @@ void _requireSnippet(
   );
 }
 
+/// 阅游 presentation / shared 层硬编码 UI 尺寸门禁。
+///
+/// 检查 `lib/features/*/presentation/`、`lib/shared/` 下的 `.dart` 文件，
+/// 发现以下模式时输出 warning：
+/// - `blurRadius: <纯数字>`（应使用 CyberDimensions.glowBlurRadius 等）
+/// - `sigmaX: <纯数字>` / `sigmaY: <纯数字>`（应使用 CyberDimensions.blur* 常量）
+/// - `EdgeInsets.*(` 后跟纯数字参数（应使用 CyberDimensions.spacing* 常量）
+/// - `Border.all(` 中 `width: <纯数字>`（应使用 CyberDimensions.border* 常量）
+///
+/// 豁免：注释行、`// ignore-hardcode` 标记行、`core/theme/` 定义文件本身。
+class HardcodedDimensionRule extends AiCheckRule {
+  const HardcodedDimensionRule();
+
+  /// 匹配 `blurRadius: <数字>` 且后面不跟 `CyberDimensions`
+  static final RegExp _blurRadiusPattern = RegExp(
+    r'blurRadius:\s+(\d+\.?\d*)',
+  );
+
+  /// 匹配 `sigmaX: <数字>` 或 `sigmaY: <数字>` 且不是 CyberDimensions
+  static final RegExp _sigmaPattern = RegExp(
+    r'sigma[XY]:\s+(\d+\.?\d*)',
+  );
+
+  /// 匹配 `EdgeInsets.all(<数字>)` / `EdgeInsets.symmetric(horizontal: <数字>` 等
+  static final RegExp _edgeInsetsNumericPattern = RegExp(
+    r'EdgeInsets\.\w+\(\s*(?:horizontal:\s*|vertical:\s*)?(\d+\.?\d*)',
+  );
+
+  /// 跳过的值（0, 0.0, 1, 1.0 等标识性数值）
+  static bool _isTrivialValue(String value) {
+    final v = double.tryParse(value);
+    return v != null && (v == 0 || v == 1 || v == -1);
+  }
+
+  /// 受检路径：presentation 层和 shared 层
+  static bool _isTargetPath(String relativePath) {
+    final normalized = relativePath.replaceAll('\\', '/');
+    return normalized.contains('/presentation/') ||
+        normalized.startsWith('lib/shared/');
+  }
+
+  /// 排除的定义文件（常量定义本身不算硬编码）
+  static bool _isThemeDefinition(String relativePath) {
+    final normalized = relativePath.replaceAll('\\', '/');
+    return normalized.contains('core/theme/');
+  }
+
+  @override
+  void apply(AiRepoContext context, List<AiFinding> findings) {
+    for (final snapshot in context.readDartFilesUnder('lib')) {
+      if (!_isTargetPath(snapshot.relativePath)) continue;
+      if (_isThemeDefinition(snapshot.relativePath)) continue;
+
+      for (var i = 0; i < snapshot.lines.length; i++) {
+        final line = snapshot.lines[i];
+        final trimmed = line.trimLeft();
+        if (context.isCommentLine(trimmed)) continue;
+        if (line.contains('// ignore-hardcode')) continue;
+        // 跳过已使用 CyberDimensions 的行
+        if (line.contains('CyberDimensions')) continue;
+
+        _checkPattern(
+          _blurRadiusPattern,
+          line,
+          i,
+          snapshot,
+          findings,
+          'blurRadius',
+        );
+        _checkPattern(
+          _sigmaPattern,
+          line,
+          i,
+          snapshot,
+          findings,
+          'sigma',
+        );
+        _checkEdgeInsets(line, i, snapshot, findings);
+      }
+    }
+  }
+
+  void _checkPattern(
+    RegExp pattern,
+    String line,
+    int lineIndex,
+    FileSnapshot snapshot,
+    List<AiFinding> findings,
+    String propertyName,
+  ) {
+    final match = pattern.firstMatch(line);
+    if (match == null) return;
+    final value = match.group(1) ?? '';
+    if (_isTrivialValue(value)) return;
+    findings.add(
+      AiFinding(
+        id: 'hardcode.dimension.$propertyName',
+        severity: FindingSeverity.warning,
+        filePath: snapshot.relativePath,
+        line: lineIndex + 1,
+        message: '$propertyName: $value 应使用 CyberDimensions 常量，'
+            '或添加 `// ignore-hardcode` 标记豁免',
+      ),
+    );
+  }
+
+  void _checkEdgeInsets(
+    String line,
+    int lineIndex,
+    FileSnapshot snapshot,
+    List<AiFinding> findings,
+  ) {
+    final match = _edgeInsetsNumericPattern.firstMatch(line);
+    if (match == null) return;
+    final value = match.group(1) ?? '';
+    if (_isTrivialValue(value)) return;
+    findings.add(
+      AiFinding(
+        id: 'hardcode.dimension.edge_insets',
+        severity: FindingSeverity.warning,
+        filePath: snapshot.relativePath,
+        line: lineIndex + 1,
+        message: 'EdgeInsets 参数 $value 应使用 CyberDimensions.spacing* 常量，'
+            '或添加 `// ignore-hardcode` 标记豁免',
+      ),
+    );
+  }
+}
+
 /// 阅游单文件体量与上帝类反模式门禁。
 ///
 /// 红线来源：`.windsurf/rules/AGENT.md` 第 8 条 / `CLAUDE.md` 同名章节。
