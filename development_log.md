@@ -27,6 +27,11 @@
   - **P2-2**：`floating_score.dart` / `board_reset_animation.dart` / `cyber_toast.dart` 匿名 CurvedAnimation 存引用并在 dispose 中显式清理，防止 listener 残留。
   - **验证**：`flutter analyze` 零警告。
 
+- **规范(硬编码): cyber_toast 硬编码尺寸消除**：
+  - `cyber_toast.dart`：7 处硬编码数值替换为 `CyberDimensions` 常量（padding、blurRadius、borderWidth、spacing、blur sigma）。
+  - 全局扫描结论：URL/颜色/文字样式均合规；组件私有动画物理参数（吉祥物眨眼/跳跃时长等）保留，不属于全局硬编码范畴。
+  - **验证**：`flutter analyze` 零警告，`flutter test` 669 通过。
+
 ## **2026-05-11**
 
 - **守卫(arch+ai): 大文件治理三件套与 AI 门禁加固（PR-0 + PR-H）**：
