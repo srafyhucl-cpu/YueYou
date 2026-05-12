@@ -22,6 +22,11 @@
   - **P1-3**：`rain_effect.dart` `_RainPainter` 复用单个 static Paint，消除每帧 20 个 Paint 分配。
   - **验证**：`flutter analyze` 零警告。
 
+- **性能(全局): P2 防御性优化**：
+  - **P2-1**：`merge_particle.dart` `_ParticlePainter` 复用 2 个 static Paint（`_corePaint` / `_glowPaint`），消除每帧 16 个 Paint 分配。
+  - **P2-2**：`floating_score.dart` / `board_reset_animation.dart` / `cyber_toast.dart` 匿名 CurvedAnimation 存引用并在 dispose 中显式清理，防止 listener 残留。
+  - **验证**：`flutter analyze` 零警告。
+
 ## **2026-05-11**
 
 - **守卫(arch+ai): 大文件治理三件套与 AI 门禁加固（PR-0 + PR-H）**：

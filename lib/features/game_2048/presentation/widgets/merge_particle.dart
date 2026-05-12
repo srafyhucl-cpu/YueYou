@@ -87,6 +87,11 @@ class _ParticlePainter extends CustomPainter {
   final double progress;
   final Color color;
 
+  // P2-1：复用 Paint 实例，消除每帧 16 个 Paint 分配
+  static final Paint _corePaint = Paint();
+  static final Paint _glowPaint = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
   _ParticlePainter({
     required this.particles,
     required this.progress,
@@ -102,33 +107,23 @@ class _ParticlePainter extends CustomPainter {
     // 透明度：1.0 → 0.0
     final opacity = (1.0 - progress).clamp(0.0, 1.0);
 
+    _corePaint.color = color.withValues(alpha: opacity * 0.8);
+    _glowPaint.color = color.withValues(alpha: opacity * 0.3);
+
     for (final particle in particles) {
       // 计算粒子当前位置
       final currentDistance = particle.distance * easedProgress;
-      final x = center.dx + math.cos(particle.angle) * currentDistance;
-      final y = center.dy + math.sin(particle.angle) * currentDistance;
+      final pos = Offset(
+        center.dx + math.cos(particle.angle) * currentDistance,
+        center.dy + math.sin(particle.angle) * currentDistance,
+      );
+      final shrink = 1.0 - progress * 0.3;
 
       // 绘制圆形光点
-      final paint = Paint()
-        ..color = color.withValues(alpha: opacity * 0.8)
-        ..style = PaintingStyle.fill;
-
-      canvas.drawCircle(
-        Offset(x, y),
-        particle.size * (1.0 - progress * 0.3), // 粒子逐渐缩小
-        paint,
-      );
+      canvas.drawCircle(pos, particle.size * shrink, _corePaint);
 
       // 外层光晕
-      final glowPaint = Paint()
-        ..color = color.withValues(alpha: opacity * 0.3)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-
-      canvas.drawCircle(
-        Offset(x, y),
-        particle.size * 1.5 * (1.0 - progress * 0.3),
-        glowPaint,
-      );
+      canvas.drawCircle(pos, particle.size * 1.5 * shrink, _glowPaint);
     }
   }
 

@@ -86,6 +86,8 @@ class _CyberToastWidget extends StatefulWidget {
 class _CyberToastWidgetState extends State<_CyberToastWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late CurvedAnimation _slideCurve;
+  late CurvedAnimation _fadeCurve;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
 
@@ -98,31 +100,25 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
       vsync: this,
     );
 
+    _slideCurve = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
+    ).animate(_slideCurve);
 
+    _fadeCurve = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
+    ).animate(_fadeCurve);
 
     _controller.forward();
   }
 
   @override
   void dispose() {
+    _slideCurve.dispose();
+    _fadeCurve.dispose();
     _controller.dispose();
     super.dispose();
   }

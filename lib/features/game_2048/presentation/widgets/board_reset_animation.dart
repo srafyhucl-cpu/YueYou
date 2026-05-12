@@ -21,6 +21,7 @@ class BoardResetAnimation extends StatefulWidget {
 class _BoardResetAnimationState extends State<BoardResetAnimation>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late CurvedAnimation _rotationCurve;
   late Animation<double> _rotationAnimation;
   late Animation<double> _fadeAnimation;
   bool _previousTrigger = false;
@@ -34,15 +35,14 @@ class _BoardResetAnimationState extends State<BoardResetAnimation>
       duration: CyberDimensions.animSlow,
     );
 
+    _rotationCurve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOutCubic,
+    );
     _rotationAnimation = Tween<double>(
       begin: 0.0,
       end: math.pi,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOutCubic,
-      ),
-    );
+    ).animate(_rotationCurve);
 
     _fadeAnimation = TweenSequence<double>([
       TweenSequenceItem(
@@ -68,6 +68,7 @@ class _BoardResetAnimationState extends State<BoardResetAnimation>
 
   @override
   void dispose() {
+    _rotationCurve.dispose();
     _controller.dispose();
     super.dispose();
   }
