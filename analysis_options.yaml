@@ -33,7 +33,7 @@ analyzer:
     # 强制类型转换安全（禁止隐式向下转型）
     strict-casts: true
     # 禁止裸 dynamic 的原始类型推断
-    strict-raw-types: false
+    strict-raw-types: true
 
   exclude:
     # 自动生成文件不参与分析
