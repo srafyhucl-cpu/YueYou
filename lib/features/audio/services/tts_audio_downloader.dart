@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
+import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_models.dart';
 import 'package:yueyou/features/audio/domain/tts_engine_interfaces.dart';
@@ -162,9 +163,13 @@ class TtsAudioDownloader {
     String serverUrl,
   ) async {
     final uri = Uri.parse(serverUrl);
+    final installId = await StorageService.getOrCreateAnonymousInstallId();
     final response = await httpClient.post(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-YueYou-Install-ID': installId,
+      },
       body: jsonEncode({
         'text': request.text,
         'voice': voice,

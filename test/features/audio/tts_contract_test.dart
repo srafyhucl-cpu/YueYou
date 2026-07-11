@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/core/config/tts_config.dart';
@@ -13,6 +15,7 @@ class MockHttpClient implements TtsHttpClient {
   final int statusCode;
   bool wasDownloadCalled = false;
   String? downloadedUrl;
+  Map<String, String>? lastHeaders;
 
   MockHttpClient({required this.response, this.statusCode = 200});
 
@@ -22,6 +25,7 @@ class MockHttpClient implements TtsHttpClient {
     Map<String, String>? headers,
     Object? body,
   }) async {
+    lastHeaders = headers;
     return TtsHttpResponse(statusCode: statusCode, body: jsonEncode(response));
   }
 
@@ -96,6 +100,9 @@ void main() {
 
     setUp(() async {
       _mockPathProviderChannel();
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+      await StorageService.init();
 
       settings = SettingsProvider();
       settings.voice = 'zh-CN-XiaoxiaoNeural';
@@ -153,6 +160,16 @@ void main() {
         mockHttpClient.downloadedUrl,
         'https://example.com/audio.mp3',
         reason: '下载URL应与JSON响应中的URL一致',
+      );
+      expect(
+        mockHttpClient.lastHeaders?['X-YueYou-Install-ID'],
+        isNotNull,
+        reason: 'TTS POST 必须携带匿名安装 ID，供服务端双维度限流',
+      );
+      expect(
+        mockHttpClient.lastHeaders?['X-YueYou-Install-ID'],
+        hasLength(32),
+        reason: '匿名安装 ID 应为本地随机 16 字节 hex 字符串',
       );
     });
 

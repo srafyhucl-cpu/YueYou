@@ -11,7 +11,7 @@
 
 ### 📖 阅读引擎
 
-- **云端 TTS（两步下载）**：POST 业务服务器获取 JSON `{"status":"success","url":"..."}` → GET 从 OSS/CDN 下载 `.mp3` → 本地缓存；客户端严格遵循分离下载契约，不直接消费响应体字节流
+- **云端 TTS（两步下载）**：POST 业务服务器获取 JSON `{"status":"success","url":"..."}` → GET 通过短效签名 URL 下载 `.mp3` → 本地缓存；客户端严格遵循分离下载契约，不直接消费响应体字节流
 - **本地 TTS 降级**：云端 HTTP 5xx / 超时 / 网络异常时自动切换至系统 `flutter_tts` 朗读，CyberToast 赛博青色通知用户
 - **生产者-消费者预加载**：最多 6 句缓冲队列，指数退避重试（最大 2 次，800ms 基础延迟），无卡顿连续朗读
 - **会话哨兵 (Session Sentry)**：通过 `BufferedAudio` 会话标识与 Completer 强制中断机制，解决切换发声人/章节时的延迟与旧声音残留问题
@@ -311,13 +311,27 @@ TTS 服务器地址通过 `--dart-define` 编译期注入，**代码中严禁硬
 | `TTS_SERVER_URL` | TTS 业务接口（返回 JSON `{"status":"success","url":"..."}`) | `https://hclstudio.cn/api/v1/tts` |
 | `BOOK_API_BASE` | 书籍服务 API 基础地址（目录 + 章节派发） | `https://hclstudio.cn/api/v1` |
 
+客户端会为 TTS POST 附带本地随机 `X-YueYou-Install-ID`，仅用于服务端匿名限流。
+
 ### 应用外链配置
 
 | 变量 | 说明 | 默认值 |
 | :--- | :--- | :--- |
 | `MARKET_DOWNLOAD_URL` | 版本更新弹窗跳转的应用市场地址 | `https://play.google.com/store/apps/details?id=com.yueyou.app` |
 
-> 客户端拿到 `url` 字段后，再通过 GET 请求从 OSS/CDN 下载音频文件存入本地缓存。**禁止将 POST 响应体直接保存为音频文件。**
+### 服务端 TTS 安全配置
+
+| 变量 | 说明 | 默认值 |
+| :--- | :--- | :--- |
+| `YUEYOU_OSS_EP` | OSS 上传端点，生产建议内网端点 | `oss-cn-beijing-internal.aliyuncs.com` |
+| `YUEYOU_OSS_SIGN_EP` | OSS 签名下载端点，必须客户端可访问 | `oss-cn-beijing.aliyuncs.com` |
+| `YUEYOU_TTS_OBJECT_SECRET` | TTS 临时对象键 HMAC 密钥 | 回退 `YUEYOU_AKSEC` |
+| `YUEYOU_TTS_SIGNED_URL_TTL_SECONDS` | TTS 签名下载 URL 有效期 | `600` |
+| `YUEYOU_TTS_MAX_BODY_BYTES` | TTS POST 请求体字节上限 | `16384` |
+| `YUEYOU_TTS_IP_LIMIT_PER_MIN` | 单 IP 每分钟 TTS 请求上限 | `30` |
+| `YUEYOU_TTS_ID_LIMIT_PER_HOUR` | 单匿名安装 ID 每小时 TTS 请求上限 | `120` |
+
+> 客户端拿到 `url` 字段后，再通过 GET 请求从 OSS 下载音频文件存入本地缓存。**禁止将 POST 响应体直接保存为音频文件。**TTS 音频对象使用私有 ACL 和短效签名 URL；生产环境还必须为 `cache/tts/v2/` 配置 24 小时生命周期清理。
 
 ### 书籍接口
 

@@ -27,5 +27,9 @@ abstract class TtsHttpClient {
 ///   [TtsHttpClient] 实现复用。
 abstract class HttpClientInterface {
   Future<void> download(Uri url, String savePath);
-  Future<String> postJson(Uri url, dynamic body);
+  Future<String> postJson(
+    Uri url,
+    dynamic body, {
+    Map<String, String>? headers,
+  });
 }

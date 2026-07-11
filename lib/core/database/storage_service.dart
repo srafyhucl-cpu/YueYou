@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +30,7 @@ class StorageService {
   static const String _kHasSelectedBook = 'user_has_selected_book';
   static const String _kCurrentChapterIndex = 'current_chapter_index';
   static const String _kSettingAnimationQuality = 'setting_animation_quality';
+  static const String _kAnonymousInstallId = 'anonymous_install_id';
 
   static SharedPreferences? _prefs;
 
@@ -304,6 +306,17 @@ class StorageService {
   static bool hasSelectedBook() => _p.getBool(_kHasSelectedBook) ?? false;
   static Future<void> setHasSelectedBook(bool v) =>
       _p.setBool(_kHasSelectedBook, v);
+
+  // ── 匿名安装标识：仅用于 TTS 服务端本地限流，不包含设备信息或用户内容 ─────────
+  static Future<String> getOrCreateAnonymousInstallId() async {
+    final existing = _p.getString(_kAnonymousInstallId);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    final id = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    await _p.setString(_kAnonymousInstallId, id);
+    return id;
+  }
 
   // ── 分章文本缓存（文件路径，非 SharedPreferences）────────────────────────
   static Future<File> _chapterCacheFile(String bookId, int chapterIndex) async {

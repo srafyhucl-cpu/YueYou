@@ -527,4 +527,21 @@ void main() {
       expect(await storage.loadBookContent('book_del_iface'), isNull);
     });
   });
+
+  group('StorageService - 匿名安装标识', () {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      StorageService.resetForTesting();
+      await StorageService.init();
+    });
+
+    test('getOrCreateAnonymousInstallId 生成后保持本地稳定', () async {
+      final first = await StorageService.getOrCreateAnonymousInstallId();
+      final second = await StorageService.getOrCreateAnonymousInstallId();
+
+      expect(first, hasLength(32));
+      expect(first, second);
+      expect(RegExp(r'^[0-9a-f]+$').hasMatch(first), isTrue);
+    });
+  });
 }

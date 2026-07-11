@@ -101,7 +101,11 @@ class RealHttpClient implements HttpClientInterface {
   }
 
   @override
-  Future<String> postJson(Uri url, dynamic body) async {
+  Future<String> postJson(
+    Uri url,
+    dynamic body, {
+    Map<String, String>? headers,
+  }) async {
     final client = HttpClient();
     client.connectionTimeout = TtsConfig.ttsPostConnectionTimeout;
     try {
@@ -110,6 +114,7 @@ class RealHttpClient implements HttpClientInterface {
         HttpHeaders.contentTypeHeader,
         'application/json; charset=utf-8',
       );
+      headers?.forEach(request.headers.set);
       final Map<String, dynamic> bodyMap = body is Map<String, dynamic>
           ? body
           : (body is String ? jsonDecode(body) as Map<String, dynamic> : {});
@@ -146,7 +151,11 @@ class RealTtsHttpClient implements TtsHttpClient {
     Map<String, String>? headers,
     Object? body,
   }) async {
-    final responseBody = await _httpClient.postJson(url, body);
+    final responseBody = await _httpClient.postJson(
+      url,
+      body,
+      headers: headers,
+    );
     final dynamic data = jsonDecode(responseBody);
     return TtsHttpResponse(
       statusCode: 200,

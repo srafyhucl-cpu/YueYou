@@ -32,6 +32,8 @@ func main() {
 
 	// ── 合规页面 ──────────────────────────────────────────────────────────
 	r.GET("/privacy", privacyHandler)
+	r.GET("/health", healthHandler)
+	r.GET("/ready", readyHandler)
 	r.GET("/ping", func(c *gin.Context) { c.String(200, "pong") })
 
 	srv := &http.Server{

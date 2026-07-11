@@ -2,6 +2,23 @@
 
 ## **2026-07-12**
 
+- **修复(tts): 服务端 TTS 数据安全与防滥用止血**：
+  - `server/handler_tts.go` 移除朗读原文日志和裸 MD5 文本指纹对象键，改用服务端密钥参与的
+    HMAC-SHA256 对象键；服务端日志仅记录 request id、字符数、音色、耗时、状态和错误分类。
+  - TTS 上传对象显式设置 `oss.ObjectACL(oss.ACLPrivate)`，返回值改为 10 分钟 OSS 签名下载 URL；
+    `server/config.go` 新增 `YUEYOU_OSS_SIGN_EP`、`YUEYOU_TTS_OBJECT_SECRET`、
+    `YUEYOU_TTS_SIGNED_URL_TTL_SECONDS`、`YUEYOU_TTS_MAX_BODY_BYTES` 等配置。
+  - 新增 16KB 请求体上限、IP 每分钟 30 次和匿名安装 ID 每小时 120 次限流、edge-tts 全局并发 1、
+    等待队列 50、队列满快速 429，以及请求取消退出等待逻辑。
+  - 客户端新增本地随机匿名安装 ID，并通过 `X-YueYou-Install-ID` Header 发送给 TTS 服务端用于限流。
+  - 新增 `/health` 与 `/ready`；ready 同时检查 OSS 和 `edge-tts` 执行器。
+  - `server/handler_privacy.go` 更新 TTS 处理目的、日志脱敏、签名 URL 有效期、临时音频保留目标和第三方说明。
+  - **验证**：`go test ./...`、`go vet ./...`、`go build ./...` 通过；`flutter analyze` 零问题；
+    `dart scripts/ai_code_checker.dart` 0 阻断、22 条存量 warning；`flutter test --concurrency=1`
+    全量通过（678 passed、4 skipped）。
+  - **遗留**：生产 OSS Bucket 级私有策略、`cache/tts/v2/` 24 小时生命周期、过期 URL 真实拒绝和
+    OSS 上传失败路径仍需后续配置与测试补齐。
+
 - **修复(privacy): 隐私同意前置启动闸门**：
   - `lib/main.dart` 新增 `YueYouStartup` 与独立 `ConsentApp`，首次启动未同意时只渲染
     隐私同意页，不创建 `ProviderScope`、`DashboardScreen`、Sentry、TTS、音效、
