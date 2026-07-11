@@ -10,6 +10,7 @@
   - `README.md` 同步当前测试命令、覆盖率门槛和 Go 服务端 CI 门禁。
   - `ttsRateLimiter` 新增 `ttsClock` 注入点，补充窗口过期后恢复放行的单元测试。
   - `docs/contracts/` 新增 TTS 与书籍 API 的共享 JSON 样例；Go 与 Flutter 测试读取同一批样例防止契约漂移。
+  - 补充合成执行器返回 `context.Canceled` 的取消分支测试，确保不写 OSS、不签名、不返回错误体。
   - **验证**：`go test ./...`、`go vet ./...`、`go build ./...` 通过；
     `flutter test test\contracts\api_contract_samples_test.dart --concurrency=1` 4/4 通过；
     `dart analyze test` 零问题；

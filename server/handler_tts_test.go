@@ -447,8 +447,31 @@ func TestNoRawTextInEdgeErrorLog(t *testing.T) {
 	}
 }
 
+func TestTTSHandlerTreatsClientCanceledAsSilentExit(t *testing.T) {
+	router, store, _ := setupTTSTest(t)
+	ttsExecutor = cancelingEdgeExecutor{}
+
+	w := postTTS(router, `{"text":"客户端取消","voice":"zh-CN-XiaoxiaoNeural"}`)
+
+	if w.Body.Len() != 0 {
+		t.Fatalf("canceled response body = %q, want empty", w.Body.String())
+	}
+	if len(store.putKeys) != 0 {
+		t.Fatalf("put keys = %v, want empty", store.putKeys)
+	}
+	if len(store.signKeys) != 0 {
+		t.Fatalf("sign keys = %v, want empty", store.signKeys)
+	}
+}
+
 type failingEdgeExecutor struct{}
 
 func (failingEdgeExecutor) Synthesize(ctx context.Context, text string, voice string) ([]byte, error) {
 	return nil, io.ErrUnexpectedEOF
+}
+
+type cancelingEdgeExecutor struct{}
+
+func (cancelingEdgeExecutor) Synthesize(ctx context.Context, text string, voice string) ([]byte, error) {
+	return nil, context.Canceled
 }
