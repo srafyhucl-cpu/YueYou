@@ -25,6 +25,18 @@ type fakeTTSStore struct {
 	signErr  error
 }
 
+type fakeTTSClock struct {
+	now time.Time
+}
+
+func (c *fakeTTSClock) Now() time.Time {
+	return c.now
+}
+
+func (c *fakeTTSClock) Advance(d time.Duration) {
+	c.now = c.now.Add(d)
+}
+
 func (s *fakeTTSStore) Exists(key string) bool {
 	return s.exists[key]
 }
@@ -223,6 +235,26 @@ func TestTTSHandlerRateLimitsIP(t *testing.T) {
 	}
 	if second.Code != http.StatusTooManyRequests {
 		t.Fatalf("second status = %d, want 429", second.Code)
+	}
+}
+
+func TestTTSRateLimiterResetsWithInjectedClock(t *testing.T) {
+	clock := &fakeTTSClock{now: time.Date(2026, 7, 12, 2, 30, 0, 0, time.UTC)}
+	limiter := newTTSRateLimiterWithClock(clock)
+
+	if !limiter.allow("ip:unit", 2, time.Minute) {
+		t.Fatalf("first request should be allowed")
+	}
+	if !limiter.allow("ip:unit", 2, time.Minute) {
+		t.Fatalf("second request should be allowed")
+	}
+	if limiter.allow("ip:unit", 2, time.Minute) {
+		t.Fatalf("third request in same window should be blocked")
+	}
+
+	clock.Advance(time.Minute + time.Nanosecond)
+	if !limiter.allow("ip:unit", 2, time.Minute) {
+		t.Fatalf("request after window reset should be allowed")
 	}
 }
 

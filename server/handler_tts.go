@@ -398,6 +398,7 @@ func initOssBucket() error {
 type ttsRateLimiter struct {
 	mu      sync.Mutex
 	windows map[string]rateWindow
+	clock   ttsClock
 }
 
 type rateWindow struct {
@@ -405,12 +406,26 @@ type rateWindow struct {
 	count   int
 }
 
+type ttsClock interface {
+	Now() time.Time
+}
+
+type realTTSClock struct{}
+
+func (realTTSClock) Now() time.Time {
+	return time.Now()
+}
+
 func newTTSRateLimiter() *ttsRateLimiter {
-	return &ttsRateLimiter{windows: map[string]rateWindow{}}
+	return newTTSRateLimiterWithClock(realTTSClock{})
+}
+
+func newTTSRateLimiterWithClock(clock ttsClock) *ttsRateLimiter {
+	return &ttsRateLimiter{windows: map[string]rateWindow{}, clock: clock}
 }
 
 func (l *ttsRateLimiter) allow(key string, limit int, window time.Duration) bool {
-	now := time.Now()
+	now := l.clock.Now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	current := l.windows[key]

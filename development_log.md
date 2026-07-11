@@ -8,6 +8,7 @@
   - `.github/workflows/flutter-ci.yml` 的 Go 步骤新增 `go test ./...` 与
     `go test -race ./...`，再执行 `go vet ./...`、`go build ./...`。
   - `README.md` 同步当前测试命令、覆盖率门槛和 Go 服务端 CI 门禁。
+  - `ttsRateLimiter` 新增 `ttsClock` 注入点，补充窗口过期后恢复放行的单元测试。
   - **验证**：`go test ./...`、`go vet ./...`、`go build ./...` 通过；
     `go test -race ./...` 因本机缺少 `gcc` 无法启用 CGO，已交由 Ubuntu CI 执行。
 
