@@ -70,7 +70,9 @@ class _VoiceWaveformState extends State<VoiceWaveform>
             return Container(
               width: 2.5,
               height: 16 * height,
-              margin: const EdgeInsets.symmetric(horizontal: 1.5),
+              margin: const EdgeInsets.symmetric(
+                horizontal: CyberDimensions.waveformBarGap,
+              ),
               decoration: BoxDecoration(
                 color:
                     widget.color.withValues(alpha: widget.isActive ? 0.9 : 0.3),

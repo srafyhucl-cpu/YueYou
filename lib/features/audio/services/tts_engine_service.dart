@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' show HttpException, SocketException;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +19,7 @@ import 'package:yueyou/features/audio/services/tts_audio_downloader.dart';
 import 'package:yueyou/features/audio/services/tts_audio_janitor.dart';
 import 'package:yueyou/features/audio/services/tts_diagnostics_service.dart';
 import 'package:yueyou/features/audio/services/tts_http_client.dart';
+import 'package:yueyou/features/audio/services/tts_playback_controller.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
 export 'package:yueyou/features/audio/domain/tts_audio_models.dart';
@@ -74,9 +75,8 @@ class TtsEngineService extends ChangeNotifier {
   // 所有「写回引擎」的副作用都通过显式 callback 暴露，便于单元测试。
   late final TtsDiagnosticsService _diagnostics;
   late final TtsAudioDownloader _downloader;
+  late final TtsPlaybackController _playback;
   String? _fallbackNotification;
-  StreamSubscription<Duration>? _positionSub;
-  StreamSubscription<Duration>? _durationSub;
   int _loopSession = 0;
   bool _wakeLockHeld = false;
 
@@ -84,12 +84,8 @@ class TtsEngineService extends ChangeNotifier {
   TtsAudioItem? _currentItem;
 
   /// 当前播放任务的完成信号，用于外部强制停止（如切换发声人）
-  Completer<void>? _playCompleter;
-
-  /// 实时播放进度流 (0.0 -> 1.0)
   Stream<double> get progressStream => _progressController.stream;
   final _progressController = StreamController<double>.broadcast();
-  Duration _currentDuration = Duration.zero;
 
   /// 硬件初始化 Future，用于守卫异步初始化流程
   late final Future<void> _initFuture;
@@ -164,16 +160,13 @@ class TtsEngineService extends ChangeNotifier {
       ),
     );
 
-    // 绑定物理进度监听，实现提词器绝对同步
-    _positionSub = _audioPlayer.onPositionChanged.listen((pos) {
-      if (_currentDuration.inMilliseconds > 0) {
-        final progress = pos.inMilliseconds / _currentDuration.inMilliseconds;
-        _progressController.add(progress.clamp(0.0, 1.0));
-      }
-    });
-    _durationSub = _audioPlayer.onDurationChanged.listen((dur) {
-      _currentDuration = dur;
-    });
+    _playback = TtsPlaybackController(
+      audioPlayer: _audioPlayer,
+      fallbackEngine: _fallbackEngine,
+      isDisposed: () => _disposed,
+      onError: _setLastError,
+      progressEmitter: _progressController.add,
+    );
 
     // 根据设置初始化状态，确保 isEnabled 同步正确
     if (_settings.storyTts) {
@@ -342,8 +335,7 @@ class TtsEngineService extends ChangeNotifier {
     _disposed = true;
     if (!_disposeCompleter.isCompleted) _disposeCompleter.complete();
     _settings.removeListener(_onSettingsChanged);
-    _positionSub?.cancel();
-    _durationSub?.cancel();
+    _playback.dispose();
     _progressController.close();
     TtsCacheManager.instance.stopPeriodicClean();
     _wakeLockHeld = false;
@@ -545,112 +537,18 @@ class TtsEngineService extends ChangeNotifier {
   Future<String?> downloadAudio(TtsAudioRequest request) =>
       _downloader.downloadAudio(request);
 
-  /// 播放指定的本地音频文件。
-  ///
-  /// [path] 是本地临时文件路径，[onComplete] 在播放正常结束或出错时调用。
-  Future<void> playFile(String path, {void Function()? onComplete}) async {
-    try {
-      // 物理进度归零，确保提词器扫光从头开始
-      _currentDuration = Duration.zero;
-      _progressController.add(0.0);
-
-      // 先停止当前播放，确保播放器处于干净状态（避免 MEDIA_ERROR_SERVER_DIED）
-      await _audioPlayer.stop();
-      // 检查文件是否存在且有效
-      final file = File(path);
-      if (!await file.exists()) {
-        onComplete?.call();
-        return;
-      }
-      final fileSize = await file.length();
-      if (fileSize < 1024) {
-        CyberLogger.captureWarning(
-          StateError('TTS 音频文件太小'),
-          tag: 'tts',
-          extra: {
-            'context': '文件太小，跳过播放',
-            'sizeBytes': '$fileSize',
-            'path': path,
-          },
-        );
-        onComplete?.call();
-        return;
-      }
-      await _audioPlayer.setSource(DeviceFileSource(path)).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => throw TimeoutException('setSource 超时'),
-          );
-      if (_disposed) return;
-      _playCompleter = Completer<void>();
-      final sub = _audioPlayer.onPlayerComplete.listen((_) {
-        if (_playCompleter?.isCompleted == false) _playCompleter?.complete();
-      });
-      try {
-        await _audioPlayer.resume();
-        // 等待播放自然完成，或被 stopAudio 强制完成
-        await _playCompleter!.future.timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            unawaited(_audioPlayer.stop());
-          },
-        );
-        // P1-1：原代码在每句播完后调用 _syncWakeLock(false)，
-        // 但下一句进入相同 TtsPlaybackState.playing 时 syncShadow 因 _state 未变化
-        // 不会重新申请 wakelock，导致从第二句起屏幕熄灭。
-        // 现在 wakelock 完全由状态机驱动：进入 playing/buffering 时申请，
-        // 由 stopAll/pause/dispose 集中释放，单句结束不再触发释放。
-        onComplete?.call();
-      } finally {
-        await sub.cancel();
-        _playCompleter = null;
-      }
-    } on TimeoutException catch (e, st) {
-      CyberLogger.captureWarning(
-        e,
-        stack: st,
-        tag: 'tts',
-        extra: {'context': 'playFile 超时，播放熔断'},
-      );
-      await _audioPlayer.stop();
-      _setLastError(CyberErrorMessages.ttsAudioLoadTimeout);
-      onComplete?.call();
-    } catch (e, st) {
-      CyberLogger.captureWarning(
-        e is Exception ? e : Exception('$e'),
-        stack: st,
-        tag: 'tts',
-        extra: {'context': 'playFile 异常'},
-      );
-      // 尝试停止播放器，出错时静默处理
-      try {
-        await _audioPlayer.stop();
-      } catch (_) {}
-      onComplete?.call();
-    }
-  }
+  Future<void> playFile(String path, {void Function()? onComplete}) =>
+      _playback.playFile(path, onComplete: onComplete);
 
   /// 恢复音频播放（已暂停时）。
-  Future<void> resumeAudio() async => _audioPlayer.resume();
+  Future<void> resumeAudio() => _playback.resumeAudio();
 
   /// 暂停音频播放。
-  Future<void> pauseAudio() async {
-    await Future.wait([
-      _audioPlayer.pause(),
-      _fallbackEngine.stop(),
-    ]);
-  }
+  Future<void> pauseAudio() => _playback.pauseAudio();
 
   /// 停止所有音频播放。
   Future<void> stopAudio() async {
-    // 1. 强制释放 playFile 的 await 阻塞
-    if (_playCompleter?.isCompleted == false) {
-      _playCompleter?.complete();
-    }
-    // 2. 底层硬件停播
-    await Future.wait([
-      _audioPlayer.stop(),
-      _fallbackEngine.stop(),
-    ]);
+    await _playback.stopAudio();
     _compatBuffer.clear();
   }
 

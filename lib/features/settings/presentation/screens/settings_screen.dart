@@ -65,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
                   boxShadow: [
                     BoxShadow(
                       color: CyberColors.neonGreen.withValues(alpha: 0.5),
-                      blurRadius: 4,
+                      blurRadius: CyberDimensions.shadowBlurXS,
                     ),
                   ],
                 ),
@@ -462,7 +462,7 @@ class _ToggleTile extends StatelessWidget {
             ? [
                 BoxShadow(
                   color: activeColor.withValues(alpha: 0.05),
-                  blurRadius: 12,
+                  blurRadius: CyberDimensions.shadowBlurS,
                   spreadRadius: -2,
                 ),
               ]
@@ -508,7 +508,7 @@ class _ChoiceSelector<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(CyberDimensions.spacingXS),
       decoration: BoxDecoration(
         color: CyberColors.surface,
         borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
@@ -522,7 +522,10 @@ class _ChoiceSelector<T> extends StatelessWidget {
               onTap: () => onChanged(entry.key),
               child: AnimatedContainer(
                 duration: CyberDimensions.animFast,
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  vertical:
+                      CyberDimensions.spacingS + CyberDimensions.spacingXXS,
+                ),
                 decoration: BoxDecoration(
                   gradient: isSelected
                       ? LinearGradient(
@@ -541,7 +544,7 @@ class _ChoiceSelector<T> extends StatelessWidget {
                             color: CyberColors.background.withValues(
                               alpha: 0.4,
                             ),
-                            blurRadius: 4,
+                            blurRadius: CyberDimensions.shadowBlurXS,
                             offset: const Offset(0, 2),
                           ),
                         ]

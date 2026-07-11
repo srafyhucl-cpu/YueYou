@@ -344,7 +344,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             boxShadow: [
               BoxShadow(
                 color: CyberColors.neonCyan.withValues(alpha: 0.1),
-                blurRadius: 12,
+                blurRadius: CyberDimensions.shadowBlurS,
                 spreadRadius: 0,
               ),
             ],
@@ -419,12 +419,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               if (isCombo)
                 Shadow(
                   color: CyberColors.pinkGlow.withValues(alpha: 0.6),
-                  blurRadius: 12,
+                  blurRadius: CyberDimensions.shadowBlurS,
                 )
               else
                 Shadow(
                   color: CyberColors.neonCyan.withValues(alpha: 0.5),
-                  blurRadius: 8,
+                  blurRadius: CyberDimensions.glowBlurRadius,
                 ),
             ],
           ),

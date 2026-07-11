@@ -115,6 +115,30 @@ class CyberDimensions {
   /// 发光阴影扩散半径
   static const double glowSpreadRadius = 1.0;
 
+  /// 极轻阴影模糊半径
+  static const double shadowBlurXS = 4.0;
+
+  /// 轻阴影模糊半径
+  static const double shadowBlurS = 12.0;
+
+  /// 中阴影模糊半径
+  static const double shadowBlurM = 16.0;
+
+  /// 强阴影模糊半径
+  static const double shadowBlurL = 18.0;
+
+  /// 控制台阴影模糊半径
+  static const double shadowBlurConsole = 25.0;
+
+  /// 弹窗霓虹阴影模糊半径
+  static const double shadowBlurModalGlow = 30.0;
+
+  /// 弹窗投影模糊半径
+  static const double shadowBlurModalDrop = 40.0;
+
+  /// 波形柱间距
+  static const double waveformBarGap = 1.5;
+
   // ==================== 列表 / 网格 ====================
 
   /// 章节列表 item 固定高度（复用 headerHeight）

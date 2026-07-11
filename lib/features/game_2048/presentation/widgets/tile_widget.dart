@@ -201,7 +201,7 @@ class _TileWidgetState extends State<TileWidget> with TickerProviderStateMixin {
                         shadows: const [
                           Shadow(
                             color: CyberColors.blackDim,
-                            blurRadius: 4,
+                            blurRadius: CyberDimensions.shadowBlurXS,
                             offset: Offset(0, 2),
                           ),
                         ],

@@ -87,7 +87,7 @@ class _FloatingScoreState extends State<FloatingScore>
                 boxShadow: [
                   BoxShadow(
                     color: CyberColors.pinkGlow.withValues(alpha: 0.6),
-                    blurRadius: 12,
+                    blurRadius: CyberDimensions.shadowBlurS,
                     spreadRadius: 2,
                   ),
                 ],
@@ -101,7 +101,7 @@ class _FloatingScoreState extends State<FloatingScore>
                   shadows: const [
                     Shadow(
                       color: CyberColors.blackDim,
-                      blurRadius: 4,
+                      blurRadius: CyberDimensions.shadowBlurXS,
                     ),
                   ],
                 ),

@@ -2,6 +2,17 @@
 
 ## **2026-07-12**
 
+- **重构(ai-gate): AI 工程门禁 warning 清零**：
+  - `CyberDimensions` 新增阴影模糊与波形柱间距 token，替换音频控制台、仪表盘、2048、
+    导入按钮、设置页和通用弹窗中的硬编码 `blurRadius` 与 `EdgeInsets` 数值。
+  - 基于职责评估抽出 `TtsPlaybackController`，承接本地音频文件播放、物理进度监听、
+    播放完成信号和暂停/恢复/停止控制；`TtsEngineService` 保留状态同步、设置联动、诊断、
+    下载和薄壳委托。
+  - `tts_engine_service.dart` 从 698 行降至 594 行，新控制器 145 行，均低于 service 警戒线。
+  - **验证**：`dart scripts\ai_code_checker.dart` 0 阻断、0 warning；`flutter analyze` 零问题；
+    音频+阅读测试 268/268 通过；相关 UI 与 AI 门禁测试 30/30 通过；`flutter test --concurrency=1`
+    全量通过（680 passed、4 skipped）。
+
 - **修复(android): 禁用本地数据自动备份**：
   - `AndroidManifest.xml` 显式设置 `android:allowBackup="false"`、
     `android:fullBackupContent="false"` 和 `android:dataExtractionRules="@xml/data_extraction_rules"`，

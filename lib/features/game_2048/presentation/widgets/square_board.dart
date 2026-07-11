@@ -326,7 +326,7 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                         ...CyberShadows.elevated,
                         BoxShadow(
                           color: CyberColors.neonCyan.withValues(alpha: 0.12),
-                          blurRadius: 16,
+                          blurRadius: CyberDimensions.shadowBlurM,
                           spreadRadius: -4,
                           offset: const Offset(0, 0),
                         ),
@@ -436,7 +436,9 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                           .withValues(
                                                         alpha: 0.1,
                                                       ),
-                                                      blurRadius: 12,
+                                                      blurRadius:
+                                                          CyberDimensions
+                                                              .shadowBlurS,
                                                       spreadRadius: 0,
                                                     ),
                                                   ],
@@ -463,7 +465,9 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                                 .withValues(
                                                               alpha: 0.55,
                                                             ),
-                                                            blurRadius: 16,
+                                                            blurRadius:
+                                                                CyberDimensions
+                                                                    .shadowBlurM,
                                                           ),
                                                         ],
                                                       ),
@@ -509,8 +513,12 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                           padding:
                                                               const EdgeInsets
                                                                   .symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 2,
+                                                            horizontal:
+                                                                CyberDimensions
+                                                                    .spacingS,
+                                                            vertical:
+                                                                CyberDimensions
+                                                                    .spacingXXS,
                                                           ),
                                                           decoration:
                                                               BoxDecoration(
@@ -646,8 +654,13 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                             padding:
                                                                 const EdgeInsets
                                                                     .symmetric(
-                                                              horizontal: 10,
-                                                              vertical: 8,
+                                                              horizontal: CyberDimensions
+                                                                      .spacingS +
+                                                                  CyberDimensions
+                                                                      .spacingXXS,
+                                                              vertical:
+                                                                  CyberDimensions
+                                                                      .spacingS,
                                                             ),
                                                           ),
                                                         ),
@@ -680,8 +693,12 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                             padding:
                                                                 const EdgeInsets
                                                                     .symmetric(
-                                                              horizontal: 12,
-                                                              vertical: 8,
+                                                              horizontal:
+                                                                  CyberDimensions
+                                                                      .spacingMS,
+                                                              vertical:
+                                                                  CyberDimensions
+                                                                      .spacingS,
                                                             ),
                                                           ),
                                                           child: Text(
@@ -720,8 +737,13 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                                             padding:
                                                                 const EdgeInsets
                                                                     .symmetric(
-                                                              horizontal: 14,
-                                                              vertical: 8,
+                                                              horizontal: CyberDimensions
+                                                                      .spacingMS +
+                                                                  CyberDimensions
+                                                                      .spacingXXS,
+                                                              vertical:
+                                                                  CyberDimensions
+                                                                      .spacingS,
                                                             ),
                                                           ),
                                                           child: Text(

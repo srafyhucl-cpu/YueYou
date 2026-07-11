@@ -34,7 +34,7 @@ Future<T?> showCyberModal<T>({
                 child: Container(
                   margin: const EdgeInsets.symmetric(
                     horizontal: CyberDimensions.spacingXL,
-                    vertical: 64,
+                    vertical: CyberDimensions.spacingXL * 2,
                   ),
                   constraints: BoxConstraints(
                     maxWidth: 500,
@@ -50,12 +50,12 @@ Future<T?> showCyberModal<T>({
                     boxShadow: [
                       BoxShadow(
                         color: CyberColors.neonCyan.withValues(alpha: 0.25),
-                        blurRadius: 30,
+                        blurRadius: CyberDimensions.shadowBlurModalGlow,
                         spreadRadius: 2,
                       ),
                       const BoxShadow(
                         color: CyberColors.blackShadow,
-                        blurRadius: 40,
+                        blurRadius: CyberDimensions.shadowBlurModalDrop,
                         offset: Offset(0, 15),
                       ),
                     ],
@@ -64,7 +64,9 @@ Future<T?> showCyberModal<T>({
                     borderRadius: BorderRadius.circular(
                       CyberDimensions.radiusL - CyberDimensions.borderThick,
                     ),
-                    child: ProviderScope.containerOf(context).read(settingsProvider).currentAnimationLevel ==
+                    child: ProviderScope.containerOf(context)
+                                .read(settingsProvider)
+                                .currentAnimationLevel ==
                             CyberAnimationLevel.low
                         ? Container(
                             color:
