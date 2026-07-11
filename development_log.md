@@ -30,8 +30,12 @@
     `yueyou_release_v2`，`keytool -list` 可读取 `PrivateKeyEntry`。
   - **构建环境补齐**：JDK 17 安装到 `D:\Work\Java\jdk-17.0.19+10`，下载包已清理；
     Gradle 发行包下载缓存保留在 `D:\Work\GradleCache`，未再向 C 盘写入构建缓存。
-  - **历史重写状态**：因当前工作树仍有版权文档与 `server_py/` 等既有改动，本轮
-    不在脏工作树中执行远端历史改写，后续单独处理。
+  - **历史重写完成**：在独立镜像仓库执行 `git-filter-repo`，替换旧 Android
+    签名密码和本机 JKS 绝对路径，并强推 `master`、`yueyou_old_test`、
+    `yueyou_test` 三个远端分支。
+  - **历史验证**：新鲜 clone 中 `git log -S` 与 `git grep $(git rev-list --all)`
+    均不再命中旧密码和旧 JKS 路径；当前原工作树仍保留版权文档与 `server_py/`
+    等既有改动，后续需重新同步到重写后的远端历史。
 
 - **文档(规划): 全局治理与演进计划落地**：
   - 基于全仓代码、测试、CI、服务端、安全、隐私、架构和产品方向复盘，新增
