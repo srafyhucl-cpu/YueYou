@@ -44,4 +44,6 @@ class AiCheckSummary {
   final int warningCount;
 
   bool get hasBlocking => blockingCount > 0;
+  bool get hasWarning => warningCount > 0;
+  bool get hasFinding => hasBlocking || hasWarning;
 }

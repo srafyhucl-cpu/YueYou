@@ -32,6 +32,15 @@ jobs:
           fi
           echo "## ✅ 静态检查通过" >> $GITHUB_STEP_SUMMARY
 
+      - name: 测试目录静态检查
+        run: |
+          if ! dart analyze test; then
+            echo "## ❌ 测试目录静态检查失败" >> $GITHUB_STEP_SUMMARY
+            echo "请在本地执行 \`dart analyze test\` 修复 test/ 下所有问题后再推送。" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "## ✅ 测试目录静态检查通过" >> $GITHUB_STEP_SUMMARY
+
       - name: Go 服务端编译检查
         run: |
           cd server
@@ -56,6 +65,9 @@ jobs:
 
       - name: 运行测试并生成覆盖率
         run: flutter test --coverage --concurrency=1
+
+      - name: 校验覆盖率门槛（总体 ≥ 80%，核心文件 ≥ 90%）
+        run: python scripts/check_coverage_gate.py --overall 80 --core 90
 
       - name: 设置 .NET Core (ReportGenerator 依赖项)
         uses: actions/setup-dotnet@v4

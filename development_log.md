@@ -2,6 +2,14 @@
 
 ## **2026-07-12**
 
+- **测试(ci): PR-5 CI 门禁收紧**：
+  - `.github/workflows/flutter-ci.yml` 新增 `dart analyze test`，让测试目录在 CI 中独立参与静态分析。
+  - CI 新增 `python scripts/check_coverage_gate.py --overall 80 --core 90`，使用本地同款总体 80% + 核心文件 90% 覆盖率门槛。
+  - `scripts/ai_code_checker.dart` 将退出策略从“仅 blocking 失败”改为“blocking 或 warning 均失败”，并补充 CLI 退出策略回归测试。
+  - **验证**：`flutter test test\scripts\ai_code_checker_test.dart --concurrency=1` 15/15 通过；
+    `dart analyze test` 零问题；`flutter analyze` 零问题；`dart scripts\ai_code_checker.dart` 0 阻断、0 warning；
+    `flutter test --concurrency=1` 全量通过（685 passed、4 skipped）。
+
 - **测试(ci): PR-5 覆盖率门禁闭环**：
   - `bookshelf_provider_test.dart` 补充书架 loading 状态、正文读取、测试注入、默认书去重和粘性位短路测试。
   - 对书架、阅读器、TTS 编排层中只服务于防御性日志兜底的异常块标记 coverage ignore，未扩大业务文件排除范围。

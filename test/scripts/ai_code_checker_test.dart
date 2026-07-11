@@ -65,6 +65,16 @@ void main() {
       expect(findingPaths, isNot(contains('lib/core/utils/cyber_logger.dart')));
     });
 
+    test('CLI 退出策略：只有 warning 也必须失败', () {
+      const clean = AiCheckSummary(blockingCount: 0, warningCount: 0);
+      const warningOnly = AiCheckSummary(blockingCount: 0, warningCount: 1);
+      const blockingOnly = AiCheckSummary(blockingCount: 1, warningCount: 0);
+
+      expect(shouldFailAiCodeCheck(clean), isFalse);
+      expect(shouldFailAiCodeCheck(warningOnly), isTrue);
+      expect(shouldFailAiCodeCheck(blockingOnly), isTrue);
+    });
+
     test('Android Manifest 未禁用自动备份时输出 blocking', () {
       _createBaselineRepo(
         tempDir,
