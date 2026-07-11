@@ -396,9 +396,9 @@ func initOssBucket() error {
 }
 
 type ttsRateLimiter struct {
-	mu      sync.Mutex
-	windows map[string]rateWindow
-	clock   ttsClock
+	mu    sync.Mutex
+	store ttsRateLimitStore
+	clock ttsClock
 }
 
 type rateWindow struct {
@@ -410,10 +410,31 @@ type ttsClock interface {
 	Now() time.Time
 }
 
+type ttsRateLimitStore interface {
+	Get(key string) rateWindow
+	Set(key string, value rateWindow)
+}
+
 type realTTSClock struct{}
 
 func (realTTSClock) Now() time.Time {
 	return time.Now()
+}
+
+type memoryTTSRateLimitStore struct {
+	windows map[string]rateWindow
+}
+
+func newMemoryTTSRateLimitStore() *memoryTTSRateLimitStore {
+	return &memoryTTSRateLimitStore{windows: map[string]rateWindow{}}
+}
+
+func (s *memoryTTSRateLimitStore) Get(key string) rateWindow {
+	return s.windows[key]
+}
+
+func (s *memoryTTSRateLimitStore) Set(key string, value rateWindow) {
+	s.windows[key] = value
 }
 
 func newTTSRateLimiter() *ttsRateLimiter {
@@ -421,22 +442,26 @@ func newTTSRateLimiter() *ttsRateLimiter {
 }
 
 func newTTSRateLimiterWithClock(clock ttsClock) *ttsRateLimiter {
-	return &ttsRateLimiter{windows: map[string]rateWindow{}, clock: clock}
+	return newTTSRateLimiterWithClockAndStore(clock, newMemoryTTSRateLimitStore())
+}
+
+func newTTSRateLimiterWithClockAndStore(clock ttsClock, store ttsRateLimitStore) *ttsRateLimiter {
+	return &ttsRateLimiter{store: store, clock: clock}
 }
 
 func (l *ttsRateLimiter) allow(key string, limit int, window time.Duration) bool {
 	now := l.clock.Now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	current := l.windows[key]
+	current := l.store.Get(key)
 	if now.After(current.resetAt) {
 		current = rateWindow{resetAt: now.Add(window)}
 	}
 	if current.count >= limit {
-		l.windows[key] = current
+		l.store.Set(key, current)
 		return false
 	}
 	current.count++
-	l.windows[key] = current
+	l.store.Set(key, current)
 	return true
 }

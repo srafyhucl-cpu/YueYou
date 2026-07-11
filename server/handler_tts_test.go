@@ -29,6 +29,20 @@ type fakeTTSClock struct {
 	now time.Time
 }
 
+type fakeTTSRateLimitStore struct {
+	values map[string]rateWindow
+	sets   int
+}
+
+func (s *fakeTTSRateLimitStore) Get(key string) rateWindow {
+	return s.values[key]
+}
+
+func (s *fakeTTSRateLimitStore) Set(key string, value rateWindow) {
+	s.sets++
+	s.values[key] = value
+}
+
 func (c *fakeTTSClock) Now() time.Time {
 	return c.now
 }
@@ -255,6 +269,25 @@ func TestTTSRateLimiterResetsWithInjectedClock(t *testing.T) {
 	clock.Advance(time.Minute + time.Nanosecond)
 	if !limiter.allow("ip:unit", 2, time.Minute) {
 		t.Fatalf("request after window reset should be allowed")
+	}
+}
+
+func TestTTSRateLimiterUsesInjectedStore(t *testing.T) {
+	clock := &fakeTTSClock{now: time.Date(2026, 7, 12, 2, 40, 0, 0, time.UTC)}
+	store := &fakeTTSRateLimitStore{values: map[string]rateWindow{}}
+	limiter := newTTSRateLimiterWithClockAndStore(clock, store)
+
+	if !limiter.allow("install:unit", 1, time.Hour) {
+		t.Fatalf("first request should be allowed")
+	}
+	if store.sets != 1 {
+		t.Fatalf("store sets = %d, want 1", store.sets)
+	}
+	if store.values["install:unit"].count != 1 {
+		t.Fatalf("stored count = %d, want 1", store.values["install:unit"].count)
+	}
+	if limiter.allow("install:unit", 1, time.Hour) {
+		t.Fatalf("second request in same window should be blocked")
 	}
 }
 
