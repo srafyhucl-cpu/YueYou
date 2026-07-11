@@ -7,6 +7,8 @@
   - 发布任务使用 `ANDROID_KEYSTORE_BASE64` 生成临时 keystore，正式签名参数从 GitHub Secrets 注入。
   - 构建命令固定为 arm64-only Release APK，并上传 APK 与 SHA-256 artifact。
   - `README.md` 同步手动发布任务、签名 Secret 和产物说明。
+  - 从当前 `yueyou_test` 推出远端 `main` 与 `develop`；当前 `origin/HEAD` 仍为 `yueyou_test`，
+    默认分支与分支保护需在 GitHub 仓库设置中完成。
 
 - **测试(ci): PR-6 Go 服务端契约门禁第一阶段**：
   - `server/handler_tts_test.go` 补充 TTS 非法输入、OSS 上传/签名失败、存储未就绪、书籍目录、
