@@ -245,6 +245,8 @@ flutter run --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 Release 构建必须使用正式签名，禁止回退 debug 签名。签名参数只能来自未跟踪的
 `android/key.properties`，或 CI Secret 注入的 `ANDROID_STORE_FILE`、
 `ANDROID_STORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
+GitHub Actions 手动发布任务使用 `ANDROID_KEYSTORE_BASE64` 生成临时 keystore，
+再通过上述 Secret 注入签名参数，构建结束后仅上传 APK 与 SHA-256。
 Windows 首次构建前应把 Gradle 缓存放到非 C 盘，例如
 `$env:GRADLE_USER_HOME="D:\Temp\gradle-cache"`；同时使用 JDK 17+，例如
 `$env:JAVA_HOME="D:\Work\Java\jdk-17.0.19+10"`。
@@ -299,6 +301,7 @@ genhtml coverage/lcov.info -o coverage/html
 - `cd server && go test ./... && go test -race ./... && go vet ./... && go build ./...`
 
 覆盖率文件 `coverage/lcov.info` 作为 Artifact 上传，任一分析、测试、覆盖率或服务端门禁失败都会阻断合并。
+手动触发 `workflow_dispatch` 时，CI 会额外构建 arm64 Release APK 并上传 APK 与 SHA-256。
 
 共享 API JSON 契约样例位于 `docs/contracts/`，Go 服务端测试与 Flutter 客户端测试会读取同一批样例，防止响应字段漂移。
 

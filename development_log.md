@@ -2,6 +2,12 @@
 
 ## **2026-07-12**
 
+- **维护(ci): PR-7 arm64 Release APK 手动发布任务**：
+  - `.github/workflows/flutter-ci.yml` 新增 `workflow_dispatch` 下的 `release-apk` job。
+  - 发布任务使用 `ANDROID_KEYSTORE_BASE64` 生成临时 keystore，正式签名参数从 GitHub Secrets 注入。
+  - 构建命令固定为 arm64-only Release APK，并上传 APK 与 SHA-256 artifact。
+  - `README.md` 同步手动发布任务、签名 Secret 和产物说明。
+
 - **测试(ci): PR-6 Go 服务端契约门禁第一阶段**：
   - `server/handler_tts_test.go` 补充 TTS 非法输入、OSS 上传/签名失败、存储未就绪、书籍目录、
     章节派发、隐私页、health 与 ready 的 httptest 覆盖。
