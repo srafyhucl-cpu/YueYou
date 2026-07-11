@@ -240,6 +240,12 @@ flutter run --dart-define=TTS_SERVER_URL=http://your-server/api/v1/tts
 
 ### 构建 Release APK
 
+Release 构建必须使用正式签名，禁止回退 debug 签名。签名参数只能来自未跟踪的
+`android/key.properties`，或 CI Secret 注入的 `ANDROID_STORE_FILE`、
+`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
+Windows 首次构建前应把 Gradle 缓存放到非 C 盘，例如
+`$env:GRADLE_USER_HOME="D:\Temp\gradle-cache"`。
+
 ```bash
 # 只打 arm64-v8a 轻量包（约 28MB，覆盖 90%+ 主流机型）
 flutter build apk --release \

@@ -2,6 +2,24 @@
 
 ## **2026-07-11**
 
+- **修复(release): Android 签名配置止血**：
+  - 删除旧 Groovy Gradle 入口 `android/app/build.gradle`、`android/build.gradle`
+    和 `android/settings.gradle`，统一保留 Kotlin DSL，移除旧文件中的明文密码、
+    本机 JKS 路径和重复构建配置。
+  - `android/app/build.gradle.kts` 改为只从未跟踪的 `android/key.properties`
+    或 CI Secret 环境变量读取正式签名；Release/Bundle 任务缺签名配置时直接失败，
+    不再回退 debug 签名。
+  - `android/gradle.properties` 移除本机 `org.gradle.java.home` 路径；
+    `android/key.properties.template` 改为纯占位模板。
+  - README 同步 Release 签名前置条件；今日计划记录待用户确认的应用市场状态、
+    新 JKS 生成和 Git 历史重写事项。
+  - **验证**：`flutter analyze` 零问题；`flutter test --concurrency=1`
+    全量通过（672 passed、4 skipped）；`dart scripts/ai_code_checker.dart`
+    0 阻断、22 条存量 warning。
+  - **未完成验证**：Release APK 与 `:app:validateSigningRelease` 被 Gradle wrapper
+    默认 C 盘下载损坏阻断；已删除明确路径下的损坏 zip/lock 文件，后续需设置
+    非 C 盘 `GRADLE_USER_HOME` 后重跑。
+
 - **文档(规划): 全局治理与演进计划落地**：
   - 基于全仓代码、测试、CI、服务端、安全、隐私、架构和产品方向复盘，新增
     `DevelopmentPlan/20260711_全局治理与演进计划.md`。

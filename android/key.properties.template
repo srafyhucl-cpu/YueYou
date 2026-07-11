@@ -1,10 +1,11 @@
-﻿# Android 签名配置模板
-# 本文件仅用于说明格式，真实签名配置在 android/key.properties 中。
-# 真实 key.properties 已被 .gitignore 忽略，禁止提交到版本库。
-# 当前项目已生成正式签名文件：android/yueyou-release.jks
-# 当前项目已生成真实签名配置：android/key.properties
+# Android 签名配置模板
 
-storeFile=yueyou-release.jks
-storePassword=请查看本机 android/key.properties
-keyAlias=yueyou_release
-keyPassword=请查看本机 android/key.properties
+# 本文件仅用于说明格式。真实签名配置必须放在未跟踪的 android/key.properties 中，
+# 或通过 CI Secret 注入 ANDROID_STORE_FILE、ANDROID_STORE_PASSWORD、
+# ANDROID_KEY_ALIAS、ANDROID_KEY_PASSWORD。
+# 禁止提交 key.properties、JKS、Keystore 或任何真实密码。
+
+storeFile=release.jks
+storePassword=替换为本机或 CI Secret 中的密码
+keyAlias=release
+keyPassword=替换为本机或 CI Secret 中的密码
