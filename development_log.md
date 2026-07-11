@@ -10,6 +10,7 @@
   - 从当前 `yueyou_test` 推出远端 `main` 与 `develop`；当前 `origin/HEAD` 仍为 `yueyou_test`，
     默认分支与分支保护需在 GitHub 仓库设置中完成。
   - 版本推进到 `1.1.1+3`，Sentry release 默认值、README 展示版本和发布 CI 版本注入同步为 `v1.1.1`。
+  - 新增 `docs/releases/v1.1.1.md`，记录发布说明、检查清单、回滚说明和待回填 APK SHA-256。
   - **验证**：`flutter analyze` 零问题；`flutter test test\core\cyber_logger_test.dart --concurrency=1`
     26/26 通过；`dart scripts\ai_code_checker.dart` 0 阻断、0 warning；workflow YAML 可解析。
 
