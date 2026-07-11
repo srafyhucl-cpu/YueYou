@@ -19,6 +19,16 @@
   - **未完成验证**：Release APK 与 `:app:validateSigningRelease` 被 Gradle wrapper
     默认 C 盘下载损坏阻断；已删除明确路径下的损坏 zip/lock 文件，后续需设置
     非 C 盘 `GRADLE_USER_HOME` 后重跑。
+  - **用户决策补充**：已确认应用尚未上架，旧签名可废弃重建，并允许后续通过
+    Git 历史重写清除已泄露密码。
+  - **本地签名轮换**：逐个删除旧 `android/yueyou-release.jks` 与
+    `android/key.properties`，重新生成未跟踪的新 JKS 与签名配置；新 alias 为
+    `yueyou_release_v2`，`keytool -list` 可读取 `PrivateKeyEntry`。
+  - **构建环境补齐**：JDK 17 安装到 `D:\Work\Java\jdk-17.0.19+10`，下载包已清理；
+    使用 `D:\Work\GradleCache` 作为 Gradle 缓存重试签名校验，仍在 Gradle wrapper
+    下载阶段超时，已清理 0 字节 `.part/.lck` 文件。
+  - **历史重写状态**：因当前工作树仍有版权文档与 `server_py/` 等既有改动，本轮
+    不在脏工作树中执行远端历史改写，后续单独处理。
 
 - **文档(规划): 全局治理与演进计划落地**：
   - 基于全仓代码、测试、CI、服务端、安全、隐私、架构和产品方向复盘，新增
