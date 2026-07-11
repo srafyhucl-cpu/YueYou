@@ -9,6 +9,10 @@
     `dart scripts\ai_code_checker.dart` 0 阻断、0 warning；`flutter test --concurrency=1`
     全量通过（685 passed、4 skipped）。
 
+- **文档: PR-5 剩余验收项收口**：
+  - 确认启动隐私、`tts_http_client`、更新 HTTP、音频适配器和异常分支测试均已有自动化覆盖。
+  - 4 个 skip 已登记来源和原因，并由 `LocalStorageService` 的 `path_provider` mock 专属 group 替代覆盖。
+
 - **测试(ci): PR-5 strict-casts 第二阶段启用**：
   - `analysis_options.yaml` 启用 `strict-casts: true`。
   - `game_provider.dart` 对 2048 存档 JSON 恢复结果先做 `Iterable` 类型收窄。
