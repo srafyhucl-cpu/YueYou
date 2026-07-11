@@ -2,6 +2,21 @@
 
 ## **2026-07-12**
 
+- **修复(android): 禁用本地数据自动备份**：
+  - `AndroidManifest.xml` 显式设置 `android:allowBackup="false"`、
+    `android:fullBackupContent="false"` 和 `android:dataExtractionRules="@xml/data_extraction_rules"`，
+    禁止阅读进度、设置、书籍正文和 TTS 缓存进入系统自动备份或设备迁移。
+  - 新增 `android/app/src/main/res/xml/data_extraction_rules.xml`，同时排除
+    `cloud-backup` 与 `device-transfer` 下的本地文件、数据库、偏好设置和外部文件域。
+  - `AndroidBackupRule` 纳入 AI 工程门禁，并补充 Manifest 未禁用自动备份、规则文件缺失两条回归测试。
+  - `server/handler_privacy.go`、README、启动隐私摘要和设置页隐私弹窗同步说明本地数据备份边界。
+  - **验证**：`dart scripts\ai_code_checker.dart` 0 阻断、22 条存量 warning；`flutter analyze`
+    零问题；相关 Flutter 测试 23/23 通过；`flutter test --concurrency=1` 全量通过（680 passed、
+    4 skipped）；`go test ./...`、`go vet ./...`、`go build ./...` 通过；Gradle
+    `:app:processDebugMainManifest` 通过。
+  - **备注**：完整 `flutter build apk --debug` 首次因默认 Java 8 失败；切换 JDK 17 后工具
+    5 分钟超时，已用 Manifest 合并任务完成 Android 配置验证。
+
 - **修复(tts): 服务端 TTS 数据安全与防滥用止血**：
   - `server/handler_tts.go` 移除朗读原文日志和裸 MD5 文本指纹对象键，改用服务端密钥参与的
     HMAC-SHA256 对象键；服务端日志仅记录 request id、字符数、音色、耗时、状态和错误分类。

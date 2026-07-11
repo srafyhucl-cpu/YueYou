@@ -15,6 +15,7 @@ class AiCodeChecker {
     IllegalConsoleOutputRule(),
     HardcodedUrlRule(),
     ProductionDomainDefaultRule(),
+    AndroidBackupRule(),
     DuplicateRegexRule(),
     HardcodedDimensionRule(),
     FileSizeRule(),

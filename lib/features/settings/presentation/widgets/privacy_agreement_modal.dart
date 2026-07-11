@@ -74,6 +74,7 @@ class _PrivacyAgreementContent extends StatelessWidget {
                     icon: '📡',
                     title: '数据存储',
                     body: '所有阅读进度、游戏数据及用户设置仅存储于您的本地设备。'
+                        '应用已禁用 Android 系统自动备份，避免本地数据进入云备份或设备迁移链路。'
                         '我们不会将您的个人数据上传至任何远端服务器。',
                   ),
                   SizedBox(height: CyberDimensions.spacingM),

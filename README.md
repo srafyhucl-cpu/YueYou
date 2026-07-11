@@ -59,6 +59,7 @@
 
 - **隐私前置启动闸门**：首次启动未同意时只展示独立 `ConsentApp`，不初始化 Sentry、业务 `ProviderScope`、Dashboard、TTS、音效、环境音、默认书恢复或更新检查；同意后才进入完整应用
 - **授权撤回**：设置页可撤回隐私授权，撤回后清理第三方会话状态并在下次启动重新确认
+- **Android 备份边界**：Release Manifest 显式 `android:allowBackup="false"`，并通过 `dataExtractionRules` 排除本地文件、数据库和偏好设置，防止阅读进度、书籍正文、设置和 TTS 缓存进入系统自动备份或设备迁移
 - **TTS 参数**：语速（`ttsRate`）、音色选择（`voice`）
 - **游戏音效开关**：实时同步至 `GameProvider`
 - **多风格环境音**：`AmbientService` 支持"江湖风云（武侠）"与"围炉夜话（温馨）"，算法动态生成粉噪声，无需外部音频资源
@@ -454,7 +455,7 @@ CyberTextStyles.captionBold         // 说明文字加粗
 - ✅ **Isolate 大文件**：>100KB 文本解析必须通过 `Isolate.spawn`（参考 `FileImportService`）
 - ✅ **服务器地址外置**：通过 `--dart-define` 注入 `TtsConfig`，禁止硬编码 IP
 - ✅ **TTS 分离下载契约**：客户端只能 POST→JSON→GET 下载，严禁将响应体直接保存为音频
-- ✅ **纯本地用户数据**：阅读进度与设置严禁上传服务端，只存本地
+- ✅ **纯本地用户数据**：阅读进度与设置严禁上传服务端，只存本地；Android 自动备份与设备迁移默认禁用
 - ✅ **会话锁防竞态**：TTS 播放/预加载循环用递增 `_loopSession` 防止并发多循环
 
 ---

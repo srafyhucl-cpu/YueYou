@@ -65,6 +65,37 @@ void main() {
       expect(findingPaths, isNot(contains('lib/core/utils/cyber_logger.dart')));
     });
 
+    test('Android Manifest 未禁用自动备份时输出 blocking', () {
+      _createBaselineRepo(
+        tempDir,
+        includeAndroidAllowBackup: false,
+      );
+
+      final checker = AiCodeChecker(tempDir);
+      final summary = checker.run();
+      final findingIds = checker.findings.map((item) => item.id).toList();
+
+      expect(summary.blockingCount, greaterThanOrEqualTo(1));
+      expect(findingIds, contains('android.backup.allow_backup'));
+    });
+
+    test('Android dataExtractionRules 引用文件缺失时输出 blocking', () {
+      _createBaselineRepo(
+        tempDir,
+        includeAndroidDataExtractionRulesFile: false,
+      );
+
+      final checker = AiCodeChecker(tempDir);
+      final summary = checker.run();
+      final findingIds = checker.findings.map((item) => item.id).toList();
+
+      expect(summary.blockingCount, greaterThanOrEqualTo(1));
+      expect(
+        findingIds,
+        contains('android.backup.data_extraction_rules_missing'),
+      );
+    });
+
     test('非豁免 service 文件超过警戒线时输出 warning（不阻断）', () {
       _createBaselineRepo(tempDir);
       _writeFile(
@@ -300,6 +331,8 @@ void _createBaselineRepo(
   bool includeWakeLockDispose = true,
   bool includeBusinessDebugPrint = false,
   bool includeHardcodedUrl = false,
+  bool includeAndroidAllowBackup = true,
+  bool includeAndroidDataExtractionRulesFile = true,
 }) {
   final analyzeCommand = includeLegacyAnalyzeFlag
       ? 'flutter analyze --no-fatal-infos'
@@ -374,6 +407,45 @@ class AppInfoConfig {
 }
 ''',
   );
+  final allowBackupAttribute =
+      includeAndroidAllowBackup ? 'android:allowBackup="false"' : '';
+  _writeFile(
+    root,
+    'android/app/src/main/AndroidManifest.xml',
+    '''
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application
+      android:label="阅游"
+      $allowBackupAttribute
+      android:fullBackupContent="false"
+      android:dataExtractionRules="@xml/data_extraction_rules">
+  </application>
+</manifest>
+''',
+  );
+  if (includeAndroidDataExtractionRulesFile) {
+    _writeFile(
+      root,
+      'android/app/src/main/res/xml/data_extraction_rules.xml',
+      '''
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+  <cloud-backup>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+  </cloud-backup>
+  <device-transfer>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+  </device-transfer>
+</data-extraction-rules>
+''',
+    );
+  }
 
   if (includeBusinessDebugPrint || includeHardcodedUrl) {
     final buffer = StringBuffer()

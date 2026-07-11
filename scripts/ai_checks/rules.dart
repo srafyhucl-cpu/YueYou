@@ -305,6 +305,171 @@ class ProductionDomainDefaultRule extends AiCheckRule {
   }
 }
 
+/// Android 本地数据备份边界门禁。
+///
+/// 阅游的阅读进度、设置、导入书籍与 TTS 缓存均为纯本地数据，未获得用户
+/// 明确授权前不得进入系统自动云备份或设备迁移链路。
+class AndroidBackupRule extends AiCheckRule {
+  const AndroidBackupRule();
+
+  static const String _manifestPath =
+      'android/app/src/main/AndroidManifest.xml';
+
+  @override
+  void apply(AiRepoContext context, List<AiFinding> findings) {
+    final manifest = context.tryReadFile(_manifestPath);
+    if (manifest == null) {
+      findings.add(
+        const AiFinding(
+          id: 'android.backup.manifest_missing',
+          severity: FindingSeverity.blocking,
+          filePath: _manifestPath,
+          message: '缺少 AndroidManifest，无法确认本地数据备份边界',
+        ),
+      );
+      return;
+    }
+
+    final applicationTag = _applicationTag(manifest.content);
+    if (applicationTag == null) {
+      findings.add(
+        const AiFinding(
+          id: 'android.backup.application_missing',
+          severity: FindingSeverity.blocking,
+          filePath: _manifestPath,
+          message: 'AndroidManifest 缺少 <application> 节点',
+        ),
+      );
+      return;
+    }
+
+    _requireManifestAttribute(
+      findings,
+      id: 'android.backup.allow_backup',
+      attribute: 'android:allowBackup="false"',
+      applicationTag: applicationTag,
+      message: '必须显式设置 android:allowBackup="false"，禁止系统自动备份本地数据',
+    );
+    _requireManifestAttribute(
+      findings,
+      id: 'android.backup.full_backup_content',
+      attribute: 'android:fullBackupContent="false"',
+      applicationTag: applicationTag,
+      message: '必须显式设置 android:fullBackupContent="false"，阻断旧版完整备份',
+    );
+
+    final rulesPath = _dataExtractionRulesPath(applicationTag);
+    if (rulesPath == null) {
+      findings.add(
+        const AiFinding(
+          id: 'android.backup.data_extraction_rules',
+          severity: FindingSeverity.blocking,
+          filePath: _manifestPath,
+          message: '必须声明 android:dataExtractionRules，约束 Android 12+ 云备份与设备迁移',
+        ),
+      );
+      return;
+    }
+
+    final rules = context.tryReadFile(rulesPath);
+    if (rules == null) {
+      findings.add(
+        AiFinding(
+          id: 'android.backup.data_extraction_rules_missing',
+          severity: FindingSeverity.blocking,
+          filePath: rulesPath,
+          message: 'Manifest 引用了 dataExtractionRules，但规则文件不存在',
+        ),
+      );
+      return;
+    }
+    _checkDataExtractionRules(rules, findings);
+  }
+
+  String? _applicationTag(String content) {
+    return RegExp(
+      r'<application\b[^>]*>',
+      multiLine: true,
+      dotAll: true,
+    ).firstMatch(content)?.group(0);
+  }
+
+  void _requireManifestAttribute(
+    List<AiFinding> findings, {
+    required String id,
+    required String attribute,
+    required String applicationTag,
+    required String message,
+  }) {
+    if (applicationTag.contains(attribute)) {
+      return;
+    }
+    findings.add(
+      AiFinding(
+        id: id,
+        severity: FindingSeverity.blocking,
+        filePath: _manifestPath,
+        message: message,
+      ),
+    );
+  }
+
+  String? _dataExtractionRulesPath(String applicationTag) {
+    final match = RegExp(
+      r'android:dataExtractionRules="@xml/([A-Za-z0-9_]+)"',
+    ).firstMatch(applicationTag);
+    final resourceName = match?.group(1);
+    if (resourceName == null || resourceName.isEmpty) {
+      return null;
+    }
+    return 'android/app/src/main/res/xml/$resourceName.xml';
+  }
+
+  void _checkDataExtractionRules(
+    FileSnapshot rules,
+    List<AiFinding> findings,
+  ) {
+    final content = rules.content;
+    final hasCloudBackup = content.contains('<cloud-backup>') &&
+        _hasExclude(content, 'cloud-backup', 'root') &&
+        _hasExclude(content, 'cloud-backup', 'file') &&
+        _hasExclude(content, 'cloud-backup', 'database') &&
+        _hasExclude(content, 'cloud-backup', 'sharedpref');
+    final hasDeviceTransfer = content.contains('<device-transfer>') &&
+        _hasExclude(content, 'device-transfer', 'root') &&
+        _hasExclude(content, 'device-transfer', 'file') &&
+        _hasExclude(content, 'device-transfer', 'database') &&
+        _hasExclude(content, 'device-transfer', 'sharedpref');
+
+    if (hasCloudBackup && hasDeviceTransfer) {
+      return;
+    }
+    findings.add(
+      AiFinding(
+        id: 'android.backup.data_extraction_rules_incomplete',
+        severity: FindingSeverity.blocking,
+        filePath: rules.relativePath,
+        message:
+            'dataExtractionRules 必须同时排除 cloud-backup 与 device-transfer 的本地文件、数据库和偏好设置',
+      ),
+    );
+  }
+
+  bool _hasExclude(String content, String section, String domain) {
+    final sectionMatch = RegExp(
+      '<$section>(.*?)</$section>',
+      dotAll: true,
+    ).firstMatch(content);
+    final sectionContent = sectionMatch?.group(1);
+    if (sectionContent == null) {
+      return false;
+    }
+    return RegExp(
+      '<exclude\\s+domain="$domain"\\s+path="\\."\\s*/>',
+    ).hasMatch(sectionContent);
+  }
+}
+
 void _requireFile(
   AiRepoContext context,
   List<AiFinding> findings, {
