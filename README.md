@@ -300,6 +300,8 @@ genhtml coverage/lcov.info -o coverage/html
 
 覆盖率文件 `coverage/lcov.info` 作为 Artifact 上传，任一分析、测试、覆盖率或服务端门禁失败都会阻断合并。
 
+共享 API JSON 契约样例位于 `docs/contracts/`，Go 服务端测试与 Flutter 客户端测试会读取同一批样例，防止响应字段漂移。
+
 ### 测试约定
 
 - 持久化测试：`SharedPreferences.setMockInitialValues({})` + `StorageService.resetForTesting()` 保证隔离

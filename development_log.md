@@ -9,7 +9,10 @@
     `go test -race ./...`，再执行 `go vet ./...`、`go build ./...`。
   - `README.md` 同步当前测试命令、覆盖率门槛和 Go 服务端 CI 门禁。
   - `ttsRateLimiter` 新增 `ttsClock` 注入点，补充窗口过期后恢复放行的单元测试。
+  - `docs/contracts/` 新增 TTS 与书籍 API 的共享 JSON 样例；Go 与 Flutter 测试读取同一批样例防止契约漂移。
   - **验证**：`go test ./...`、`go vet ./...`、`go build ./...` 通过；
+    `flutter test test\contracts\api_contract_samples_test.dart --concurrency=1` 4/4 通过；
+    `dart analyze test` 零问题；
     `go test -race ./...` 因本机缺少 `gcc` 无法启用 CGO，已交由 Ubuntu CI 执行。
 
 - **测试(ci): PR-5 strict-raw-types 第三阶段启用**：
