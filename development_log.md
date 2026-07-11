@@ -1,5 +1,23 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-07-12**
+
+- **修复(privacy): 隐私同意前置启动闸门**：
+  - `lib/main.dart` 新增 `YueYouStartup` 与独立 `ConsentApp`，首次启动未同意时只渲染
+    隐私同意页，不创建 `ProviderScope`、`DashboardScreen`、Sentry、TTS、音效、
+    环境音、默认书恢复或更新检查链路。
+  - 同意后先持久化本地授权，再初始化完整基础设施并进入 `YueYouApp`；拒绝路径只执行退出回调。
+  - `CyberLogger` 新增 `closeSentrySession()`；设置页新增“撤回隐私授权”入口，撤回时停止
+    TTS、释放环境音、关闭 Sentry 会话、写回未同意状态并退出应用。
+  - 新增 `test/app_startup_test.dart` 覆盖首次未同意、同意前无业务树、点击同意、已同意直启、
+    拒绝退出；设置页测试补充隐私合规分组和撤回入口渲染。
+  - **验证**：`flutter analyze` 零问题；`dart scripts/ai_code_checker.dart` 0 阻断、
+    22 条存量 warning；`flutter test --concurrency=1` 全量通过（677 passed、4 skipped）；
+    `go test ./...`、`go vet ./...`、`go build ./...` 通过。
+  - **服务端 race 门禁**：`go test -race ./...` 在当前 Windows 环境缺少 GCC，启用
+    `CGO_ENABLED=1` 后仍因 `C compiler "gcc" not found` 无法执行，后续需在 CI 或本机补齐 C 工具链。
+  - **遗留**：协议版本升级后重新确认和撤回点击后的平台退出断言尚未自动化，后续随隐私协议版本治理补齐。
+
 ## **2026-07-11**
 
 - **修复(release): Android 签名配置止血**：

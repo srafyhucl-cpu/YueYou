@@ -59,21 +59,47 @@ void main() {
     await tester.pump();
 
     // Header 标题
-    expect(find.text(SettingsTexts.screenTitle), findsOneWidget,
-        reason: 'Header 必须渲染「神经系统配置」');
+    expect(
+      find.text(SettingsTexts.screenTitle),
+      findsOneWidget,
+      reason: 'Header 必须渲染「神经系统配置」',
+    );
     // 各 section title
-    expect(find.text(SettingsTexts.ttsSectionTitle), findsOneWidget,
-        reason: '语音播报分组必须渲染');
-    expect(find.text(SettingsTexts.ambientSectionTitle), findsOneWidget,
-        reason: '意境氛围分组必须渲染');
-    expect(find.text(SettingsTexts.powerSectionTitle), findsOneWidget,
-        reason: '省电管理分组必须渲染');
-    expect(find.text(SettingsTexts.systemSoundSectionTitle), findsOneWidget,
-        reason: '系统音效分组必须渲染');
+    expect(
+      find.text(SettingsTexts.ttsSectionTitle),
+      findsOneWidget,
+      reason: '语音播报分组必须渲染',
+    );
+    expect(
+      find.text(SettingsTexts.ambientSectionTitle),
+      findsOneWidget,
+      reason: '意境氛围分组必须渲染',
+    );
+    expect(
+      find.text(SettingsTexts.powerSectionTitle),
+      findsOneWidget,
+      reason: '省电管理分组必须渲染',
+    );
+    expect(
+      find.text(SettingsTexts.systemSoundSectionTitle),
+      findsOneWidget,
+      reason: '系统音效分组必须渲染',
+    );
+    expect(
+      find.text(SettingsTexts.privacyComplianceTitle),
+      findsOneWidget,
+      reason: '隐私与合规分组必须渲染',
+    );
+    expect(
+      find.text(SettingsTexts.privacyRevokeTitle),
+      findsOneWidget,
+      reason: '撤回隐私授权入口必须渲染',
+    );
   });
 
-  testWidgets('SettingsScreen 必须渲染各类设置项 widget（Toggle / Label / 静默暂停选项）',
-      (tester) async {
+  testWidgets('SettingsScreen 必须渲染各类设置项 widget（Toggle / Label / 静默暂停选项）', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 3000);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(() {
@@ -85,8 +111,11 @@ void main() {
     await tester.pump();
 
     // Toggle 项 → Switch widget
-    expect(find.byType(Switch), findsWidgets,
-        reason: '至少一个开关项必须渲染（自动朗读 / 背景音 / 方块音效）');
+    expect(
+      find.byType(Switch),
+      findsWidgets,
+      reason: '至少一个开关项必须渲染（自动朗读 / 背景音 / 方块音效）',
+    );
     // 自动朗读 ToggleTile 标题
     expect(find.text(SettingsTexts.autoReadTitle), findsOneWidget);
     // 静默暂停标签
@@ -114,8 +143,9 @@ void main() {
   //
   // 注意：tap 「同意」会 pop modal 让 Builder context 失效；tap 「不同意」会调
   // SystemNavigator.pop 触发平台 channel；两种交互均不验证回调，只验证渲染。
-  testWidgets('showPrivacyAgreementModal 必须渲染完整内容（标题/5 个 PolicySection/双按钮）',
-      (tester) async {
+  testWidgets('showPrivacyAgreementModal 必须渲染完整内容（标题/5 个 PolicySection/双按钮）', (
+    tester,
+  ) async {
     // 大屏避免 modal 内容溢出（_PrivacyAgreementContent 含 5 个 PolicySection +
     // 协议正文滚动框 + 提示 + 双按钮，默认 800x600 会触发 RenderFlex overflow）
     tester.view.physicalSize = const Size(1080, 3000);
@@ -129,9 +159,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          settingsProvider.overrideWith((ref) => settings),
-        ],
+        overrides: [settingsProvider.overrideWith((ref) => settings)],
         child: MaterialApp(
           home: Builder(
             builder: (context) => Scaffold(

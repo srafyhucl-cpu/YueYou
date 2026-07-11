@@ -1,11 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'core/config/app_info_config.dart';
 import 'core/constants/book_constants.dart';
 import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
+import 'core/theme/cyber_dimensions.dart';
+import 'core/theme/cyber_text_styles.dart';
 import 'core/utils/cyber_logger.dart';
-import 'features/settings/presentation/widgets/privacy_agreement_modal.dart';
 import 'features/audio/services/ambient_service.dart';
 import 'features/audio/services/sfx_service.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
@@ -20,6 +23,12 @@ import 'features/audio/providers/tts_audio_notifier.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey =
     GlobalKey<NavigatorState>();
 
+typedef YueYouAppRunner = Future<void> Function();
+typedef YueYouSentryInitializer = Future<void> Function(
+  YueYouAppRunner appRunner,
+);
+typedef YueYouWidgetRunner = void Function(Widget widget);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -27,8 +36,62 @@ Future<void> main() async {
   FlutterError.onError = CyberLogger.recordFlutterError;
   PlatformDispatcher.instance.onError = CyberLogger.recordPlatformError;
 
-  // 启动前初始化持久化层与音效引擎
   await StorageService.init();
+
+  await YueYouStartup().launch();
+}
+
+@visibleForTesting
+class YueYouStartup {
+  final bool Function() hasAgreedPrivacy;
+  final Future<void> Function(bool value) setHasAgreedPrivacy;
+  final Future<void> Function() initializeFullInfrastructure;
+  final YueYouSentryInitializer initializeSentry;
+  final YueYouWidgetRunner runWidget;
+  final Future<void> Function() exitApp;
+
+  YueYouStartup({
+    bool Function()? hasAgreedPrivacy,
+    Future<void> Function(bool value)? setHasAgreedPrivacy,
+    Future<void> Function()? initializeFullInfrastructure,
+    YueYouSentryInitializer? initializeSentry,
+    YueYouWidgetRunner? runWidget,
+    Future<void> Function()? exitApp,
+  })  : hasAgreedPrivacy = hasAgreedPrivacy ?? StorageService.hasAgreedPrivacy,
+        setHasAgreedPrivacy =
+            setHasAgreedPrivacy ?? StorageService.setHasAgreedPrivacy,
+        initializeFullInfrastructure =
+            initializeFullInfrastructure ?? _initializeFullInfrastructure,
+        initializeSentry = initializeSentry ??
+            ((appRunner) => CyberLogger.initSentry(() async {
+                  await appRunner();
+                })),
+        runWidget = runWidget ?? runApp,
+        exitApp = exitApp ?? SystemNavigator.pop;
+
+  Future<void> launch() async {
+    if (hasAgreedPrivacy()) {
+      await _launchFullApp();
+      return;
+    }
+
+    runWidget(ConsentApp(onAgreed: _acceptConsent, onDeclined: exitApp));
+  }
+
+  Future<void> _acceptConsent() async {
+    await setHasAgreedPrivacy(true);
+    await _launchFullApp();
+  }
+
+  Future<void> _launchFullApp() async {
+    await initializeFullInfrastructure();
+    await initializeSentry(
+      () async => runWidget(const riverpod.ProviderScope(child: YueYouApp())),
+    );
+  }
+}
+
+Future<void> _initializeFullInfrastructure() async {
   try {
     await SfxService.init();
   } catch (e, st) {
@@ -37,7 +100,6 @@ Future<void> main() async {
     );
   }
 
-  // 初始化环境背景音服务
   try {
     await AmbientService.init();
   } catch (e, st) {
@@ -45,16 +107,159 @@ Future<void> main() async {
       FlutterErrorDetails(exception: e, stack: st, library: 'AmbientService'),
     );
   }
+}
 
-  // 通过 CyberLogger 初始化 Sentry 并启动 App
-  // DSN 通过 --dart-define=SENTRY_DSN=https://... 注入，空时静默跳过
-  await CyberLogger.initSentry(
-    () async => runApp(
-      const riverpod.ProviderScope(
-        child: YueYouApp(),
+class ConsentApp extends StatelessWidget {
+  final Future<void> Function() onAgreed;
+  final Future<void> Function() onDeclined;
+
+  const ConsentApp({
+    super.key,
+    required this.onAgreed,
+    required this.onDeclined,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '阅游 YueYou',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        scaffoldBackgroundColor: CyberColors.background,
+        colorScheme: const ColorScheme.dark(
+          primary: CyberColors.neonGreen,
+          secondary: CyberColors.neonPink,
+        ),
+        useMaterial3: true,
       ),
-    ),
-  );
+      home: _ConsentScreen(onAgreed: onAgreed, onDeclined: onDeclined),
+    );
+  }
+}
+
+class _ConsentScreen extends StatefulWidget {
+  final Future<void> Function() onAgreed;
+  final Future<void> Function() onDeclined;
+
+  const _ConsentScreen({required this.onAgreed, required this.onDeclined});
+
+  @override
+  State<_ConsentScreen> createState() => _ConsentScreenState();
+}
+
+class _ConsentScreenState extends State<_ConsentScreen> {
+  bool _busy = false;
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    await action();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: CyberColors.background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(CyberDimensions.spacingL),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.security_rounded,
+                    color: CyberColors.neonCyan,
+                    size: CyberDimensions.iconL,
+                  ),
+                  const SizedBox(height: CyberDimensions.spacingM),
+                  Text(
+                    '阅游 · 隐私政策',
+                    style: CyberTextStyles.dialogTitle.copyWith(
+                      color: CyberColors.neonCyan,
+                    ),
+                  ),
+                  const SizedBox(height: CyberDimensions.spacingM),
+                  Text(
+                    '同意前仅读取本机授权状态，不初始化业务服务、第三方 SDK 或网络能力。',
+                    textAlign: TextAlign.center,
+                    style: CyberTextStyles.bodySmall.copyWith(
+                      color: CyberColors.whiteMuted,
+                    ),
+                  ),
+                  const SizedBox(height: CyberDimensions.spacingL),
+                  _PolicyPanel(),
+                  const SizedBox(height: CyberDimensions.spacingL),
+                  TextButton(
+                    onPressed: () => launchUrl(
+                      Uri.parse(AppInfoConfig.privacyPolicyUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    child: Text(
+                      '阅读完整版《阅游隐私政策》',
+                      style: CyberTextStyles.caption.copyWith(
+                        color: CyberColors.neonCyan,
+                        decoration: TextDecoration.underline,
+                        decorationColor: CyberColors.neonCyan,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: CyberDimensions.spacingM),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              _busy ? null : () => _run(widget.onDeclined),
+                          child: const Text('不同意并退出'),
+                        ),
+                      ),
+                      const SizedBox(width: CyberDimensions.spacingM),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _busy ? null : () => _run(widget.onAgreed),
+                          child: const Text('同意'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PolicyPanel extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(CyberDimensions.spacingM),
+      decoration: BoxDecoration(
+        color: CyberColors.whiteFaint,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusS),
+        border: Border.all(
+          color: CyberColors.neonCyan.withValues(alpha: 0.2),
+          width: CyberDimensions.borderThin,
+        ),
+      ),
+      child: Text(
+        '数据存储：阅读进度、游戏数据及设置仅存储于本地设备。\n\n'
+        '云端 TTS：启用听书时，仅当前朗读文本段落会发送到云端 TTS 服务用于合成音频。\n\n'
+        '存储权限：仅用于读取您主动选择导入的文件，不扫描其他目录。\n\n'
+        '撤回授权：可在设置页撤回隐私授权，撤回后下次启动会重新进入本页面。',
+        style: CyberTextStyles.captionComfortable.copyWith(
+          color: CyberColors.whiteMedium,
+        ),
+      ),
+    );
+  }
 }
 
 class YueYouApp extends riverpod.ConsumerWidget {
@@ -87,7 +292,7 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
     super.initState();
     WidgetsBinding.instance
       ..addObserver(this)
-      ..addPostFrameCallback((_) => _checkPrivacyAndBootstrap());
+      ..addPostFrameCallback((_) => _bootstrap());
   }
 
   @override
@@ -135,42 +340,6 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
       case AppLifecycleState.detached:
         AmbientService.dispose();
     }
-  }
-
-  Future<void> _checkPrivacyAndBootstrap() async {
-    if (!mounted) return;
-    if (!StorageService.hasAgreedPrivacy()) {
-      // 等待 MaterialApp 内部 Navigator 挂载完成（最多 5 次，间隔 50ms）
-      // 避免首帧时 globalNavigatorKey 尚未绑定导致弹窗被静默跳过
-      BuildContext? navContext;
-      for (int i = 0; i < 5; i++) {
-        navContext = globalNavigatorKey.currentContext;
-        if (navContext != null) break;
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        if (!mounted) return;
-      }
-      if (navContext == null) {
-        // 极端情况：Navigator 始终未挂载，记录日志后退出，绝不进入未授权状态
-        CyberLogger.captureWarning(
-          Exception('隐私弹窗 navContext 重试 5 次仍为 null'),
-          tag: 'privacy',
-          extra: {'context': '_checkPrivacyAndBootstrap'},
-        );
-        SystemNavigator.pop();
-        return;
-      }
-      // navContext 来自 globalNavigatorKey，由 Navigator 自身管理生命周期，
-      // 不依赖 _BootstrapperState.mounted；上方循环已做 mounted 守卫。
-      // ignore: use_build_context_synchronously
-      final agreed = await showPrivacyAgreementModal(navContext);
-      if (!mounted) return;
-      if (agreed) {
-        await StorageService.setHasAgreedPrivacy(true);
-      } else {
-        return;
-      }
-    }
-    await _bootstrap();
   }
 
   Future<void> _bootstrap() async {

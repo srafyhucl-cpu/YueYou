@@ -1,10 +1,12 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yueyou/core/config/app_info_config.dart';
+import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
@@ -30,9 +32,7 @@ class SettingsScreen extends ConsumerWidget {
         child: Column(
           children: [
             _buildHeader(context),
-            Expanded(
-              child: _buildBody(context, ref, settings),
-            ),
+            Expanded(child: _buildBody(context, ref, settings)),
           ],
         ),
       ),
@@ -216,9 +216,86 @@ class SettingsScreen extends ConsumerWidget {
           icon: Icons.privacy_tip_outlined,
         ),
         const _PrivacyPolicyTile(),
+        const SizedBox(height: CyberDimensions.spacingM),
+        const _PrivacyConsentRevokeTile(),
         const SizedBox(height: 100), // 留白，防止被底部按钮遮挡
       ],
     );
+  }
+}
+
+class _PrivacyConsentRevokeTile extends ConsumerWidget {
+  const _PrivacyConsentRevokeTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CyberColors.surface,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
+        border: Border.all(color: CyberColors.neonPink.withValues(alpha: 0.4)),
+      ),
+      child: Material(
+        color: CyberColors.transparent,
+        child: InkWell(
+          onTap: () => _revokeConsent(context, ref),
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CyberDimensions.spacingM,
+              vertical: CyberDimensions.spacingMS,
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.logout_rounded,
+                  color: CyberColors.neonPink,
+                  size: 16,
+                ),
+                const SizedBox(width: CyberDimensions.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        SettingsTexts.privacyRevokeTitle,
+                        style: CyberTextStyles.tileTitle.copyWith(
+                          color: CyberColors.whiteDim,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: CyberDimensions.spacingXXS),
+                      Text(
+                        SettingsTexts.privacyRevokeSubtitle,
+                        style: CyberTextStyles.tileSubtitle.copyWith(
+                          color: CyberColors.whiteMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  color: CyberColors.whiteMuted,
+                  size: 14,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _revokeConsent(BuildContext context, WidgetRef ref) async {
+    await ref.read(ttsAudioProvider.notifier).stopAll();
+    AmbientService.dispose();
+    await StorageService.setHasAgreedPrivacy(false);
+    await CyberLogger.closeSentrySession();
+    CyberLogger.captureMessage('用户撤回隐私授权，应用将退出并在下次启动进入同意页', tag: 'privacy');
+    if (!context.mounted) return;
+    SystemNavigator.pop();
   }
 }
 
@@ -461,8 +538,9 @@ class _ChoiceSelector<T> extends StatelessWidget {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color:
-                                CyberColors.background.withValues(alpha: 0.4),
+                            color: CyberColors.background.withValues(
+                              alpha: 0.4,
+                            ),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -561,9 +639,7 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
       decoration: BoxDecoration(
         color: _isTesting ? CyberColors.surface : CyberColors.transparent,
         borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
-        border: Border.all(
-          color: CyberColors.neonCyan.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: CyberColors.neonCyan.withValues(alpha: 0.3)),
       ),
       child: Material(
         color: CyberColors.transparent,
@@ -716,8 +792,9 @@ class _TtsTestResultDialog extends StatelessWidget {
                       success ? CyberColors.neonGreen : CyberColors.neonPink,
                   foregroundColor: CyberColors.background,
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(CyberDimensions.radiusS),
+                    borderRadius: BorderRadius.circular(
+                      CyberDimensions.radiusS,
+                    ),
                   ),
                 ),
                 child: const Text(
@@ -762,9 +839,7 @@ class _AmbientVolumeSlider extends StatelessWidget {
                 thumbColor: CyberColors.white,
                 overlayColor: CyberColors.neonPurple.withValues(alpha: 0.1),
                 trackHeight: 2.0,
-                thumbShape: const RoundSliderThumbShape(
-                  enabledThumbRadius: 6,
-                ),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
               ),
               child: Slider(
                 value: settings.ambientVol,

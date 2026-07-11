@@ -57,7 +57,8 @@
 
 ### ⚙️ 设置与合规
 
-- **隐私前置拦截**：首次启动强制展示 `PrivacyAgreementModal`（不可跳过），同意后才执行书籍加载与网络初始化
+- **隐私前置启动闸门**：首次启动未同意时只展示独立 `ConsentApp`，不初始化 Sentry、业务 `ProviderScope`、Dashboard、TTS、音效、环境音、默认书恢复或更新检查；同意后才进入完整应用
+- **授权撤回**：设置页可撤回隐私授权，撤回后清理第三方会话状态并在下次启动重新确认
 - **TTS 参数**：语速（`ttsRate`）、音色选择（`voice`）
 - **游戏音效开关**：实时同步至 `GameProvider`
 - **多风格环境音**：`AmbientService` 支持"江湖风云（武侠）"与"围炉夜话（温馨）"，算法动态生成粉噪声，无需外部音频资源
@@ -78,7 +79,7 @@
 | 功能 | 文件 | 状态 |
 | :--- | :--- | :--- |
 | XIAOYO Rive 动画版 | `board_mascot_rive.dart` + `assets/rive/xiaoyo.riv` | Rive 文件已就位，UI 接入中 |
-| 崩溃上报（Sentry/Crashlytics） | `core/utils/cyber_logger.dart` | 钩子已注册，上报实现预留至 V1.1 |
+| 崩溃上报（Sentry/Crashlytics） | `core/utils/cyber_logger.dart` | 同意隐私政策后初始化，撤回授权时关闭会话 |
 | 热更新版本检查 | `DashboardScreen._checkAppUpdates()` | 存根已注册，V1.1 实现 |
 
 ---
@@ -116,7 +117,7 @@ lib/
 │   │   ├── cyber_shadows.dart     # 预设 BoxShadow 组合
 │   │   └── cyber_text_styles.dart # 字体样式 token
 │   └── utils/
-│       ├── cyber_logger.dart      # 全局崩溃钩子（预留上报接口）
+│       ├── cyber_logger.dart      # 全局崩溃钩子与 Sentry 会话控制
 │       ├── safe_string.dart       # safeSubstring 防越界
 │       └── ...
 ├── features/
@@ -168,7 +169,7 @@ lib/
 │       ├── providers/settings_provider.dart
 │       └── presentation/
 │           ├── screens/settings_screen.dart
-│           └── widgets/privacy_agreement_modal.dart  # 首次运行隐私弹窗
+│           └── widgets/privacy_agreement_modal.dart  # 隐私协议内容组件
 ├── shared/
 │   └── widgets/
 │       ├── cyber_modal.dart          # 毛玻璃弹窗基础组件
@@ -177,7 +178,7 @@ lib/
 │       ├── tts_error_listener.dart   # 全局 TTS 错误监听
 │       ├── neon_border_box.dart
 │       └── safe_padding_wrap.dart
-└── main.dart                         # 启动引导、ProviderScope 树、隐私前置检查
+└── main.dart                         # 隐私启动闸门、ProviderScope 树、应用引导
 ```
 
 ### 数据流

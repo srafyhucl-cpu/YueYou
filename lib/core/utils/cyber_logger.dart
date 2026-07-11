@@ -23,8 +23,10 @@ class CyberLogger {
   CyberLogger._();
 
   /// 编译时注入的 Sentry DSN（见 `--dart-define=SENTRY_DSN=...`）
-  static const String _sentryDsn =
-      String.fromEnvironment('SENTRY_DSN', defaultValue: '');
+  static const String _sentryDsn = String.fromEnvironment(
+    'SENTRY_DSN',
+    defaultValue: '',
+  );
 
   /// Sentry 是否已完成初始化（DSN 有效且 init 成功）
   static bool _sentryReady = false;
@@ -64,6 +66,13 @@ class CyberLogger {
     );
     _sentryReady = true;
     debugPrint('[CyberLogger] Sentry 初始化完成');
+  }
+
+  /// 撤回隐私授权时关闭 Sentry 会话，避免继续持有第三方 SDK 状态。
+  static Future<void> closeSentrySession() async {
+    if (!_sentryReady) return;
+    await Sentry.close();
+    _sentryReady = false;
   }
 
   // ── 公开上报接口 ──────────────────────────────────────────────────────────
@@ -218,15 +227,9 @@ class CyberLogger {
   static String sanitizeStack(String stack) {
     return stack
         // Windows 绝对路径 C:\Users\...
-        .replaceAll(
-          RegExp(r'[A-Za-z]:[/\\][^\s)]+'),
-          '[PATH_REDACTED]',
-        )
+        .replaceAll(RegExp(r'[A-Za-z]:[/\\][^\s)]+'), '[PATH_REDACTED]')
         // Unix 绝对路径 /home/... /Users/...
-        .replaceAll(
-          RegExp(r'/(?:home|Users|root)/[^\s)]+'),
-          '[PATH_REDACTED]',
-        );
+        .replaceAll(RegExp(r'/(?:home|Users|root)/[^\s)]+'), '[PATH_REDACTED]');
   }
 
   // ─────────────────────────────────────────────────────────────────────────

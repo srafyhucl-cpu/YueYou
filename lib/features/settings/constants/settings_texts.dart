@@ -86,6 +86,12 @@ class SettingsTexts {
   /// 隐私政策入口说明。
   static const String privacyPolicySubtitle = '查看数据存储、TTS 云端合成与权限使用说明';
 
+  /// 隐私授权撤回入口标题。
+  static const String privacyRevokeTitle = '撤回隐私授权';
+
+  /// 隐私授权撤回入口说明。
+  static const String privacyRevokeSubtitle = '清理第三方会话，并在下次启动重新确认';
+
   /// 晓晓音色显示名。
   static const String voiceXiaoxiao = '晓晓 (温柔)';
 
