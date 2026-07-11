@@ -120,7 +120,7 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
         children: [
           GestureDetector(
             onTap: () {
-              showCyberModal(
+              showCyberModal<void>(
                 context: context,
                 child: const ChapterListScreen(),
               );

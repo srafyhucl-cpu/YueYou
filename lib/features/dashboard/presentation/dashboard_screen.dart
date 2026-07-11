@@ -59,21 +59,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _openLibrary(BuildContext context) {
-    showCyberModal(
+    showCyberModal<void>(
       context: context,
       child: const LibraryScreen(),
     );
   }
 
   void _openChapterList(BuildContext context) {
-    showCyberModal(
+    showCyberModal<void>(
       context: context,
       child: const ChapterListScreen(),
     );
   }
 
   void _openSettings(BuildContext context) {
-    showCyberModal(
+    showCyberModal<void>(
       context: context,
       child: const SettingsScreen(),
     );

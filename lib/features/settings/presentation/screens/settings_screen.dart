@@ -704,7 +704,7 @@ class _TtsTestButtonState extends ConsumerState<_TtsTestButton> {
       final result = await tts.testConnection();
       if (!mounted) return;
       setState(() => _isTesting = false);
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => _TtsTestResultDialog(result: result),
       );

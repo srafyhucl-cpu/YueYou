@@ -96,7 +96,7 @@ class SfxService {
       await HapticFeedback.heavyImpact();
     } else {
       await HapticFeedback.heavyImpact();
-      await Future.delayed(const Duration(milliseconds: 40));
+      await Future<void>.delayed(const Duration(milliseconds: 40));
       await HapticFeedback.heavyImpact();
     }
   }

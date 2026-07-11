@@ -339,11 +339,11 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     try {
       while (_pumpActive && !_disposed) {
         if (_fallback.isDegradedToLocal) {
-          await Future.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(milliseconds: 500));
           continue;
         }
         if (_prefetchPaused) {
-          await Future.delayed(const Duration(milliseconds: 2000));
+          await Future<void>.delayed(const Duration(milliseconds: 2000));
           continue;
         }
         if (_buffer.needsRefill) {
@@ -354,7 +354,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
               : _buffer.healthRatio >= 0.6
                   ? 1000
                   : 500;
-          await Future.delayed(Duration(milliseconds: delayMs));
+          await Future<void>.delayed(Duration(milliseconds: delayMs));
         }
       }
     } catch (e, st) {
@@ -380,7 +380,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         if (!_buffer.isEmpty) {
           await _playNext();
         } else {
-          await Future.delayed(const Duration(milliseconds: 300));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
         }
       }
     } catch (e, st) {
@@ -405,7 +405,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     if (_disposed) return;
     if (request == null) {
       // 句子源已耗尽（章节末尾），退避等待，防止紧循环饿死 UI 事件循环
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
       return;
     }
     // 校验会话有效性（避免 nextTtsSentence 耗时过长导致 session 已变更）

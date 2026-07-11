@@ -2,6 +2,14 @@
 
 ## **2026-07-12**
 
+- **测试(ci): PR-5 strict-inference 第一阶段启用**：
+  - `analysis_options.yaml` 启用 `strict-inference: true`。
+  - 补齐 `showCyberModal<void>`、`showDialog<void>`、`Future<void>.delayed` 与
+    `catchError((Object e) ...)` 等显式类型，消除 strict inference 推断警告。
+  - **验证**：`flutter analyze` 零问题；`dart analyze test` 零问题；
+    相关音频、阅读、仪表盘、设置测试 283/283 通过；`dart scripts\ai_code_checker.dart`
+    0 阻断、0 warning。
+
 - **测试(ci): PR-5 CI 门禁收紧**：
   - `.github/workflows/flutter-ci.yml` 新增 `dart analyze test`，让测试目录在 CI 中独立参与静态分析。
   - CI 新增 `python scripts/check_coverage_gate.py --overall 80 --core 90`，使用本地同款总体 80% + 核心文件 90% 覆盖率门槛。

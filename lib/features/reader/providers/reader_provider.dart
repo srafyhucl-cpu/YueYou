@@ -144,7 +144,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       }
     }
 
-    _saveProgress().catchError((e) {
+    _saveProgress().catchError((Object e) {
       CyberLogger.captureWarning(
         e,
         tag: 'reader',
@@ -406,7 +406,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       notifyListeners();
 
       // Fire-and-forget：进度存档不阻塞主线程
-      _saveProgress().catchError((e) {
+      _saveProgress().catchError((Object e) {
         // coverage:ignore-start
         CyberLogger.captureWarning(
           e,
@@ -431,7 +431,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       notifyListeners();
 
       // Fire-and-forget：进度存档不阻塞主线程
-      _saveProgress().catchError((e) {
+      _saveProgress().catchError((Object e) {
         // coverage:ignore-start
         CyberLogger.captureWarning(
           e,
@@ -482,7 +482,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     notifyListeners();
 
     // Fire-and-forget 存档
-    _saveProgress().catchError((e) {
+    _saveProgress().catchError((Object e) {
       // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
@@ -519,7 +519,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
       _ttsNotifier?.refreshSession();
     }
     notifyListeners();
-    _saveProgress().catchError((e) {
+    _saveProgress().catchError((Object e) {
       // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
