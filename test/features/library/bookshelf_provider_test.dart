@@ -21,12 +21,17 @@ void _mockAppChannels() {
   const MethodChannel audioGlobal =
       MethodChannel('xyz.luan/audioplayers.global');
   const MethodChannel audioPlayer = MethodChannel('xyz.luan/audioplayers');
+  const MethodChannel flutterTts = MethodChannel('flutter_tts');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(audioGlobal, (MethodCall call) async {
     return null;
   });
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(audioPlayer, (MethodCall call) async {
+    return null;
+  });
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(flutterTts, (MethodCall call) async {
     return null;
   });
 }
@@ -51,6 +56,9 @@ void main() {
     test('addBook 后 shelf 包含新书且排在首位', () async {
       final container = ProviderContainer();
       final provider = container.read(bookshelfProvider.notifier);
+      final loadingSnapshots = <bool>[];
+      provider.addListener(() => loadingSnapshots.add(provider.isLoading));
+
       await provider.addBook(
         id: 1,
         title: '测试小说',
@@ -61,6 +69,7 @@ void main() {
       expect(provider.shelf.length, 1);
       expect(provider.shelf.first.title, '测试小说');
       expect(provider.shelf.first.id, 1);
+      expect(loadingSnapshots, containsAllInOrder([true, false]));
     });
 
     test('addBook 同名书替换旧书', () async {
@@ -196,6 +205,58 @@ void main() {
 
       // 删除普通书不应改变粘性位
       expect(StorageService.hasSelectedBook(), isFalse);
+    });
+
+    test('loadBookContent 返回 addBook 写入的正文内容', () async {
+      final container = ProviderContainer();
+      final provider = container.read(bookshelfProvider.notifier);
+      await provider.addBook(
+        id: 31,
+        title: '正文读取书',
+        lines: ['第一行', '第二行'],
+        chapters: [const ChapterModel(title: '第一章', lineIndex: 0)],
+      );
+
+      final content = await provider.loadBookContent(31);
+
+      expect(content, isNotNull);
+      expect((content!['lines'] as List).cast<String>(), ['第一行', '第二行']);
+    });
+
+    test('setShelfForTesting 仅替换内存书架并通知监听者', () {
+      final provider = BookshelfProvider();
+      var notified = 0;
+      provider.addListener(() => notified++);
+
+      provider.setShelfForTesting([
+        const BookModel(id: 9, title: '测试注入', total: 1),
+      ]);
+
+      expect(provider.shelf.single.title, '测试注入');
+      expect(notified, 1);
+    });
+
+    test('addDefaultBook 已存在默认书时不重复写入', () async {
+      final provider = BookshelfProvider();
+      await provider.addDefaultBook([
+        const ChapterModel(title: '第一回', lineIndex: 0),
+      ]);
+
+      await provider.addDefaultBook([
+        const ChapterModel(title: '第二回', lineIndex: 1),
+      ]);
+
+      expect(provider.shelf.length, 1);
+      expect(provider.shelf.single.id, BookConstants.defaultBookId);
+    });
+
+    test('injectDefaultBookIfNeeded 遇到粘性位时直接跳过', () async {
+      await StorageService.setHasSelectedBook(true);
+      final provider = BookshelfProvider();
+
+      await provider.injectDefaultBookIfNeeded();
+
+      expect(provider.shelf, isEmpty);
     });
   });
 }

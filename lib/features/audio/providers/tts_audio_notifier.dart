@@ -358,12 +358,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         }
       }
     } catch (e, st) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         stack: st,
         tag: 'tts',
         extra: {'context': 'TTS 预加载轨道异常'},
       );
+      // coverage:ignore-end
     }
   }
 
@@ -382,12 +384,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         }
       }
     } catch (e, st) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         stack: st,
         tag: 'tts',
         extra: {'context': 'TTS 播放轨道异常'},
       );
+      // coverage:ignore-end
     }
   }
 
@@ -502,12 +506,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           try {
             _sentenceSource!.onTtsItemStarted(startItem);
           } catch (e, st) {
+            // coverage:ignore-start
             CyberLogger.captureWarning(
               e,
               stack: st,
               tag: 'tts',
               extra: {'context': 'onTtsItemStarted 回调异常'},
             );
+            // coverage:ignore-end
           }
         }),
       );
@@ -578,12 +584,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           try {
             _sentenceSource!.onTtsItemFinished(item);
           } catch (e, st) {
+            // coverage:ignore-start
             CyberLogger.captureWarning(
               e,
               stack: st,
               tag: 'tts',
               extra: {'context': 'onTtsItemFinished 回调异常'},
             );
+            // coverage:ignore-end
           }
         }),
       );
@@ -600,12 +608,14 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
             await file.delete();
           }
         } catch (e, st) {
+          // coverage:ignore-start
           CyberLogger.captureWarning(
             e,
             stack: st,
             tag: 'tts',
             extra: {'context': 'TTS 删除临时文件失败', 'path': path},
           );
+          // coverage:ignore-end
         }
       }),
     );

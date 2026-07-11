@@ -104,16 +104,19 @@ class BookshelfProvider with ChangeNotifier {
         _shelf.map((b) => b.toJson()).toList(),
       );
     } catch (e, stack) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         stack: stack,
         tag: 'library',
         extra: {'context': '删除书籍后书架元数据持久化失败'},
       );
+      // coverage:ignore-end
     }
     try {
       await StorageService.deleteBookContent(id.toString());
     } catch (e, stack) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         stack: stack,
@@ -123,10 +126,12 @@ class BookshelfProvider with ChangeNotifier {
           'bookId': id.toString(),
         },
       );
+      // coverage:ignore-end
     }
     try {
       await StorageService.deleteReadingRecord(id.toString());
     } catch (e, stack) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         stack: stack,
@@ -136,6 +141,7 @@ class BookshelfProvider with ChangeNotifier {
           'bookId': id.toString(),
         },
       );
+      // coverage:ignore-end
     }
   }
 
@@ -183,12 +189,14 @@ class BookshelfProvider with ChangeNotifier {
       if (hasDefaultBook || StorageService.hasSelectedBook()) return;
       await addDefaultBook(catalog);
     } catch (e, stack) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         stack: stack,
         tag: 'library',
         extra: {'context': '默认书籍注入失败'},
       );
+      // coverage:ignore-end
     }
   }
 

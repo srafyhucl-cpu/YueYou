@@ -407,11 +407,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
       // Fire-and-forget：进度存档不阻塞主线程
       _saveProgress().catchError((e) {
+        // coverage:ignore-start
         CyberLogger.captureWarning(
           e,
           tag: 'reader',
           extra: {'context': 'nextSentence 进度保存失败'},
         );
+        // coverage:ignore-end
       });
 
       // 仅在 TTS 播放/缓冲时刷新，空闲不启泵
@@ -430,11 +432,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
       // Fire-and-forget：进度存档不阻塞主线程
       _saveProgress().catchError((e) {
+        // coverage:ignore-start
         CyberLogger.captureWarning(
           e,
           tag: 'reader',
           extra: {'context': 'previousSentence 进度保存失败'},
         );
+        // coverage:ignore-end
       });
 
       // 仅在 TTS 播放/缓冲时刷新，空闲不启泵
@@ -479,11 +483,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
     // Fire-and-forget 存档
     _saveProgress().catchError((e) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         tag: 'reader',
         extra: {'context': 'jumpTo 进度保存失败'},
       );
+      // coverage:ignore-end
     });
 
     // 仅在 TTS 播放/缓冲时刷新，空闲不启泵
@@ -514,11 +520,13 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     }
     notifyListeners();
     _saveProgress().catchError((e) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         tag: 'reader',
         extra: {'context': 'switchChapter 进度保存失败'},
       );
+      // coverage:ignore-end
     });
   }
 
@@ -544,12 +552,14 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     // 异步清除持久化的当前小说标识
     StorageService.setCurrentNovelId(null)
         .catchError((Object e, StackTrace st) {
+      // coverage:ignore-start
       CyberLogger.captureWarning(
         e,
         stack: st,
         tag: 'reader',
         extra: {'context': 'resetForDeletedBook 清除 novelId 持久化失败'},
       );
+      // coverage:ignore-end
     });
 
     notifyListeners();

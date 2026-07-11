@@ -143,7 +143,7 @@ def main() -> int:
         for f in failures:
             print(f)
         return 1
-    print("[GATE] PASSED：所有覆盖率门槛达标 ✅")
+    print("[GATE] PASSED：所有覆盖率门槛达标")
     return 0
 
 

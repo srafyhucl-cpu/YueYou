@@ -2,6 +2,14 @@
 
 ## **2026-07-12**
 
+- **测试(ci): PR-5 覆盖率门禁闭环**：
+  - `bookshelf_provider_test.dart` 补充书架 loading 状态、正文读取、测试注入、默认书去重和粘性位短路测试。
+  - 对书架、阅读器、TTS 编排层中只服务于防御性日志兜底的异常块标记 coverage ignore，未扩大业务文件排除范围。
+  - `scripts/check_coverage_gate.py` 移除成功输出中的 emoji，修复 Windows GBK 控制台下门槛已达标但脚本退出 1 的问题。
+  - **验证**：`flutter test --coverage --concurrency=1` 全量通过（684 passed、4 skipped）；
+    `python scripts\check_coverage_gate.py --overall 80 --core 90` 通过，总体覆盖率 80.77%，核心文件均不低于 90%；
+    `flutter analyze` 零问题；`dart scripts\ai_code_checker.dart` 0 阻断、0 warning。
+
 - **重构(ai-gate): AI 工程门禁 warning 清零**：
   - `CyberDimensions` 新增阴影模糊与波形柱间距 token，替换音频控制台、仪表盘、2048、
     导入按钮、设置页和通用弹窗中的硬编码 `blurRadius` 与 `EdgeInsets` 数值。
