@@ -16,17 +16,20 @@
   - **验证**：`flutter analyze` 零问题；`flutter test --concurrency=1`
     全量通过（672 passed、4 skipped）；`dart scripts/ai_code_checker.dart`
     0 阻断、22 条存量 warning。
-  - **未完成验证**：Release APK 与 `:app:validateSigningRelease` 被 Gradle wrapper
-    默认 C 盘下载损坏阻断；已删除明确路径下的损坏 zip/lock 文件，后续需设置
-    非 C 盘 `GRADLE_USER_HOME` 后重跑。
+  - **Release 验证闭环**：将 Gradle wrapper 升级到 `gradle-8.13-bin.zip`，
+    KTS 补回 Maven 镜像、第三方插件 Kotlin/JVM 目标对齐，以及 Flutter optional
+    Play Core R8 `dontwarn` 规则；`:app:validateSigningRelease` 通过。
+  - **APK 构建**：使用 JDK 17 与 `D:\Work\GradleCache` 构建 arm64 Release APK
+    成功，产物 `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`，
+    大小 25,852,724 字节，SHA-256 为
+    `3DAE195D7926341132143F7E3797E4CC2A16FA351A247DB9375043749F425FDD`。
   - **用户决策补充**：已确认应用尚未上架，旧签名可废弃重建，并允许后续通过
     Git 历史重写清除已泄露密码。
   - **本地签名轮换**：逐个删除旧 `android/yueyou-release.jks` 与
     `android/key.properties`，重新生成未跟踪的新 JKS 与签名配置；新 alias 为
     `yueyou_release_v2`，`keytool -list` 可读取 `PrivateKeyEntry`。
   - **构建环境补齐**：JDK 17 安装到 `D:\Work\Java\jdk-17.0.19+10`，下载包已清理；
-    使用 `D:\Work\GradleCache` 作为 Gradle 缓存重试签名校验，仍在 Gradle wrapper
-    下载阶段超时，已清理 0 字节 `.part/.lck` 文件。
+    Gradle 发行包下载缓存保留在 `D:\Work\GradleCache`，未再向 C 盘写入构建缓存。
   - **历史重写状态**：因当前工作树仍有版权文档与 `server_py/` 等既有改动，本轮
     不在脏工作树中执行远端历史改写，后续单独处理。
 
