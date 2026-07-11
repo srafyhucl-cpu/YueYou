@@ -371,11 +371,17 @@ jobs:
         run: |
           TTS_URL="${TTS_SERVER_URL:-https://hclstudio.cn/api/v1/tts}"
           BOOK_BASE="${BOOK_API_BASE:-https://hclstudio.cn/api/v1}"
+          APP_VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}')"
+          VERSION_NAME="${APP_VERSION%%+*}"
+          VERSION_CODE="${APP_VERSION##*+}"
           flutter build apk --release \
             --target-platform android-arm64 \
             --split-per-abi \
+            --build-name="$VERSION_NAME" \
+            --build-number="$VERSION_CODE" \
             --dart-define=TTS_SERVER_URL="$TTS_URL" \
-            --dart-define=BOOK_API_BASE="$BOOK_BASE"
+            --dart-define=BOOK_API_BASE="$BOOK_BASE" \
+            --dart-define=APP_VERSION="$VERSION_NAME"
 
       - name: 生成 APK SHA-256
         run: |

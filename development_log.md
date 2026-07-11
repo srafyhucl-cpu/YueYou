@@ -9,6 +9,9 @@
   - `README.md` 同步手动发布任务、签名 Secret 和产物说明。
   - 从当前 `yueyou_test` 推出远端 `main` 与 `develop`；当前 `origin/HEAD` 仍为 `yueyou_test`，
     默认分支与分支保护需在 GitHub 仓库设置中完成。
+  - 版本推进到 `1.1.1+3`，Sentry release 默认值、README 展示版本和发布 CI 版本注入同步为 `v1.1.1`。
+  - **验证**：`flutter analyze` 零问题；`flutter test test\core\cyber_logger_test.dart --concurrency=1`
+    26/26 通过；`dart scripts\ai_code_checker.dart` 0 阻断、0 warning；workflow YAML 可解析。
 
 - **测试(ci): PR-6 Go 服务端契约门禁第一阶段**：
   - `server/handler_tts_test.go` 补充 TTS 非法输入、OSS 上传/签名失败、存储未就绪、书籍目录、

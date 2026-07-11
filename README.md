@@ -1,7 +1,7 @@
 # 阅游 (YueYou)
 
 **赛博朋克风格的沉浸式小说听读器 + 2048 游戏**  
-版本 `v1.1.0` · Flutter 3.x / Dart 3.x · 跨平台（Android / iOS / Windows / macOS / Linux / Web）
+版本 `v1.1.1` · Flutter 3.x / Dart 3.x · 跨平台（Android / iOS / Windows / macOS / Linux / Web）
 
 [![Flutter CI](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml)
 
@@ -257,7 +257,8 @@ flutter build apk --release \
   --target-platform android-arm64 \
   --split-per-abi \
   --dart-define=TTS_SERVER_URL=https://hclstudio.cn/api/v1/tts \
-  --dart-define=BOOK_API_BASE=https://hclstudio.cn/api/v1
+  --dart-define=BOOK_API_BASE=https://hclstudio.cn/api/v1 \
+  --dart-define=APP_VERSION=1.1.1
 ```
 
 ### 代码检查
