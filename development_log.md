@@ -2,6 +2,15 @@
 
 ## **2026-07-12**
 
+- **测试(ci): PR-6 Go 服务端契约门禁第一阶段**：
+  - `server/handler_tts_test.go` 补充 TTS 非法输入、OSS 上传/签名失败、存储未就绪、书籍目录、
+    章节派发、隐私页、health 与 ready 的 httptest 覆盖。
+  - `.github/workflows/flutter-ci.yml` 的 Go 步骤新增 `go test ./...` 与
+    `go test -race ./...`，再执行 `go vet ./...`、`go build ./...`。
+  - `README.md` 同步当前测试命令、覆盖率门槛和 Go 服务端 CI 门禁。
+  - **验证**：`go test ./...`、`go vet ./...`、`go build ./...` 通过；
+    `go test -race ./...` 因本机缺少 `gcc` 无法启用 CGO，已交由 Ubuntu CI 执行。
+
 - **测试(ci): PR-5 strict-raw-types 第三阶段启用**：
   - `analysis_options.yaml` 启用 `strict-raw-types: true`。
   - 主工程与测试目录未出现新增裸类型问题，本阶段不改 Dart 业务代码。

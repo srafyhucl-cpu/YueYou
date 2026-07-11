@@ -44,6 +44,14 @@ jobs:
       - name: Go 服务端编译检查
         run: |
           cd server
+          if ! go test ./...; then
+            echo "## ❌ Go test 失败" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          if ! go test -race ./...; then
+            echo "## ❌ Go race test 失败" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
           if ! go vet ./...; then
             echo "## ❌ Go vet 失败" >> $GITHUB_STEP_SUMMARY
             exit 1
@@ -52,7 +60,7 @@ jobs:
             echo "## ❌ Go build 失败" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-          echo "## ✅ Go 编译检查通过" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Go 服务端测试与编译检查通过" >> $GITHUB_STEP_SUMMARY
 
       - name: AI 工程门禁检查
         run: |

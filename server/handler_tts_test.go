@@ -21,6 +21,8 @@ type fakeTTSStore struct {
 	putKeys  []string
 	signKeys []string
 	readyErr error
+	putErr   error
+	signErr  error
 }
 
 func (s *fakeTTSStore) Exists(key string) bool {
@@ -28,12 +30,18 @@ func (s *fakeTTSStore) Exists(key string) bool {
 }
 
 func (s *fakeTTSStore) PutPrivate(key string, audio []byte) error {
+	if s.putErr != nil {
+		return s.putErr
+	}
 	s.exists[key] = true
 	s.putKeys = append(s.putKeys, key)
 	return nil
 }
 
 func (s *fakeTTSStore) SignedGetURL(key string, ttl time.Duration) (string, error) {
+	if s.signErr != nil {
+		return "", s.signErr
+	}
 	s.signKeys = append(s.signKeys, key)
 	return "https://oss.test/" + key + "?Expires=600&Signature=fake", nil
 }
@@ -82,6 +90,9 @@ func setupTTSTest(t *testing.T) (*gin.Engine, *fakeTTSStore, *fakeEdgeExecutor) 
 
 	router := gin.New()
 	router.POST("/api/v1/tts", ttsHandler)
+	router.GET("/api/v1/book/catalog", bookCatalogHandler)
+	router.POST("/api/v1/book/chapter", bookChapterHandler)
+	router.GET("/privacy", privacyHandler)
 	router.GET("/health", healthHandler)
 	router.GET("/ready", readyHandler)
 
@@ -165,6 +176,40 @@ func TestTTSHandlerRejectsOversizedBody(t *testing.T) {
 	}
 }
 
+func TestTTSHandlerRejectsInvalidRequests(t *testing.T) {
+	router, _, executor := setupTTSTest(t)
+	cases := []struct {
+		name string
+		body string
+		code int
+	}{
+		{name: "非法 JSON", body: `{"text":`, code: http.StatusBadRequest},
+		{name: "空文本", body: `{"text":"   "}`, code: http.StatusBadRequest},
+		{name: "文本过长", body: `{"text":"` + strings.Repeat("甲", maxTextRunes+1) + `"}`, code: http.StatusBadRequest},
+		{name: "非法音色", body: `{"text":"你好","voice":"evil"}`, code: http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := postTTS(router, tc.body)
+			if w.Code != tc.code {
+				t.Fatalf("status = %d, want %d, body = %s", w.Code, tc.code, w.Body.String())
+			}
+		})
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tts", strings.NewReader(`{"text":"你好"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-YueYou-Install-ID", strings.Repeat("x", 129))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("long install id status = %d, want 400", w.Code)
+	}
+	if executor.calls != 0 {
+		t.Fatalf("edge calls = %d, want 0", executor.calls)
+	}
+}
+
 func TestTTSHandlerRateLimitsIP(t *testing.T) {
 	router, _, _ := setupTTSTest(t)
 	cfg.TTSIPLimitPerMin = 1
@@ -181,6 +226,42 @@ func TestTTSHandlerRateLimitsIP(t *testing.T) {
 	}
 }
 
+func TestTTSHandlerHandlesStoreFailures(t *testing.T) {
+	router, store, executor := setupTTSTest(t)
+	store.putErr = errors.New("oss put failed")
+	putFailed := postTTS(router, `{"text":"上传失败","voice":"zh-CN-XiaoxiaoNeural"}`)
+	if putFailed.Code != http.StatusInternalServerError {
+		t.Fatalf("put failed status = %d, want 500", putFailed.Code)
+	}
+	if len(store.signKeys) != 0 {
+		t.Fatalf("sign keys after put failure = %v, want empty", store.signKeys)
+	}
+
+	store.putErr = nil
+	store.signErr = errors.New("sign failed")
+	signFailed := postTTS(router, `{"text":"签名失败","voice":"zh-CN-XiaoxiaoNeural"}`)
+	if signFailed.Code != http.StatusInternalServerError {
+		t.Fatalf("sign failed status = %d, want 500", signFailed.Code)
+	}
+	if executor.calls != 2 {
+		t.Fatalf("edge calls = %d, want 2", executor.calls)
+	}
+}
+
+func TestTTSHandlerStoreNotReady(t *testing.T) {
+	router, _, executor := setupTTSTest(t)
+	ttsStore = nil
+
+	w := postTTS(router, `{"text":"存储未就绪","voice":"zh-CN-XiaoxiaoNeural"}`)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", w.Code)
+	}
+	if executor.calls != 0 {
+		t.Fatalf("edge calls = %d, want 0", executor.calls)
+	}
+}
+
 func TestTTSHandlerRejectsWhenQueueFull(t *testing.T) {
 	router, _, executor := setupTTSTest(t)
 	edgeTtsQueue = make(chan struct{}, 1)
@@ -193,6 +274,76 @@ func TestTTSHandlerRejectsWhenQueueFull(t *testing.T) {
 	}
 	if executor.calls != 0 {
 		t.Fatalf("edge calls = %d, want 0", executor.calls)
+	}
+}
+
+func TestBookAndPrivacyHandlers(t *testing.T) {
+	router, _, _ := setupTTSTest(t)
+
+	privacyReq := httptest.NewRequest(http.MethodGet, "/privacy", nil)
+	privacyW := httptest.NewRecorder()
+	router.ServeHTTP(privacyW, privacyReq)
+	if privacyW.Code != http.StatusOK {
+		t.Fatalf("privacy status = %d, want 200", privacyW.Code)
+	}
+	if !strings.Contains(privacyW.Body.String(), "阅游隐私政策") {
+		t.Fatalf("privacy body missing title")
+	}
+
+	catalogReq := httptest.NewRequest(http.MethodGet, "/api/v1/book/catalog?bookId=xiyouji", nil)
+	catalogW := httptest.NewRecorder()
+	router.ServeHTTP(catalogW, catalogReq)
+	if catalogW.Code != http.StatusOK {
+		t.Fatalf("catalog status = %d, want 200", catalogW.Code)
+	}
+	if !strings.Contains(catalogW.Body.String(), `"status"`) {
+		t.Fatalf("catalog body missing status")
+	}
+
+	missingCatalogReq := httptest.NewRequest(http.MethodGet, "/api/v1/book/catalog?bookId=unknown", nil)
+	missingCatalogW := httptest.NewRecorder()
+	router.ServeHTTP(missingCatalogW, missingCatalogReq)
+	if missingCatalogW.Code != http.StatusNotFound {
+		t.Fatalf("missing catalog status = %d, want 404", missingCatalogW.Code)
+	}
+
+	chapterReq := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/book/chapter",
+		strings.NewReader(`{"bookId":"xiyouji","chapterIndex":0}`),
+	)
+	chapterReq.Header.Set("Content-Type", "application/json")
+	chapterW := httptest.NewRecorder()
+	router.ServeHTTP(chapterW, chapterReq)
+	if chapterW.Code != http.StatusOK {
+		t.Fatalf("chapter status = %d, want 200", chapterW.Code)
+	}
+	if !strings.Contains(chapterW.Body.String(), "/books/xiyouji/001.txt") {
+		t.Fatalf("chapter url unexpected: %s", chapterW.Body.String())
+	}
+}
+
+func TestBookChapterHandlerRejectsInvalidRequests(t *testing.T) {
+	router, _, _ := setupTTSTest(t)
+	cases := []struct {
+		name string
+		body string
+		code int
+	}{
+		{name: "非法 JSON", body: `{"bookId":`, code: http.StatusBadRequest},
+		{name: "未知书籍", body: `{"bookId":"unknown","chapterIndex":0}`, code: http.StatusNotFound},
+		{name: "章节越界", body: `{"bookId":"xiyouji","chapterIndex":100}`, code: http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/book/chapter", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if w.Code != tc.code {
+				t.Fatalf("status = %d, want %d, body = %s", w.Code, tc.code, w.Body.String())
+			}
+		})
 	}
 }
 

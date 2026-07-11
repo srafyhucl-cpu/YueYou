@@ -262,6 +262,7 @@ flutter build apk --release \
 
 ```bash
 flutter analyze
+dart analyze test
 dart scripts/ai_code_checker.dart
 ```
 
@@ -272,15 +273,16 @@ dart scripts/ai_code_checker.dart
 ### 运行测试
 
 ```bash
-flutter test
+flutter test --concurrency=1
 ```
 
-当前覆盖 **220 个用例**，涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 等核心模块。
+当前覆盖 **685 个通过用例**（另有 4 个已登记跳过项），涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 和服务端契约等核心模块。
 
 ### 生成覆盖率报告
 
 ```bash
-flutter test --coverage
+flutter test --coverage --concurrency=1
+python scripts/check_coverage_gate.py --overall 80 --core 90
 genhtml coverage/lcov.info -o coverage/html
 # 打开 coverage/html/index.html
 ```
@@ -290,10 +292,13 @@ genhtml coverage/lcov.info -o coverage/html
 仓库配置了 GitHub Actions（`.github/workflows/flutter-ci.yml`），Push / PR 时自动执行：
 
 - `flutter analyze`
+- `dart analyze test`
 - `dart scripts/ai_code_checker.dart`
-- `flutter test --coverage`
+- `flutter test --coverage --concurrency=1`
+- `python scripts/check_coverage_gate.py --overall 80 --core 90`
+- `cd server && go test ./... && go test -race ./... && go vet ./... && go build ./...`
 
-覆盖率文件 `coverage/lcov.info` 作为 Artifact 上传。
+覆盖率文件 `coverage/lcov.info` 作为 Artifact 上传，任一分析、测试、覆盖率或服务端门禁失败都会阻断合并。
 
 ### 测试约定
 
