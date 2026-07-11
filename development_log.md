@@ -2,6 +2,15 @@
 
 ## **2026-07-12**
 
+- **测试(ci): PR-5 strict-casts 第二阶段启用**：
+  - `analysis_options.yaml` 启用 `strict-casts: true`。
+  - `game_provider.dart` 对 2048 存档 JSON 恢复结果先做 `Iterable` 类型收窄。
+  - `settings_screen.dart` 将 TTS 检测步骤名称显式读取为 `String`，消除隐式动态下转型。
+  - **验证**：`flutter analyze` 零问题；`dart analyze test` 零问题。
+    `flutter test test\features\game_2048 test\features\settings --concurrency=1` 97/97 通过；
+    `dart scripts\ai_code_checker.dart` 0 阻断、0 warning；`flutter test --concurrency=1`
+    全量通过（685 passed、4 skipped）。
+
 - **测试(ci): PR-5 strict-inference 第一阶段启用**：
   - `analysis_options.yaml` 启用 `strict-inference: true`。
   - 补齐 `showCyberModal<void>`、`showDialog<void>`、`Future<void>.delayed` 与

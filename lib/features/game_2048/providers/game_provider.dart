@@ -120,9 +120,9 @@ class GameProvider extends ChangeNotifier with WidgetsBindingObserver {
         final boardRaw = rawValue is String ? rawValue : null;
         if (boardRaw != null) {
           {
-            final List<dynamic> rows = List<dynamic>.from(
-              (boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null) ?? [],
-            );
+            final decoded = boardRaw.isNotEmpty ? jsonDecode(boardRaw) : null;
+            final List<dynamic> rows =
+                decoded is Iterable ? List<dynamic>.from(decoded) : <dynamic>[];
             if (rows.length == size) {
               _board = List.generate(size, (r) {
                 final row = rows[r] as List<dynamic>;

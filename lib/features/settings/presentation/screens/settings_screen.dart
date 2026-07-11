@@ -775,7 +775,7 @@ class _TtsTestResultDialog extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          step['name'],
+                          step['name'] as String,
                           style: CyberTextStyles.bodySmall.copyWith(
                             color: CyberColors.whiteDim,
                             fontSize: 12,

@@ -31,7 +31,7 @@ analyzer:
     # 严格推断模式：提升泛型类型安全（建议开启）
     strict-inference: true
     # 强制类型转换安全（禁止隐式向下转型）
-    strict-casts: false
+    strict-casts: true
     # 禁止裸 dynamic 的原始类型推断
     strict-raw-types: false
 
