@@ -26,6 +26,12 @@
   - 远端 `.env` 增加独立随机 TTS 对象密钥和显式签名端点，未输出密钥值、未写入 Git。
   - 生产 TTS 合成回归成功，音频以 `audio/mpeg` 返回；移除签名参数后 OSS 返回 `403`，日志未记录测试原文。
 
+- **修复(ci): 修正测试诊断 Python heredoc 调用**：
+  - 公开 CI badge 仍为 failing；定位到 workflow 使用 `python3 "$RUNNER_TEMP" ...`，把临时目录
+    误当作脚本路径，导致测试主流程结束后诊断步骤异常。
+  - 改为 `python3 - "$RUNNER_TEMP" "$GITHUB_STEP_SUMMARY" ...`，不改变测试失败阻断策略；
+    待远端新运行确认。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。

@@ -132,7 +132,7 @@ jobs:
               "$RUNNER_TEMP"/flutter-test-*-stderr.log | tr '\n' ' ')
             echo "::error title=Flutter Test Process::merge=$merge_status $test_tail"
           fi
-          python3 "$RUNNER_TEMP" "$GITHUB_STEP_SUMMARY" <<'PY'
+          python3 - "$RUNNER_TEMP" "$GITHUB_STEP_SUMMARY" <<'PY'
           import json
           import glob
           import os
