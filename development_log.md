@@ -62,6 +62,11 @@
   - `go test ./...`、`go vet ./...`、`go build ./...` 均通过；真实 OSS 过期 URL 拒绝仍需外部
     集成验证。
 
+- **环境(race): 重新确认本地 Go race 工具链限制**：
+  - D 盘现有 `D:\Work\MinGW\app\bin\gcc.exe` 为 `mingw32` 目标；启用 `CGO_ENABLED=1` 后，
+    `go test -race ./...` 报 `cc1.exe: 64-bit mode not compiled in`，不能作为 Windows race 证据。
+  - Ubuntu CI 仍是该门禁的权威执行环境。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。
