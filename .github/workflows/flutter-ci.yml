@@ -85,6 +85,7 @@ jobs:
           path = sys.argv[1]
           summary_path = sys.argv[2]
           names = {}
+          errors = {}
           failures = []
           with open(path, encoding="utf-8", errors="replace") as stream:
               for line in stream:
@@ -95,20 +96,24 @@ jobs:
                   if event.get("type") == "testStart":
                       test = event.get("test", {})
                       names[test.get("id")] = test.get("name", "未知测试")
+                  elif event.get("type") == "error":
+                      errors[event.get("testID")] = event.get("error", "无错误详情")
                   elif (
                       event.get("type") == "testDone"
                       and event.get("result") != "success"
                       and not event.get("skipped", False)
                   ):
-                      failures.append(names.get(event.get("testID"), "未知测试"))
+                      test_id = event.get("testID")
+                      detail = errors.get(test_id, "无错误详情").replace("\n", " ")
+                      failures.append((names.get(test_id, "未知测试"), detail))
 
-          for name in failures:
-              print(f"::error title=Flutter 测试失败::{name}")
+          for name, detail in failures:
+              print(f"::error title=Flutter 测试失败::{name}: {detail[:500]}")
           if failures:
               with open(summary_path, "a", encoding="utf-8") as summary:
                   print("## Flutter 测试失败明细", file=summary)
-                  for name in failures:
-                      print(f"- `{name}`", file=summary)
+                  for name, detail in failures:
+                      print(f"- `{name}`：{detail[:500]}", file=summary)
           PY
           exit "$test_status"
 
