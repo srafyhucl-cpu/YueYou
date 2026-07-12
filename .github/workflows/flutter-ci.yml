@@ -76,10 +76,30 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter test --coverage --concurrency=1 --reporter json \
-            > "$RUNNER_TEMP/flutter-test-machine.jsonl" \
-            2> "$RUNNER_TEMP/flutter-test-stderr.log"
-          test_status=$?
+          test_files=$(find test -name '*_test.dart' \
+            ! -path 'test/features/settings/settings_screen_test.dart' \
+            -print)
+          flutter test --coverage --coverage-path=coverage/lcov.base.info \
+            --concurrency=1 --reporter json $test_files \
+            > "$RUNNER_TEMP/flutter-test-base.jsonl" \
+            2> "$RUNNER_TEMP/flutter-test-base-stderr.log"
+          base_status=$?
+          flutter test --merge-coverage --coverage-path=coverage/lcov.info \
+            --concurrency=1 --reporter json test/features/settings/settings_screen_test.dart \
+            > "$RUNNER_TEMP/flutter-test-settings.jsonl" \
+            2> "$RUNNER_TEMP/flutter-test-settings-stderr.log"
+          settings_status=$?
+          cat "$RUNNER_TEMP/flutter-test-base.jsonl" \
+            "$RUNNER_TEMP/flutter-test-settings.jsonl" \
+            > "$RUNNER_TEMP/flutter-test-machine.jsonl"
+          cat "$RUNNER_TEMP/flutter-test-base-stderr.log" \
+            "$RUNNER_TEMP/flutter-test-settings-stderr.log" \
+            > "$RUNNER_TEMP/flutter-test-stderr.log"
+          if [ "$base_status" -ne 0 ] || [ "$settings_status" -ne 0 ]; then
+            test_status=1
+          else
+            test_status=0
+          fi
           python3 - "$RUNNER_TEMP/flutter-test-machine.jsonl" \
             "$RUNNER_TEMP/flutter-test-stderr.log" "$GITHUB_STEP_SUMMARY" <<'PY'
           import json
