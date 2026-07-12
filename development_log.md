@@ -17,6 +17,10 @@
     覆盖率门禁。
   - workflow 现在为每个测试文件设置 180 秒 `timeout`，超时后继续收集并最终失败汇总，等待新
     运行确定具体卡住文件。
+
+- **维护(ci): 增强逐文件失败堆栈诊断**：
+  - 新运行确认 SettingsScreen 三条 Ubuntu 渲染测试失败，但公开 annotation 仍只有通用失败文本。
+  - workflow 现在在单文件失败时附加该文件 JSON/stderr 尾部，下一轮直接输出真实断言上下文。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。

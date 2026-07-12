@@ -100,6 +100,10 @@ jobs:
                 echo "::error title=Flutter Test Timeout::$test_file 超过 ${test_timeout_seconds}s"
               else
                 echo "::error title=Flutter Test Process::$test_file exit=$file_status"
+                failure_tail=$(tail -n 80 "$json_path" "$stderr_path" 2>/dev/null | tr '\n' ' ' | cut -c1-5000)
+                if [ -n "$failure_tail" ]; then
+                  echo "::error title=Flutter Test Diagnostic::$test_file $failure_tail"
+                fi
               fi
             fi
             coverage_files+=("$coverage_path")
