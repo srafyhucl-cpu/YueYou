@@ -17,12 +17,6 @@ void main() {
       expect(memoryBytes, greaterThanOrEqualTo(0));
     });
 
-    test('可以运行 CPU 基准算力测试', () {
-      final ms = CyberPerformanceDetector.runCpuBenchmark();
-      expect(ms, isA<int>());
-      expect(ms, greaterThanOrEqualTo(0));
-    });
-
     test('自适应等级检测返回有效的动画级别', () {
       final level = CyberPerformanceDetector.detectLevel();
       expect(CyberAnimationLevel.values.contains(level), isTrue);

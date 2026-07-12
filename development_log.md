@@ -12,7 +12,7 @@
   - `square_board.dart` 将 `AnimatedPositioned` 替换为固定尺寸
     `TweenAnimationBuilder<Offset> + Transform.translate`，保留 `RepaintBoundary`。
   - **验证**：`dart test test/features/game_2048/game_engine_test.dart` 6/6 通过；全量 Flutter
-    测试 696 passed、4 skipped，覆盖率 80.84%，`flutter analyze` 零问题。
+    测试 695 passed、4 skipped，覆盖率 80.79%，`flutter analyze` 零问题。
 
 - **评估(架构): PR-10 TTS/Reader 职责评估完成**：
   - `TtsEngineService` 当前 578 行，播放、下载/缓存、诊断和降级均已有独立可注入单元，
@@ -20,6 +20,12 @@
   - `ReaderProvider` 当前 667 行，章节、游标、阅读进度和 TTS 会话仍是同一编排职责，未发现
     低风险独立边界；后续禁止追加无关职责。
   - **结论**：PR-10 评估完成，无新增代码改动。
+
+- **重构(性能): M3 动画质量策略收敛**：
+  - 移除 `CyberPerformanceDetector` 的同步 CPU 微基准，自动档改为仅依据内存压力选择三档
+    动画等级；手动高/中/低设置和共享动画上下文保持不变。
+  - 删除对应 CPU benchmark 测试，保留自动等级和内存读取测试。
+  - 导入/朗读体验和 G1 用户测试继续保留为未完成的真实用户验证项。
 
 - **重构(架构): PR-8 App Composition 三步小切片完成**：
   - 新增 `lib/app/composition/app_bootstrapper.dart`，集中跨 feature 启动装配、环境音设置

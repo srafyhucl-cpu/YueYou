@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
@@ -19,18 +18,10 @@ enum CyberAnimationLevel {
 class CyberPerformanceDetector {
   CyberPerformanceDetector._();
 
-  /// 评估设备性能并返回推荐的动画等级
+  /// 基于当前内存压力返回推荐的动画等级。
   ///
-  /// 划分标准（CPU 微基准测试 + App 当前内存占用）：
-  /// 1. CPU 评估：
-  ///    - 耗时 <= 30ms -> CPU 强劲
-  ///    - 30ms < 耗时 <= 80ms -> CPU 中等
-  ///    - 耗时 > 80ms -> CPU 偏弱
-  ///
-  /// 2. 内存评估 (当前 App 常驻内存 RSS)：
-  ///    - 内存 <= 120MB -> 状态健康
-  ///    - 120MB < 内存 <= 250MB -> 警戒状态
-  ///    - 内存 > 250MB -> 内存危急 (自动降级为 Low)
+  /// 自动策略不在启动或设置读取期间执行同步 CPU 跑分；真实帧耗时应由
+  /// Profile/现场数据验证，不能用一次微基准推断渲染能力。
   static CyberAnimationLevel detectLevel() {
     if (kIsWeb) {
       // Web 端环境复杂，统一默认为中等，防止多层滤镜卡顿
@@ -38,10 +29,8 @@ class CyberPerformanceDetector {
     }
 
     final memoryBytes = getMemoryUsageBytes();
-    final cpuTimeMs = runCpuBenchmark();
-
     CyberLogger.captureMessage(
-      '[性能自适应] CPU 评分: ${cpuTimeMs}ms, 内存占用: ${(memoryBytes / 1024 / 1024).toStringAsFixed(1)}MB',
+      '[性能自适应] 内存占用: ${(memoryBytes / 1024 / 1024).toStringAsFixed(1)}MB',
       tag: 'dashboard',
     );
 
@@ -50,18 +39,8 @@ class CyberPerformanceDetector {
       return CyberAnimationLevel.low;
     }
 
-    // 判定等级
-    if (cpuTimeMs <= 30) {
-      // 内存也健康的情况
-      if (memoryBytes <= 120 * 1024 * 1024) {
-        return CyberAnimationLevel.high;
-      }
-      return CyberAnimationLevel.medium;
-    } else if (cpuTimeMs <= 80) {
-      return CyberAnimationLevel.medium;
-    } else {
-      return CyberAnimationLevel.low;
-    }
+    if (memoryBytes > 120 * 1024 * 1024) return CyberAnimationLevel.medium;
+    return CyberAnimationLevel.high;
   }
 
   /// 获取当前 App 常驻内存（Resident Set Size）
@@ -71,19 +50,5 @@ class CyberPerformanceDetector {
     } catch (_) {
       return 0;
     }
-  }
-
-  /// 执行 CPU 微基准测试评估算力 (执行 1,000,000 次无意义的数学运算)
-  /// 返回执行所耗毫秒数
-  static int runCpuBenchmark() {
-    final sw = Stopwatch()..start();
-    int a = 0;
-    for (int i = 0; i < 1000000; i++) {
-      a = (a + i) % 9999;
-    }
-    sw.stop();
-    // 打印一下保证变量 a 不被编译器激进优化清除
-    Timeline.instantSync('CPU_Benchmark_Result', arguments: {'a': a});
-    return sw.elapsedMilliseconds;
   }
 }
