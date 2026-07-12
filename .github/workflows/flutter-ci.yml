@@ -91,11 +91,14 @@ jobs:
           names = {}
           errors = {}
           failures = []
+          raw_lines = []
           with open(path, encoding="utf-8", errors="replace") as stream:
               for line in stream:
                   try:
                       event = json.loads(line)
                   except json.JSONDecodeError:
+                      if line.strip():
+                          raw_lines.append(line.strip())
                       continue
                   if event.get("type") == "testStart":
                       test = event.get("test", {})
@@ -114,7 +117,7 @@ jobs:
           stderr_lines = []
           with open(stderr_path, encoding="utf-8", errors="replace") as stream:
               stderr_lines = [line.strip() for line in stream if line.strip()]
-          stderr_detail = " ".join(stderr_lines[-8:])
+          stderr_detail = " ".join((stderr_lines + raw_lines)[-12:])
 
           for name, detail in failures:
               generic = detail.startswith("Test failed. See exception logs above.")

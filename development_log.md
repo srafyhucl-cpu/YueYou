@@ -20,7 +20,8 @@
   - GitHub Linux CI 定位到设置页 3 条烟测因测试视口在 `devicePixelRatio=3.0` 下实际只有
     `360x1000` 逻辑像素，底部内容被 ListView 视为 offstage。
   - 大屏测试改为明确逻辑 `1080x3000`，默认小屏固定为 `360x640`；未放宽断言或修改生产布局。
-  - **验证**：SettingsScreen 测试 `4/4`、`flutter analyze`、`dart analyze test` 均通过。
+  - **验证**：SettingsScreen 测试 `4/4`、`flutter analyze`、`dart analyze test` 均通过；远端
+    Linux CI 仍复现同 3 条用例，继续采集非 JSON 渲染异常后处理。
 
 - **重构(领域): PR-9 2048 纯领域内核完成**：
   - 新增 `lib/features/game_2048/domain/game_engine.dart` 与不可变 `GameState`，移动、合并、
