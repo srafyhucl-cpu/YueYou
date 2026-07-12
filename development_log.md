@@ -13,7 +13,7 @@
   - GitHub Actions Run `29195691372` 的分析与测试、arm64 Release APK 均成功。
   - artifact ID `8260988295` 下载后校验通过，APK SHA-256 为
     `94E18F55F9DCF2325CEB597941D6209F2905AFC8B37668D917B0C8FEF8465D34`，与随包校验文件一致。
-  - `v1.1.2` Tag 将在本次证据提交推送后创建并回填目标提交，真实设备、G1 用户测试和两周 CI 稳定期仍未完成。
+  - `v1.1.2` Tag 已创建并推送，指向 `f41111d162f8423b1ae34f194e21d70286b88735`；真实设备、G1 用户测试和两周 CI 稳定期仍未完成。
 
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
