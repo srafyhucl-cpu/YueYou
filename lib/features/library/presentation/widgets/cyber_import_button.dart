@@ -11,6 +11,7 @@ import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
+import 'package:yueyou/core/utils/cyber_logger.dart';
 
 class CyberImportButton extends ConsumerStatefulWidget {
   const CyberImportButton({super.key});
@@ -86,6 +87,11 @@ class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
                             type: ToastType.success,
                           );
                         } catch (error) {
+                          CyberLogger.captureWarning(
+                            error,
+                            tag: 'library',
+                            extra: {'context': '导入 TXT 书籍失败'},
+                          );
                           final String msg = error is FileTooLargeException
                               ? error.toString()
                               : CyberErrorMessages.importFormatFailed;
