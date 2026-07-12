@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yueyou/core/theme/cyber_animation_scope.dart';
+import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import 'package:yueyou/features/settings/constants/settings_texts.dart';
 import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
 import 'package:yueyou/features/settings/presentation/widgets/privacy_agreement_modal.dart';
@@ -27,7 +29,10 @@ void main() {
 
     return ProviderScope(
       overrides: [settingsProvider.overrideWith((ref) => settings)],
-      child: const MaterialApp(home: SettingsScreen()),
+      child: const CyberAnimationScope(
+        animationLevel: CyberAnimationLevel.low,
+        child: MaterialApp(home: SettingsScreen()),
+      ),
     );
   }
 

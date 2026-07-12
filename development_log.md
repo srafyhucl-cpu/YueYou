@@ -14,6 +14,14 @@
   - 渲染烟测移除 TTS service 创建、销毁和 provider override，仅保留设置 Provider 替身。
   - **验证**：SettingsScreen `4/4`、`flutter analyze`、`dart analyze test` 均通过。
 
+- **修复(测试): 收敛 Linux SettingsScreen 模糊渲染路径**：
+  - Run #252 已确认 reader 与 TTS 独立测试链通过，基础链真实失败收敛到 SettingsScreen；缺失的
+    LCOV 文件属于失败后的级联结果。
+  - 设置页在低性能动画等级下跳过 Header 的 `BackdropFilter`，烟测显式使用低性能等级，正常中、
+    高性能模式保留原有视觉效果。
+  - **验证**：SettingsScreen `4/4`、`flutter analyze`、`dart analyze test` 均通过；文件行数 `878`，
+    未超过 presentation 警戒线 `900`。待远端 CI 确认后再关闭该阻塞。
+
 - **修复(ci): 覆盖率测试流程改为单进程**：
   - 本地复现确认 `flutter test --merge-coverage` 会因缺少 `lcov` 返回失败，造成测试已通过但
     CI 门禁失败；跨两个 Flutter 进程拼接 JSON 也增加了错误归因风险。

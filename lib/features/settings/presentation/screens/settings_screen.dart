@@ -7,9 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yueyou/core/config/app_info_config.dart';
 import 'package:yueyou/core/database/storage_service.dart';
+import 'package:yueyou/core/theme/cyber_animation_scope.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/core/utils/cyber_performance_detector.dart';
 import 'package:yueyou/features/settings/constants/settings_texts.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
@@ -40,6 +42,40 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final headerContent = Row(
+      children: [
+        const SizedBox(width: CyberDimensions.spacingM),
+        Container(
+          width: 4,
+          height: 16,
+          decoration: BoxDecoration(
+            color: CyberColors.neonGreen,
+            boxShadow: [
+              BoxShadow(
+                color: CyberColors.neonGreen.withValues(alpha: 0.5),
+                blurRadius: CyberDimensions.shadowBlurXS,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: CyberDimensions.spacingS),
+        Text(
+          SettingsTexts.screenTitle,
+          style: CyberTextStyles.screenTitle.copyWith(
+            color: CyberColors.neonGreen,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.close, color: CyberColors.whiteDim),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+    final isLowPerformance =
+        CyberAnimationScope.of(context) == CyberAnimationLevel.low;
+
     return Container(
       height: CyberDimensions.headerHeight,
       decoration: BoxDecoration(
@@ -48,45 +84,17 @@ class SettingsScreen extends ConsumerWidget {
           bottom: BorderSide(color: CyberColors.whiteFaint, width: 1),
         ),
       ),
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: CyberDimensions.blurLight,
-            sigmaY: CyberDimensions.blurLight,
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: CyberDimensions.spacingM),
-              Container(
-                width: 4,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: CyberColors.neonGreen,
-                  boxShadow: [
-                    BoxShadow(
-                      color: CyberColors.neonGreen.withValues(alpha: 0.5),
-                      blurRadius: CyberDimensions.shadowBlurXS,
-                    ),
-                  ],
+      child: isLowPerformance
+          ? headerContent
+          : ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: CyberDimensions.blurLight,
+                  sigmaY: CyberDimensions.blurLight,
                 ),
+                child: headerContent,
               ),
-              const SizedBox(width: CyberDimensions.spacingS),
-              Text(
-                SettingsTexts.screenTitle,
-                style: CyberTextStyles.screenTitle.copyWith(
-                  color: CyberColors.neonGreen,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close, color: CyberColors.whiteDim),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
