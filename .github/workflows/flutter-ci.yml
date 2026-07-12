@@ -93,8 +93,13 @@ jobs:
                   except json.JSONDecodeError:
                       continue
                   if event.get("type") == "testStart":
-                      names[event.get("testID")] = event.get("name", "未知测试")
-                  elif event.get("type") == "testDone" and event.get("result") == "error":
+                      test = event.get("test", {})
+                      names[test.get("id")] = test.get("name", "未知测试")
+                  elif (
+                      event.get("type") == "testDone"
+                      and event.get("result") != "success"
+                      and not event.get("skipped", False)
+                  ):
                       failures.append(names.get(event.get("testID"), "未知测试"))
 
           for name in failures:
