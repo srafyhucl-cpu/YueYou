@@ -11,6 +11,12 @@
   - GitHub 默认分支/保护规则、production Secrets、release artifact SHA-256 和 OSS 控制台规则
     仍是外部验收项，未提前标记完成。
 
+- **验收(release): 当前提交正式签名 APK 构建完成**：
+  - 使用未跟踪的新 JKS 通过环境变量注入签名参数，未复制或提交密钥材料。
+  - arm64 Release APK 构建成功，大小 `25,856,776` 字节；`apksigner` v2 签名校验通过。
+  - SHA-256：`603857D462DC3C24C163B0A077010D4FB1DC8288DDE298CD05AD919F7DA423AB`。
+  - GitHub production Secrets、远端 release artifact 和 OSS 控制台规则仍未取得外部证据。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。
