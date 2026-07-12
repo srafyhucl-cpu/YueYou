@@ -23,6 +23,12 @@ class AppInfoConfig {
     defaultValue: 'https://hclstudio.cn/privacy',
   );
 
+  /// 当前隐私政策版本，协议内容发生实质变化时递增。
+  static const String privacyPolicyVersion = String.fromEnvironment(
+    'PRIVACY_POLICY_VERSION',
+    defaultValue: '20260712',
+  );
+
   /// 应用市场下载地址。
   static const String marketDownloadUrl = String.fromEnvironment(
     'MARKET_DOWNLOAD_URL',

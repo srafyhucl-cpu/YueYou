@@ -14,7 +14,10 @@ void main() {
 
     final startup = YueYouStartup(
       hasAgreedPrivacy: () => false,
+      getAgreedPrivacyVersion: () => null,
       setHasAgreedPrivacy: (_) async {},
+      setAgreedPrivacyVersion: (_) async {},
+      privacyPolicyVersion: 'v1',
       initializeFullInfrastructure: () async => fullInitCount++,
       initializeSentry: (runner) async {
         sentryInitCount++;
@@ -44,13 +47,17 @@ void main() {
 
   testWidgets('ConsentApp 点击同意后才持久化授权并启动完整业务栈', (tester) async {
     var agreed = false;
+    String? agreedVersion;
     var fullInitCount = 0;
     var sentryInitCount = 0;
     Widget? launched;
 
     final startup = YueYouStartup(
       hasAgreedPrivacy: () => false,
+      getAgreedPrivacyVersion: () => null,
       setHasAgreedPrivacy: (value) async => agreed = value,
+      setAgreedPrivacyVersion: (value) async => agreedVersion = value,
+      privacyPolicyVersion: 'v1',
       initializeFullInfrastructure: () async => fullInitCount++,
       initializeSentry: (runner) async {
         sentryInitCount++;
@@ -66,6 +73,7 @@ void main() {
     await tester.pump();
 
     expect(agreed, isTrue);
+    expect(agreedVersion, 'v1');
     expect(fullInitCount, 1);
     expect(sentryInitCount, 1);
     expect(launched, isA<ProviderScope>());
@@ -78,7 +86,10 @@ void main() {
 
     final startup = YueYouStartup(
       hasAgreedPrivacy: () => true,
+      getAgreedPrivacyVersion: () => 'v1',
       setHasAgreedPrivacy: (_) async {},
+      setAgreedPrivacyVersion: (_) async {},
+      privacyPolicyVersion: 'v1',
       initializeFullInfrastructure: () async => fullInitCount++,
       initializeSentry: (runner) async {
         sentryInitCount++;
@@ -93,6 +104,28 @@ void main() {
     expect(fullInitCount, 1);
     expect(sentryInitCount, 1);
     expect(launched, isA<ProviderScope>());
+  });
+
+  test('协议版本升级后重新进入同意页，不初始化完整业务栈', () async {
+    var fullInitCount = 0;
+    Widget? launched;
+
+    final startup = YueYouStartup(
+      hasAgreedPrivacy: () => true,
+      getAgreedPrivacyVersion: () => 'v1',
+      setHasAgreedPrivacy: (_) async {},
+      setAgreedPrivacyVersion: (_) async {},
+      privacyPolicyVersion: 'v2',
+      initializeFullInfrastructure: () async => fullInitCount++,
+      initializeSentry: (runner) async => runner(),
+      runWidget: (widget) => launched = widget,
+      exitApp: () async {},
+    );
+
+    await startup.launch();
+
+    expect(fullInitCount, 0);
+    expect(launched, isA<ConsentApp>());
   });
 
   testWidgets('ConsentApp 点击拒绝时只执行退出回调', (tester) async {

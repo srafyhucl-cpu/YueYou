@@ -2,6 +2,20 @@
 
 ## **2026-07-12**
 
+- **修复(隐私): 补齐隐私协议版本升级重新确认**：
+  - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
+    已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。
+  - `test/app_startup_test.dart` 新增协议升级路径，并验证同意后持久化当前版本；存储契约测试
+    覆盖版本读写。
+  - **验证**：相关 Flutter 测试 119 passed、4 skipped；`flutter analyze`、`dart analyze test`、
+    `dart scripts/ai_code_checker.dart` 均通过，AI 门禁 0 阻断、0 warning。
+
+- **维护(ci): 增加跨平台测试失败可观测性**：
+  - 远端 `main` 的 `6e698f6` CI 在全量测试阶段报告 `692 passed、3 failed、4 skipped`，本地
+    Windows 无法复现；静态检查、Go 门禁和覆盖率步骤前置均通过。
+  - 测试步骤改用 JSON reporter，在失败时将具体测试名称输出到 GitHub annotations 与 Job
+    Summary，同时保留原始失败退出码，待下一次远端运行提供 Linux 失败用例证据。
+
 - **重构(领域): PR-9 2048 纯领域内核完成**：
   - 新增 `lib/features/game_2048/domain/game_engine.dart` 与不可变 `GameState`，移动、合并、
     全盘求和、结束判断、添加/移除方块均不依赖 Flutter，输入状态不会被原地修改。
@@ -168,7 +182,7 @@
     `go test ./...`、`go vet ./...`、`go build ./...` 通过。
   - **服务端 race 门禁**：`go test -race ./...` 在当前 Windows 环境缺少 GCC，启用
     `CGO_ENABLED=1` 后仍因 `C compiler "gcc" not found` 无法执行，后续需在 CI 或本机补齐 C 工具链。
-  - **遗留**：协议版本升级后重新确认和撤回点击后的平台退出断言尚未自动化，后续随隐私协议版本治理补齐。
+  - **遗留**：协议版本升级后重新确认已自动化；撤回点击后的平台退出断言仍需设备或集成测试。
 
 ## **2026-07-11**
 

@@ -159,6 +159,12 @@ abstract interface class IStorageService {
   /// 设置隐私协议同意状态并持久化
   Future<void> setHasAgreedPrivacy(bool v);
 
+  /// 读取用户已同意的隐私协议版本。
+  String? getAgreedPrivacyVersion();
+
+  /// 持久化用户已同意的隐私协议版本。
+  Future<void> setAgreedPrivacyVersion(String version);
+
   // ── 粘性位：用户是否曾主动选择过书籍 ─────────────────────────────────────
 
   /// 读取用户是否曾主动选择过书籍（默认 `false`）

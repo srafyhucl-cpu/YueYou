@@ -27,6 +27,7 @@ class StorageService {
   static const String _kSettingAmbientEnabled = 'setting_ambient_enabled';
   static const String _kSettingAmbientStyle = 'setting_ambient_style';
   static const String _kHasAgreedPrivacy = 'has_agreed_privacy';
+  static const String _kAgreedPrivacyVersion = 'agreed_privacy_version';
   static const String _kHasSelectedBook = 'user_has_selected_book';
   static const String _kCurrentChapterIndex = 'current_chapter_index';
   static const String _kSettingAnimationQuality = 'setting_animation_quality';
@@ -301,6 +302,12 @@ class StorageService {
   static bool hasAgreedPrivacy() => _p.getBool(_kHasAgreedPrivacy) ?? false;
   static Future<void> setHasAgreedPrivacy(bool v) =>
       _p.setBool(_kHasAgreedPrivacy, v);
+
+  static String? getAgreedPrivacyVersion() =>
+      _p.getString(_kAgreedPrivacyVersion);
+
+  static Future<void> setAgreedPrivacyVersion(String version) =>
+      _p.setString(_kAgreedPrivacyVersion, version);
 
   // ── 粘性位：用户是否曾主动选择过书籍 ─────────────────────────────────────
   static bool hasSelectedBook() => _p.getBool(_kHasSelectedBook) ?? false;

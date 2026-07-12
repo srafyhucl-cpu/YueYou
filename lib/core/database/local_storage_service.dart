@@ -172,6 +172,13 @@ class LocalStorageService implements IStorageService {
   Future<void> setHasAgreedPrivacy(bool v) =>
       StorageService.setHasAgreedPrivacy(v);
 
+  @override
+  String? getAgreedPrivacyVersion() => StorageService.getAgreedPrivacyVersion();
+
+  @override
+  Future<void> setAgreedPrivacyVersion(String version) =>
+      StorageService.setAgreedPrivacyVersion(version);
+
   // ── 粘性位：用户是否曾主动选择过书籍 ─────────────────────────────────────
 
   @override

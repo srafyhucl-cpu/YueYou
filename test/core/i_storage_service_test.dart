@@ -175,6 +175,12 @@ class _MockStorageService implements IStorageService {
   @override
   Future<void> setHasAgreedPrivacy(bool v) async => _hasAgreedPrivacy = v;
 
+  @override
+  String? getAgreedPrivacyVersion() => null;
+
+  @override
+  Future<void> setAgreedPrivacyVersion(String version) async {}
+
   // ── 粘性位 ──────────────────────────────────────────────────────
 
   @override

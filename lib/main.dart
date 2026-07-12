@@ -37,7 +37,10 @@ Future<void> main() async {
 @visibleForTesting
 class YueYouStartup {
   final bool Function() hasAgreedPrivacy;
+  final String? Function() getAgreedPrivacyVersion;
   final Future<void> Function(bool value) setHasAgreedPrivacy;
+  final Future<void> Function(String version) setAgreedPrivacyVersion;
+  final String privacyPolicyVersion;
   final Future<void> Function() initializeFullInfrastructure;
   final YueYouSentryInitializer initializeSentry;
   final YueYouWidgetRunner runWidget;
@@ -45,14 +48,23 @@ class YueYouStartup {
 
   YueYouStartup({
     bool Function()? hasAgreedPrivacy,
+    String? Function()? getAgreedPrivacyVersion,
     Future<void> Function(bool value)? setHasAgreedPrivacy,
+    Future<void> Function(String version)? setAgreedPrivacyVersion,
+    String? privacyPolicyVersion,
     Future<void> Function()? initializeFullInfrastructure,
     YueYouSentryInitializer? initializeSentry,
     YueYouWidgetRunner? runWidget,
     Future<void> Function()? exitApp,
   })  : hasAgreedPrivacy = hasAgreedPrivacy ?? StorageService.hasAgreedPrivacy,
+        getAgreedPrivacyVersion =
+            getAgreedPrivacyVersion ?? StorageService.getAgreedPrivacyVersion,
         setHasAgreedPrivacy =
             setHasAgreedPrivacy ?? StorageService.setHasAgreedPrivacy,
+        setAgreedPrivacyVersion =
+            setAgreedPrivacyVersion ?? StorageService.setAgreedPrivacyVersion,
+        privacyPolicyVersion =
+            privacyPolicyVersion ?? AppInfoConfig.privacyPolicyVersion,
         initializeFullInfrastructure =
             initializeFullInfrastructure ?? _initializeFullInfrastructure,
         initializeSentry = initializeSentry ??
@@ -63,7 +75,8 @@ class YueYouStartup {
         exitApp = exitApp ?? SystemNavigator.pop;
 
   Future<void> launch() async {
-    if (hasAgreedPrivacy()) {
+    if (hasAgreedPrivacy() &&
+        getAgreedPrivacyVersion() == privacyPolicyVersion) {
       await _launchFullApp();
       return;
     }
@@ -73,6 +86,7 @@ class YueYouStartup {
 
   Future<void> _acceptConsent() async {
     await setHasAgreedPrivacy(true);
+    await setAgreedPrivacyVersion(privacyPolicyVersion);
     await _launchFullApp();
   }
 

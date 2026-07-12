@@ -523,6 +523,11 @@ void main() {
       expect(StorageService.hasAgreedPrivacy(), isTrue);
     });
 
+    test('隐私协议版本可持久化和读取', () async {
+      await StorageService.setAgreedPrivacyVersion('v2');
+      expect(StorageService.getAgreedPrivacyVersion(), 'v2');
+    });
+
     test('hasSelectedBook 默认 false', () {
       expect(StorageService.hasSelectedBook(), isFalse);
     });

@@ -73,7 +73,39 @@ jobs:
           echo "## ✅ AI 工程门禁通过" >> $GITHUB_STEP_SUMMARY
 
       - name: 运行测试并生成覆盖率
-        run: flutter test --coverage --concurrency=1
+        shell: bash
+        run: |
+          set +e
+          flutter test --coverage --concurrency=1 --reporter json > "$RUNNER_TEMP/flutter-test-machine.jsonl" 2>&1
+          test_status=$?
+          python3 - "$RUNNER_TEMP/flutter-test-machine.jsonl" "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+
+          path = sys.argv[1]
+          summary_path = sys.argv[2]
+          names = {}
+          failures = []
+          with open(path, encoding="utf-8", errors="replace") as stream:
+              for line in stream:
+                  try:
+                      event = json.loads(line)
+                  except json.JSONDecodeError:
+                      continue
+                  if event.get("type") == "testStart":
+                      names[event.get("testID")] = event.get("name", "未知测试")
+                  elif event.get("type") == "testDone" and event.get("result") == "error":
+                      failures.append(names.get(event.get("testID"), "未知测试"))
+
+          for name in failures:
+              print(f"::error title=Flutter 测试失败::{name}")
+          if failures:
+              with open(summary_path, "a", encoding="utf-8") as summary:
+                  print("## Flutter 测试失败明细", file=summary)
+                  for name in failures:
+                      print(f"- `{name}`", file=summary)
+          PY
+          exit "$test_status"
 
       - name: 校验覆盖率门槛（总体 ≥ 80%，核心文件 ≥ 90%）
         run: python scripts/check_coverage_gate.py --overall 80 --core 90

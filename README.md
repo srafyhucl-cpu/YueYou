@@ -57,7 +57,7 @@
 
 ### ⚙️ 设置与合规
 
-- **隐私前置启动闸门**：首次启动未同意时只展示独立 `ConsentApp`，不初始化 Sentry、业务 `ProviderScope`、Dashboard、TTS、音效、环境音、默认书恢复或更新检查；同意后才进入完整应用
+- **隐私前置启动闸门**：首次启动未同意或隐私政策版本发生变化时只展示独立 `ConsentApp`，不初始化 Sentry、业务 `ProviderScope`、Dashboard、TTS、音效、环境音、默认书恢复或更新检查；同意后才进入完整应用
 - **授权撤回**：设置页可撤回隐私授权，撤回后清理第三方会话状态并在下次启动重新确认
 - **Android 备份边界**：Release Manifest 显式 `android:allowBackup="false"`，并通过 `dataExtractionRules` 排除本地文件、数据库和偏好设置，防止阅读进度、书籍正文、设置和 TTS 缓存进入系统自动备份或设备迁移
 - **TTS 参数**：语速（`ttsRate`）、音色选择（`voice`）
