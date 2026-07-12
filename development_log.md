@@ -30,6 +30,11 @@
   - 门禁输出通过 `tee` 写入 Job Summary，并使用 `PIPESTATUS` 保留真实退出码，下一轮可直接定位
     总体或核心文件阈值差异。
 
+- **维护(ci): 暴露覆盖率门禁失败数值**：
+  - Run #243 测试步骤通过、覆盖率步骤失败，但公开 Job Summary 未显示脚本正文。
+  - 将门禁输出中的 `[GATE]`/`[FAIL]` 行发布为 GitHub error annotation，仍保留原始退出码，
+    下一轮直接获得总体和核心失败数值。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。

@@ -160,9 +160,16 @@ jobs:
         shell: bash
         run: |
           set +e
-          python scripts/check_coverage_gate.py --overall 80 --core 90 \
-            | tee -a "$GITHUB_STEP_SUMMARY"
-          gate_status=${PIPESTATUS[0]}
+          gate_output=$(python scripts/check_coverage_gate.py --overall 80 --core 90 2>&1)
+          gate_status=$?
+          printf '%s\n' "$gate_output" | tee -a "$GITHUB_STEP_SUMMARY"
+          while IFS= read -r line; do
+            case "$line" in
+              *"[GATE]"*|*"[FAIL]"*)
+                echo "::error title=Coverage Gate::$line"
+                ;;
+            esac
+          done <<< "$gate_output"
           exit "$gate_status"
 
       - name: 设置 .NET Core (ReportGenerator 依赖项)
