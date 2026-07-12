@@ -76,65 +76,45 @@ jobs:
         shell: bash
         run: |
           set +e
-          test_files=$(find test -name '*_test.dart' \
-            ! -path 'test/features/settings/settings_screen_test.dart' \
-            -print)
-          flutter test --coverage --coverage-path=coverage/lcov.base.info \
+          test_files=$(find test -name '*_test.dart' -print)
+          flutter test --coverage --coverage-path=coverage/lcov.info \
             --concurrency=1 --reporter json $test_files \
-            > "$RUNNER_TEMP/flutter-test-base.jsonl" \
-            2> "$RUNNER_TEMP/flutter-test-base-stderr.log"
-          base_status=$?
-          flutter test --merge-coverage --coverage-path=coverage/lcov.info \
-            --concurrency=1 --reporter json test/features/settings/settings_screen_test.dart \
-            > "$RUNNER_TEMP/flutter-test-settings.jsonl" \
-            2> "$RUNNER_TEMP/flutter-test-settings-stderr.log"
-          settings_status=$?
-          cat "$RUNNER_TEMP/flutter-test-base.jsonl" \
-            "$RUNNER_TEMP/flutter-test-settings.jsonl" \
-            > "$RUNNER_TEMP/flutter-test-machine.jsonl"
-          cat "$RUNNER_TEMP/flutter-test-base-stderr.log" \
-            "$RUNNER_TEMP/flutter-test-settings-stderr.log" \
-            > "$RUNNER_TEMP/flutter-test-stderr.log"
-          if [ "$base_status" -ne 0 ] || [ "$settings_status" -ne 0 ]; then
-            test_status=1
-          else
-            test_status=0
-          fi
-          python3 - "$RUNNER_TEMP/flutter-test-base.jsonl" \
-            "$RUNNER_TEMP/flutter-test-settings.jsonl" \
+            > "$RUNNER_TEMP/flutter-test-machine.jsonl" \
+            2> "$RUNNER_TEMP/flutter-test-stderr.log"
+          test_status=$?
+          python3 "$RUNNER_TEMP/flutter-test-machine.jsonl" \
             "$RUNNER_TEMP/flutter-test-stderr.log" "$GITHUB_STEP_SUMMARY" <<'PY'
           import json
           import sys
 
-          json_paths = sys.argv[1:3]
-          stderr_path = sys.argv[3]
-          summary_path = sys.argv[4]
+          path = sys.argv[1]
+          stderr_path = sys.argv[2]
+          summary_path = sys.argv[3]
+          names = {}
+          errors = {}
           failures = []
           raw_lines = []
-          for path in json_paths:
-              names = {}
-              errors = {}
-              with open(path, encoding="utf-8", errors="replace") as stream:
-                  for line in stream:
-                      try:
-                          event = json.loads(line)
-                      except json.JSONDecodeError:
-                          if line.strip():
-                              raw_lines.append(line.strip())
-                          continue
-                      if event.get("type") == "testStart":
-                          test = event.get("test", {})
-                          names[test.get("id")] = test.get("name", "未知测试")
-                      elif event.get("type") == "error":
-                          errors[event.get("testID")] = event.get("error", "无错误详情")
-                      elif (
-                          event.get("type") == "testDone"
-                          and event.get("result") != "success"
-                          and not event.get("skipped", False)
-                      ):
-                          test_id = event.get("testID")
-                          detail = errors.get(test_id, "无错误详情").replace("\n", " ")
-                          failures.append((names.get(test_id, "未知测试"), detail))
+          with open(path, encoding="utf-8", errors="replace") as stream:
+              for line in stream:
+                  try:
+                      event = json.loads(line)
+                  except json.JSONDecodeError:
+                      if line.strip():
+                          raw_lines.append(line.strip())
+                      continue
+                  if event.get("type") == "testStart":
+                      test = event.get("test", {})
+                      names[test.get("id")] = test.get("name", "未知测试")
+                  elif event.get("type") == "error":
+                      errors[event.get("testID")] = event.get("error", "无错误详情")
+                  elif (
+                      event.get("type") == "testDone"
+                      and event.get("result") != "success"
+                      and not event.get("skipped", False)
+                  ):
+                      test_id = event.get("testID")
+                      detail = errors.get(test_id, "无错误详情").replace("\n", " ")
+                      failures.append((names.get(test_id, "未知测试"), detail))
 
           stderr_lines = []
           with open(stderr_path, encoding="utf-8", errors="replace") as stream:

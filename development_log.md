@@ -14,6 +14,12 @@
   - 渲染烟测移除 TTS service 创建、销毁和 provider override，仅保留设置 Provider 替身。
   - **验证**：SettingsScreen `4/4`、`flutter analyze`、`dart analyze test` 均通过。
 
+- **修复(ci): 覆盖率测试流程改为单进程**：
+  - 本地复现确认 `flutter test --merge-coverage` 会因缺少 `lcov` 返回失败，造成测试已通过但
+    CI 门禁失败；跨两个 Flutter 进程拼接 JSON 也增加了错误归因风险。
+  - CI 改为一次运行全部测试并直接生成 `coverage/lcov.info`，恢复单一 JSON 流解析。
+  - **验证**：本地全量 `697 passed、4 skipped`，覆盖率文件生成；workflow YAML 与 diff 检查通过。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。
