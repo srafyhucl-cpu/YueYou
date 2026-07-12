@@ -30,6 +30,12 @@
     `a9fd40c35ce526b92f2a9c0910e673df1738b14041249a0bf449e6f543ba6f4e`，与随包校验文件一致。
   - `v1.1.1` Tag 未被覆盖，Tag 与当前治理 artifact 的一致性保留为后续递增版本发布门禁。
 
+- **修复(ci): 修正 PR 覆盖率评论权限**：
+  - PR Run 的静态检查、全量测试、覆盖率和 Go 门禁均通过，唯一失败来自覆盖率评论 action 的
+    `Resource not accessible by integration`。
+  - `.github/workflows/flutter-ci.yml` 增加最小必要的 `contents: read`、`issues: write` 和
+    `pull-requests: write` 权限，等待新 PR Run 验证必需检查恢复为绿色。
+
 - **验收(治理): 完成本地全量门禁与正式分支同步**：
   - Flutter 全量测试 `697 passed、4 skipped`；覆盖率总体 `80.71%`（4321/5354），核心文件均达到
     `90%` 以上。
