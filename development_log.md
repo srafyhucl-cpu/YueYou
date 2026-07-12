@@ -33,6 +33,10 @@
     `a9fd40c35ce526b92f2a9c0910e673df1738b14041249a0bf449e6f543ba6f4e`，与随包校验文件一致。
   - `v1.1.1` Tag 未被覆盖，Tag 与当前治理 artifact 的一致性保留为后续递增版本发布门禁。
 
+- **维护(plan): 校正全局计划当前基线**：
+  - 计划书同步当前权威数字：Flutter `701 passed、4 skipped`、总体覆盖率 `80.80%`、核心文件
+    均不低于 90%、AI 门禁 0 阻断/0 警告；默认分支更新为 `main`。
+
 - **修复(ci): 修正 PR 覆盖率评论权限**：
   - PR Run 的静态检查、全量测试、覆盖率和 Go 门禁均通过，唯一失败来自覆盖率评论 action 的
     `Resource not accessible by integration`。
