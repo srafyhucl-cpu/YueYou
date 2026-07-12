@@ -2,6 +2,13 @@
 
 ## **2026-07-12**
 
+- **发布治理(版本一致性准备)**：
+  - 将 `pubspec.yaml`、Sentry 默认 release、README 构建示例统一升级为 `1.1.2+4` / `yueyou@1.1.2`。
+  - 新增 `docs/releases/v1.1.2.md`，明确保留 `v1.1.1` 历史 Tag 与 artifact，不覆盖旧发布证据。
+  - 发布前静态门禁通过：Markdown lint、`flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、
+    `go test ./...`、`go vet ./...`、`go build ./...`。
+  - `v1.1.2` Tag、GitHub production artifact、APK 版本和 SHA-256 待发布提交及手动构建完成后回填，未提前关闭全局一致性项。
+
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
     数据按空书签处理；删除阅读记录时同步删除书签。
