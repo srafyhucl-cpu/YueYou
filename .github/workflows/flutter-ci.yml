@@ -117,13 +117,15 @@ jobs:
           stderr_detail = " ".join(stderr_lines[-8:])
 
           for name, detail in failures:
-              extra = stderr_detail[:500] if detail == "无错误详情" else detail[:500]
+              generic = detail.startswith("Test failed. See exception logs above.")
+              extra = stderr_detail[:500] if generic and stderr_detail else detail[:500]
               print(f"::error title=Flutter 测试失败::{name}: {extra}")
           if failures:
               with open(summary_path, "a", encoding="utf-8") as summary:
                   print("## Flutter 测试失败明细", file=summary)
                   for name, detail in failures:
-                      extra = stderr_detail[:500] if detail == "无错误详情" else detail[:500]
+                      generic = detail.startswith("Test failed. See exception logs above.")
+                      extra = stderr_detail[:500] if generic and stderr_detail else detail[:500]
                       print(f"- `{name}`：{extra}", file=summary)
           PY
           exit "$test_status"
