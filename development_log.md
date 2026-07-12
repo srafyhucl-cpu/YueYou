@@ -7,7 +7,7 @@
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。
-  - `origin/main` 与 `origin/develop` 已同步至 `6272a77`；发布说明同步校正 Tag 与分支提交关系。
+  - `origin/main` 与 `origin/develop` 已同步至 `32e8ef7`；发布说明同步校正 Tag 与分支提交关系。
   - GitHub 默认分支/保护规则、production Secrets、release artifact SHA-256 和 OSS 控制台规则
     仍是外部验收项，未提前标记完成。
 
@@ -46,7 +46,7 @@
     均通过，待对应远端 CI 运行确认。
 
 - **复核(治理): 同步当前提交证据并保留未完成门禁**：
-  - `origin/main`、`origin/develop`、`origin/yueyou_test` 已同步至 `6272a77`；计划书、发布说明
+  - `origin/main`、`origin/develop`、`origin/yueyou_test` 已同步至 `32e8ef7`；计划书、发布说明
     与日志中的旧分支哈希已校正。
   - GitHub 默认分支/分支保护、production signing Secrets、`release-apk` artifact、G1 用户验证、
     两周 CI 稳定期和 Ubuntu `go test -race` 仍缺权威证据，未将全局计划误标为完成。
@@ -55,6 +55,12 @@
   - 首次未同意启动测试通过 `HttpOverrides` 禁止创建 HTTP 客户端，6 条启动测试、`flutter analyze`
     和 `dart analyze test` 均通过。
   - 该守卫覆盖 Dart HTTP 路径；第三方 SDK 和原生网络请求仍需真实设备验收。
+
+- **测试(server): 补齐 TTS 取消与签名 TTL 回归**：
+  - 新增等待队列取消、同键合成等待取消和签名 TTL 参数断言；上传失败、签名失败及合成取消
+    路径与既有测试共同覆盖。
+  - `go test ./...`、`go vet ./...`、`go build ./...` 均通过；真实 OSS 过期 URL 拒绝仍需外部
+    集成验证。
 
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试

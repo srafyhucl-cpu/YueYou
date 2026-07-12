@@ -20,6 +20,7 @@ type fakeTTSStore struct {
 	exists   map[string]bool
 	putKeys  []string
 	signKeys []string
+	signTTLs []time.Duration
 	readyErr error
 	putErr   error
 	signErr  error
@@ -69,6 +70,7 @@ func (s *fakeTTSStore) SignedGetURL(key string, ttl time.Duration) (string, erro
 		return "", s.signErr
 	}
 	s.signKeys = append(s.signKeys, key)
+	s.signTTLs = append(s.signTTLs, ttl)
 	return "https://oss.test/" + key + "?Expires=600&Signature=fake", nil
 }
 
@@ -184,6 +186,9 @@ func TestTTSHandlerReturnsSignedURLWithoutLoggingRawText(t *testing.T) {
 	}
 	if !strings.Contains(decoded["url"], "Expires=600") || !strings.Contains(decoded["url"], "Signature=fake") {
 		t.Fatalf("url is not signed: %s", decoded["url"])
+	}
+	if len(store.signTTLs) != 1 || store.signTTLs[0] != 10*time.Minute {
+		t.Fatalf("sign TTLs = %v, want [10m]", store.signTTLs)
 	}
 }
 
@@ -342,6 +347,32 @@ func TestTTSHandlerRejectsWhenQueueFull(t *testing.T) {
 	}
 }
 
+func TestTTSHandlerClientCanceledWhileWaitingForQueue(t *testing.T) {
+	router, _, executor := setupTTSTest(t)
+	edgeTtsQueue = make(chan struct{}, 1)
+	edgeTtsQueue <- struct{}{}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/tts",
+		strings.NewReader(`{"text":"队列取消","voice":"zh-CN-XiaoxiaoNeural"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-YueYou-Install-ID", "install-cancel-queue")
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel()
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Body.Len() != 0 {
+		t.Fatalf("canceled queue response body = %q, want empty", w.Body.String())
+	}
+	if executor.calls != 0 {
+		t.Fatalf("edge calls = %d, want 0", executor.calls)
+	}
+}
+
 func TestBookAndPrivacyHandlers(t *testing.T) {
 	router, _, _ := setupTTSTest(t)
 
@@ -494,6 +525,32 @@ func TestTTSHandlerTreatsClientCanceledAsSilentExit(t *testing.T) {
 	}
 	if len(store.signKeys) != 0 {
 		t.Fatalf("sign keys = %v, want empty", store.signKeys)
+	}
+}
+
+func TestTTSHandlerClientCanceledWhileWaitingForInflight(t *testing.T) {
+	router, _, executor := setupTTSTest(t)
+	key := ttsObjectKey("同键等待取消", defaultVoice)
+	inflightKeys[key] = make(chan struct{})
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/tts",
+		strings.NewReader(`{"text":"同键等待取消","voice":"zh-CN-XiaoxiaoNeural"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-YueYou-Install-ID", "install-cancel-inflight")
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel()
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Body.Len() != 0 {
+		t.Fatalf("canceled inflight response body = %q, want empty", w.Body.String())
+	}
+	if executor.calls != 0 {
+		t.Fatalf("edge calls = %d, want 0", executor.calls)
 	}
 }
 
