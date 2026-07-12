@@ -25,9 +25,10 @@ void main() {
     await initializeTestEnvironment();
   });
 
-  tearDown(() {
+  tearDown(() async {
     try {
       activeEngine?.dispose();
+      await Future<void>.delayed(Duration.zero);
     } catch (_) {}
     activeEngine = null;
   });
