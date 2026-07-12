@@ -8,6 +8,12 @@
   - CI 诊断脚本改为分别解析两个 JSON 流，再合并失败明细；两个测试进程的退出码仍共同决定门禁结果。
   - **验证**：workflow YAML 可解析，`git diff --check` 通过；待远端重跑确认真实失败项。
 
+- **修复(测试): 隔离 SettingsScreen 烟测中的 TTS 异步链**：
+  - 远端确认三条设置页渲染烟测真实失败；共同点是测试构造了与渲染断言无关的
+    `TtsEngineService`，会启动异步初始化链并增加 Linux 跨平台噪声。
+  - 渲染烟测移除 TTS service 创建、销毁和 provider override，仅保留设置 Provider 替身。
+  - **验证**：SettingsScreen `4/4`、`flutter analyze`、`dart analyze test` 均通过。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。

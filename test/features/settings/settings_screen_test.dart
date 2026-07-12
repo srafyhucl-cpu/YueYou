@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/settings/constants/settings_texts.dart';
 import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
 import 'package:yueyou/features/settings/presentation/widgets/privacy_agreement_modal.dart';
@@ -19,30 +18,15 @@ import '../../utils/test_utils.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  TtsEngineService? activeEngine;
-
   setUp(() async {
     await initializeTestEnvironment();
   });
 
-  tearDown(() async {
-    try {
-      activeEngine?.dispose();
-      await Future<void>.delayed(Duration.zero);
-    } catch (_) {}
-    activeEngine = null;
-  });
-
   Widget _wrap() {
     final settings = makeSettings();
-    final engine = makeTtsEngine(settings);
-    activeEngine = engine;
 
     return ProviderScope(
-      overrides: [
-        settingsProvider.overrideWith((ref) => settings),
-        ttsEngineProvider.overrideWith((ref) => engine),
-      ],
+      overrides: [settingsProvider.overrideWith((ref) => settings)],
       child: const MaterialApp(home: SettingsScreen()),
     );
   }
