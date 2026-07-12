@@ -9,6 +9,8 @@
     书签按钮，切换后立即写入本地存储。
   - `SettingsProvider` 新增“2048 陪伴模式”开关；关闭时 `DashboardScreen` 隐藏棋盘、吉祥物和
     游戏状态面板，直接展示听读提词器。
+  - 为导入按钮、主导航、章节项和 2048 方块补充 `Semantics` 标签与导入按钮 `Tooltip`，并增加
+    导入按钮语义回归断言；字体缩放、对比度和触控目标仍保留为后续辅助功能验收。
   - 回归验证：相关 Flutter 测试 135 个通过；全量 Flutter 测试 `701 passed、4 skipped`，总体
     覆盖率 `4382/5423 = 80.80%`，核心文件均不低于 90%。`flutter analyze`、`dart analyze test`、
     AI 工程门禁（0 阻断、0 警告）、`go test ./...`、`go vet ./...`、`go build ./...` 均通过。

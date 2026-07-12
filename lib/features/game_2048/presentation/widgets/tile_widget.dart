@@ -154,76 +154,80 @@ class _TileWidgetState extends State<TileWidget> with TickerProviderStateMixin {
       return const SizedBox.shrink();
     }
 
-    return GestureDetector(
-      onTap: _handleTap,
-      child: AnimatedBuilder(
-        animation: _eliminateController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _eliminateScaleAnimation.value,
-            child: Transform.rotate(
-              angle: _eliminateRotationAnimation.value,
-              child: Opacity(
-                opacity: _eliminateOpacityAnimation.value,
-                child: child,
-              ),
-            ),
-          );
-        },
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // 主方块
-            AnimatedBuilder(
-              animation: _mergeController,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: _getTileGradient(widget.value),
-                      borderRadius:
-                          BorderRadius.circular(CyberDimensions.radiusM),
-                      boxShadow:
-                          _getDynamicGlow(widget.value, _glowAnimation.value),
-                      border: Border.all(
-                        color: CyberColors.whiteFaint,
-                        width: 1,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${widget.value}',
-                      style: CyberTextStyles.gameGridNumber.copyWith(
-                        color: CyberColors.whiteHigh,
-                        fontSize: _getFontSize(widget.value),
-                        fontFamily: CyberTextStyles.monoFont,
-                        shadows: const [
-                          Shadow(
-                            color: CyberColors.blackDim,
-                            blurRadius: CyberDimensions.shadowBlurXS,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            // 粒子效果层
-            if (_showParticles)
-              Positioned.fill(
-                child: MergeParticle(
-                  color: _getParticleColor(widget.value),
-                  onComplete: () {
-                    if (mounted) {
-                      setState(() => _showParticles = false);
-                    }
-                  },
+    return Semantics(
+      label: '数字方块 ${widget.value}',
+      button: widget.onEliminate != null,
+      child: GestureDetector(
+        onTap: _handleTap,
+        child: AnimatedBuilder(
+          animation: _eliminateController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _eliminateScaleAnimation.value,
+              child: Transform.rotate(
+                angle: _eliminateRotationAnimation.value,
+                child: Opacity(
+                  opacity: _eliminateOpacityAnimation.value,
+                  child: child,
                 ),
               ),
-          ],
+            );
+          },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // 主方块
+              AnimatedBuilder(
+                animation: _mergeController,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: _getTileGradient(widget.value),
+                        borderRadius:
+                            BorderRadius.circular(CyberDimensions.radiusM),
+                        boxShadow:
+                            _getDynamicGlow(widget.value, _glowAnimation.value),
+                        border: Border.all(
+                          color: CyberColors.whiteFaint,
+                          width: 1,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${widget.value}',
+                        style: CyberTextStyles.gameGridNumber.copyWith(
+                          color: CyberColors.whiteHigh,
+                          fontSize: _getFontSize(widget.value),
+                          fontFamily: CyberTextStyles.monoFont,
+                          shadows: const [
+                            Shadow(
+                              color: CyberColors.blackDim,
+                              blurRadius: CyberDimensions.shadowBlurXS,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // 粒子效果层
+              if (_showParticles)
+                Positioned.fill(
+                  child: MergeParticle(
+                    color: _getParticleColor(widget.value),
+                    onComplete: () {
+                      if (mounted) {
+                        setState(() => _showParticles = false);
+                      }
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

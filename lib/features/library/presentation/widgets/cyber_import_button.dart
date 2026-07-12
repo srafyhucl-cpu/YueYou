@@ -30,118 +30,129 @@ class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
   Widget build(BuildContext context) {
     final reader = ref.watch(readerProvider);
     final bool isBusy = reader.isParsing;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: CyberDimensions.blurMedium,
-          sigmaY: CyberDimensions.blurMedium,
-        ),
-        child: Material(
-          color: CyberColors.transparent,
-          child: InkWell(
-            onTap: isBusy
-                ? null
-                : () async {
-                    try {
-                      final granted = await showCyberConfirmDialog(
-                        context: context,
-                        title: '存储访问授权',
-                        message: '阅游需要读取您的本地存储以解析数据芯片 (TXT 文件)，是否授权？',
-                        confirmText: '授权',
-                        cancelText: '取消',
-                      );
-                      if (!granted) return;
-                      if (!context.mounted) return;
-                      final result =
-                          await FileImportService.importTxtFileStructured();
-                      if (result == null || result.lines.isEmpty) return;
-                      if (!context.mounted) return;
-
-                      final int bookId = DateTime.now().millisecondsSinceEpoch;
-
-                      // 写入书架（对应 JS LocalDB.saveBook + shelf.unshift）
-                      await ref.read(bookshelfProvider).addBook(
-                            id: bookId,
-                            title: result.title,
-                            lines: result.lines,
-                            chapters: result.chapters,
+    return Semantics(
+      button: true,
+      enabled: !isBusy,
+      label: isBusy ? '正在导入书籍' : '导入 TXT 书籍',
+      child: Tooltip(
+        message: isBusy ? '正在导入' : '导入 TXT 书籍',
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: CyberDimensions.blurMedium,
+              sigmaY: CyberDimensions.blurMedium,
+            ),
+            child: Material(
+              color: CyberColors.transparent,
+              child: InkWell(
+                onTap: isBusy
+                    ? null
+                    : () async {
+                        try {
+                          final granted = await showCyberConfirmDialog(
+                            context: context,
+                            title: '存储访问授权',
+                            message: '阅游需要读取您的本地存储以解析数据芯片 (TXT 文件)，是否授权？',
+                            confirmText: '授权',
+                            cancelText: '取消',
                           );
-                      if (!context.mounted) return;
+                          if (!granted) return;
+                          if (!context.mounted) return;
+                          final result =
+                              await FileImportService.importTxtFileStructured();
+                          if (result == null || result.lines.isEmpty) return;
+                          if (!context.mounted) return;
 
-                      // 自动加载到提词器（对应 JS loadBookFromShelf）
-                      await ref.read(readerProvider).loadPreparedBook(
-                            result.lines,
-                            bookId: bookId.toString(),
-                            chapters: result.chapters,
+                          final int bookId =
+                              DateTime.now().millisecondsSinceEpoch;
+
+                          // 写入书架（对应 JS LocalDB.saveBook + shelf.unshift）
+                          await ref.read(bookshelfProvider).addBook(
+                                id: bookId,
+                                title: result.title,
+                                lines: result.lines,
+                                chapters: result.chapters,
+                              );
+                          if (!context.mounted) return;
+
+                          // 自动加载到提词器（对应 JS loadBookFromShelf）
+                          await ref.read(readerProvider).loadPreparedBook(
+                                result.lines,
+                                bookId: bookId.toString(),
+                                chapters: result.chapters,
+                              );
+                          if (!context.mounted) return;
+
+                          CyberToast.show(
+                            '档案注入成功',
+                            context: context,
+                            type: ToastType.success,
                           );
-                      if (!context.mounted) return;
-
-                      CyberToast.show(
-                        '档案注入成功',
-                        context: context,
-                        type: ToastType.success,
-                      );
-                    } catch (error) {
-                      final String msg = error is FileTooLargeException
-                          ? error.toString()
-                          : CyberErrorMessages.importFormatFailed;
-                      CyberToast.show(
-                        msg,
-                        context: context,
-                        type: ToastType.error,
-                      );
-                    }
-                  },
-            borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
+                        } catch (error) {
+                          final String msg = error is FileTooLargeException
+                              ? error.toString()
+                              : CyberErrorMessages.importFormatFailed;
+                          CyberToast.show(
+                            msg,
+                            context: context,
+                            type: ToastType.error,
+                          );
+                        }
+                      },
                 borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-                color: CyberColors.cardBackground.withValues(alpha: 0.8),
-                border: Border.all(
-                  color: isBusy ? CyberColors.neonPink : CyberColors.neonGreen,
-                  width: CyberDimensions.borderThick,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isBusy
-                        ? CyberColors.pinkGlow
-                        : CyberColors.glowShadow),
-                    blurRadius: CyberDimensions.shadowBlurM,
-                    spreadRadius: 1,
-                  ),
-                  const BoxShadow(
-                    color: CyberColors.blackShadow,
-                    blurRadius: CyberDimensions.shadowBlurL,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [CyberColors.cardBackground, CyberColors.surface],
-                ),
-              ),
-              child: Center(
-                child: isBusy
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            CyberColors.neonPink,
-                          ),
-                        ),
-                      )
-                    : const Icon(
-                        Icons.folder_open,
-                        color: CyberColors.neonGreen,
-                        size: 28,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(CyberDimensions.radiusL),
+                    color: CyberColors.cardBackground.withValues(alpha: 0.8),
+                    border: Border.all(
+                      color:
+                          isBusy ? CyberColors.neonPink : CyberColors.neonGreen,
+                      width: CyberDimensions.borderThick,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isBusy
+                            ? CyberColors.pinkGlow
+                            : CyberColors.glowShadow),
+                        blurRadius: CyberDimensions.shadowBlurM,
+                        spreadRadius: 1,
                       ),
+                      const BoxShadow(
+                        color: CyberColors.blackShadow,
+                        blurRadius: CyberDimensions.shadowBlurL,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [CyberColors.cardBackground, CyberColors.surface],
+                    ),
+                  ),
+                  child: Center(
+                    child: isBusy
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                CyberColors.neonPink,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.folder_open,
+                            color: CyberColors.neonGreen,
+                            size: 28,
+                          ),
+                  ),
+                ),
               ),
             ),
           ),

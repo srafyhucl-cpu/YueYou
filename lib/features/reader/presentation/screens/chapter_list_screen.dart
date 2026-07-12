@@ -269,54 +269,60 @@ class _ChapterItem extends StatelessWidget {
       textColor = CyberColors.whiteMuted;
     }
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: CyberDimensions.spacingM,
-          vertical: CyberDimensions.spacingMS,
-        ),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: CyberColors.whiteFaint.withValues(alpha: 0.4),
-            ),
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: isActive ? '$title，当前章节' : title,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CyberDimensions.spacingM,
+            vertical: CyberDimensions.spacingMS,
           ),
-          color: isActive
-              ? CyberColors.neonPink.withValues(alpha: 0.1)
-              : CyberColors.transparent,
-        ),
-        child: Row(
-          children: [
-            if (isActive)
-              const Padding(
-                padding: EdgeInsets.only(right: CyberDimensions.spacingS),
-                child: Icon(
-                  Icons.play_arrow,
-                  color: CyberColors.neonPink,
-                  size: CyberDimensions.iconS,
-                ),
-              )
-            else
-              Container(
-                width: CyberDimensions.statusDotSize,
-                height: CyberDimensions.statusDotSize,
-                margin: const EdgeInsets.only(right: CyberDimensions.spacingMS),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: dotColor,
-                ),
-              ),
-            Expanded(
-              child: Text(
-                title,
-                style: CyberTextStyles.tileTitle.copyWith(
-                  color: isActive ? CyberColors.neonPink : textColor,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                ),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: CyberColors.whiteFaint.withValues(alpha: 0.4),
               ),
             ),
-          ],
+            color: isActive
+                ? CyberColors.neonPink.withValues(alpha: 0.1)
+                : CyberColors.transparent,
+          ),
+          child: Row(
+            children: [
+              if (isActive)
+                const Padding(
+                  padding: EdgeInsets.only(right: CyberDimensions.spacingS),
+                  child: Icon(
+                    Icons.play_arrow,
+                    color: CyberColors.neonPink,
+                    size: CyberDimensions.iconS,
+                  ),
+                )
+              else
+                Container(
+                  width: CyberDimensions.statusDotSize,
+                  height: CyberDimensions.statusDotSize,
+                  margin:
+                      const EdgeInsets.only(right: CyberDimensions.spacingMS),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: dotColor,
+                  ),
+                ),
+              Expanded(
+                child: Text(
+                  title,
+                  style: CyberTextStyles.tileTitle.copyWith(
+                    color: isActive ? CyberColors.neonPink : textColor,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
