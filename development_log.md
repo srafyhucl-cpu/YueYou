@@ -2,6 +2,15 @@
 
 ## **2026-07-12**
 
+- **验收(治理): 完成本地全量门禁与正式分支同步**：
+  - Flutter 全量测试 `697 passed、4 skipped`；覆盖率总体 `80.65%`，核心文件均达到 `90%` 以上。
+  - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
+    `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
+    工具链仍交由 Ubuntu CI 验证。
+  - `origin/main` 与 `origin/develop` 已同步至 `9d9b8a7`；发布说明同步校正 Tag 与分支提交关系。
+  - GitHub 默认分支/保护规则、production Secrets、release artifact SHA-256 和 OSS 控制台规则
+    仍是外部验收项，未提前标记完成。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。
