@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/core/utils/cyber_performance_detector.dart';
-import 'package:yueyou/features/audio/services/ambient_service.dart';
 
 /// 供 Riverpod 使用的全局设置 Provider
 final settingsProvider = ChangeNotifierProvider<SettingsProvider>((ref) {
@@ -51,7 +50,6 @@ class SettingsProvider with ChangeNotifier {
     ambientVol = StorageService.getSettingAmbientVol();
     ambientEnabled = StorageService.getSettingAmbientEnabled();
     ambientStyle = StorageService.getSettingAmbientStyle();
-    AmbientService.setStyle(ambientStyle);
     animationQualitySetting = StorageService.getSettingAnimationQuality();
 
     if (animationQualitySetting == 'auto') {

@@ -3,7 +3,6 @@ import 'dart:io' show HttpException, SocketException;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:yueyou/core/config/tts_config.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
@@ -28,24 +27,8 @@ export 'package:yueyou/features/audio/domain/tts_audio_buffer.dart'
 export 'package:yueyou/features/audio/domain/tts_http_models.dart';
 export 'package:yueyou/features/audio/domain/tts_engine_interfaces.dart';
 export 'package:yueyou/features/audio/domain/tts_network_interfaces.dart';
-
-/// TTS 引擎全局 Provider（Riverpod 生命周期托管版）
-///
-/// - 通过 [ref.watch] 声明式依赖 [settingsProvider]，实现配置热更新
-/// - 通过 [ref.onDispose] 自动回收引擎资源，消除手动 dispose 调用
-/// - 通过 [ref.listen] 响应设置变更，替代手动 addListener/removeListener
-final ttsEngineProvider = ChangeNotifierProvider<TtsEngineService>((ref) {
-  final settings = ref.read(settingsProvider);
-  final svc = TtsEngineService(settings, externalSettingsListener: false);
-  // 注册 Riverpod 自动销毁钩子，消除双调用风险（幂等守卫见 dispose()）
-  ref.onDispose(svc.dispose);
-  // 监听设置变更，推送给引擎同步（替代 addListener 手动管理）
-  ref.listen<SettingsProvider>(
-    settingsProvider,
-    (_, next) => svc.syncSettingsFromProvider(next),
-  );
-  return svc;
-});
+export 'package:yueyou/features/audio/providers/tts_engine_provider.dart'
+    show ttsEngineProvider;
 
 /// 阅游 TTS 音频执行层
 /// 架构：纯执行服务，由 TtsAudioNotifier 编排调度

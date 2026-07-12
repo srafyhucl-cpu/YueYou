@@ -2,6 +2,19 @@
 
 ## **2026-07-12**
 
+- **重构(架构): PR-8 App Composition 三步小切片完成**：
+  - 新增 `lib/app/composition/app_bootstrapper.dart`，集中跨 feature 启动装配、环境音设置
+    联动、App 生命周期、当前书籍恢复和全局 TTS 用户活动监听；`main.dart` 收敛为启动壳。
+  - 新增 `lib/features/audio/providers/tts_engine_provider.dart`，service 保留兼容导出；
+    `SettingsProvider` 不再直接调用 `AmbientService`，由组合根 `ref.listenManual` 连接。
+  - 新增 `lib/core/theme/cyber_animation_scope.dart`，shared widgets 通过 core 上下文获得
+    动画等级；Toast 通过调用上下文定位 Overlay；TTS 错误监听器移至 app composition。
+  - `scripts/ai_checks/rules.dart` 新增 `SharedWidgetBoundaryRule`，阻断 shared widgets 反向
+    引入具体 feature 或 `main.dart`，并在 `test/scripts/ai_code_checker_test.dart` 补充回归。
+  - **验证**：`flutter analyze`、`dart analyze test`、`dart scripts/ai_code_checker.dart`；
+    `flutter test --concurrency=1` 689 passed、4 skipped；覆盖率 80.61%，核心均 >= 90%；
+    `go test ./...`、`go vet ./...`、`go build ./...` 全部通过。
+
 - **维护(ci): PR-7 arm64 Release APK 手动发布任务**：
   - `.github/workflows/flutter-ci.yml` 新增 `workflow_dispatch` 下的 `release-apk` job。
   - 发布任务使用 `ANDROID_KEYSTORE_BASE64` 生成临时 keystore，正式签名参数从 GitHub Secrets 注入。

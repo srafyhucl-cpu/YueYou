@@ -10,7 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
-import 'package:yueyou/shared/widgets/tts_error_listener.dart';
+import 'package:yueyou/app/composition/tts_error_listener.dart';
+import 'package:yueyou/shared/widgets/cyber_toast.dart';
 
 import '../../utils/test_utils.dart';
 
@@ -48,10 +49,12 @@ void main() {
 
   setUp(() async {
     await initializeTestEnvironment();
+    CyberToast.setAutoDismissForTesting(false);
   });
 
-  testWidgets('T-D Idle 状态下监听器构建必须无任何 toast 调用 / 不抛异常',
-      (tester) async {
+  tearDown(CyberToast.resetForTesting);
+
+  testWidgets('T-D Idle 状态下监听器构建必须无任何 toast 调用 / 不抛异常', (tester) async {
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -68,8 +71,7 @@ void main() {
         reason: 'TtsErrorListener 必须把 child 透传出来');
   });
 
-  testWidgets('T-D 不同时间戳的连续错误必须各触发一次 build 不抛异常',
-      (tester) async {
+  testWidgets('T-D 不同时间戳的连续错误必须各触发一次 build 不抛异常', (tester) async {
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -110,8 +112,7 @@ void main() {
     expect(find.text('child'), findsOneWidget);
   });
 
-  testWidgets('T-D 相同时间戳的错误必须被去重（_previousErrorTime 守卫）',
-      (tester) async {
+  testWidgets('T-D 相同时间戳的错误必须被去重（_previousErrorTime 守卫）', (tester) async {
     final fake = _FakeTtsAudioNotifier();
     fake.seedInitial(const TtsAudioError(
       type: TtsAudioErrorType.network,
@@ -149,8 +150,7 @@ void main() {
     expect(find.text('child'), findsOneWidget);
   });
 
-  testWidgets('T-D 相同 fallbackMessage 在 1s 内必须被节流（不重复弹 Toast）',
-      (tester) async {
+  testWidgets('T-D 相同 fallbackMessage 在 1s 内必须被节流（不重复弹 Toast）', (tester) async {
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -212,8 +212,7 @@ void main() {
     expect(find.text('child'), findsOneWidget);
   });
 
-  testWidgets('T-D fallbackMessage 由非空清空后再赋值必须重新触发节流计数',
-      (tester) async {
+  testWidgets('T-D fallbackMessage 由非空清空后再赋值必须重新触发节流计数', (tester) async {
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(

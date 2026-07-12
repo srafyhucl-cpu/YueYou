@@ -131,7 +131,11 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
   Future<void> _copyToClipboard(String text, BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (context.mounted) {
-      CyberToast.show('战绩已复制到剪贴板', type: ToastType.success);
+      CyberToast.show(
+        '战绩已复制到剪贴板',
+        context: context,
+        type: ToastType.success,
+      );
     }
   }
 

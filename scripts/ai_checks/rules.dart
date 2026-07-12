@@ -160,6 +160,37 @@ class RequiredTestsRule extends AiCheckRule {
   }
 }
 
+/// 共享组件只能依赖 Flutter、core 和其他共享组件，禁止反向耦合具体 feature。
+class SharedWidgetBoundaryRule extends AiCheckRule {
+  const SharedWidgetBoundaryRule();
+
+  @override
+  void apply(AiRepoContext context, List<AiFinding> findings) {
+    final importPattern = RegExp(
+      r'''(?:package:yueyou/features/|package:yueyou/main\.dart|['"](?:\.\./)+features/)''',
+    );
+    for (final snapshot in context.readDartFilesUnder('lib/shared/widgets')) {
+      for (var index = 0; index < snapshot.lines.length; index++) {
+        final line = snapshot.lines[index];
+        if (!line.trimLeft().startsWith('import ') &&
+            !line.trimLeft().startsWith('export ')) {
+          continue;
+        }
+        if (!importPattern.hasMatch(line)) continue;
+        findings.add(
+          AiFinding(
+            id: 'architecture.shared_feature_import',
+            severity: FindingSeverity.blocking,
+            filePath: snapshot.relativePath,
+            line: index + 1,
+            message: 'shared/widgets 禁止直接依赖具体 feature 或 main.dart',
+          ),
+        );
+      }
+    }
+  }
+}
+
 class IllegalConsoleOutputRule extends AiCheckRule {
   const IllegalConsoleOutputRule();
 

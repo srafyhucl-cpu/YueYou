@@ -114,6 +114,7 @@ lib/
 │   │   └── storage_service.dart   # 全局 SharedPreferences 封装
 │   ├── theme/
 │   │   ├── cyber_colors.dart      # 霓虹色板（零硬编码颜色）
+│   │   ├── cyber_animation_scope.dart # 共享 UI 动画等级上下文
 │   │   ├── cyber_dimensions.dart  # 间距、圆角、模糊值 token
 │   │   ├── cyber_shadows.dart     # 预设 BoxShadow 组合
 │   │   └── cyber_text_styles.dart # 字体样式 token
@@ -123,6 +124,8 @@ lib/
 │       └── ...
 ├── features/
 │   ├── audio/
+│   │   ├── providers/
+│   │   │   └── tts_engine_provider.dart # TTS Provider 生命周期装配
 │   │   ├── services/
 │   │   │   ├── tts_engine_service.dart  # 云端 TTS 引擎（两步下载 + 降级）
 │   │   │   └── sfx_service.dart         # 游戏音效（V4 Chirp 公式）
@@ -171,16 +174,22 @@ lib/
 │       └── presentation/
 │           ├── screens/settings_screen.dart
 │           └── widgets/privacy_agreement_modal.dart  # 隐私协议内容组件
+├── app/
+│   └── composition/
+│       ├── app_bootstrapper.dart    # 跨 feature 应用装配与生命周期连接
+│       └── tts_error_listener.dart  # 应用级 TTS 错误到 Toast 适配
 ├── shared/
 │   └── widgets/
 │       ├── cyber_modal.dart          # 毛玻璃弹窗基础组件
 │       ├── cyber_confirm_dialog.dart # 确认弹窗
 │       ├── cyber_toast.dart          # 赛博风格顶部提示
-│       ├── tts_error_listener.dart   # 全局 TTS 错误监听
 │       ├── neon_border_box.dart
 │       └── safe_padding_wrap.dart
-└── main.dart                         # 隐私启动闸门、ProviderScope 树、应用引导
+└── main.dart                         # 隐私启动闸门、ProviderScope 树、应用入口壳
 ```
+
+`shared/widgets` 只依赖 Flutter、`core` 和其他共享组件；跨 feature 的 Provider、生命周期和
+错误提示连接统一放在 `app/composition`。该边界由 AI 工程门禁自动检查。
 
 ### 数据流
 

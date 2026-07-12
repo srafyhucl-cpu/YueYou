@@ -65,6 +65,22 @@ void main() {
       expect(findingPaths, isNot(contains('lib/core/utils/cyber_logger.dart')));
     });
 
+    test('shared/widgets 直接依赖 feature 时输出架构阻断项', () {
+      _createBaselineRepo(tempDir);
+      _writeFile(
+        tempDir,
+        'lib/shared/widgets/bad_widget.dart',
+        "import 'package:yueyou/features/settings/providers/settings_provider.dart';\n",
+      );
+
+      final checker = AiCodeChecker(tempDir);
+      checker.run();
+      expect(
+        checker.findings.map((item) => item.id),
+        contains('architecture.shared_feature_import'),
+      );
+    });
+
     test('CLI 退出策略：只有 warning 也必须失败', () {
       const clean = AiCheckSummary(blockingCount: 0, warningCount: 0);
       const warningOnly = AiCheckSummary(blockingCount: 0, warningCount: 1);

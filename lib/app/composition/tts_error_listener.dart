@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:yueyou/core/utils/cyber_logger.dart';
 import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
 import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
-import 'cyber_toast.dart';
+import 'package:yueyou/shared/widgets/cyber_toast.dart';
 
-/// TTS 错误全局监听器组件
-///
-/// 将任意页面或整个 App 根节点包裹在此组件下，
-/// 每当 [TtsAudioError] 产生新时间戳时，
-/// 自动弹出 [CyberToast] 错误提示，无需各页面手动监听。
+/// 应用级 TTS 错误监听器，将音频状态转换为全局用户提示。
 class TtsErrorListener extends ConsumerStatefulWidget {
   final Widget child;
+
   const TtsErrorListener({super.key, required this.child});
 
   @override
@@ -26,7 +24,6 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 依赖变化时刷新快照，避免初始化重复触发旧错误
     final audioState = ref.read(ttsAudioProvider);
     _previousErrorTime = switch (audioState) {
       TtsAudioError(:final timestamp) => timestamp,
@@ -64,7 +61,11 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         try {
-          CyberToast.show(err, type: ToastType.error);
+          CyberToast.show(
+            err,
+            context: context,
+            type: ToastType.error,
+          );
         } catch (e, stack) {
           CyberLogger.captureWarning(
             e,
@@ -90,7 +91,11 @@ class _TtsErrorListenerState extends ConsumerState<TtsErrorListener> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           try {
-            CyberToast.show(fallback, type: ToastType.info);
+            CyberToast.show(
+              fallback,
+              context: context,
+              type: ToastType.info,
+            );
           } catch (e, stack) {
             CyberLogger.captureWarning(
               e,

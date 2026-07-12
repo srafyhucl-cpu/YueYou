@@ -12,6 +12,7 @@ class AiCodeChecker {
     TtsLifecycleRule(),
     NotifierGuardsRule(),
     RequiredTestsRule(),
+    SharedWidgetBoundaryRule(),
     IllegalConsoleOutputRule(),
     HardcodedUrlRule(),
     ProductionDomainDefaultRule(),

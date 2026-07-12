@@ -2,14 +2,11 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:yueyou/core/theme/cyber_animation_scope.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/core/utils/cyber_performance_detector.dart';
-import 'package:yueyou/features/game_2048/presentation/widgets/board_mascot.dart';
-import 'package:yueyou/features/settings/providers/settings_provider.dart';
-import 'package:yueyou/main.dart';
 
 enum ToastType {
   info,
@@ -20,13 +17,27 @@ enum ToastType {
 class CyberToast {
   static OverlayEntry? _currentEntry;
   static Timer? _currentTimer;
+  static bool _autoDismissEnabled = true;
   // P2-1：去重 + 滑动续期所需的"当前 Toast"标识。
   // 同一消息在短时间内重复触发时，只续期不重建，避免连续闪烁。
   static String? _currentMessage;
   static ToastType? _currentType;
 
+  /// 测试结束时清理静态 Overlay 与计时器，避免跨用例残留。
+  static void resetForTesting() {
+    _autoDismissEnabled = true;
+    _removeCurrentEntry();
+  }
+
+  /// 测试专用：关闭自动消失计时器，避免 fake async 测试跨树残留。
+  static void setAutoDismissForTesting(bool enabled) {
+    _autoDismissEnabled = enabled;
+    if (!enabled) _currentTimer?.cancel();
+  }
+
   static void show(
     String message, {
+    required BuildContext context,
     ToastType type = ToastType.info,
     Duration duration = CyberDimensions.toastDuration,
   }) {
@@ -35,15 +46,17 @@ class CyberToast {
     if (_currentEntry != null &&
         _currentMessage == message &&
         _currentType == type) {
-      _currentTimer?.cancel();
-      _currentTimer = Timer(duration, _removeCurrentEntry);
+      if (_autoDismissEnabled) {
+        _currentTimer?.cancel();
+        _currentTimer = Timer(duration, _removeCurrentEntry);
+      }
       return;
     }
 
     // 不同消息：移除旧 Toast，创建新 OverlayEntry
     _removeCurrentEntry();
 
-    final overlay = globalNavigatorKey.currentState?.overlay;
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
     final entry = OverlayEntry(
       builder: (context) => _CyberToastWidget(message: message, type: type),
@@ -55,7 +68,9 @@ class CyberToast {
     overlay.insert(entry);
 
     // 自动移除定时器
-    _currentTimer = Timer(duration, _removeCurrentEntry);
+    if (_autoDismissEnabled) {
+      _currentTimer = Timer(duration, _removeCurrentEntry);
+    }
   }
 
   static void _removeCurrentEntry() {
@@ -167,9 +182,7 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
                   borderRadius: BorderRadius.circular(
                     CyberDimensions.radiusL - CyberDimensions.borderThick,
                   ),
-                  child: ProviderScope.containerOf(context)
-                              .read(settingsProvider)
-                              .currentAnimationLevel ==
+                  child: CyberAnimationScope.of(context) ==
                           CyberAnimationLevel.low
                       ? Container(
                           color: CyberColors.glassDark.withValues(alpha: 0.98),
@@ -204,7 +217,6 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // XIAOYO Avatar PFP
           Container(
             width: 44,
             height: 44,
@@ -222,17 +234,10 @@ class _CyberToastWidgetState extends State<_CyberToastWidget>
                 ),
               ],
             ),
-            child: ClipOval(
-              child: Transform.scale(
-                scale: 0.65,
-                // Transform.translate 去微调位置以确保脸部在圆圈正中心
-                child: Transform.translate(
-                  offset: const Offset(0, -5),
-                  child: const IgnorePointer(
-                    child: BoardMascot(),
-                  ),
-                ),
-              ),
+            child: Icon(
+              Icons.auto_awesome,
+              color: _getBorderColor(),
+              size: 24,
             ),
           ),
           const SizedBox(

@@ -77,12 +77,20 @@ class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
                           );
                       if (!context.mounted) return;
 
-                      CyberToast.show('档案注入成功', type: ToastType.success);
+                      CyberToast.show(
+                        '档案注入成功',
+                        context: context,
+                        type: ToastType.success,
+                      );
                     } catch (error) {
                       final String msg = error is FileTooLargeException
                           ? error.toString()
                           : CyberErrorMessages.importFormatFailed;
-                      CyberToast.show(msg, type: ToastType.error);
+                      CyberToast.show(
+                        msg,
+                        context: context,
+                        type: ToastType.error,
+                      );
                     }
                   },
             borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
