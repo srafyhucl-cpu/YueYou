@@ -17,6 +17,15 @@
   - SHA-256：`603857D462DC3C24C163B0A077010D4FB1DC8288DDE298CD05AD919F7DA423AB`。
   - GitHub production Secrets、远端 release artifact 和 OSS 控制台规则仍未取得外部证据。
 
+- **部署(server): 完成 Go 服务端、公网反代与 OSS 生命周期治理**：
+  - 当前提交交叉编译后部署至 `47.94.102.250`，`yueyou.service` active；保留旧二进制备份以便回滚。
+  - 为 `hclstudio.cn` 签发独立 Let's Encrypt 证书，新增 `deploy/nginx/yueyou-hclstudio.conf`，
+    Nginx 校验和 reload 通过。
+  - 公网 `/health`、`/ready`、`/privacy`、书籍目录接口均返回 200，修复域名误路由到其他服务的问题。
+  - OSS Bucket ACL 回读为 `private`；`cache/tts/v2/` 生命周期规则回读为 Enabled、1 天过期。
+  - 远端 `.env` 增加独立随机 TTS 对象密钥和显式签名端点，未输出密钥值、未写入 Git。
+  - 生产 TTS 合成回归成功，音频以 `audio/mpeg` 返回；移除签名参数后 OSS 返回 `403`，日志未记录测试原文。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。

@@ -271,6 +271,10 @@ flutter build apk --release \
   --dart-define=APP_VERSION=1.1.1
 ```
 
+服务端生产部署使用 `server/` 交叉编译为 Linux amd64，由 `yueyou.service` 托管；
+Nginx 反代配置模板位于 `deploy/nginx/yueyou-hclstudio.conf`。TTS 临时对象使用私有
+OSS Bucket，`cache/tts/v2/` 生命周期目标为 24 小时内自动清理。
+
 ### 代码检查
 
 ```bash
@@ -289,7 +293,7 @@ dart scripts/ai_code_checker.dart
 flutter test --concurrency=1
 ```
 
-当前覆盖 **685 个通过用例**（另有 4 个已登记跳过项），涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 和服务端契约等核心模块。
+当前覆盖 **697 个通过用例**（另有 4 个已登记跳过项），涵盖 `GameProvider`、`TtsEngineService`（含降级）、`TextParser`、`BookshelfProvider`、`ReaderProvider`、`FileImportService`、`StorageService` 和服务端契约等核心模块。
 
 ### 生成覆盖率报告
 
