@@ -3,7 +3,14 @@
 ## **2026-07-12**
 
 - **验收(治理): 完成本地全量门禁与正式分支同步**：
-  - Flutter 全量测试 `697 passed、4 skipped`；覆盖率总体 `80.65%`，核心文件均达到 `90%` 以上。
+  - Flutter 全量测试 `697 passed、4 skipped`；覆盖率总体 `80.71%`（4321/5354），核心文件均达到
+    `90%` 以上。
+
+- **验收(门禁): 当前提交重新完成全量本地复核**：
+  - `flutter test --coverage --concurrency=1`：`697 passed、4 skipped`；覆盖率门禁总体
+    `4321/5354 = 80.71%`，核心文件全部 >= 90%。
+  - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
+    `go vet ./...`、`go build ./...` 均通过；测试生成的平台文件和书籍副作用已恢复清理。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。
