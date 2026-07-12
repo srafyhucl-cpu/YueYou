@@ -42,6 +42,11 @@
 - **验收(ci): 远端 Linux 全量门禁通过**：
   - Run `29190150172` / job `86643266395` 成功；SettingsScreen 三条 Ubuntu 渲染测试通过，空
     LCOV 文件按预期跳过，核心文件覆盖率门禁和 Go `test -race` 均通过。
+
+- **复核(release): 补齐 PR-7 文档验收勾选**：
+  - `docs/releases/v1.1.1.md` 已包含本地正式 APK SHA-256、变更说明和回滚说明，计划中的
+    “发布前生成 SHA-256、变更说明和回滚说明”现标记完成；GitHub artifact SHA-256 仍待外部
+    release workflow 生成。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。
