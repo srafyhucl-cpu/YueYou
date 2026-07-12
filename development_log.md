@@ -16,6 +16,12 @@
   - 测试步骤改用 JSON reporter，在失败时将具体测试名称输出到 GitHub annotations 与 Job
     Summary，同时保留原始失败退出码，待下一次远端运行提供 Linux 失败用例证据。
 
+- **修复(测试): SettingsScreen 跨平台视口确定化**：
+  - GitHub Linux CI 定位到设置页 3 条烟测因测试视口在 `devicePixelRatio=3.0` 下实际只有
+    `360x1000` 逻辑像素，底部内容被 ListView 视为 offstage。
+  - 大屏测试改为明确逻辑 `1080x3000`，默认小屏固定为 `360x640`；未放宽断言或修改生产布局。
+  - **验证**：SettingsScreen 测试 `4/4`、`flutter analyze`、`dart analyze test` 均通过。
+
 - **重构(领域): PR-9 2048 纯领域内核完成**：
   - 新增 `lib/features/game_2048/domain/game_engine.dart` 与不可变 `GameState`，移动、合并、
     全盘求和、结束判断、添加/移除方块均不依赖 Flutter，输入状态不会被原地修改。

@@ -49,7 +49,7 @@ void main() {
   testWidgets('SettingsScreen 必须渲染 Header 标题与所有 section 标题', (tester) async {
     // 大屏避免 ListView 滚动遮挡底部 section
     tester.view.physicalSize = const Size(1080, 3000);
-    tester.view.devicePixelRatio = 3.0;
+    tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -101,7 +101,7 @@ void main() {
     tester,
   ) async {
     tester.view.physicalSize = const Size(1080, 3000);
-    tester.view.devicePixelRatio = 3.0;
+    tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -123,7 +123,14 @@ void main() {
   });
 
   testWidgets('SettingsScreen 默认尺寸必须不崩溃（小屏 ListView 滚动）', (tester) async {
-    // 默认 800x600 小屏
+    // 固定逻辑小屏尺寸，避免不同平台默认 devicePixelRatio 造成视口漂移。
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(_wrap());
     await tester.pump();
 
