@@ -32,6 +32,12 @@
   - 改为 `python3 - "$RUNNER_TEMP" "$GITHUB_STEP_SUMMARY" ...`，不改变测试失败阻断策略；
     待远端新运行确认。
 
+- **维护(ci): 增强 Ubuntu SettingsScreen 异常诊断**：
+  - Run #270 已确认诊断入口修复，但 SettingsScreen 三条测试仍失败，公开 annotation 只有通用
+    `Test failed`，无法安全判断根因。
+  - 将 JSON 测试事件中的 `error` 与 `stackTrace` 合并输出，保持原有失败阻断策略，下一轮依据
+    首个真实异常继续修复。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。

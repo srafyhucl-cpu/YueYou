@@ -158,7 +158,11 @@ jobs:
                           test = event.get("test", {})
                           names[test.get("id")] = test.get("name", "未知测试")
                       elif event.get("type") == "error":
-                          errors[event.get("testID")] = event.get("error", "无错误详情")
+                          error_text = event.get("error", "无错误详情")
+                          stack_trace = event.get("stackTrace", "")
+                          errors[event.get("testID")] = (
+                              f"{error_text} {stack_trace}".strip()
+                          )
                       elif (
                           event.get("type") == "testDone"
                           and event.get("result") != "success"
