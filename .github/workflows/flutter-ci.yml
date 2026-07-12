@@ -86,6 +86,11 @@ jobs:
             > "$RUNNER_TEMP/flutter-test-machine.jsonl" \
             2> "$RUNNER_TEMP/flutter-test-stderr.log"
           test_status=$?
+          if [ "$test_status" -ne 0 ]; then
+            test_tail=$(tail -n 80 "$RUNNER_TEMP/flutter-test-machine.jsonl" \
+              "$RUNNER_TEMP/flutter-test-stderr.log" | tr '\n' ' ')
+            echo "::error title=Flutter Test Process::exit=$test_status $test_tail"
+          fi
           python3 "$RUNNER_TEMP/flutter-test-machine.jsonl" \
             "$RUNNER_TEMP/flutter-test-stderr.log" "$GITHUB_STEP_SUMMARY" <<'PY'
           import json
