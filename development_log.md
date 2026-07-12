@@ -67,6 +67,11 @@
   - CI 再将 `reader_flow_integration_test.dart` 独立运行，基础、reader、Tts 三份 LCOV 合并，
     保留全量覆盖率和失败阻断。
 
+- **修复(ci): 按测试文件隔离 Flutter 进程**：
+  - Run #251 失败位置继续沿 reader widget 文件移动，确认 43 个测试文件共享进程会产生全局
+    状态/资源污染。
+  - CI 每个测试文件独立运行并逐份合并 LCOV；任一测试或合并失败仍阻断门禁。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。
