@@ -10,7 +10,13 @@
   - `flutter test --coverage --concurrency=1`：`697 passed、4 skipped`；覆盖率门禁总体
     `4321/5354 = 80.71%`，核心文件全部 >= 90%。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
-    `go vet ./...`、`go build ./...` 均通过；测试生成的平台文件和书籍副作用已恢复清理。
+  `go vet ./...`、`go build ./...` 均通过；测试生成的平台文件和书籍副作用已恢复清理。
+
+- **修复(ci): 为逐文件 Flutter 测试增加超时边界**：
+  - 最新三次远端运行均卡在逐文件测试步骤，单个 `flutter test` 原先没有超时保护，无法进入
+    覆盖率门禁。
+  - workflow 现在为每个测试文件设置 180 秒 `timeout`，超时后继续收集并最终失败汇总，等待新
+    运行确定具体卡住文件。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。

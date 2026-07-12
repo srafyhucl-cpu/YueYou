@@ -83,18 +83,24 @@ jobs:
           set +e
           test_status=0
           test_index=0
+          test_timeout_seconds=180
           coverage_files=()
           while IFS= read -r test_file; do
             json_path="$RUNNER_TEMP/flutter-test-$test_index.jsonl"
             stderr_path="$RUNNER_TEMP/flutter-test-$test_index-stderr.log"
             coverage_path="coverage/lcov.$test_index.info"
-            flutter test --coverage --coverage-path="$coverage_path" \
+            timeout --foreground "${test_timeout_seconds}s" flutter test \
+              --coverage --coverage-path="$coverage_path" \
               --concurrency=1 --reporter json "$test_file" \
               > "$json_path" 2> "$stderr_path"
             file_status=$?
             if [ "$file_status" -ne 0 ]; then
               test_status=1
-              echo "::error title=Flutter Test Process::$test_file exit=$file_status"
+              if [ "$file_status" -eq 124 ]; then
+                echo "::error title=Flutter Test Timeout::$test_file 超过 ${test_timeout_seconds}s"
+              else
+                echo "::error title=Flutter Test Process::$test_file exit=$file_status"
+              fi
             fi
             coverage_files+=("$coverage_path")
             test_index=$((test_index + 1))
