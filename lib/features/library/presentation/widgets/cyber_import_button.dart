@@ -8,9 +8,9 @@ import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/library/services/file_import_service.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
-import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 import 'package:yueyou/shared/widgets/cyber_toast.dart';
 import 'package:yueyou/core/constants/cyber_error_messages.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
 class CyberImportButton extends ConsumerStatefulWidget {
   const CyberImportButton({super.key});
@@ -50,15 +50,6 @@ class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
                     ? null
                     : () async {
                         try {
-                          final granted = await showCyberConfirmDialog(
-                            context: context,
-                            title: '存储访问授权',
-                            message: '阅游需要读取您的本地存储以解析数据芯片 (TXT 文件)，是否授权？',
-                            confirmText: '授权',
-                            cancelText: '取消',
-                          );
-                          if (!granted) return;
-                          if (!context.mounted) return;
                           final result =
                               await FileImportService.importTxtFileStructured();
                           if (result == null || result.lines.isEmpty) return;
@@ -83,6 +74,11 @@ class _CyberImportButtonState extends ConsumerState<CyberImportButton> {
                                 chapters: result.chapters,
                               );
                           if (!context.mounted) return;
+
+                          // 文件选择本身已经是用户主动授权；自动朗读开启时直接进入听读。
+                          if (ref.read(settingsProvider).storyTts) {
+                            ref.read(readerProvider).toggleTTS();
+                          }
 
                           CyberToast.show(
                             '档案注入成功',

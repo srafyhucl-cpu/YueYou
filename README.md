@@ -31,7 +31,8 @@
 
 ### 📚 书库管理
 
-- **文件导入**：`FileImportService` 基于 `Isolate.spawn` 流式读取，主线程仅传文件路径，内存零拷贝
+- **文件导入**：系统文件选择器选定 TXT 后由 `FileImportService` 基于 `Isolate.spawn` 流式读取，
+  主线程仅传文件路径，内存零拷贝；自动朗读开启时导入完成即开始播放
 - **编码自动识别**：采样前 8KB → UTF-8 严格校验 → GBK 容错解码 → UTF-8 宽松兜底，三层覆盖
 - **BOM 跳过**：`File.openRead(3)` 直接偏移，无需内存拷贝
 - **大文件拦截**：超过 15MB 抛出 `FileTooLargeException`，Isolate 启动前即拦截
