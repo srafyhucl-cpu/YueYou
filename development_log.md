@@ -38,6 +38,10 @@
   - SettingsScreen 已通过后，远端仍因重复模块汇总步骤失败；该步骤把非 UI 模块汇总覆盖率
     错误当作 90% 强制门禁，与正式核心文件清单脚本不一致。
   - 现改为仅发布模块明细，强制门禁统一使用 `check_coverage_gate.py --core 90`，避免重复口径。
+
+- **验收(ci): 远端 Linux 全量门禁通过**：
+  - Run `29190150172` / job `86643266395` 成功；SettingsScreen 三条 Ubuntu 渲染测试通过，空
+    LCOV 文件按预期跳过，核心文件覆盖率门禁和 Go `test -race` 均通过。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。
