@@ -117,7 +117,23 @@ jobs:
           stderr_lines = []
           with open(stderr_path, encoding="utf-8", errors="replace") as stream:
               stderr_lines = [line.strip() for line in stream if line.strip()]
-          stderr_detail = " ".join((stderr_lines + raw_lines)[-12:])
+          diagnostic_lines = [
+              line for line in (stderr_lines + raw_lines)
+              if any(
+                  token in line
+                  for token in (
+                      "RenderFlex",
+                      "overflow",
+                      "Exception",
+                      "Expected:",
+                      "Actual:",
+                      "Failed assertion",
+                      "FlutterError",
+                      "MissingPlugin",
+                  )
+              )
+          ]
+          stderr_detail = " ".join(diagnostic_lines[-12:])
 
           for name, detail in failures:
               generic = detail.startswith("Test failed. See exception logs above.")
