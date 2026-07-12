@@ -45,6 +45,12 @@
   - Run #246 仍以进程退出码 1 失败，公开页面没有具体测试明细；不再继续猜测业务根因。
   - 测试进程失败时归档 JSON/stderr 尾部到单条 error annotation，下一轮仅依据真实异常处理。
 
+- **修复(测试): 隔离 TtsErrorListener Overlay 生命周期**：
+  - Run #247 尾部停在 `tts_error_listener_test.dart` 第二条用例；原 teardown 未先卸载测试树，
+    静态 Toast OverlayEntry 可能被后续用例异步回调访问。
+  - 每条用例先卸载并 pump 空树，再清理静态 Toast。
+  - **验证**：TtsErrorListener `5/5`、`flutter analyze`、`dart analyze test` 均通过。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。

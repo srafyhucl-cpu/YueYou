@@ -52,9 +52,17 @@ void main() {
     CyberToast.setAutoDismissForTesting(false);
   });
 
-  tearDown(CyberToast.resetForTesting);
+  void addWidgetTreeCleanup(WidgetTester tester) {
+    addTearDown(() async {
+      // 先卸载 Overlay 所属 widget tree，再清理静态 OverlayEntry，避免跨用例异步回调访问旧树。
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      CyberToast.resetForTesting();
+    });
+  }
 
   testWidgets('T-D Idle 状态下监听器构建必须无任何 toast 调用 / 不抛异常', (tester) async {
+    addWidgetTreeCleanup(tester);
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -72,6 +80,7 @@ void main() {
   });
 
   testWidgets('T-D 不同时间戳的连续错误必须各触发一次 build 不抛异常', (tester) async {
+    addWidgetTreeCleanup(tester);
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -113,6 +122,7 @@ void main() {
   });
 
   testWidgets('T-D 相同时间戳的错误必须被去重（_previousErrorTime 守卫）', (tester) async {
+    addWidgetTreeCleanup(tester);
     final fake = _FakeTtsAudioNotifier();
     fake.seedInitial(const TtsAudioError(
       type: TtsAudioErrorType.network,
@@ -151,6 +161,7 @@ void main() {
   });
 
   testWidgets('T-D 相同 fallbackMessage 在 1s 内必须被节流（不重复弹 Toast）', (tester) async {
+    addWidgetTreeCleanup(tester);
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -213,6 +224,7 @@ void main() {
   });
 
   testWidgets('T-D fallbackMessage 由非空清空后再赋值必须重新触发节流计数', (tester) async {
+    addWidgetTreeCleanup(tester);
     final fake = _FakeTtsAudioNotifier();
     await tester.pumpWidget(
       ProviderScope(
