@@ -157,7 +157,13 @@ jobs:
           exit "$test_status"
 
       - name: 校验覆盖率门槛（总体 ≥ 80%，核心文件 ≥ 90%）
-        run: python scripts/check_coverage_gate.py --overall 80 --core 90
+        shell: bash
+        run: |
+          set +e
+          python scripts/check_coverage_gate.py --overall 80 --core 90 \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          gate_status=${PIPESTATUS[0]}
+          exit "$gate_status"
 
       - name: 设置 .NET Core (ReportGenerator 依赖项)
         uses: actions/setup-dotnet@v4

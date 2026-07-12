@@ -25,6 +25,11 @@
     结束；覆盖率工具缺失是 Linux runner 的剩余高概率原因。
   - 测试前增加 `sudo apt-get update` 与 `sudo apt-get install -y lcov`，不改变测试失败退出策略。
 
+- **维护(ci): 归档覆盖率门禁完整输出**：
+  - Run #242 已通过测试步骤但覆盖率门禁失败，公开结果未包含门禁脚本 stdout。
+  - 门禁输出通过 `tee` 写入 Job Summary，并使用 `PIPESTATUS` 保留真实退出码，下一轮可直接定位
+    总体或核心文件阈值差异。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。
