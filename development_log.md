@@ -2,6 +2,12 @@
 
 ## **2026-07-12**
 
+- **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
+  - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
+    分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。
+  - CI 诊断脚本改为分别解析两个 JSON 流，再合并失败明细；两个测试进程的退出码仍共同决定门禁结果。
+  - **验证**：workflow YAML 可解析，`git diff --check` 通过；待远端重跑确认真实失败项。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。
