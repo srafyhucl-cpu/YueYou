@@ -217,6 +217,13 @@ class SettingsScreen extends ConsumerWidget {
           activeColor: CyberColors.neonGreen,
           onChanged: (v) => settings.setSound(v),
         ),
+        _ToggleTile(
+          label: SettingsTexts.gameModeTitle,
+          subtitle: SettingsTexts.gameModeSubtitle,
+          value: settings.showGame,
+          activeColor: CyberColors.neonPink,
+          onChanged: (v) => settings.setShowGame(v),
+        ),
         const SizedBox(height: CyberDimensions.spacingXL),
 
         const _SectionTitle(

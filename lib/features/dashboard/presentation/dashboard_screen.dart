@@ -13,6 +13,7 @@ import 'package:yueyou/features/audio/presentation/widgets/cyber_player_console.
 import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
 import 'package:yueyou/features/reader/presentation/screens/chapter_list_screen.dart';
 import 'package:yueyou/features/settings/presentation/screens/settings_screen.dart';
+import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/features/update/domain/update_info.dart';
 import 'package:yueyou/features/update/services/update_service.dart';
 import 'package:yueyou/shared/widgets/cyber_modal.dart';
@@ -111,6 +112,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 final isMultiWindow = constraints.maxHeight < 720 &&
                     (constraints.maxWidth < 420 || aspectRatio < 1.85);
                 final isCompact = isMultiWindow;
+                final showGame = ref.watch(settingsProvider).showGame;
                 final boardFlex = isCompact ? 1 : 2;
                 final spacing = isCompact
                     ? CyberDimensions.spacingXS
@@ -126,72 +128,81 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       if (!isMultiWindow) _buildStatusPanel(),
                       Expanded(
                         flex: boardFlex,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            const double kBuffer =
-                                CyberDimensions.dashboardBoardBuffer;
-                            final w = constraints.maxWidth;
-                            final h = constraints.maxHeight;
-                            // 棋盘可用高度 = 总高 - 顶部缓冲区
-                            final boardAvailH = h - kBuffer;
-                            final boardSz = w < boardAvailH ? w : boardAvailH;
-                            // 棋盘顶部位置 = 缓冲区 + 剩余居中空间
-                            final boardTop =
-                                kBuffer + (boardAvailH - boardSz) / 2;
-                            // XIAOYO 顶部 = boardTop - 73，由于 boardTop >= kBuffer = 76 > 73，始终为正数
-                            final mascotTop = boardTop -
-                                (CyberDimensions.dashboardMascotHeight -
-                                    CyberDimensions.spacingMS +
-                                    1);
+                        child: showGame
+                            ? LayoutBuilder(
+                                builder: (context, constraints) {
+                                  const double kBuffer =
+                                      CyberDimensions.dashboardBoardBuffer;
+                                  final w = constraints.maxWidth;
+                                  final h = constraints.maxHeight;
+                                  // 棋盘可用高度 = 总高 - 顶部缓冲区
+                                  final boardAvailH = h - kBuffer;
+                                  final boardSz =
+                                      w < boardAvailH ? w : boardAvailH;
+                                  // 棋盘顶部位置 = 缓冲区 + 剩余居中空间
+                                  final boardTop =
+                                      kBuffer + (boardAvailH - boardSz) / 2;
+                                  // XIAOYO 顶部 = boardTop - 73，由于 boardTop >= kBuffer = 76 > 73，始终为正数
+                                  final mascotTop = boardTop -
+                                      (CyberDimensions.dashboardMascotHeight -
+                                          CyberDimensions.spacingMS +
+                                          1);
 
-                            return Stack(
-                              children: [
-                                // 1. 棋盘层（在缓冲区下方居中）
-                                Positioned(
-                                  top: boardTop,
-                                  left: 0,
-                                  right: 0,
-                                  height: boardSz,
-                                  child: const SquareBoard(),
-                                ),
+                                  return Stack(
+                                    children: [
+                                      // 1. 棋盘层（在缓冲区下方居中）
+                                      Positioned(
+                                        top: boardTop,
+                                        left: 0,
+                                        right: 0,
+                                        height: boardSz,
+                                        child: const SquareBoard(),
+                                      ),
 
-                                // 2. XIAOYO 渲染层（纯渲染，不处理手势）
-                                Positioned(
-                                  top: mascotTop,
-                                  left: (w -
-                                          CyberDimensions
-                                              .dashboardMascotWidth) /
-                                      2,
-                                  width: CyberDimensions.dashboardMascotWidth,
-                                  height: CyberDimensions.dashboardMascotHeight,
-                                  child: IgnorePointer(
-                                    child: BoardMascot(key: _mascotKey),
-                                  ),
-                                ),
+                                      // 2. XIAOYO 渲染层（纯渲染，不处理手势）
+                                      Positioned(
+                                        top: mascotTop,
+                                        left: (w -
+                                                CyberDimensions
+                                                    .dashboardMascotWidth) /
+                                            2,
+                                        width: CyberDimensions
+                                            .dashboardMascotWidth,
+                                        height: CyberDimensions
+                                            .dashboardMascotHeight,
+                                        child: IgnorePointer(
+                                          child: BoardMascot(key: _mascotKey),
+                                        ),
+                                      ),
 
-                                // 3. XIAOYO 点击层（透明覆盖，独立于棋盘手势）
-                                Positioned(
-                                  top: mascotTop,
-                                  left: (w -
-                                          CyberDimensions
-                                              .dashboardMascotWidth) /
-                                      2,
-                                  width: CyberDimensions.dashboardMascotWidth,
-                                  height: CyberDimensions.dashboardMascotHeight,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      _mascotKey.currentState
-                                          ?.triggerTapAnimation();
-                                    },
-                                    behavior: HitTestBehavior.opaque,
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                                      // 3. XIAOYO 点击层（透明覆盖，独立于棋盘手势）
+                                      Positioned(
+                                        top: mascotTop,
+                                        left: (w -
+                                                CyberDimensions
+                                                    .dashboardMascotWidth) /
+                                            2,
+                                        width: CyberDimensions
+                                            .dashboardMascotWidth,
+                                        height: CyberDimensions
+                                            .dashboardMascotHeight,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            _mascotKey.currentState
+                                                ?.triggerTapAnimation();
+                                          },
+                                          behavior: HitTestBehavior.opaque,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              )
+                            : const RepaintBoundary(
+                                child: TeleprompterView(),
+                              ),
                       ),
-                      if (!isMultiWindow) ...[
+                      if (!isMultiWindow && showGame) ...[
                         SizedBox(height: spacing),
                         const RepaintBoundary(child: TeleprompterView()),
                       ],

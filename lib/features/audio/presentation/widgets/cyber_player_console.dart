@@ -207,6 +207,8 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
                           ),
                         ),
                         const SizedBox(width: 12),
+                        _buildBookmarkButton(reader),
+                        const SizedBox(width: 8),
                         _buildSpeedCapsule(reader, ttsState.playbackRate),
                       ],
                     ),
@@ -305,6 +307,27 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
             fontWeight: FontWeight.w900,
             fontFamily: CyberTextStyles.monoFont,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookmarkButton(ReaderProvider reader) {
+    final bookmarked = reader.isCurrentBookmarked;
+    return Semantics(
+      button: true,
+      label: bookmarked ? '移除当前书签' : '标记当前书签',
+      child: IconButton(
+        tooltip: bookmarked ? '移除书签' : '添加书签',
+        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        padding: EdgeInsets.zero,
+        onPressed: reader.currentBookId == null
+            ? null
+            : () => reader.toggleCurrentBookmark(),
+        icon: Icon(
+          bookmarked ? Icons.bookmark : Icons.bookmark_border,
+          color: bookmarked ? CyberColors.neonPink : CyberColors.whiteMuted,
+          size: 18,
         ),
       ),
     );

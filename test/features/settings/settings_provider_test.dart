@@ -23,6 +23,7 @@ void main() {
       expect(p.ttsRate, greaterThan(0));
       expect(p.ambientVol, inInclusiveRange(0.0, 1.0));
       expect(p.ambientEnabled, isTrue);
+      expect(p.showGame, isTrue);
     });
 
     test('setSound 持久化并 notifyListeners', () async {
@@ -114,6 +115,10 @@ void main() {
 
       await p.setAmbientEnabled(false);
       expect(StorageService.getSettingAmbientEnabled(), isFalse);
+
+      await p.setShowGame(false);
+      expect(p.showGame, isFalse);
+      expect(StorageService.getSettingShowGame(), isFalse);
 
       // 验证动画性能配置
       expect(p.animationQualitySetting, 'auto');

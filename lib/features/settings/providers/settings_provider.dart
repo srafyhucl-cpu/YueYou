@@ -29,6 +29,9 @@ class SettingsProvider with ChangeNotifier {
 
   /// 动画质量设置：'auto' | 'high' | 'medium' | 'low'
   late String animationQualitySetting;
+
+  /// 是否展示 2048 陪伴模式；关闭后主界面只保留听读内容。
+  late bool showGame;
   CyberAnimationLevel? _autoDetectedLevel;
 
   /// App 启动时从 StorageService 恢复所有设置
@@ -51,6 +54,7 @@ class SettingsProvider with ChangeNotifier {
     ambientEnabled = StorageService.getSettingAmbientEnabled();
     ambientStyle = StorageService.getSettingAmbientStyle();
     animationQualitySetting = StorageService.getSettingAnimationQuality();
+    showGame = StorageService.getSettingShowGame();
 
     if (animationQualitySetting == 'auto') {
       _autoDetectedLevel = CyberPerformanceDetector.detectLevel();
@@ -135,6 +139,13 @@ class SettingsProvider with ChangeNotifier {
       _autoDetectedLevel = CyberPerformanceDetector.detectLevel();
     }
     await StorageService.setSettingAnimationQuality(v);
+    notifyListeners();
+  }
+
+  /// 持久化 2048 陪伴模式开关。
+  Future<void> setShowGame(bool v) async {
+    showGame = v;
+    await StorageService.setSettingShowGame(v);
     notifyListeners();
   }
 }

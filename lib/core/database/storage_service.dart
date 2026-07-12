@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yueyou/core/database/reading_bookmark_storage.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
 
 /// 全量本地持久化服务
@@ -31,6 +32,7 @@ class StorageService {
   static const String _kHasSelectedBook = 'user_has_selected_book';
   static const String _kCurrentChapterIndex = 'current_chapter_index';
   static const String _kSettingAnimationQuality = 'setting_animation_quality';
+  static const String _kSettingShowGame = 'setting_show_game';
   static const String _kAnonymousInstallId = 'anonymous_install_id';
 
   static SharedPreferences? _prefs;
@@ -159,6 +161,7 @@ class StorageService {
     final records = _loadReadingRecords();
     records.remove(bookId);
     await _p.setString(_kReadingRecords, jsonEncode(records));
+    await ReadingBookmarkStorage.delete(_p, bookId);
   }
 
   static Map<String, dynamic> _loadReadingRecords() {
@@ -176,6 +179,17 @@ class StorageService {
       return {};
     }
   }
+
+  /// 读取指定书籍的书签行号。
+  static List<int> getReadingBookmarks(String bookId) =>
+      ReadingBookmarkStorage.get(_p, bookId);
+
+  /// 保存指定书籍的书签行号。
+  static Future<void> setReadingBookmarks(
+    String bookId,
+    List<int> lineIndexes,
+  ) =>
+      ReadingBookmarkStorage.set(_p, bookId, lineIndexes);
 
   static Future<void> setCurrentNovelId(String? id) async {
     if (id == null) {
@@ -297,6 +311,10 @@ class StorageService {
       _p.getString(_kSettingAnimationQuality) ?? 'auto';
   static Future<void> setSettingAnimationQuality(String v) =>
       _p.setString(_kSettingAnimationQuality, v);
+
+  static bool getSettingShowGame() => _p.getBool(_kSettingShowGame) ?? true;
+  static Future<void> setSettingShowGame(bool v) =>
+      _p.setBool(_kSettingShowGame, v);
 
   // ── 隐私协议同意状态 ──────────────────────────────────────────────────────
   static bool hasAgreedPrivacy() => _p.getBool(_kHasAgreedPrivacy) ?? false;

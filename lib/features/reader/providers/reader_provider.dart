@@ -57,6 +57,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   bool _isParsing = false;
   String? _currentBookId;
   List<ChapterModel> _chapters = [];
+  List<int> _bookmarks = [];
   String? _lastTtsError;
   TtsPlaybackState _lastTtsState = TtsPlaybackState.disabled;
 
@@ -165,6 +166,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   bool get isParsing => _isParsing;
   TtsEngineService get ttsEngine => _ttsEngine;
   List<ChapterModel> get chapters => _chapters;
+  List<int> get bookmarks => List.unmodifiable(_bookmarks);
+  bool get isCurrentBookmarked => _bookmarks.contains(_currentIndex);
   String? get currentBookId => _currentBookId;
   String? get ttsErrorMessage => _lastTtsError;
 
@@ -275,6 +278,8 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     _currentIndex =
         targetIndex.clamp(0, _sentences.isEmpty ? 0 : _sentences.length - 1);
     _fetchIndex = _currentIndex;
+    _bookmarks =
+        bookId == null ? <int>[] : StorageService.getReadingBookmarks(bookId);
 
     await StorageService.setCurrentNovelId(bookId);
 
@@ -448,6 +453,28 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
     }
   }
 
+  /// 切换当前阅读位置的书签，并立即持久化，供听读控制台调用。
+  Future<void> toggleCurrentBookmark() async {
+    if (_currentBookId == null || _sentences.isEmpty) return;
+    if (_bookmarks.contains(_currentIndex)) {
+      _bookmarks.remove(_currentIndex);
+    } else {
+      _bookmarks.add(_currentIndex);
+      _bookmarks.sort();
+    }
+    notifyListeners();
+    try {
+      await StorageService.setReadingBookmarks(_currentBookId!, _bookmarks);
+    } catch (e, st) {
+      CyberLogger.captureWarning(
+        e,
+        stack: st,
+        tag: 'reader',
+        extra: {'context': '切换书签持久化失败'},
+      );
+    }
+  }
+
   /// 按行号跳转（对应 JS jumpTo(lineIndex)）
   Future<void> jumpToLine(int index) => jumpTo(index);
 
@@ -539,6 +566,7 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
 
     // 置空所有数据
     _currentBookId = null;
+    _bookmarks = [];
     _sentences = [];
     _chapters = [];
     _currentIndex = 0;

@@ -2,6 +2,18 @@
 
 ## **2026-07-12**
 
+- **功能(M3): 补齐听读主线的书签与纯阅读模式**：
+  - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
+    数据按空书签处理；删除阅读记录时同步删除书签。
+  - `ReaderProvider` 加载书籍时恢复书签，`CyberPlayerConsole` 增加屏幕阅读器可识别的添加/移除
+    书签按钮，切换后立即写入本地存储。
+  - `SettingsProvider` 新增“2048 陪伴模式”开关；关闭时 `DashboardScreen` 隐藏棋盘、吉祥物和
+    游戏状态面板，直接展示听读提词器。
+  - 回归验证：相关 Flutter 测试 135 个通过；全量 Flutter 测试 `701 passed、4 skipped`，总体
+    覆盖率 `4382/5423 = 80.80%`，核心文件均不低于 90%。`flutter analyze`、`dart analyze test`、
+    AI 工程门禁（0 阻断、0 警告）、`go test ./...`、`go vet ./...`、`go build ./...` 均通过。
+  - 未提前关闭真实验收项：首次导入三步、弱网连续听读、完整辅助功能覆盖和 G1 五人用户验证。
+
 - **验收(release): 完成 GitHub 发布治理外部闭环**：
   - GitHub 默认分支已切换为 `main`；`main` 分支保护要求 `分析与测试`、至少 1 个 PR 审批，
     管理员遵守规则，并禁止强推和删除分支。

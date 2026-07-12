@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
+import 'package:yueyou/features/game_2048/presentation/widgets/square_board.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
+import 'package:yueyou/features/reader/presentation/widgets/teleprompter_view.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/main.dart';
 
@@ -113,6 +115,36 @@ void main() {
     // 状态卡片（'当前得分'）在 multi-window 下隐藏
     expect(find.textContaining('当前得分'), findsNothing,
         reason: 'multi-window 模式下 _buildStatusPanel 必须隐藏');
+  });
+
+  testWidgets('DashboardScreen 关闭 2048 陪伴模式后显示听读视图', (tester) async {
+    final settings = makeSettings()..showGame = false;
+    final engine = makeTtsEngine(settings);
+    activeEngine = engine;
+    final reader = ReaderProvider(engine);
+    activeReader = reader;
+    final bookshelf = BookshelfProvider();
+    final game = GameProvider(
+      autoLoadState: false,
+      persistDebounceDuration: Duration.zero,
+    )..soundEnabled = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith((ref) => settings),
+          ttsEngineProvider.overrideWith((ref) => engine),
+          readerProvider.overrideWith((ref) => reader),
+          bookshelfProvider.overrideWith((ref) => bookshelf),
+          gameProvider.overrideWith((ref) => game),
+        ],
+        child: MaterialApp(home: const DashboardScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TeleprompterView), findsOneWidget);
+    expect(find.byType(SquareBoard), findsNothing);
   });
 
   // ── 大屏 + low animation level 用例：拉动 TeleprompterView 与 modal 的
