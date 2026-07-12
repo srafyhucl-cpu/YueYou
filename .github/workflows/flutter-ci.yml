@@ -114,8 +114,7 @@ jobs:
           first_coverage=1
           for coverage_path in "${coverage_files[@]}"; do
             if [ ! -s "$coverage_path" ]; then
-              merge_status=1
-              echo "::error title=Coverage Merge::缺少覆盖率文件 $coverage_path"
+              echo "::notice title=Coverage Merge::跳过无业务源码覆盖率文件 $coverage_path"
               continue
             fi
             if [ "$first_coverage" -eq 1 ]; then

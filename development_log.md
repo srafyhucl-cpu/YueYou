@@ -27,6 +27,12 @@
     Flutter framework 报告其背景/ink splash 可能不可见，并将三条渲染测试判为失败。
   - 在 tile 外增加透明、圆角、裁剪的 `Material` 承载层，保留原有外层视觉；本地设置页 4 条测试、
     `flutter analyze`、`dart analyze test` 均通过，待 Ubuntu CI 确认。
+
+- **修复(ci): 忽略无业务源码测试的空 LCOV 文件**：
+  - 新远端运行确认 SettingsScreen 三条失败已消失；失败只剩 `coverage/lcov.1.info` 和
+    `coverage/lcov.39.info` 不存在，分别对应 API 契约样例和 AI 检查器测试。
+  - 合并脚本现在跳过这类无业务源码覆盖率文件，仍由单文件测试退出码和最终总体覆盖率门禁
+    负责阻断。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。
