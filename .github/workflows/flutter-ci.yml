@@ -81,9 +81,8 @@ jobs:
         shell: bash
         run: |
           set +e
-          test_files=$(find test -name '*_test.dart' -print)
           flutter test --coverage --coverage-path=coverage/lcov.info \
-            --concurrency=1 --reporter json $test_files \
+            --concurrency=1 --reporter json \
             > "$RUNNER_TEMP/flutter-test-machine.jsonl" \
             2> "$RUNNER_TEMP/flutter-test-stderr.log"
           test_status=$?
