@@ -2,6 +2,16 @@
 
 ## **2026-07-12**
 
+- **验收(release): 完成 GitHub 发布治理外部闭环**：
+  - GitHub 默认分支已切换为 `main`；`main` 分支保护要求 `分析与测试`、至少 1 个 PR 审批，
+    管理员遵守规则，并禁止强推和删除分支。
+  - 已创建 `production` environment，配置构建变量和四个 Android 签名 Secret；Secret 值未写入
+    仓库、工作树或日志。
+  - Release Run `29190744467` 成功，`arm64 Release APK` 与 `分析与测试` 均通过；artifact
+    `yueyou-arm64-release-apk`（ID `8259540304`）SHA-256 为
+    `a9fd40c35ce526b92f2a9c0910e673df1738b14041249a0bf449e6f543ba6f4e`，与随包校验文件一致。
+  - `v1.1.1` Tag 未被覆盖，Tag 与当前治理 artifact 的一致性保留为后续递增版本发布门禁。
+
 - **验收(治理): 完成本地全量门禁与正式分支同步**：
   - Flutter 全量测试 `697 passed、4 skipped`；覆盖率总体 `80.71%`（4321/5354），核心文件均达到
     `90%` 以上。
