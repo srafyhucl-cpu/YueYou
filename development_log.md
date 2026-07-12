@@ -20,6 +20,11 @@
   - CI 改为一次运行全部测试并直接生成 `coverage/lcov.info`，恢复单一 JSON 流解析。
   - **验证**：本地全量 `697 passed、4 skipped`，覆盖率文件生成；workflow YAML 与 diff 检查通过。
 
+- **修复(ci): 显式安装 Linux lcov 覆盖率工具**：
+  - Run #241 已消除 SettingsScreen 三条错误归因，但测试步骤仍以无具体用例明细的进程退出码 1
+    结束；覆盖率工具缺失是 Linux runner 的剩余高概率原因。
+  - 测试前增加 `sudo apt-get update` 与 `sudo apt-get install -y lcov`，不改变测试失败退出策略。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。
