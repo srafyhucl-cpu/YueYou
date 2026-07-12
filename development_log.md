@@ -21,6 +21,12 @@
 - **维护(ci): 增强逐文件失败堆栈诊断**：
   - 新运行确认 SettingsScreen 三条 Ubuntu 渲染测试失败，但公开 annotation 仍只有通用失败文本。
   - workflow 现在在单文件失败时附加该文件 JSON/stderr 尾部，下一轮直接输出真实断言上下文。
+
+- **修复(ui): 修复 Ubuntu SettingsScreen ListTile framework assertion**：
+  - 远端诊断确认 `_ToggleTile` 的 `SwitchListTile` 直接嵌套在带背景的 `AnimatedContainer` 中，
+    Flutter framework 报告其背景/ink splash 可能不可见，并将三条渲染测试判为失败。
+  - 在 tile 外增加透明、圆角、裁剪的 `Material` 承载层，保留原有外层视觉；本地设置页 4 条测试、
+    `flutter analyze`、`dart analyze test` 均通过，待 Ubuntu CI 确认。
   - `flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、`go test ./...`、
     `go vet ./...`、`go build ./...` 全部通过；`go test -race ./...` 因 Windows 缺少 GCC/CGO
     工具链仍交由 Ubuntu CI 验证。

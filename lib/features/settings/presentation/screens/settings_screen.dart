@@ -476,27 +476,32 @@ class _ToggleTile extends StatelessWidget {
               ]
             : null,
       ),
-      child: SwitchListTile(
-        title: Text(
-          label,
-          style: CyberTextStyles.tileTitle.copyWith(
-            color: value ? CyberColors.white : CyberColors.whiteDim,
-            fontSize: 14,
+      child: Material(
+        color: CyberColors.transparent,
+        borderRadius: BorderRadius.circular(CyberDimensions.radiusM),
+        clipBehavior: Clip.antiAlias,
+        child: SwitchListTile(
+          title: Text(
+            label,
+            style: CyberTextStyles.tileTitle.copyWith(
+              color: value ? CyberColors.white : CyberColors.whiteDim,
+              fontSize: 14,
+            ),
           ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: CyberTextStyles.tileSubtitle.copyWith(
-            color: CyberColors.whiteMuted,
-            fontSize: 11,
+          subtitle: Text(
+            subtitle,
+            style: CyberTextStyles.tileSubtitle.copyWith(
+              color: CyberColors.whiteMuted,
+              fontSize: 11,
+            ),
           ),
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: activeColor.withValues(alpha: 0.2),
+          activeThumbColor: activeColor,
+          inactiveThumbColor: CyberColors.whiteDim,
+          inactiveTrackColor: CyberColors.whiteFaint,
         ),
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: activeColor.withValues(alpha: 0.2),
-        activeThumbColor: activeColor,
-        inactiveThumbColor: CyberColors.whiteDim,
-        inactiveTrackColor: CyberColors.whiteFaint,
       ),
     );
   }
