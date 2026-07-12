@@ -34,6 +34,7 @@
   - Run #243 测试步骤通过、覆盖率步骤失败，但公开 Job Summary 未显示脚本正文。
   - 将门禁输出中的 `[GATE]`/`[FAIL]` 行发布为 GitHub error annotation，仍保留原始退出码，
     下一轮直接获得总体和核心失败数值。
+  - 若多行 annotation 被平台过滤，失败时额外发送单行完整门禁输出，保持退出码不变。
 
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求

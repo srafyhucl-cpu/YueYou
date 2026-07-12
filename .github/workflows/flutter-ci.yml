@@ -170,6 +170,10 @@ jobs:
                 ;;
             esac
           done <<< "$gate_output"
+          if [ "$gate_status" -ne 0 ]; then
+            gate_one_line=$(printf '%s' "$gate_output" | tr '\n' ' ')
+            echo "::error title=Coverage Gate::$gate_one_line"
+          fi
           exit "$gate_status"
 
       - name: 设置 .NET Core (ReportGenerator 依赖项)
