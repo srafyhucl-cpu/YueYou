@@ -538,48 +538,57 @@ class _ChoiceSelector<T> extends StatelessWidget {
         children: options.entries.map((entry) {
           final isSelected = entry.key == value;
           return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(entry.key),
-              child: AnimatedContainer(
-                duration: CyberDimensions.animFast,
-                padding: const EdgeInsets.symmetric(
-                  vertical:
-                      CyberDimensions.spacingS + CyberDimensions.spacingXXS,
-                ),
-                decoration: BoxDecoration(
-                  gradient: isSelected
-                      ? LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            CyberColors.whiteFaint.withValues(alpha: 0.2),
-                            CyberColors.whiteFaint.withValues(alpha: 0.05),
-                          ],
-                        )
-                      : null,
-                  borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: CyberColors.background.withValues(
-                              alpha: 0.4,
-                            ),
-                            blurRadius: CyberDimensions.shadowBlurXS,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    entry.value,
-                    style: CyberTextStyles.bodySmall.copyWith(
-                      color: isSelected
-                          ? CyberColors.white
-                          : CyberColors.whiteMuted,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12,
+            child: Semantics(
+              button: true,
+              selected: isSelected,
+              label: entry.value,
+              child: GestureDetector(
+                onTap: () => onChanged(entry.key),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: AnimatedContainer(
+                    duration: CyberDimensions.animFast,
+                    padding: const EdgeInsets.symmetric(
+                      vertical:
+                          CyberDimensions.spacingS + CyberDimensions.spacingXXS,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: isSelected
+                          ? LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                CyberColors.whiteFaint.withValues(alpha: 0.2),
+                                CyberColors.whiteFaint.withValues(alpha: 0.05),
+                              ],
+                            )
+                          : null,
+                      borderRadius:
+                          BorderRadius.circular(CyberDimensions.radiusL),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: CyberColors.background.withValues(
+                                  alpha: 0.4,
+                                ),
+                                blurRadius: CyberDimensions.shadowBlurXS,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        entry.value,
+                        style: CyberTextStyles.bodySmall.copyWith(
+                          color: isSelected
+                              ? CyberColors.white
+                              : CyberColors.whiteMuted,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -591,7 +600,6 @@ class _ChoiceSelector<T> extends StatelessWidget {
     );
   }
 }
-
 class _VoiceSelector extends ConsumerWidget {
   final SettingsProvider settings;
   static const Map<String, String> _voices = {

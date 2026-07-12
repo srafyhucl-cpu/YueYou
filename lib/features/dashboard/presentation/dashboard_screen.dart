@@ -478,31 +478,35 @@ class _SegButtonState extends State<_SegButton> {
         onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.item.onTap,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding:
-              const EdgeInsets.symmetric(vertical: CyberDimensions.spacingMS),
-          decoration: BoxDecoration(
-            color: _isPressed
-                ? CyberColors.neonCyan.withValues(alpha: 0.12)
-                : CyberColors.transparent,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                widget.item.icon,
-                color: CyberColors.neonCyan.withValues(alpha: 0.8),
-                size: CyberDimensions.iconS,
-              ),
-              const SizedBox(
-                width: CyberDimensions.spacingS - CyberDimensions.spacingXXS,
-              ),
-              Text(
-                widget.item.label,
-                style: CyberTextStyles.segmentLabel,
-              ),
-            ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(
+              vertical: CyberDimensions.spacingMS,
+            ),
+            decoration: BoxDecoration(
+              color: _isPressed
+                  ? CyberColors.neonCyan.withValues(alpha: 0.12)
+                  : CyberColors.transparent,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  widget.item.icon,
+                  color: CyberColors.neonCyan.withValues(alpha: 0.8),
+                  size: CyberDimensions.iconS,
+                ),
+                const SizedBox(
+                  width: CyberDimensions.spacingS - CyberDimensions.spacingXXS,
+                ),
+                Text(
+                  widget.item.label,
+                  style: CyberTextStyles.segmentLabel,
+                ),
+              ],
+            ),
           ),
         ),
       ),

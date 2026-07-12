@@ -228,34 +228,38 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
       TtsAudioIdle() || TtsAudioPaused() || TtsAudioError() => false,
     };
 
-    return GestureDetector(
-      onTap: () {
-        _handlePlayTap(reader, ttsState);
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [CyberColors.hotPink, CyberColors.neonPurple],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: CyberColors.hotPink.withValues(alpha: 0.3),
-              blurRadius: CyberDimensions.blurLight,
-              offset: const Offset(0, 4),
+    return Semantics(
+      button: true,
+      label: isActive ? '暂停朗读' : '开始朗读',
+      child: GestureDetector(
+        onTap: () {
+          _handlePlayTap(reader, ttsState);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [CyberColors.hotPink, CyberColors.neonPurple],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: Center(
-          child: Icon(
-            isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            color: CyberColors.white,
-            size: 14,
+            boxShadow: [
+              BoxShadow(
+                color: CyberColors.hotPink.withValues(alpha: 0.3),
+                blurRadius: CyberDimensions.blurLight,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(
+              isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: CyberColors.white,
+              size: 14,
+            ),
           ),
         ),
       ),
@@ -284,28 +288,32 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
   }
 
   Widget _buildSpeedCapsule(ReaderProvider reader, double playbackRate) {
-    return GestureDetector(
-      onTap: () => ref.read(ttsAudioProvider.notifier).cycleSpeed(),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: CyberDimensions.spacingMS,
-          vertical: CyberDimensions.spacingS,
-        ),
-        decoration: BoxDecoration(
-          color: CyberColors.whiteBorder,
-          borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-          border: Border.all(
-            color: CyberColors.whiteBorder,
-            width: CyberDimensions.borderNormal,
+    return Semantics(
+      button: true,
+      label: '朗读速度 ${playbackRate.toStringAsFixed(1)} 倍，点击切换',
+      child: GestureDetector(
+        onTap: () => ref.read(ttsAudioProvider.notifier).cycleSpeed(),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CyberDimensions.spacingMS,
+            vertical: CyberDimensions.spacingS,
           ),
-        ),
-        child: Text(
-          '${playbackRate.toStringAsFixed(1)}x',
-          style: CyberTextStyles.captionBold.copyWith(
-            color: CyberColors.neonCyan,
-            fontWeight: FontWeight.w900,
-            fontFamily: CyberTextStyles.monoFont,
+          decoration: BoxDecoration(
+            color: CyberColors.whiteBorder,
+            borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+            border: Border.all(
+              color: CyberColors.whiteBorder,
+              width: CyberDimensions.borderNormal,
+            ),
+          ),
+          child: Text(
+            '${playbackRate.toStringAsFixed(1)}x',
+            style: CyberTextStyles.captionBold.copyWith(
+              color: CyberColors.neonCyan,
+              fontWeight: FontWeight.w900,
+              fontFamily: CyberTextStyles.monoFont,
+            ),
           ),
         ),
       ),
