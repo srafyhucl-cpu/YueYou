@@ -51,6 +51,11 @@
   - 每条用例先卸载并 pump 空树，再清理静态 Toast。
   - **验证**：TtsErrorListener `5/5`、`flutter analyze`、`dart analyze test` 均通过。
 
+- **修复(测试): 为 TtsErrorListener 注入 Toast 渲染替身**：
+  - Run #248 仍在真实 Toast Overlay 路径终止；listener 节流测试不再创建真实 Overlay，改用
+    `CyberToast` 的 `@visibleForTesting` 显示替身。
+  - 本地 TtsErrorListener `5/5` 通过；移除多余 import 后保持分析零问题。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。

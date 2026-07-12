@@ -50,6 +50,7 @@ void main() {
   setUp(() async {
     await initializeTestEnvironment();
     CyberToast.setAutoDismissForTesting(false);
+    CyberToast.setShowOverrideForTesting((_, __, ___) {});
   });
 
   void addWidgetTreeCleanup(WidgetTester tester) {

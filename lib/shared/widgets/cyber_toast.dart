@@ -14,6 +14,12 @@ enum ToastType {
   success,
 }
 
+typedef CyberToastShowOverride = void Function(
+  String message,
+  BuildContext context,
+  ToastType type,
+);
+
 class CyberToast {
   static OverlayEntry? _currentEntry;
   static Timer? _currentTimer;
@@ -22,10 +28,18 @@ class CyberToast {
   // 同一消息在短时间内重复触发时，只续期不重建，避免连续闪烁。
   static String? _currentMessage;
   static ToastType? _currentType;
+  static CyberToastShowOverride? _showOverrideForTesting;
+
+  /// 测试专用替身：允许监听器测试验证调用编排而不创建真实 Overlay。
+  @visibleForTesting
+  static void setShowOverrideForTesting(CyberToastShowOverride? override) {
+    _showOverrideForTesting = override;
+  }
 
   /// 测试结束时清理静态 Overlay 与计时器，避免跨用例残留。
   static void resetForTesting() {
     _autoDismissEnabled = true;
+    _showOverrideForTesting = null;
     _removeCurrentEntry();
   }
 
@@ -41,6 +55,12 @@ class CyberToast {
     ToastType type = ToastType.info,
     Duration duration = CyberDimensions.toastDuration,
   }) {
+    final override = _showOverrideForTesting;
+    if (override != null) {
+      override(message, context, type);
+      return;
+    }
+
     // P2-1：相同 message + type 的连续触发只刷新计时器，
     // 避免 OverlayEntry 反复 remove/insert 引发动画闪烁与无谓重建。
     if (_currentEntry != null &&
