@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +29,14 @@ void main() {
       exitApp: () async {},
     );
 
-    await startup.launch();
+    late Future<void> launchFuture;
+    HttpOverrides.runZoned<void>(
+      () => launchFuture = startup.launch(),
+      createHttpClient: (_) {
+        throw StateError('隐私同意前禁止创建 HTTP 客户端');
+      },
+    );
+    await launchFuture;
 
     expect(fullInitCount, 0);
     expect(sentryInitCount, 0);

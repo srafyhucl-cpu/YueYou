@@ -51,6 +51,11 @@
   - GitHub 默认分支/分支保护、production signing Secrets、`release-apk` artifact、G1 用户验证、
     两周 CI 稳定期和 Ubuntu `go test -race` 仍缺权威证据，未将全局计划误标为完成。
 
+- **测试(隐私): 增加同意前 HTTP 客户端阻断守卫**：
+  - 首次未同意启动测试通过 `HttpOverrides` 禁止创建 HTTP 客户端，6 条启动测试、`flutter analyze`
+    和 `dart analyze test` 均通过。
+  - 该守卫覆盖 Dart HTTP 路径；第三方 SDK 和原生网络请求仍需真实设备验收。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。
