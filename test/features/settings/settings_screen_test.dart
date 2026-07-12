@@ -17,6 +17,20 @@ import '../../utils/test_utils.dart';
 ///   * _buildBody ListView 渲染所有 section（line 93-282）
 ///   * 各 _SectionTitle / _ToggleTile / _RadioTile 等子 widget
 ///   * 静默暂停 / 系统音效 / 隐私合规等所有分组
+/// 渲染烟测只需要稳定的字段值，不启动存储恢复和性能检测异步链。
+SettingsProvider _makeRenderSettings() {
+  return SettingsProvider()
+    ..sound = true
+    ..storyTts = false
+    ..voice = 'zh-CN-XiaoxiaoNeural'
+    ..idleTimeout = 0
+    ..ttsRate = 1.0
+    ..ambientVol = 0.5
+    ..ambientEnabled = false
+    ..ambientStyle = 'wuxia'
+    ..animationQualitySetting = 'low';
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -25,7 +39,7 @@ void main() {
   });
 
   Widget _wrap() {
-    final settings = makeSettings();
+    final settings = _makeRenderSettings();
 
     return ProviderScope(
       overrides: [settingsProvider.overrideWith((ref) => settings)],
@@ -152,7 +166,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final settings = makeSettings();
+    final settings = _makeRenderSettings();
 
     await tester.pumpWidget(
       ProviderScope(

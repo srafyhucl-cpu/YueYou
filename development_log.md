@@ -38,6 +38,13 @@
   - 将 JSON 测试事件中的 `error` 与 `stackTrace` 合并输出，保持原有失败阻断策略，下一轮依据
     首个真实异常继续修复。
 
+- **修复(测试): 隔离 SettingsScreen 烟测存储恢复链**：
+  - Run #271 仍只显示 SettingsScreen 三条渲染用例失败；烟测原先调用 `makeSettings()`，会触发
+    存储恢复、自动性能检测和通知回调。
+  - 改为显式初始化 SettingsProvider 全部字段并固定低性能等级，隔离与渲染断言无关的异步/平台
+    依赖；不改变生产代码行为。本地设置页四条测试、`flutter analyze`、`dart analyze test`
+    均通过，待 Run #274 确认。
+
 - **修复(ci): 隔离跨 Flutter 进程的测试诊断 ID**：
   - 定位上一轮远端失败明细被错误标记为 3 条 SettingsScreen 用例的原因：基础测试与设置页测试
     分属两个 Flutter 进程，JSON `testID` 数字会复用，拼接后共享名称映射导致错误归因。
