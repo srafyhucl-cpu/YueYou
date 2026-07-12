@@ -62,6 +62,11 @@
   - CI 单独运行该测试文件，分别生成覆盖率并用 `lcov --add-tracefile` 合并，保持全量覆盖率和
     失败阻断语义。
 
+- **修复(ci): 隔离 Reader 集成测试进程**：
+  - Run #250 返回 `base=1、tts=0、merge=0`，尾部停在 reader 集成测试，Tts 测试已独立通过。
+  - CI 再将 `reader_flow_integration_test.dart` 独立运行，基础、reader、Tts 三份 LCOV 合并，
+    保留全量覆盖率和失败阻断。
+
 - **修复(隐私): 补齐隐私协议版本升级重新确认**：
   - 新增 `AppInfoConfig.privacyPolicyVersion` 与 `StorageService` 协议版本存储；启动时要求
     已同意状态和当前版本同时匹配，旧版本用户会重新进入 ConsentApp。

@@ -82,6 +82,7 @@ jobs:
         run: |
           set +e
           base_files=$(find test -name '*_test.dart' \
+            ! -path 'test/features/reader/reader_flow_integration_test.dart' \
             ! -path 'test/shared/widgets/tts_error_listener_test.dart' \
             -print)
           flutter test --coverage --coverage-path=coverage/lcov.base.info \
@@ -89,6 +90,12 @@ jobs:
             > "$RUNNER_TEMP/flutter-test-base.jsonl" \
             2> "$RUNNER_TEMP/flutter-test-base-stderr.log"
           base_status=$?
+          flutter test --coverage --coverage-path=coverage/lcov.reader.json.info \
+            --concurrency=1 --reporter json \
+            test/features/reader/reader_flow_integration_test.dart \
+            > "$RUNNER_TEMP/flutter-test-reader.jsonl" \
+            2> "$RUNNER_TEMP/flutter-test-reader-stderr.log"
+          reader_status=$?
           flutter test --coverage --coverage-path=coverage/lcov.tts.json.info \
             --concurrency=1 --reporter json \
             test/shared/widgets/tts_error_listener_test.dart \
@@ -96,34 +103,39 @@ jobs:
             2> "$RUNNER_TEMP/flutter-test-tts-stderr.log"
           tts_status=$?
           cat "$RUNNER_TEMP/flutter-test-base-stderr.log" \
+            "$RUNNER_TEMP/flutter-test-reader-stderr.log" \
             "$RUNNER_TEMP/flutter-test-tts-stderr.log" \
             > "$RUNNER_TEMP/flutter-test-stderr.log"
           lcov --add-tracefile coverage/lcov.base.info \
+            --add-tracefile coverage/lcov.reader.json.info \
             --add-tracefile coverage/lcov.tts.json.info \
             --output-file coverage/lcov.info \
             > "$RUNNER_TEMP/lcov-merge.log" 2>&1
           merge_status=$?
           cat "$RUNNER_TEMP/lcov-merge.log" >> "$RUNNER_TEMP/flutter-test-stderr.log"
-          if [ "$base_status" -ne 0 ] || [ "$tts_status" -ne 0 ] || [ "$merge_status" -ne 0 ]; then
+          if [ "$base_status" -ne 0 ] || [ "$reader_status" -ne 0 ] || \
+            [ "$tts_status" -ne 0 ] || [ "$merge_status" -ne 0 ]; then
             test_status=1
           else
             test_status=0
           fi
           if [ "$test_status" -ne 0 ]; then
             test_tail=$(tail -n 80 "$RUNNER_TEMP/flutter-test-base.jsonl" \
+              "$RUNNER_TEMP/flutter-test-reader.jsonl" \
               "$RUNNER_TEMP/flutter-test-tts.jsonl" \
               "$RUNNER_TEMP/flutter-test-stderr.log" | tr '\n' ' ')
-            echo "::error title=Flutter Test Process::base=$base_status tts=$tts_status merge=$merge_status $test_tail"
+            echo "::error title=Flutter Test Process::base=$base_status reader=$reader_status tts=$tts_status merge=$merge_status $test_tail"
           fi
           python3 "$RUNNER_TEMP/flutter-test-base.jsonl" \
+            "$RUNNER_TEMP/flutter-test-reader.jsonl" \
             "$RUNNER_TEMP/flutter-test-tts.jsonl" \
             "$RUNNER_TEMP/flutter-test-stderr.log" "$GITHUB_STEP_SUMMARY" <<'PY'
           import json
           import sys
 
-          json_paths = sys.argv[1:3]
-          stderr_path = sys.argv[3]
-          summary_path = sys.argv[4]
+          json_paths = sys.argv[1:4]
+          stderr_path = sys.argv[4]
+          summary_path = sys.argv[5]
           failures = []
           raw_lines = []
           for path in json_paths:
