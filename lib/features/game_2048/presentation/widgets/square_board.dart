@@ -15,7 +15,7 @@ import 'board_reset_animation.dart';
 import 'rain_effect.dart';
 
 /// 2048 棋盘主组件
-/// 物理引擎重构：Stack + AnimatedPositioned 实现丝滑滑动动画
+/// 物理引擎重构：固定尺寸棋子配合 Transform 位移动画，避免滑动期间反复布局。
 class SquareBoard extends ConsumerStatefulWidget {
   const SquareBoard({super.key});
 
@@ -350,22 +350,34 @@ class _SquareBoardState extends ConsumerState<SquareBoard>
                                   .where((tile) => tile != null)
                                   .map((tile) {
                                 final pos = _findTilePosition(board, tile!);
-                                return AnimatedPositioned(
+                                return TweenAnimationBuilder<Offset>(
                                   key: ValueKey(tile.id),
+                                  tween: Tween<Offset>(
+                                    end: Offset(
+                                      pos.$2 * (cellSize + spacing),
+                                      pos.$1 * (cellSize + spacing),
+                                    ),
+                                  ),
                                   duration: CyberDimensions.animXFast,
                                   curve: Curves.easeOut,
-                                  left: pos.$2 * (cellSize + spacing),
-                                  top: pos.$1 * (cellSize + spacing),
-                                  width: cellSize,
-                                  height: cellSize,
-                                  child: TileWidget(
-                                    id: tile.id,
-                                    value: tile.value,
-                                    onEliminate: () {
-                                      ref
-                                          .read(gameProvider)
-                                          .eliminateTileById(tile.id);
-                                    },
+                                  builder: (context, offset, child) {
+                                    return Transform.translate(
+                                      offset: offset,
+                                      child: child,
+                                    );
+                                  },
+                                  child: SizedBox(
+                                    width: cellSize,
+                                    height: cellSize,
+                                    child: TileWidget(
+                                      id: tile.id,
+                                      value: tile.value,
+                                      onEliminate: () {
+                                        ref
+                                            .read(gameProvider)
+                                            .eliminateTileById(tile.id);
+                                      },
+                                    ),
                                   ),
                                 );
                               }),

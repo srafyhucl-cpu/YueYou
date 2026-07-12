@@ -139,12 +139,13 @@ lib/
 │   │       └── dashboard_screen.dart    # 主界面（吉祥物 + 棋盘 + 控制台）
 │   ├── game_2048/
 │   │   ├── domain/
+│   │   │   ├── game_engine.dart         # 纯 Dart 棋盘、移动、合并与结束判断
 │   │   │   └── tile_model.dart          # 方块数据模型
 │   │   ├── providers/
-│   │   │   └── game_provider.dart       # 游戏核心逻辑 + 持久化
+│   │   │   └── game_provider.dart       # 游戏编排、随机数、持久化与副作用
 │   │   └── presentation/
 │   │       └── widgets/
-│   │           ├── square_board.dart         # 棋盘主组件（AnimatedPositioned）
+│   │           ├── square_board.dart         # 棋盘主组件（Transform 位移动画）
 │   │           ├── tile_widget.dart          # 方块（合并动画 + 黑客彩蛋）
 │   │           ├── board_mascot.dart         # XIAOYO 吉祥物（Canvas）
 │   │           ├── board_mascot_rive.dart    # XIAOYO Rive 版（集成中）
