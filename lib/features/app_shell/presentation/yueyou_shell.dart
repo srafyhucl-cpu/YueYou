@@ -4,8 +4,8 @@ import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/app_shell/presentation/widgets/companion_shell_page.dart';
 import 'package:yueyou/features/app_shell/presentation/widgets/mini_player_bar.dart';
 import 'package:yueyou/features/app_shell/providers/app_shell_provider.dart';
-import 'package:yueyou/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
+import 'package:yueyou/features/reader/presentation/screens/reading_home_screen.dart';
 
 /// 听读优先的一级导航壳。
 ///
@@ -26,7 +26,7 @@ class YueYouShell extends ConsumerWidget {
 
   List<Widget> _defaultPages() {
     return const [
-      DashboardScreen(showPlayerConsole: false),
+      ReadingHomeScreen(),
       LibraryScreen(showCloseButton: false),
       CompanionShellPage(),
     ];

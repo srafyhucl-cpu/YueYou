@@ -2,6 +2,17 @@
 
 ## **2026-07-13**
 
+- **功能(PROD-01-B 七态听读首页)**：
+  - 新增纯 Dart `ReadingHomeViewState` 与七态枚举，状态只包含书籍、章节、句段、
+    进度、会话和错误提示等展示投影，不依赖 Flutter、Riverpod 或存储。
+  - 新增 `readingHomeViewProvider`，从现有 Reader、`ttsAudioProvider` 和书架派生状态，
+    不创建第二套音频会话、不写入正文或进度。
+  - 新增 `ReadingHomeScreen` 并接入阅读优先 Shell：空书、继续、缓冲、播放、暂停、
+    错误恢复、完本均有唯一主动作；本地音色、关系事件和全文页留到后续切片。
+  - 新增纯 Dart、Provider 投影和 Widget 测试；Dashboard/Library 回归保持通过。
+  - **验证**：本切片目标及受影响测试 15 passed、0 failed；受影响范围 `flutter analyze`
+    零问题。
+
 - **功能(PROD-00 / PROD-01-A 阅读优先导航壳)**：
   - 新增 `FeatureFlags`，以 `--dart-define=READING_FIRST_SHELL_ENABLED=true` 独立启用
     `听读 / 书架 / 陪伴` 三根导航；默认值为 `false`，旧 Dashboard 回退路径保留。

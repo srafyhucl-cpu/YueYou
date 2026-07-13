@@ -67,7 +67,7 @@
 - `READING_FIRST_SHELL_ENABLED` 默认关闭；关闭时启动路径仍为旧 `DashboardScreen`。
 - 使用 `--dart-define=READING_FIRST_SHELL_ENABLED=true` 可启用 `听读 / 书架 / 陪伴`
   三根导航壳，页面通过 `IndexedStack` 保活，Mini Player 复用既有 TTS 播放内核。
-- 当前陪伴页为无数据占位，七态听读首页和关系价值系统按 `PROD-01-B` 及后续切片接入。
+- 七态听读首页已按 `PROD-01-B` 接入；当前陪伴页仍为无数据占位，关系价值系统按后续切片接入。
 
 ### 🎨 设计系统
 
