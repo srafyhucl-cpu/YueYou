@@ -2,6 +2,16 @@
 
 ## **2026-07-13**
 
+- **修复(PROD-03-A 缓冲取消、云失败降级与最新请求优先)**：
+  - `TtsAudioNotifier` 增加独立 `runnerEpoch`，暂停、停止和刷新会话时使未完成的
+    取句/下载操作失效；旧结果只能清理文件，不能写入新会话缓冲队列。
+  - `TtsFallbackController` 增加 session 前后守卫，避免刷新期间旧本地降级任务回写
+    当前状态；云端失败仍保留当前句、章节和播放会话并切换本地 TTS。
+  - TTS 临时文件名改为微秒时间戳，避免并发会话共享临时路径；新增最新请求优先、
+    暂停取消和降级上下文回归测试。
+  - **验证**：`flutter test test/features/audio/tts_audio_notifier_test.dart --concurrency=1`
+    为 30 passed、0 failed；README 评估为无需更新。
+
 - **功能(PROD-02-B 书架搜索与排序投影)**：
   - 新增 `libraryViewProvider` 与 `libraryVisibleBooksProvider`，搜索词、排序模式和
     可见列表均为派生状态，不修改 `bookshelfProvider.shelf` 或持久化顺序。

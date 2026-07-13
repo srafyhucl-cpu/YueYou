@@ -43,6 +43,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   String? _fallbackMessage;
   bool _disposed = false;
   bool _pumpActive = false;
+  int _runnerEpoch = 0;
   int _consecutiveFailures = 0;
   bool _isPausing = false;
   bool _backgroundTolerant = false;
@@ -207,7 +208,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
   /// 暂停播放。
   Future<void> pause() async {
-    _pumpActive = false;
+    _invalidateRunner();
     _pausedGuard.mark(_currentItem);
     _isPausing = true; // 开启暂停标识，阻止 _onPlaybackComplete 推进进度
     try {
@@ -231,8 +232,8 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
 
   /// 停止全部播放任务。
   Future<void> stopAll() async {
+    _invalidateRunner();
     _session++;
-    _pumpActive = false; // 终止双轨泵，避免删书后 _prefetchRunner 持续空查询占 CPU 与 2048 游戏争用帧
     _idleTimer?.cancel();
     await _engine.stopAll();
     _buffer.clear();
@@ -270,6 +271,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _engine.syncSettingsFromProvider(ref.read(settingsProvider));
 
     // 1. 同步清理：立即递增会话并清空缓冲，防止旧循环继续工作
+    _invalidateRunner();
     _session++;
     _buffer.clear();
     _currentItem = null;
@@ -332,6 +334,20 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
     _pumpActive = true;
     _prefetchRunner();
     _playRunner();
+  }
+
+  /// 使当前双轨泵及其未完成的缓冲操作失效。
+  ///
+  /// 网络 Future 本身未必支持取消，因此通过独立代际令牌保证旧结果只能
+  /// 被丢弃，不能写入新会话的缓冲区或覆盖当前播放状态。
+  void _invalidateRunner() {
+    _runnerEpoch++;
+    _pumpActive = false;
+  }
+
+  bool _isCurrentRunner(int currentSession, int runnerEpoch) {
+    if (_disposed || !_pumpActive || currentSession != _session) return false;
+    return runnerEpoch == _runnerEpoch;
   }
 
   /// 预加载轨道：后台持续填充缓冲队列，与播放互不阻塞。
@@ -397,15 +413,16 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
   Future<void> _refillBuffer() async {
     if (_sentenceSource == null) return;
     final int currentSession = _session; // 捕获当前会话 ID
-    final request = await _sentenceSource!.nextTtsSentence(currentSession);
-    if (_disposed) return;
+    final int runnerEpoch = _runnerEpoch;
+    final source = _sentenceSource!;
+    final request = await source.nextTtsSentence(currentSession);
+    if (!_isCurrentRunner(currentSession, runnerEpoch)) return;
     if (request == null) {
       // 句子源已耗尽（章节末尾），退避等待，防止紧循环饿死 UI 事件循环
       await Future.delayed(const Duration(milliseconds: 500));
       return;
     }
     // 校验会话有效性（避免 nextTtsSentence 耗时过长导致 session 已变更）
-    if (currentSession != _session) return;
     if (request.text.length < 5) return;
 
     final String? filePath;
@@ -415,7 +432,7 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           .timeout(const Duration(seconds: 15));
     } catch (e, st) {
       // 只有在会话未变更时才计入失败
-      if (currentSession == _session) {
+      if (_isCurrentRunner(currentSession, runnerEpoch)) {
         _consecutiveFailures++;
         final threshold = _backgroundTolerant ? 30 : 8;
         if (_consecutiveFailures >= threshold) {
@@ -429,13 +446,18 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
           // `await stopAudio/pauseAudio` 完成前 _prefetchRunner 继续 loop 重复
           // 调用 _refillBuffer 累加 _consecutiveFailures、重复触发 degradeToLocal。
           _fallback.isDegradedToLocal = true;
-          _fallback.degradeToLocal(request);
+          unawaited(
+            _fallback.degradeToLocal(
+              request,
+              expectedSession: currentSession,
+            ),
+          );
         }
       }
       return;
     }
 
-    if (_disposed || currentSession != _session) {
+    if (!_isCurrentRunner(currentSession, runnerEpoch)) {
       if (filePath != null) _deleteFile(filePath);
       return;
     }
@@ -451,7 +473,12 @@ class TtsAudioNotifier extends Notifier<TtsAudioState> {
         // P2 修复：同上，同步置标志位防止 _prefetchRunner 在 degradeToLocal
         // chain 完成前重复入循环。
         _fallback.isDegradedToLocal = true;
-        _fallback.degradeToLocal(request);
+        unawaited(
+          _fallback.degradeToLocal(
+            request,
+            expectedSession: currentSession,
+          ),
+        );
       }
       return;
     }

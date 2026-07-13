@@ -85,14 +85,10 @@ class _SingleAudioHttpClient implements TtsHttpClient {
   }
 }
 
-/// T-B：永远返回 5xx 的 HttpClient，用于驱动 downloadAudio 失败链路。
-///
-/// post 直接返回 500，TtsEngineService.downloadAudio 经过 maxRetries 次重试后返回 null，
-/// _refillBuffer 中触发 _consecutiveFailures++，达到阈值（默认 6）后调用 _degradeToLocal。
-///
-/// P3 修复：`download` 同步抛 [HttpException] 以保持失败语义一致，避免某些
-/// 路径只调 `download` 时被静默吞掉造成测试盲区。
-class _AlwaysFail500HttpClient implements TtsHttpClient {
+/// 首次下载可控、后续下载立即完成，用于验证刷新会话后的最新请求优先语义。
+class _LatestWinsHttpClient implements TtsHttpClient {
+  final Completer<void> firstDownloadGate = Completer<void>();
+  final List<String> downloadedPaths = [];
   int postCalls = 0;
   int downloadCalls = 0;
 
@@ -103,12 +99,56 @@ class _AlwaysFail500HttpClient implements TtsHttpClient {
     Object? body,
   }) async {
     postCalls++;
+    return const TtsHttpResponse(
+      statusCode: 200,
+      body: '{"status":"success","url":"https://cdn.test/latest.mp3"}',
+    );
+  }
+
+  @override
+  Future<void> download(Uri url, String savePath) async {
+    downloadCalls++;
+    downloadedPaths.add(savePath);
+    if (downloadCalls == 1) await firstDownloadGate.future;
+    await File(savePath).writeAsBytes(List<int>.filled(2048, 1));
+  }
+}
+
+/// T-B：永远返回 5xx 的 HttpClient，用于驱动 downloadAudio 失败链路。
+///
+/// post 直接返回 500，TtsEngineService.downloadAudio 经过 maxRetries 次重试后返回 null，
+/// _refillBuffer 中触发 _consecutiveFailures++，达到阈值（默认 6）后调用 _degradeToLocal。
+///
+/// P3 修复：`download` 同步抛 [HttpException] 以保持失败语义一致，避免某些
+/// 路径只调 `download` 时被静默吞掉造成测试盲区。
+class _AlwaysFail500HttpClient implements TtsHttpClient {
+  bool shouldFail = true;
+  int postCalls = 0;
+  int downloadCalls = 0;
+
+  @override
+  Future<TtsHttpResponse> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
+    postCalls++;
+    if (!shouldFail) {
+      return const TtsHttpResponse(
+        statusCode: 200,
+        body: '{"status":"success","url":"https://cdn.test/recovered.mp3"}',
+      );
+    }
     return const TtsHttpResponse(statusCode: 500, body: 'simulated outage');
   }
 
   @override
   Future<void> download(Uri url, String savePath) async {
     downloadCalls++;
+    if (!shouldFail) {
+      await File(savePath).writeAsBytes(List<int>.filled(2048, 1));
+      return;
+    }
     throw const HttpException('simulated outage on download');
   }
 }
@@ -228,6 +268,61 @@ class _OneShotSentenceSource implements TtsSentenceSource {
   FutureOr<void> onTtsItemFinished(TtsAudioItem item) {
     finishedCalls++;
   }
+
+  @override
+  void resetFetchIndex() {}
+}
+
+/// 首次请求返回旧会话句子，后续请求返回新会话句子。
+class _LatestWinsSentenceSource implements TtsSentenceSource {
+  int nextCalls = 0;
+  int startedCalls = 0;
+  int finishedCalls = 0;
+
+  @override
+  Future<TtsAudioRequest?> nextTtsSentence(int session) async {
+    nextCalls++;
+    final isFirst = nextCalls == 1;
+    return TtsAudioRequest(
+      lineIndex: isFirst ? 1 : 9,
+      endLineIndex: isFirst ? 1 : 9,
+      text: isFirst ? '旧会话句子' : '新会话句子',
+      title: isFirst ? '旧章节' : '新章节',
+    );
+  }
+
+  @override
+  FutureOr<void> onTtsItemStarted(TtsAudioItem item) {
+    startedCalls++;
+  }
+
+  @override
+  FutureOr<void> onTtsItemFinished(TtsAudioItem item) {
+    finishedCalls++;
+  }
+
+  @override
+  void resetFetchIndex() {}
+}
+
+/// 首次取句挂起，用于验证暂停会让未完成的缓冲请求失效。
+class _GatedSentenceSource implements TtsSentenceSource {
+  final Completer<TtsAudioRequest?> gate;
+  int nextCalls = 0;
+
+  _GatedSentenceSource(this.gate);
+
+  @override
+  Future<TtsAudioRequest?> nextTtsSentence(int session) async {
+    nextCalls++;
+    return gate.future;
+  }
+
+  @override
+  void onTtsItemStarted(TtsAudioItem item) {}
+
+  @override
+  void onTtsItemFinished(TtsAudioItem item) {}
 
   @override
   void resetFetchIndex() {}
@@ -484,6 +579,140 @@ void main() {
     expect(notifier.isDegraded, isFalse);
   });
 
+  // ── PROD-03-A：刷新会话后旧下载完成不得覆盖新会话 ───────────────────────
+  //
+  // 旧实现虽然在下载完成后检查 session，但没有独立 runner 代际；暂停或
+  // 刷新期间仍可能让旧缓冲任务继续运行。该用例让旧下载挂起，先刷新到新
+  // 会话并完成新句，再释放旧下载，验证最终播放项仍属于新会话。
+  test('PROD-03-A：旧会话下载完成不得写入新会话或覆盖当前句', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _LatestWinsHttpClient();
+    final engine = TtsEngineService(
+      settings,
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        maxRetries: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final notifier = container.read(ttsAudioProvider.notifier);
+    notifier.registerSentenceSource(_LatestWinsSentenceSource());
+    notifier.play();
+
+    for (int i = 0; i < 500 && httpClient.downloadCalls < 1; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(httpClient.downloadCalls, 1, reason: '旧会话下载必须已进入等待');
+
+    final oldSession = notifier.currentSession;
+    await notifier.refreshSession();
+
+    for (int i = 0; i < 500; i++) {
+      final state = container.read(ttsAudioProvider);
+      if (state is TtsAudioPlaying && state.item.textPreview == '新会话句子') {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final newState = container.read(ttsAudioProvider);
+    expect(notifier.currentSession, isNot(oldSession));
+    expect(newState, isA<TtsAudioPlaying>());
+    expect((newState as TtsAudioPlaying).item.textPreview, '新会话句子');
+
+    httpClient.firstDownloadGate.complete();
+    await pumpEventQueue(times: 50);
+
+    final finalState = container.read(ttsAudioProvider);
+    expect(finalState, isA<TtsAudioPlaying>());
+    expect((finalState as TtsAudioPlaying).item.textPreview, '新会话句子');
+    expect(finalState.item.session, notifier.currentSession);
+
+    await notifier.stopAll();
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  // ── PROD-03-A：取消缓冲必须使未完成的句子请求失效 ───────────────────────
+  test('PROD-03-A：暂停缓冲后旧句子请求返回不得继续入队', () async {
+    await initializeTestEnvironment();
+    final settings = makeSettings();
+    final player = _ControllableAudioPlayer();
+    final httpClient = _SingleAudioHttpClient();
+    final engine = TtsEngineService(
+      settings,
+      config: const TtsConfig(
+        serverUrl: 'https://test.invalid/tts',
+        maxPrefetchQueue: 1,
+        maxRetries: 1,
+        requestTimeout: Duration(milliseconds: 50),
+        baseRetryDelay: Duration(milliseconds: 1),
+      ),
+      audioPlayer: player,
+      wakeLock: FakeWakeLock(),
+      httpClient: httpClient,
+      fallbackEngine: FakeFallbackEngine(),
+      delayFn: (duration) =>
+          Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ttsEngineProvider.overrideWith((ref) => engine),
+        settingsProvider.overrideWith((ref) => settings),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      engine.dispose();
+    });
+
+    final requestGate = Completer<TtsAudioRequest?>();
+    final source = _GatedSentenceSource(requestGate);
+    final notifier = container.read(ttsAudioProvider.notifier);
+    notifier.registerSentenceSource(source);
+    notifier.play();
+
+    for (int i = 0; i < 500 && source.nextCalls < 1; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(source.nextCalls, 1, reason: '缓冲请求必须已进入等待');
+
+    await notifier.pause();
+    expect(notifier.state, isA<TtsAudioPaused>());
+    requestGate.complete(
+      TtsAudioRequest(
+        lineIndex: 2,
+        endLineIndex: 2,
+        text: '取消后的旧句子',
+        title: '旧章节',
+      ),
+    );
+    await pumpEventQueue(times: 50);
+
+    expect(notifier.buffer.count, 0, reason: '取消缓冲后旧句子不得写入播放队列');
+    expect(httpClient.downloadCalls, 0, reason: '取消缓冲后旧句子不得继续发起云端下载');
+
+    await notifier.stopAll();
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
   // ── T-B / 大厂标准：连续失败必须自动降级到本地 TTS ─────────────────────────
   //
   // 业务合约：
@@ -547,6 +776,12 @@ void main() {
     expect(degraded, isTrue, reason: 'T-B：连续 N 次 downloadAudio 失败后必须进入降级模式');
     expect(httpClient.postCalls, greaterThanOrEqualTo(6),
         reason: 'T-B：降级前必须至少触发 6 次失败重试');
+    final fallbackState = notifier.state;
+    expect(fallbackState, isA<TtsAudioPlaying>(),
+        reason: '云端失败后必须保留当前句并进入本地朗读状态');
+    expect((fallbackState as TtsAudioPlaying).item.title, '降级测试章节');
+    expect(fallbackState.item.session, notifier.currentSession,
+        reason: '本地降级项必须属于当前播放会话');
     // P3 防御性断言：POST 500 短路路径必然不会触达 CDN download。
     // 若未来 lib 改成 POST 失败仍试图 download，该断言会捕获此回归。
     expect(httpClient.downloadCalls, 0,
@@ -603,6 +838,7 @@ void main() {
     expect(notifier.isDegraded, isTrue, reason: '前置：先进入降级');
 
     // refreshSession：换书 / 切音色场景
+    httpClient.shouldFail = false;
     await notifier.refreshSession();
     await pumpEventQueue(times: 10);
 

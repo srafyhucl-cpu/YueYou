@@ -54,11 +54,18 @@ class TtsFallbackController {
   /// 降级到本地 TTS。
   ///
   /// 前置条件：先停用远程播放器，再启动本地降级，杜绝二重唱。
-  Future<void> degradeToLocal(TtsAudioRequest request) async {
+  Future<void> degradeToLocal(
+    TtsAudioRequest request, {
+    int? expectedSession,
+  }) async {
+    final session = expectedSession ?? sessionGetter();
+    bool isCurrentSession() => !isDisposed() && sessionGetter() == session;
+
     // 停用远程播放器，确保不二重唱
     pausedGuard.clear();
     await engine.stopAudio();
     await engine.pauseAudio();
+    if (!isCurrentSession()) return;
 
     isDegradedToLocal = true;
     const message = '网络音频加载失败，已切换至本地语音';
@@ -109,7 +116,9 @@ class TtsFallbackController {
     );
 
     final ok = await engine.speakWithLocalTts(request.text);
-    if (!isDisposed() && ok && currentItemGetter()?.id == fallbackItem.id) {
+    if (isCurrentSession() &&
+        ok &&
+        currentItemGetter()?.id == fallbackItem.id) {
       currentItemSetter(null);
       if (source != null) {
         unawaited(
@@ -136,8 +145,9 @@ class TtsFallbackController {
   Future<void> pumpDegraded() async {
     final source = sentenceSourceGetter();
     if (source == null) return;
-    final request = await source.nextTtsSentence(sessionGetter());
-    if (isDisposed()) return;
+    final session = sessionGetter();
+    final request = await source.nextTtsSentence(session);
+    if (isDisposed() || sessionGetter() != session) return;
     if (request == null) {
       // 无更多内容 → 尝试切回远程
       isDegradedToLocal = false;
@@ -145,9 +155,9 @@ class TtsFallbackController {
       fallbackMessageSetter(null);
       return;
     }
-    await degradeToLocal(request);
+    await degradeToLocal(request, expectedSession: session);
     // 每句播完后探测一次网络，恢复则退出降级
-    if (!isDisposed() && isDegradedToLocal) {
+    if (!isDisposed() && sessionGetter() == session && isDegradedToLocal) {
       final reachable = await engine.pingServer();
       if (reachable) {
         isDegradedToLocal = false;

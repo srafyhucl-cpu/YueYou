@@ -189,7 +189,8 @@ class TtsAudioDownloader {
       throw FormatException(CyberErrorMessages.ttsMissingUrl(responseBody));
     }
     final tempDir = await getTemporaryDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    // 并发会话可能在同一毫秒生成文件，使用微秒避免新旧会话共享路径。
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
     final filePath = '${tempDir.path}/tts_$timestamp.mp3';
     await httpClient.download(Uri.parse(audioUrl), filePath);
     return filePath;
