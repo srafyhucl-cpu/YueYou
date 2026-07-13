@@ -72,6 +72,8 @@
 - 使用 `--dart-define=XIAOYO_VALUE_SYSTEM_ENABLED=true` 可启用本地 Profile 摘要；
   成长、书境印记、21 天活动四级里程碑和可读荣誉墙只保存到应用文档目录，
   不上传正文、路径或阅读明细。
+- 使用 `--dart-define=COMMERCE_PREVIEW_ENABLED=true` 仅显示本地静态的基础/主题书境
+  对比；该预览不显示价格、不提供购买控件，也不创建订单或权益。
 
 ### 🎨 设计系统
 

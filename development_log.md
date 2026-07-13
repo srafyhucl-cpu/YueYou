@@ -76,6 +76,14 @@
   - **验证**：Dart 分析通过；比较器测试 4 passed、0 failed；PowerShell AST 解析通过。
     当前未连接两台物理 Android，G0 仍未签署，不宣称任何性能收益。
 
+- **功能(PROD-07-A 免费与主题书境只读对比预览)**：
+  - 新增静态 `XiaoyoBookscapePreviews` 目录和 `XiaoyoBookscapePreview` 展示组件，
+    在 `COMMERCE_PREVIEW_ENABLED=true` 时展示基础书境与主题书境的视觉差异。
+  - 主题书境明确标记“仅预览/尚未开放购买”；不显示价格、不提供购买控件，不创建订单、
+    权益、账号、网络或支付逻辑，默认开关保持关闭。
+  - **验证**：书境预览和 App Shell 定向测试 5 passed、0 failed；`flutter analyze` 无问题；
+    AI 门禁 `0 blocking / 22 warnings`。
+
 - **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
   - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
     场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。
