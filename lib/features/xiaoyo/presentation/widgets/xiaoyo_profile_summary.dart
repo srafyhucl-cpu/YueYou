@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/features/xiaoyo/domain/activity_definition.dart';
 import 'package:yueyou/features/xiaoyo/domain/book_realm_mark.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_profile.dart';
 
@@ -16,6 +17,10 @@ class XiaoyoProfileSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const activity = XiaoyoActivityDefinitions.readingSeason;
+    final activitySeconds = profile.activityProgress[activity.id] ?? 0;
+    final activityMinutes = activitySeconds ~/ 60;
+    final activityTarget = activity.milestones.last.requiredSeconds ~/ 60;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -23,6 +28,11 @@ class XiaoyoProfileSummary extends StatelessWidget {
         const SizedBox(height: CyberDimensions.spacingS),
         Text(
           '有效听读 ${profile.validListenSeconds ~/ 60} 分钟 · 印记 ${profile.bookRealmMarks.length} · 荣誉 ${profile.unlockedHonors.length}',
+          style: CyberTextStyles.bodySmall,
+        ),
+        const SizedBox(height: CyberDimensions.spacingS),
+        Text(
+          '${activity.title} · $activityMinutes / $activityTarget 分钟',
           style: CyberTextStyles.bodySmall,
         ),
         const SizedBox(height: CyberDimensions.spacingM),

@@ -9,4 +9,5 @@ abstract final class XiaoyoHonorIds {
   static const companion = 'stage.companion';
   static const guardian = 'stage.guardian';
   static const resonance = 'stage.resonance';
+  static const readingSeason = 'activity.reading_season_21d';
 }

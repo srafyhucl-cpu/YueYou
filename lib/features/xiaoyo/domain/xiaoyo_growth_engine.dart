@@ -1,6 +1,8 @@
 import 'package:yueyou/features/xiaoyo/domain/book_realm_mark.dart';
+import 'package:yueyou/features/xiaoyo/domain/activity_definition.dart';
 import 'package:yueyou/features/xiaoyo/domain/honor_definition.dart';
 import 'package:yueyou/features/xiaoyo/domain/honor_record.dart';
+import 'package:yueyou/features/xiaoyo/domain/xiaoyo_activity_event.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_completion_event.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_event.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_listen_events.dart';
@@ -11,11 +13,13 @@ final class XiaoyoGrowthResult {
   final XiaoyoProfile profile;
   final bool applied;
   final List<String> unlockedHonorIds;
+  final List<String> reachedActivityMilestones;
 
   const XiaoyoGrowthResult({
     required this.profile,
     required this.applied,
     required this.unlockedHonorIds,
+    this.reachedActivityMilestones = const [],
   });
 }
 
@@ -49,6 +53,7 @@ final class XiaoyoGrowthEngine {
       ListenHeartbeat() => _applyHeartbeat(profile, event),
       ChapterCompleted() => _applyChapter(profile, event),
       BookCompleted() => _applyBook(profile, event),
+      ActivityProgressRecorded() => _applyActivity(profile, event),
       _ => profile,
     };
     final withEvent = _rememberEvent(next, event.eventId);
@@ -61,10 +66,12 @@ final class XiaoyoGrowthEngine {
         )
         .map((honor) => honor.honorId)
         .toList();
+    final reachedMilestones = _activityMilestonesCrossed(profile, refreshed);
     return XiaoyoGrowthResult(
       profile: refreshed,
       applied: true,
       unlockedHonorIds: unlocked,
+      reachedActivityMilestones: reachedMilestones,
     );
   }
 
@@ -83,13 +90,48 @@ final class XiaoyoGrowthEngine {
       addedSeconds: event.advancedSeconds,
       completedAtUtc: null,
     );
+    final activity = _addActivitySeconds(
+      profile.activityProgress,
+      XiaoyoActivityDefinitions.readingSeason.id,
+      event.advancedSeconds,
+    );
     return profile.copyWith(
       bondXp: xp,
       validListenSeconds: seconds,
       bookRealmMarks: marks,
+      activityProgress: activity,
       updatedAtUtc: _eventTime(profile, event),
     );
   }
+
+  XiaoyoProfile _applyActivity(
+    XiaoyoProfile profile,
+    ActivityProgressRecorded event,
+  ) {
+    if (event.activityId != XiaoyoActivityDefinitions.readingSeason.id ||
+        event.addedSeconds <= 0 ||
+        event.addedSeconds > _maxHeartbeatSeconds) {
+      return profile;
+    }
+    return profile.copyWith(
+      activityProgress: _addActivitySeconds(
+        profile.activityProgress,
+        event.activityId,
+        event.addedSeconds,
+      ),
+      updatedAtUtc: _eventTime(profile, event),
+    );
+  }
+
+  Map<String, int> _addActivitySeconds(
+    Map<String, int> current,
+    String activityId,
+    int addedSeconds,
+  ) =>
+      {
+        ...current,
+        activityId: (current[activityId] ?? 0) + addedSeconds,
+      };
 
   XiaoyoProfile _applyChapter(
     XiaoyoProfile profile,
@@ -208,8 +250,31 @@ final class XiaoyoGrowthEngine {
     if (stage >= 2) unlock(XiaoyoHonorIds.companion);
     if (stage >= 3) unlock(XiaoyoHonorIds.guardian);
     if (stage >= 4) unlock(XiaoyoHonorIds.resonance);
+    final activitySeconds = refreshed
+            .activityProgress[XiaoyoActivityDefinitions.readingSeason.id] ??
+        0;
+    if (activitySeconds >= 600 * 60) {
+      unlock(XiaoyoHonorIds.readingSeason);
+    }
     refreshed = refreshed.copyWith(unlockedHonors: honors);
     return refreshed;
+  }
+
+  List<String> _activityMilestonesCrossed(
+    XiaoyoProfile before,
+    XiaoyoProfile after,
+  ) {
+    const definition = XiaoyoActivityDefinitions.readingSeason;
+    final oldSeconds = before.activityProgress[definition.id] ?? 0;
+    final newSeconds = after.activityProgress[definition.id] ?? 0;
+    return definition.milestones
+        .where(
+          (milestone) =>
+              oldSeconds < milestone.requiredSeconds &&
+              newSeconds >= milestone.requiredSeconds,
+        )
+        .map((milestone) => milestone.id)
+        .toList();
   }
 
   int _growthStage(XiaoyoProfile profile) {

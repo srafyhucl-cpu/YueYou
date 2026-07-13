@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yueyou/features/xiaoyo/domain/activity_definition.dart';
 import 'package:yueyou/features/xiaoyo/domain/book_realm_mark.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_completion_event.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_growth_engine.dart';
+import 'package:yueyou/features/xiaoyo/domain/xiaoyo_activity_event.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_listen_events.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_profile.dart';
 
@@ -104,5 +106,44 @@ void main() {
     );
 
     expect(result.profile.updatedAtUtc, profile.updatedAtUtc);
+  });
+
+  test('听读心跳累计 21 天活动并报告跨过的里程碑', () {
+    final profile = XiaoyoProfile.empty(
+      nowUtc: DateTime.utc(2026, 7, 13),
+    ).copyWith(
+      activityProgress: {
+        XiaoyoActivityDefinitions.readingSeason.id: 360 * 60 - 10,
+      },
+    );
+    final result = engine.apply(
+        profile, _heartbeat(id: 'activity-heartbeat', seconds: 30));
+
+    expect(
+      result
+          .profile.activityProgress[XiaoyoActivityDefinitions.readingSeason.id],
+      360 * 60 + 20,
+    );
+    expect(result.reachedActivityMilestones, <String>['reading_season_360m']);
+  });
+
+  test('活动达到 600 分钟解锁永久活动荣誉，重复补记仍幂等', () {
+    final profile = XiaoyoProfile.empty(
+      nowUtc: DateTime.utc(2026, 7, 13),
+    ).copyWith(
+      activityProgress: {
+        XiaoyoActivityDefinitions.readingSeason.id: 600 * 60 - 1,
+      },
+    );
+    final event = ActivityProgressRecorded(
+      eventId: 'activity-final-second',
+      occurredAtUtc: DateTime.utc(2026, 7, 13),
+      activityId: XiaoyoActivityDefinitions.readingSeason.id,
+      addedSeconds: 1,
+    );
+    final result = engine.apply(profile, event);
+
+    expect(result.unlockedHonorIds, contains('activity.reading_season_21d'));
+    expect(engine.apply(result.profile, event).applied, isFalse);
   });
 }

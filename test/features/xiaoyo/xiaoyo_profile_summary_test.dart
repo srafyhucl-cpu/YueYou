@@ -45,6 +45,7 @@ void main() {
     expect(find.text('测试书'), findsOneWidget);
     expect(find.text('微光'), findsOneWidget);
     expect(find.text('book.first'), findsOneWidget);
+    expect(find.text('21 天书境共读季 · 0 / 600 分钟'), findsOneWidget);
     expect(find.byType(ElevatedButton), findsNothing);
   });
 }
