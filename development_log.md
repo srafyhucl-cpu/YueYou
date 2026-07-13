@@ -2,6 +2,21 @@
 
 ## **2026-07-13**
 
+- **测试(performance): 建立 PERF-0-A 真机帧统计基线框架**：
+  - 新增纯 Dart `FrameSample` 与 `FrameTimingSummary`，固定 build/raster 独立
+    P50、P95、P99、nearest-rank、空样本 `null` 和严格超预算慢帧语义。
+  - 新增 `ProfileFrameCollector`、Integration Test 烟测、host driver 与脱敏
+    JSON 协议；报告不记录设备序列号、正文、标题、章节、游标或 TTS 文本。
+  - `pubspec.yaml` 接入 Flutter SDK 自带的 `integration_test`，不新增第三方
+    性能 SDK；烟测只运行本地 Probe Widget，不触发业务网络、音频或 Provider。
+  - 新增 `docs/performance/baselines/README.md`，明确 Android Profile 命令、
+    证据字段、隐私边界及 `PERF-0-B` 两台物理设备 G0 的后续范围。
+  - **验证**：目标测试 10 项通过；`flutter analyze --no-pub` 零问题；全量测试
+    682 passed、4 skipped、0 failed；AI 门禁 0 blocking、22 条既有 warning；
+    Go `vet/build` 通过。
+  - 当前无可用 Android 真机，Windows 缺少 Visual Studio 工具链，Chrome 不支持
+    Flutter Integration Test；本轮未生成 G0 或性能收益数据，README 无需更新。
+
 - **文档(performance): 性能架构可执行详设**：
   - 新增独立离线单文件
     `docs/performance/20260713_阅游性能架构可执行详设.html`，将既有性能方向
