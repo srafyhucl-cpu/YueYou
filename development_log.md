@@ -52,6 +52,14 @@
   - **验证**：Xiaoyo 定向测试 22 passed、0 failed；受影响范围 `flutter analyze` 零问题；
     详设第 37 节已同步。真实支付门与 commerce 模块留待后续评审。
 
+- **评审(PROD-07 前置商业门评估)**：
+  - 新增 `docs/product/20260713_PROD-07_商业门前置评估.md`，固定真实支付、退款、
+    七日回访、Xiaoyo 付费理由、作者听校和云音色的统计口径与继续/调整/停止线。
+  - 核验当前仓库没有正式 commerce、订单、权益或支付网关；`commercePreview` 和价值
+    系统开关默认关闭，实验数据边界不包含正文、书名、路径和具体阅读进度。
+  - **结论**：真实支付实验尚未启动，不能用问卷替代，暂不创建权益或支付模块；全量
+    测试 `717 passed / 4 skipped / 0 failed`，分析、AI、Go、Markdown 和差异门禁通过。
+
 - **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
   - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
     场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。
