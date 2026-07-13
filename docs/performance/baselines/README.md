@@ -44,10 +44,36 @@ flutter drive --profile `
   --dart-define=PERF_REFRESH_RATE_HZ='<实际刷新率>'
 ```
 
-输出文件为 `build/performance/<run-id>/summary.json`。`build/` 已被 Git 忽略，
-原始 trace 和本机报告不得提交；后续只提交脱敏汇总。
+单轮烟测输出文件为 `build/performance/<run-id>/summary.json`。`build/` 已被 Git
+忽略，原始 trace 和本机报告不得提交；后续只提交脱敏汇总。
 
-## 5. 报告约束
+## 5. PERF-0-B 真机循环与比较
+
+连接物理 Android 设备后，使用项目盘内脚本执行多轮采集。脚本只把设备档位、
+Android API、总内存、帧摘要、PSS 采样和 gfxinfo 计数写入脱敏清单，不写入设备 ID、
+正文或本机绝对私有路径：
+
+```powershell
+.\scripts\performance\run_android_profile.ps1 `
+  -DeviceId '<物理设备 ID>' `
+  -DeviceLabel 'android_mid_60' `
+  -RefreshRateHz 60 `
+  -ColdRuns 10
+```
+
+before/after 必须使用相同设备档位、场景、构建模式和刷新率。不同条件会被比较器
+拒绝；缺少帧字段时输出 `insufficient_evidence`，不把空值转换为性能收益：
+
+```powershell
+dart run scripts/performance/compare_baselines.dart `
+  --before 'build/performance/<before>/summary.json' `
+  --after 'build/performance/<after>/summary.json'
+```
+
+比较器只报告中位数 P95 帧耗时和慢帧率差异，不能替代负责人对 G0 目标和最大允许
+回退值的签署。
+
+## 6. 报告约束
 
 报告 `schemaVersion` 当前为 1，至少包含：
 
@@ -61,8 +87,7 @@ flutter drive --profile `
 - 书籍正文、标题、章节、阅读游标或 TTS 文本。
 - Sentry DSN、服务器密钥、签名信息或本机绝对私有路径。
 
-## 6. 后续 PERF-0-B
+## 7. G0 证据状态
 
-`PERF-0-B` 继续实现 PowerShell 真机循环、设备校验、meminfo/gfxinfo 汇总、
-before/after 比较和两台物理 Android 的 G0 签署。在该切片完成前，任何性能
-收益都只能标注为建议目标或待 Profile 验证。
+采集工具已具备，但当前工作区没有两台物理 Android 的真实报告和负责人签署；
+因此 `PERF-0-B` 仍未完成，任何性能收益只能标注为建议目标或待 Profile 验证。

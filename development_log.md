@@ -68,6 +68,14 @@
   - **验证**：Xiaoyo 定向测试 `18 passed / 0 failed`；`flutter analyze` 无问题；AI
     门禁 `0 blocking / 22 warnings`，新文件未触发体量警戒线。
 
+- **工具(PERF-0-B Android 真机采集与基线比较)**：
+  - 新增 `scripts/performance/run_android_profile.ps1`，执行设备状态校验、多轮 Profile
+    烟测及脱敏的 PSS/gfxinfo 汇总；采集产物固定写入 Git 忽略的 `build/performance/`。
+  - 新增 `scripts/performance/compare_baselines.dart`，只比较相同设备档位、场景、构建
+    模式和刷新率；缺少帧统计时返回 `insufficient_evidence`，不伪造零值或收益。
+  - **验证**：Dart 分析通过；比较器测试 4 passed、0 failed；PowerShell AST 解析通过。
+    当前未连接两台物理 Android，G0 仍未签署，不宣称任何性能收益。
+
 - **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
   - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
     场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。
