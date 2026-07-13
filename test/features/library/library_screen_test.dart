@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
+import 'package:yueyou/features/library/presentation/screens/library_root_screen.dart';
 import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
@@ -37,7 +38,8 @@ void main() {
   /// 必须显式 override readerProvider，否则默认 provider 会在 setUp/tearDown
   /// 之间被 ProviderScope 容器 dispose 后误用，触发
   /// `A ReaderProvider was used after being disposed`。
-  Widget _wrap(BookshelfProvider shelf) {
+  Widget _wrap(BookshelfProvider shelf,
+      {Widget screen = const LibraryScreen()}) {
     final settings = makeSettings();
     final engine = makeTtsEngine(settings);
     activeEngine = engine;
@@ -48,9 +50,18 @@ void main() {
         bookshelfProvider.overrideWith((ref) => shelf),
         readerProvider.overrideWith((ref) => reader),
       ],
-      child: const MaterialApp(home: LibraryScreen()),
+      child: MaterialApp(home: screen),
     );
   }
+
+  testWidgets('LibraryRootScreen 复用书架内容但不显示 Modal 关闭按钮', (tester) async {
+    final shelf = BookshelfProvider()..setShelfForTesting(const []);
+    await tester.pumpWidget(_wrap(shelf, screen: const LibraryRootScreen()));
+
+    expect(find.byType(LibraryScreen), findsOneWidget);
+    expect(find.text('神经档案库'), findsOneWidget);
+    expect(find.byIcon(Icons.close), findsNothing);
+  });
 
   testWidgets('LibraryScreen 在书架为空时必须显示「当前书架为空」占位', (tester) async {
     // hasSelectedBook=true 阻止 BookshelfProvider 自动注入西游记

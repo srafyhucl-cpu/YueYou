@@ -2,6 +2,12 @@
 
 ## **2026-07-13**
 
+- **重构(PROD-02-A 书架根页面外壳)**：
+  - 新增 `LibraryRootScreen`，根导航不再直接传递 Modal 兼容参数；内部继续复用
+    `LibraryScreen`，不复制书架仓储、正文和进度状态。
+  - 保留 Modal 书架关闭按钮行为，根页面隐藏关闭按钮；导入、删除和持久化链路未变。
+  - **验证**：Library/Shell 相关测试 9 passed；受影响范围 `flutter analyze` 零问题。
+
 - **加固(PROD-01-C 跨页 Mini Player 会话保持)**：
   - 将 `MiniPlayerBar` 收回 `features/audio/presentation/widgets`，保持播放展示与音频模块归属一致。
   - `YueYouShell` 的 Mini Player 插槽位于 `IndexedStack` 外部，根页面切换仍只更新导航索引。

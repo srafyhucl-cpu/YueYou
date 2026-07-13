@@ -163,7 +163,8 @@ lib/
 │   │   ├── providers/
 │   │   │   └── bookshelf_provider.dart   # 书架状态 + 级联删除
 │   │   └── presentation/
-│   │       ├── screens/library_screen.dart
+│   │       ├── screens/library_root_screen.dart # 根导航书架外壳
+│   │       └── screens/library_screen.dart
 │   │       └── widgets/cyber_import_button.dart
 │   ├── reader/
 │   │   ├── domain/
