@@ -1,0 +1,1804 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>阅游产品改进手机原型</title>
+  <style>
+    :root {
+      --ink: #202321;
+      --ink-soft: #626762;
+      --paper: #f5f6f2;
+      --surface: #ffffff;
+      --surface-muted: #e9ece7;
+      --line: #d7dbd5;
+      --mint: #167c6f;
+      --mint-soft: #d9ece6;
+      --coral: #d55b45;
+      --coral-soft: #f6dfd9;
+      --gold: #b07a18;
+      --gold-soft: #f3e7c9;
+      --graphite: #292c2a;
+      --danger: #a43b2e;
+      --shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+      --phone-width: 390px;
+      --phone-height: 844px;
+    }
+
+    * {
+      box-sizing: border-box;
+      letter-spacing: 0;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      color: var(--ink);
+      background: #171917;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(22, 124, 111, 0.32);
+      outline-offset: 2px;
+    }
+
+    .workbench {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) var(--phone-width) minmax(220px, 300px);
+      justify-content: center;
+      align-items: center;
+      gap: 28px;
+      padding: 24px;
+    }
+
+    .studio-panel {
+      align-self: stretch;
+      max-height: var(--phone-height);
+      overflow: auto;
+      color: #eff1ed;
+      padding: 14px 4px;
+    }
+
+    .studio-kicker {
+      margin: 0 0 8px;
+      color: #9eaaa1;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .studio-title {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .studio-copy {
+      margin: 0 0 22px;
+      color: #b9c0ba;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .scenario-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .scenario-button {
+      min-height: 46px;
+      border: 1px solid #444a45;
+      border-radius: 6px;
+      background: transparent;
+      color: #eff1ed;
+      text-align: left;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+
+    .scenario-button:hover,
+    .scenario-button.is-active {
+      border-color: #8ac7ba;
+      background: #24342f;
+    }
+
+    .scenario-button strong,
+    .scenario-button span {
+      display: block;
+    }
+
+    .scenario-button strong {
+      font-size: 13px;
+    }
+
+    .scenario-button span {
+      margin-top: 3px;
+      color: #aeb8b0;
+      font-size: 11px;
+    }
+
+    .decision-list {
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid #414641;
+    }
+
+    .decision-list li {
+      padding: 12px 0;
+      border-bottom: 1px solid #414641;
+      color: #bcc4bd;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .decision-list strong {
+      color: #f4f5f2;
+    }
+
+    .prototype-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 16px;
+      color: #dce4dd;
+      font-size: 12px;
+    }
+
+    .prototype-status::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #7fc4b4;
+      content: "";
+    }
+
+    .phone {
+      position: relative;
+      width: var(--phone-width);
+      height: min(var(--phone-height), calc(100vh - 32px));
+      min-height: 680px;
+      overflow: hidden;
+      border: 8px solid #050605;
+      border-radius: 32px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      isolation: isolate;
+    }
+
+    .phone::before {
+      position: absolute;
+      z-index: 30;
+      top: 8px;
+      left: 50%;
+      width: 72px;
+      height: 20px;
+      border-radius: 14px;
+      background: #050605;
+      transform: translateX(-50%);
+      content: "";
+      pointer-events: none;
+    }
+
+    .app {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--paper);
+    }
+
+    .app-header {
+      flex: 0 0 58px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      padding: 0 16px 9px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(245, 246, 242, 0.96);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+    }
+
+    .brand strong {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .brand span {
+      color: var(--mint);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .local-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 26px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--ink-soft);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .local-chip::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--mint);
+      content: "";
+    }
+
+    .screen-stack {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 16px 16px 144px;
+      scrollbar-width: none;
+    }
+
+    .screen::-webkit-scrollbar {
+      display: none;
+    }
+
+    .screen.is-active {
+      display: block;
+      animation: screen-in 180ms ease-out both;
+    }
+
+    @keyframes screen-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--mint);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 6px;
+      font-size: 26px;
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin-bottom: 12px;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
+    h3 {
+      margin-bottom: 6px;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .subtle {
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .book-heading {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .book-heading .text {
+      min-width: 0;
+    }
+
+    .book-heading h1 {
+      overflow-wrap: anywhere;
+    }
+
+    .book-mark {
+      flex: 0 0 42px;
+      width: 42px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: var(--graphite);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .progress-track {
+      position: relative;
+      height: 4px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: #d9ddd8;
+    }
+
+    .progress-fill {
+      position: absolute;
+      inset: 0;
+      background: var(--mint);
+      transform: scaleX(var(--progress, 0.42));
+      transform-origin: left;
+      transition: transform 200ms ease;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      margin: 7px 0 14px;
+      color: var(--ink-soft);
+      font-size: 11px;
+    }
+
+    .xiaoyo-stage {
+      position: relative;
+      min-height: 170px;
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      align-items: center;
+      gap: 10px;
+      margin: 4px -16px 14px;
+      padding: 12px 20px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-muted);
+      overflow: hidden;
+    }
+
+    .xiaoyo-image {
+      width: 140px;
+      height: 140px;
+      object-fit: cover;
+      object-position: center 42%;
+      mix-blend-mode: multiply;
+      transform: translateY(0);
+    }
+
+    .is-playing .xiaoyo-image {
+      animation: xiaoyo-breathe 2.4s ease-in-out infinite;
+    }
+
+    @keyframes xiaoyo-breathe {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-4px) scale(1.015); }
+    }
+
+    .xiaoyo-copy {
+      min-width: 0;
+    }
+
+    .xiaoyo-copy strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .xiaoyo-copy p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .quote-band {
+      padding: 12px 0 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .quote-band p {
+      margin: 0;
+      font-family: Georgia, "Songti SC", serif;
+      font-size: 16px;
+      line-height: 1.75;
+    }
+
+    .player-controls {
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 0 10px;
+    }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .play-button {
+      width: 64px;
+      height: 64px;
+      justify-self: center;
+      border: 0;
+      border-radius: 50%;
+      background: var(--graphite);
+      color: #fff;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .quiet-button,
+    .primary-button,
+    .outline-button,
+    .danger-button {
+      min-height: 44px;
+      border-radius: 6px;
+      padding: 0 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .quiet-button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .primary-button {
+      border: 1px solid var(--graphite);
+      background: var(--graphite);
+      color: #fff;
+    }
+
+    .outline-button {
+      border: 1px solid var(--mint);
+      background: transparent;
+      color: var(--mint);
+    }
+
+    .danger-button {
+      border: 1px solid var(--danger);
+      background: transparent;
+      color: var(--danger);
+    }
+
+    .value-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .value-strip strong,
+    .value-strip span {
+      display: block;
+    }
+
+    .value-strip strong {
+      font-size: 13px;
+    }
+
+    .value-strip span {
+      margin-top: 3px;
+      color: var(--ink-soft);
+      font-size: 11px;
+    }
+
+    .text-button {
+      flex: 0 0 auto;
+      border: 0;
+      background: transparent;
+      color: var(--mint);
+      padding: 8px 0;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .empty-state {
+      display: none;
+      min-height: 520px;
+      align-content: center;
+      text-align: center;
+    }
+
+    .empty-state.is-visible {
+      display: grid;
+    }
+
+    .empty-state .xiaoyo-image {
+      justify-self: center;
+      width: 180px;
+      height: 180px;
+    }
+
+    .empty-state h1 {
+      font-size: 23px;
+    }
+
+    .empty-state .primary-button {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .listen-content.is-hidden {
+      display: none;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-heading h1 {
+      margin-bottom: 0;
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .search-input {
+      min-width: 0;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      padding: 0 12px;
+      color: var(--ink);
+    }
+
+    .sort-button {
+      min-width: 74px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .book-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .book-item {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 46px 1fr auto;
+      align-items: center;
+      gap: 11px;
+      min-height: 76px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 10px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .book-item:hover {
+      border-color: #9fc8be;
+    }
+
+    .book-cover {
+      width: 46px;
+      height: 56px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      color: #fff;
+      font-family: Georgia, "Songti SC", serif;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .book-cover.mint { background: var(--mint); }
+    .book-cover.coral { background: var(--coral); }
+    .book-cover.gold { background: var(--gold); }
+
+    .book-info {
+      min-width: 0;
+    }
+
+    .book-info strong,
+    .book-info span {
+      display: block;
+    }
+
+    .book-info strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .book-info span {
+      margin-top: 5px;
+      color: var(--ink-soft);
+      font-size: 11px;
+    }
+
+    .book-progress {
+      color: var(--mint);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .import-button {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-muted);
+    }
+
+    .segment {
+      min-height: 36px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .segment.is-active {
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .companion-panel {
+      display: none;
+      padding-top: 16px;
+    }
+
+    .companion-panel.is-active {
+      display: block;
+    }
+
+    .companion-hero {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      align-items: center;
+      min-height: 178px;
+      margin: 0 -16px 16px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--mint-soft);
+    }
+
+    .companion-hero .xiaoyo-image {
+      width: 150px;
+      height: 150px;
+    }
+
+    .bond-level {
+      display: inline-block;
+      margin-bottom: 7px;
+      color: var(--mint);
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin-bottom: 14px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .stat {
+      background: var(--surface);
+      padding: 11px 8px;
+      text-align: center;
+    }
+
+    .stat strong,
+    .stat span {
+      display: block;
+    }
+
+    .stat strong {
+      font-size: 16px;
+    }
+
+    .stat span {
+      margin-top: 2px;
+      color: var(--ink-soft);
+      font-size: 10px;
+    }
+
+    .memory-row {
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .memory-row p {
+      margin: 4px 0 0;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .mark-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .mark-item {
+      min-height: 116px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 12px;
+    }
+
+    .mark-symbol {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 12px;
+      border-radius: 50%;
+      background: var(--gold-soft);
+      color: var(--gold);
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .mark-item.locked {
+      opacity: 0.55;
+    }
+
+    .mark-item p {
+      margin: 4px 0 0;
+      color: var(--ink-soft);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .activity-band {
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .activity-progress {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0 7px;
+      color: var(--ink-soft);
+      font-size: 11px;
+    }
+
+    .milestones {
+      margin: 12px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .milestones li {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .milestone-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #c9cec8;
+    }
+
+    .milestones li.is-earned .milestone-dot {
+      background: var(--mint);
+    }
+
+    .milestones small {
+      color: var(--ink-soft);
+    }
+
+    .mini-player {
+      position: absolute;
+      z-index: 18;
+      right: 10px;
+      bottom: 72px;
+      left: 10px;
+      height: 58px;
+      display: grid;
+      grid-template-columns: 36px 1fr 40px;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid #3d413e;
+      border-radius: 8px;
+      background: rgba(41, 44, 42, 0.96);
+      color: #fff;
+      padding: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .mini-player.is-hidden {
+      display: none;
+    }
+
+    .mini-cover {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 5px;
+      background: var(--mint);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .mini-copy {
+      min-width: 0;
+    }
+
+    .mini-copy strong,
+    .mini-copy span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mini-copy strong {
+      font-size: 12px;
+    }
+
+    .mini-copy span {
+      margin-top: 3px;
+      color: #bdc6be;
+      font-size: 10px;
+    }
+
+    .mini-play {
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--graphite);
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      z-index: 20;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 68px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid var(--line);
+      background: rgba(250, 250, 247, 0.98);
+      padding-bottom: max(4px, env(safe-area-inset-bottom));
+    }
+
+    .nav-button {
+      border: 0;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .nav-button::before {
+      display: block;
+      margin: 0 auto 4px;
+      color: inherit;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .nav-button[data-screen="listen"]::before { content: "▶"; }
+    .nav-button[data-screen="library"]::before { content: "▤"; }
+    .nav-button[data-screen="companion"]::before { content: "✦"; }
+
+    .nav-button.is-active {
+      color: var(--mint);
+    }
+
+    .overlay {
+      position: absolute;
+      z-index: 40;
+      inset: 0;
+      display: none;
+      align-items: end;
+      background: rgba(22, 24, 22, 0.52);
+      opacity: 0;
+    }
+
+    .overlay.is-open {
+      display: flex;
+      animation: overlay-in 180ms ease-out both;
+    }
+
+    @keyframes overlay-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .sheet {
+      width: 100%;
+      max-height: 92%;
+      overflow-y: auto;
+      border-radius: 8px 8px 0 0;
+      background: var(--paper);
+      padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
+      transform: translateY(0);
+      animation: sheet-in 220ms ease-out both;
+    }
+
+    @keyframes sheet-in {
+      from { transform: translateY(18px); }
+      to { transform: translateY(0); }
+    }
+
+    .sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .sheet-header h2 {
+      margin: 0;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .reader-sheet {
+      height: 100%;
+      max-height: 100%;
+      border-radius: 0;
+      background: #f8f7f1;
+      padding-top: 28px;
+    }
+
+    .reader-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .reader-text {
+      padding-bottom: 24px;
+      font-family: Georgia, "Songti SC", serif;
+      font-size: 18px;
+      line-height: 1.9;
+    }
+
+    .reader-text p {
+      margin-bottom: 18px;
+    }
+
+    .reader-text .is-current {
+      background: var(--gold-soft);
+      box-shadow: 0 0 0 4px var(--gold-soft);
+    }
+
+    .error-banner {
+      display: none;
+      margin-bottom: 12px;
+      border: 1px solid #e1a397;
+      border-radius: 7px;
+      background: var(--coral-soft);
+      padding: 12px;
+    }
+
+    .error-banner.is-visible {
+      display: block;
+    }
+
+    .error-banner strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--danger);
+      font-size: 13px;
+    }
+
+    .error-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .comparison-stage {
+      position: relative;
+      min-height: 230px;
+      display: grid;
+      grid-template-columns: 145px 1fr;
+      align-items: center;
+      gap: 8px;
+      margin: 14px 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-muted);
+      overflow: hidden;
+      padding: 12px;
+    }
+
+    .comparison-stage.is-pro {
+      border-color: #c7a250;
+      background: var(--gold-soft);
+    }
+
+    .comparison-stage .xiaoyo-image {
+      width: 145px;
+      height: 145px;
+    }
+
+    .realm-copy strong {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 15px;
+    }
+
+    .realm-copy p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .honor-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 5px 7px;
+      border: 1px solid #c59a3a;
+      border-radius: 999px;
+      color: #80570d;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .comparison-details {
+      margin: 0 0 14px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .comparison-details li {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .comparison-details span:last-child {
+      color: var(--mint);
+      font-weight: 800;
+    }
+
+    .button-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .prototype-note {
+      margin: 10px 0 0;
+      color: var(--ink-soft);
+      font-size: 10px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .complete-stage {
+      text-align: center;
+    }
+
+    .complete-stage .xiaoyo-image {
+      width: 190px;
+      height: 190px;
+    }
+
+    .complete-stage h2 {
+      margin-bottom: 6px;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 60;
+      left: 50%;
+      bottom: 148px;
+      max-width: calc(100% - 32px);
+      border-radius: 7px;
+      background: var(--graphite);
+      color: #fff;
+      padding: 10px 13px;
+      opacity: 0;
+      transform: translate(-50%, 8px);
+      pointer-events: none;
+      font-size: 11px;
+      text-align: center;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 980px) {
+      .workbench {
+        grid-template-columns: minmax(210px, 260px) var(--phone-width);
+      }
+
+      .studio-panel:last-child {
+        display: none;
+      }
+    }
+
+    @media (max-width: 700px) {
+      body {
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      .workbench {
+        display: block;
+        min-height: 100dvh;
+        padding: 0;
+      }
+
+      .studio-panel {
+        display: none;
+      }
+
+      .phone {
+        width: 100vw;
+        height: 100dvh;
+        min-height: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .phone::before {
+        display: none;
+      }
+
+      .app-header {
+        flex-basis: calc(54px + env(safe-area-inset-top));
+        padding-top: env(safe-area-inset-top);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="workbench">
+    <aside class="studio-panel" aria-label="演示场景">
+      <p class="studio-kicker">YUEYOU / MOBILE PROTOTYPE</p>
+      <h1 class="studio-title">阅读优先产品原型</h1>
+      <p class="studio-copy">场景按钮只改变本地原型状态。手机中的播放、荣誉、Rive 与支付均为模拟反馈。</p>
+      <div class="scenario-list" role="list">
+        <button class="scenario-button is-active" type="button" data-scenario="continue">
+          <strong>01 继续听读</strong><span>当前书、Xiaoyo 与唯一主动作</span>
+        </button>
+        <button class="scenario-button" type="button" data-scenario="first">
+          <strong>02 首次进入</strong><span>不登录，直接播放样书</span>
+        </button>
+        <button class="scenario-button" type="button" data-scenario="error">
+          <strong>03 异常恢复</strong><span>云音色失败后切回本地</span>
+        </button>
+        <button class="scenario-button" type="button" data-scenario="honor">
+          <strong>04 荣誉解锁</strong><span>累计获得，不签到、不购买</span>
+        </button>
+        <button class="scenario-button" type="button" data-scenario="paid">
+          <strong>05 付费对比</strong><span>同一荣誉，空间表现不同</span>
+        </button>
+        <button class="scenario-button" type="button" data-scenario="complete">
+          <strong>06 完本时刻</strong><span>纪念动作与下一本路径</span>
+        </button>
+      </div>
+    </aside>
+
+    <section class="phone" aria-label="阅游手机竖屏原型">
+      <div class="app" id="app">
+        <header class="app-header">
+          <div class="brand"><strong>阅游</strong><span>YUEYOU</span></div>
+          <span class="local-chip">本地优先</span>
+        </header>
+
+        <div class="screen-stack">
+          <section class="screen is-active" id="screen-listen" aria-labelledby="listen-title">
+            <div class="error-banner" id="error-banner" role="status">
+              <strong>云音色暂时不可用</strong>
+              <span class="subtle">进度已保留，可立即切回系统本地音色。</span>
+              <div class="error-actions">
+                <button class="quiet-button" type="button" id="retry-cloud">重试一次</button>
+                <button class="primary-button" type="button" id="use-local">使用本地音色</button>
+              </div>
+            </div>
+
+            <div class="listen-content" id="listen-content">
+              <p class="eyebrow">继续听读</p>
+              <div class="book-heading">
+                <div class="text">
+                  <h1 id="listen-title">长安的荔枝</h1>
+                  <p class="subtle" id="chapter-label">第十二章 · 一骑红尘</p>
+                </div>
+                <div class="book-mark" id="book-mark">荔</div>
+              </div>
+
+              <div class="progress-track" aria-label="听读进度">
+                <span class="progress-fill" id="main-progress"></span>
+              </div>
+              <div class="progress-meta"><span id="progress-label">已听 42%</span><span>还需约 2 小时</span></div>
+
+              <div class="xiaoyo-stage" id="xiaoyo-stage">
+                <img class="xiaoyo-image" src="assets/20260713_xiaoyo_v2_concept_candidate.png" alt="Xiaoyo 2.0 候选形象">
+                <div class="xiaoyo-copy">
+                  <strong id="xiaoyo-state">声核安静亮着</strong>
+                  <p id="xiaoyo-message">上次停在荔枝离开岭南的清晨。</p>
+                </div>
+              </div>
+
+              <div class="quote-band">
+                <p id="current-sentence">“他第一次知道，一颗荔枝离开枝头以后，时间就开始追赶它。”</p>
+              </div>
+
+              <div class="player-controls">
+                <button class="icon-button" type="button" title="上一句" aria-label="上一句" id="previous-line">‹</button>
+                <button class="play-button" type="button" aria-label="播放" id="main-play">▶</button>
+                <button class="icon-button" type="button" title="下一句" aria-label="下一句" id="next-line">›</button>
+              </div>
+
+              <div class="quick-actions">
+                <button class="quiet-button" type="button" id="open-reader">全文</button>
+                <button class="quiet-button" type="button" id="show-chapters">章节</button>
+                <button class="quiet-button" type="button" id="cycle-speed">1.0x</button>
+              </div>
+
+              <div class="value-strip">
+                <div><strong>第一本共读</strong><span>同一荣誉，不同书境表现</span></div>
+                <button class="text-button" type="button" id="open-compare">查看对比</button>
+              </div>
+            </div>
+
+            <div class="empty-state" id="empty-state">
+              <img class="xiaoyo-image" src="assets/20260713_xiaoyo_v2_concept_candidate.png" alt="等待共读的 Xiaoyo">
+              <div>
+                <p class="eyebrow">第一次见面</p>
+                <h1>从一本自己的书开始</h1>
+                <p class="subtle">无需登录。先听样书，也可以从本地导入 TXT。</p>
+                <button class="primary-button" type="button" id="play-sample">播放样书</button>
+                <button class="text-button" type="button" id="empty-import">导入本地书</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" id="screen-library" aria-labelledby="library-title">
+            <div class="section-heading">
+              <div><p class="eyebrow">本地书架</p><h1 id="library-title">我的书</h1></div>
+              <span class="subtle">3 本</span>
+            </div>
+            <div class="search-row">
+              <input class="search-input" id="book-search" type="search" placeholder="搜索书名" aria-label="搜索书名">
+              <button class="sort-button" type="button" id="sort-books">最近</button>
+            </div>
+            <div class="book-list" id="book-list">
+              <button class="book-item" type="button" data-title="长安的荔枝" data-mark="荔" data-chapter="第十二章 · 一骑红尘" data-progress="42">
+                <span class="book-cover mint">荔</span><span class="book-info"><strong>长安的荔枝</strong><span>今天听过 · 第十二章</span></span><span class="book-progress">42%</span>
+              </button>
+              <button class="book-item" type="button" data-title="西游记" data-mark="游" data-chapter="第七回 · 八卦炉中逃大圣" data-progress="18">
+                <span class="book-cover coral">游</span><span class="book-info"><strong>西游记</strong><span>昨天听过 · 第七回</span></span><span class="book-progress">18%</span>
+              </button>
+              <button class="book-item" type="button" data-title="银河系漫游指南" data-mark="河" data-chapter="第三章 · 地球的问题" data-progress="67">
+                <span class="book-cover gold">河</span><span class="book-info"><strong>银河系漫游指南</strong><span>3 天前 · 第三章</span></span><span class="book-progress">67%</span>
+              </button>
+            </div>
+            <button class="outline-button import-button" type="button" id="import-book">导入 TXT</button>
+          </section>
+
+          <section class="screen" id="screen-companion" aria-labelledby="companion-title">
+            <div class="section-heading">
+              <div><p class="eyebrow">陪伴</p><h1 id="companion-title">与 Xiaoyo 共读</h1></div>
+            </div>
+            <div class="segmented" role="tablist" aria-label="陪伴视图">
+              <button class="segment is-active" type="button" role="tab" aria-selected="true" data-companion="xiaoyo">Xiaoyo</button>
+              <button class="segment" type="button" role="tab" aria-selected="false" data-companion="marks">印记</button>
+              <button class="segment" type="button" role="tab" aria-selected="false" data-companion="activity">活动</button>
+            </div>
+
+            <div class="companion-panel is-active" id="companion-xiaoyo">
+              <div class="companion-hero">
+                <img class="xiaoyo-image" src="assets/20260713_xiaoyo_v2_concept_candidate.png" alt="Xiaoyo 守页灵形象">
+                <div><span class="bond-level">关系阶段 03 · 同行</span><h2>一起听过 11 小时</h2><p class="subtle">成长不会掉级，也不会因为中断而责备你。</p></div>
+              </div>
+              <div class="stats-row">
+                <div class="stat"><strong>11h</strong><span>有效听读</span></div>
+                <div class="stat"><strong>7</strong><span>完成章节</span></div>
+                <div class="stat"><strong>2</strong><span>永久荣誉</span></div>
+              </div>
+              <div class="memory-row"><h3>最近的共读记忆</h3><p>你在周六晚上听完了《西游记》第六回，Xiaoyo 的声核亮了 8 秒。</p></div>
+            </div>
+
+            <div class="companion-panel" id="companion-marks">
+              <h2>书境印记</h2>
+              <div class="mark-grid">
+                <article class="mark-item"><span class="mark-symbol">01</span><h3>第一本共读</h3><p>完成第一本书的首个有效章节。</p></article>
+                <article class="mark-item"><span class="mark-symbol">07</span><h3>七章同行</h3><p>累计完成七个不同章节。</p></article>
+                <article class="mark-item"><span class="mark-symbol">11</span><h3>十一小时</h3><p>有效听读累计达到 10 小时。</p></article>
+                <article class="mark-item locked"><span class="mark-symbol">∞</span><h3>一书终章</h3><p>等待第一次完整听完一本书。</p></article>
+              </div>
+            </div>
+
+            <div class="companion-panel" id="companion-activity">
+              <p class="eyebrow">21 天书境共读季</p>
+              <h2>累计即可，不需要签到</h2>
+              <div class="activity-band">
+                <div class="activity-progress"><span>已累计 328 分钟</span><span>328 / 600</span></div>
+                <div class="progress-track"><span class="progress-fill" style="--progress: 0.547"></span></div>
+                <ul class="milestones">
+                  <li class="is-earned"><span class="milestone-dot"></span><span>60 分钟 · 基础印记</span><small>已获得</small></li>
+                  <li class="is-earned"><span class="milestone-dot"></span><span>180 分钟 · Xiaoyo 动作</span><small>已获得</small></li>
+                  <li><span class="milestone-dot"></span><span>360 分钟 · 章节台座</span><small>还差 32</small></li>
+                  <li><span class="milestone-dot"></span><span>600 分钟 · 永久荣誉</span><small>还差 272</small></li>
+                </ul>
+              </div>
+              <button class="outline-button import-button" type="button" id="preview-realm">预览书境表现</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="mini-player" id="mini-player">
+          <span class="mini-cover" id="mini-cover">荔</span>
+          <div class="mini-copy"><strong id="mini-title">长安的荔枝</strong><span id="mini-status">已暂停 · 42%</span></div>
+          <button class="mini-play" type="button" aria-label="播放" id="mini-play">▶</button>
+        </div>
+
+        <nav class="bottom-nav" aria-label="主导航">
+          <button class="nav-button is-active" type="button" data-screen="listen">听读</button>
+          <button class="nav-button" type="button" data-screen="library">书架</button>
+          <button class="nav-button" type="button" data-screen="companion">陪伴</button>
+        </nav>
+
+        <div class="overlay" id="reader-overlay" role="dialog" aria-modal="true" aria-label="全文阅读">
+          <div class="sheet reader-sheet">
+            <div class="reader-toolbar">
+              <button class="close-button" type="button" data-close="reader-overlay" aria-label="返回">←</button>
+              <strong>第十二章 · 一骑红尘</strong>
+              <button class="quiet-button" type="button" id="reader-speed">1.0x</button>
+            </div>
+            <article class="reader-text">
+              <p>岭南的雨来得急，驿站外的树叶被洗得发亮。李善德把时日写在纸上，又一笔一笔划去。</p>
+              <p class="is-current">他第一次知道，一颗荔枝离开枝头以后，时间就开始追赶它。</p>
+              <p>道路、驿马、冰块和每一个人的选择，都压在这短短几日里。窗外马蹄声起，他重新卷好纸，走进雨中。</p>
+            </article>
+            <button class="primary-button import-button" type="button" id="reader-toggle">继续播放</button>
+          </div>
+        </div>
+
+        <div class="overlay" id="compare-overlay" role="dialog" aria-modal="true" aria-labelledby="compare-title">
+          <div class="sheet">
+            <div class="sheet-header"><div><p class="eyebrow">同一荣誉 · 同一进度</p><h2 id="compare-title">书境效果对比</h2></div><button class="close-button" type="button" data-close="compare-overlay" aria-label="关闭">×</button></div>
+            <div class="segmented" aria-label="免费与付费书境">
+              <button class="segment is-active" type="button" data-realm="free">基础书境</button>
+              <button class="segment" type="button" data-realm="pro">主题书境 · 9.9 元</button>
+            </div>
+            <div class="comparison-stage" id="comparison-stage">
+              <img class="xiaoyo-image" src="assets/20260713_xiaoyo_v2_concept_candidate.png" alt="Xiaoyo 书境展示">
+              <div class="realm-copy"><strong id="realm-title">纸页台座</strong><p id="realm-description">默认材质与克制的章节完成动作。</p><span class="honor-badge">永久荣誉 · 第一本共读</span></div>
+            </div>
+            <ul class="comparison-details">
+              <li><span>获得的荣誉</span><span>完全相同</span></li>
+              <li><span>成长速度</span><span>完全相同</span></li>
+              <li><span>空间、音景、转场</span><span id="realm-detail">基础表现</span></li>
+            </ul>
+            <div class="button-stack">
+              <button class="primary-button" type="button" id="prototype-purchase">模拟预购 9.9 元</button>
+              <button class="outline-button" type="button" data-close="compare-overlay">继续免费使用</button>
+            </div>
+            <p class="prototype-note">原型不会发起支付、记录账户或上传正文。正式实验只使用可退款商户订单。</p>
+          </div>
+        </div>
+
+        <div class="overlay" id="complete-overlay" role="dialog" aria-modal="true" aria-labelledby="complete-title">
+          <div class="sheet complete-stage">
+            <img class="xiaoyo-image" src="assets/20260713_xiaoyo_v2_concept_candidate.png" alt="Xiaoyo 完本纪念动作模拟">
+            <p class="eyebrow">一本书的终章</p>
+            <h2 id="complete-title">你们一起听完了</h2>
+            <p class="subtle">《长安的荔枝》 · 8 小时 36 分钟<br>永久荣誉已加入荣誉册，不会掉级。</p>
+            <div class="button-stack">
+              <button class="primary-button" type="button" id="view-honor">查看荣誉</button>
+              <button class="outline-button" type="button" id="choose-next-book">选择下一本</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toast" id="toast" role="status"></div>
+      </div>
+    </section>
+
+    <aside class="studio-panel" aria-label="审批观察点">
+      <span class="prototype-status">离线原型可交互</span>
+      <h2>审批观察点</h2>
+      <ul class="decision-list">
+        <li><strong>主任务：</strong>用户第一眼能否明白这是本地长文本听读工具。</li>
+        <li><strong>免费基座：</strong>导入、听读、恢复、成长和荣誉均可完成。</li>
+        <li><strong>付费差异：</strong>改变效率和书境表现，不出售荣誉与成长。</li>
+        <li><strong>Xiaoyo：</strong>提供安静反馈，不遮挡正文、不催促签到。</li>
+        <li><strong>执行边界：</strong>原型通过后才排 Flutter 正式开发，不引入 Unity。</li>
+      </ul>
+    </aside>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const state = {
+        screen: "listen",
+        playing: false,
+        hasBook: true,
+        title: "长安的荔枝",
+        mark: "荔",
+        chapter: "第十二章 · 一骑红尘",
+        progress: 42,
+        speedIndex: 0,
+        realm: "free",
+        sentenceIndex: 0,
+      };
+
+      const sentences = [
+        "“他第一次知道，一颗荔枝离开枝头以后，时间就开始追赶它。”",
+        "“道路、驿马、冰块和每一个人的选择，都压在这短短几日里。”",
+        "“窗外马蹄声起，他重新卷好纸，走进雨中。”",
+      ];
+      const speeds = ["1.0x", "1.25x", "1.5x", "2.0x"];
+      let progressTimer = null;
+      let toastTimer = null;
+
+      const byId = (id) => document.getElementById(id);
+      const all = (selector) => Array.from(document.querySelectorAll(selector));
+
+      function showToast(message) {
+        const toast = byId("toast");
+        toast.textContent = message;
+        toast.classList.add("is-visible");
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove("is-visible"), 2200);
+      }
+
+      function setOverlay(id, open) {
+        const overlay = byId(id);
+        overlay.classList.toggle("is-open", open);
+        overlay.setAttribute("aria-hidden", open ? "false" : "true");
+      }
+
+      function setScreen(name) {
+        state.screen = name;
+        all(".screen").forEach((screen) => screen.classList.toggle("is-active", screen.id === `screen-${name}`));
+        all(".nav-button").forEach((button) => button.classList.toggle("is-active", button.dataset.screen === name));
+      }
+
+      function renderPlayback() {
+        const icon = state.playing ? "Ⅱ" : "▶";
+        byId("main-play").textContent = icon;
+        byId("main-play").setAttribute("aria-label", state.playing ? "暂停" : "播放");
+        byId("mini-play").textContent = icon;
+        byId("mini-play").setAttribute("aria-label", state.playing ? "暂停" : "播放");
+        byId("reader-toggle").textContent = state.playing ? "暂停播放" : "继续播放";
+        byId("xiaoyo-stage").classList.toggle("is-playing", state.playing);
+        byId("xiaoyo-state").textContent = state.playing ? "声核跟着句子呼吸" : "声核安静亮着";
+        byId("xiaoyo-message").textContent = state.playing ? "我在这里，不会打断正文。" : "上次停在荔枝离开岭南的清晨。";
+        byId("mini-status").textContent = `${state.playing ? "正在播放" : "已暂停"} · ${Math.round(state.progress)}%`;
+      }
+
+      function renderBook() {
+        byId("listen-title").textContent = state.title;
+        byId("chapter-label").textContent = state.chapter;
+        byId("book-mark").textContent = state.mark;
+        byId("mini-title").textContent = state.title;
+        byId("mini-cover").textContent = state.mark;
+        byId("progress-label").textContent = `已听 ${Math.round(state.progress)}%`;
+        byId("main-progress").style.setProperty("--progress", Math.min(state.progress / 100, 1));
+        byId("listen-content").classList.toggle("is-hidden", !state.hasBook);
+        byId("empty-state").classList.toggle("is-visible", !state.hasBook);
+        byId("mini-player").classList.toggle("is-hidden", !state.hasBook);
+        renderPlayback();
+      }
+
+      function togglePlayback(force) {
+        if (!state.hasBook) return;
+        state.playing = typeof force === "boolean" ? force : !state.playing;
+        window.clearInterval(progressTimer);
+        if (state.playing) {
+          progressTimer = window.setInterval(() => {
+            state.progress = Math.min(100, state.progress + 0.08);
+            renderBook();
+            if (state.progress >= 100) {
+              togglePlayback(false);
+              setOverlay("complete-overlay", true);
+            }
+          }, 900);
+        }
+        renderPlayback();
+      }
+
+      function setCompanionTab(name) {
+        all("[data-companion]").forEach((button) => {
+          const active = button.dataset.companion === name;
+          button.classList.toggle("is-active", active);
+          button.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        all(".companion-panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === `companion-${name}`));
+      }
+
+      function setRealm(name) {
+        state.realm = name;
+        const isPro = name === "pro";
+        all("[data-realm]").forEach((button) => button.classList.toggle("is-active", button.dataset.realm === name));
+        byId("comparison-stage").classList.toggle("is-pro", isPro);
+        byId("realm-title").textContent = isPro ? "岭南雨驿书境" : "纸页台座";
+        byId("realm-description").textContent = isPro
+          ? "雨声环境音、荔枝红材质、章节转场和 Xiaoyo 专属完本演出。"
+          : "默认材质与克制的章节完成动作。";
+        byId("realm-detail").textContent = isPro ? "完整主题表现" : "基础表现";
+        byId("prototype-purchase").textContent = isPro ? "模拟预购 9.9 元" : "切到主题书境查看差异";
+      }
+
+      function selectBook(button) {
+        state.hasBook = true;
+        state.title = button.dataset.title;
+        state.mark = button.dataset.mark;
+        state.chapter = button.dataset.chapter;
+        state.progress = Number(button.dataset.progress);
+        state.playing = false;
+        renderBook();
+        setScreen("listen");
+        showToast(`已继续《${state.title}》`);
+      }
+
+      function runScenario(name) {
+        all(".scenario-button").forEach((button) => button.classList.toggle("is-active", button.dataset.scenario === name));
+        byId("error-banner").classList.remove("is-visible");
+        setOverlay("compare-overlay", false);
+        setOverlay("complete-overlay", false);
+        state.hasBook = true;
+        state.progress = 42;
+        state.title = "长安的荔枝";
+        state.mark = "荔";
+        state.chapter = "第十二章 · 一骑红尘";
+        togglePlayback(false);
+
+        if (name === "first") {
+          state.hasBook = false;
+          setScreen("listen");
+        } else if (name === "error") {
+          setScreen("listen");
+          byId("error-banner").classList.add("is-visible");
+          byId("xiaoyo-state").textContent = "声核变为低亮提示";
+          byId("xiaoyo-message").textContent = "书和进度都在，先选择恢复方式。";
+        } else if (name === "honor") {
+          setScreen("companion");
+          setCompanionTab("marks");
+          showToast("永久荣誉已解锁：第一本共读");
+        } else if (name === "paid") {
+          setScreen("listen");
+          setRealm("free");
+          setOverlay("compare-overlay", true);
+        } else if (name === "complete") {
+          state.progress = 100;
+          setScreen("listen");
+          setOverlay("complete-overlay", true);
+        } else {
+          setScreen("listen");
+        }
+        renderBook();
+      }
+
+      all(".nav-button").forEach((button) => button.addEventListener("click", () => setScreen(button.dataset.screen)));
+      all(".scenario-button").forEach((button) => button.addEventListener("click", () => runScenario(button.dataset.scenario)));
+      all("[data-companion]").forEach((button) => button.addEventListener("click", () => setCompanionTab(button.dataset.companion)));
+      all("[data-realm]").forEach((button) => button.addEventListener("click", () => setRealm(button.dataset.realm)));
+      all("[data-close]").forEach((button) => button.addEventListener("click", () => setOverlay(button.dataset.close, false)));
+      all(".book-item").forEach((button) => button.addEventListener("click", () => selectBook(button)));
+
+      byId("main-play").addEventListener("click", () => togglePlayback());
+      byId("mini-play").addEventListener("click", () => togglePlayback());
+      byId("reader-toggle").addEventListener("click", () => togglePlayback());
+      byId("open-reader").addEventListener("click", () => setOverlay("reader-overlay", true));
+      byId("open-compare").addEventListener("click", () => setOverlay("compare-overlay", true));
+      byId("preview-realm").addEventListener("click", () => {
+        setRealm("pro");
+        setOverlay("compare-overlay", true);
+      });
+      byId("show-chapters").addEventListener("click", () => showToast("章节列表：当前为第十二章，共 18 章"));
+      byId("cycle-speed").addEventListener("click", (event) => {
+        state.speedIndex = (state.speedIndex + 1) % speeds.length;
+        event.currentTarget.textContent = speeds[state.speedIndex];
+        byId("reader-speed").textContent = speeds[state.speedIndex];
+      });
+      byId("reader-speed").addEventListener("click", () => byId("cycle-speed").click());
+      byId("previous-line").addEventListener("click", () => {
+        state.sentenceIndex = (state.sentenceIndex + sentences.length - 1) % sentences.length;
+        byId("current-sentence").textContent = sentences[state.sentenceIndex];
+      });
+      byId("next-line").addEventListener("click", () => {
+        state.sentenceIndex = (state.sentenceIndex + 1) % sentences.length;
+        byId("current-sentence").textContent = sentences[state.sentenceIndex];
+      });
+      byId("play-sample").addEventListener("click", () => {
+        state.hasBook = true;
+        state.title = "西游记 · 样书";
+        state.mark = "游";
+        state.chapter = "第一回 · 灵根育孕源流出";
+        state.progress = 0;
+        renderBook();
+        togglePlayback(true);
+        showToast("样书已开始，本地模拟播放");
+      });
+      byId("empty-import").addEventListener("click", () => {
+        setScreen("library");
+        showToast("原型不读取真实文件，请选择示例书籍");
+      });
+      byId("import-book").addEventListener("click", () => showToast("原型不读取真实文件；正式版使用系统文件选择器"));
+      byId("retry-cloud").addEventListener("click", () => showToast("云音色仍不可用，进度没有变化"));
+      byId("use-local").addEventListener("click", () => {
+        byId("error-banner").classList.remove("is-visible");
+        togglePlayback(true);
+        showToast("已切换系统本地音色并继续");
+      });
+      byId("prototype-purchase").addEventListener("click", () => {
+        if (state.realm !== "pro") {
+          setRealm("pro");
+          return;
+        }
+        showToast("已记录原型选择，没有产生支付");
+      });
+      byId("view-honor").addEventListener("click", () => {
+        setOverlay("complete-overlay", false);
+        setScreen("companion");
+        setCompanionTab("marks");
+        showToast("一书终章已加入永久荣誉");
+      });
+      byId("choose-next-book").addEventListener("click", () => {
+        setOverlay("complete-overlay", false);
+        setScreen("library");
+      });
+
+      byId("book-search").addEventListener("input", (event) => {
+        const keyword = event.currentTarget.value.trim().toLowerCase();
+        all(".book-item").forEach((item) => {
+          item.hidden = !item.dataset.title.toLowerCase().includes(keyword);
+        });
+      });
+
+      const sortModes = ["最近", "进度", "书名"];
+      let sortMode = 0;
+      byId("sort-books").addEventListener("click", (event) => {
+        sortMode = (sortMode + 1) % sortModes.length;
+        event.currentTarget.textContent = sortModes[sortMode];
+        showToast(`已按${sortModes[sortMode]}排列（原型）`);
+      });
+
+      all(".overlay").forEach((overlay) => {
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) setOverlay(overlay.id, false);
+        });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") all(".overlay.is-open").forEach((overlay) => setOverlay(overlay.id, false));
+      });
+
+      renderBook();
+    })();
+  </script>
+</body>
+</html>
