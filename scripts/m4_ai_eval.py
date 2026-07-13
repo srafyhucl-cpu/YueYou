@@ -18,6 +18,7 @@ from typing import Any, Iterable
 
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 _WORD_RE = re.compile(r"[A-Za-z0-9_]+")
+_CHAPTER_RE = re.compile(r"(?m)^(第([一二三四五六七八九十百零〇0-9]+)回[^\r\n]*)$")
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,46 @@ class ChapterIndex:
         offsets = [chapter.content.find(term) for term in terms if len(term) > 1]
         valid_offsets = [offset for offset in offsets if offset >= 0]
         return min(valid_offsets) if valid_offsets else 0
+
+
+def _chinese_number(value: str) -> int:
+    """将西游记目录常用的中文数字章节号转换为整数。"""
+    if value.isdigit():
+        return int(value)
+    digits = {"零": 0, "〇": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
+              "六": 6, "七": 7, "八": 8, "九": 9}
+    if value == "十":
+        return 10
+    if "百" in value:
+        head, tail = value.split("百", 1)
+        return digits[head or "一"] * 100 + _chinese_number(tail) if tail else digits[head or "一"] * 100
+    if "十" in value:
+        head, tail = value.split("十", 1)
+        return (digits.get(head, 1) * 10) + (digits.get(tail, 0) if tail else 0)
+    return digits[value]
+
+
+def split_chapters(text: str) -> list[Chapter]:
+    """按“第 N 回”标题切分文本，并保留章节标题和正文范围。"""
+    matches = list(_CHAPTER_RE.finditer(text))
+    if not matches:
+        raise ValueError("文本中未找到“第 N 回”章节标题")
+    chapters: list[Chapter] = []
+    for index, match in enumerate(matches):
+        content_start = match.end()
+        content_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        chapters.append(
+            Chapter(
+                chapter_id=_chinese_number(match.group(2)),
+                title=match.group(1).strip(),
+                content=text[content_start:content_end].strip(),
+            )
+        )
+    return chapters
+
+
+def load_index_from_text(text: str) -> ChapterIndex:
+    return ChapterIndex(split_chapters(text))
 
 
 def _load_json(path: Path) -> Any:

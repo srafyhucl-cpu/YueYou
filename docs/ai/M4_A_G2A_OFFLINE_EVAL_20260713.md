@@ -9,14 +9,23 @@
 
 - 语料：`docs/ai/m4_g2_eval_corpus.json`，8 个预置西游记章节片段。
 - 问题：`docs/ai/m4_g2_eval_cases.json`，8 个预置事实问题及期望章节/证据词。
-- 实现：`scripts/m4_ai_eval.py`，确定性字符词元检索基线。
+- 实现：`scripts/m4_ai_eval.py`，确定性字符词元检索基线；`scripts/m4_ai_service.py`，本地 HTTP 检索外壳。
 
 ## 执行命令
 
 ```powershell
 python -m unittest scripts/test_m4_ai_eval.py -v
+python -m unittest scripts/test_m4_ai_service.py -v
 python scripts/m4_ai_eval.py --corpus docs/ai/m4_g2_eval_corpus.json --cases docs/ai/m4_g2_eval_cases.json
 ```
+
+本地服务启动命令：
+
+```powershell
+python scripts/m4_ai_service.py --corpus docs/ai/m4_g2_eval_corpus.json --host 127.0.0.1 --port 8787
+```
+
+服务仅提供 `GET /health` 和 `POST /v1/ai/retrieve`，返回章节引用，不生成答案，不记录查询正文。
 
 ## 结果
 
@@ -27,7 +36,8 @@ python scripts/m4_ai_eval.py --corpus docs/ai/m4_g2_eval_corpus.json --cases doc
 | P95 检索延迟 | 约 0.06ms | < 5s | 通过离线基线 |
 | 离线估算成本 | 0 | <= 0.05 美元/请求 | 通过预算基线 |
 
-Python 单元测试结果为 `3 tests OK`。评测器同时验证错误期望章节不能通过引用门禁。
+Python 单元测试结果为 `5 tests OK`。评测器同时验证错误期望章节不能通过引用门禁；服务测试覆盖健康检查、
+成功引用、空查询拒绝和请求体上限。
 
 ## 边界
 
