@@ -46,12 +46,13 @@
   - 提交 `c1fffb0` 的 push/PR CI Run `29218881404`、`29218883483` 均成功；连续两周稳定期仍未完成。
 
 - **外部集成复核(TTS)**：
-  - 生产 `/api/v1/tts` 使用独立测试安装 ID 和固定短句请求返回 HTTP 500、无响应体；`/ready` 同时为 200。
-  - 未取得签名 URL，未执行过期 URL断言；OSS 过期 URL验收保持未完成，待定位 TTS 合成链路 500 后重试。
+  - 首次使用 PowerShell 默认请求体编码验证中文 TTS 返回 HTTP 500；后续改用显式 UTF-8 请求体后恢复成功，
+    该 500 不作为生产 TTS 根因。
   - 远端以 `www` 用户、最小环境直接执行 `edge-tts 7.2.8` 成功生成 MP3，排除命令缺失、PATH、权限和临时目录基础问题；
-    Go 服务进程调用链差异仍待定位。
   - 已为生产 `yueyou.service` 持久化 `/etc/systemd/system/yueyou.service.d/10-runtime-env.conf`，补齐 PATH/HOME
-    并重启验证 active；TTS 仍返回 500，未将该配置误判为根因修复。
+    并重启验证 active。
+  - UTF-8 TTS 三态外部验收完成：POST 200、签名下载 200（`audio/mpeg`）、去签名 403、过期参数 403；
+    OSS 过期 URL验收项已关闭。
 
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
