@@ -135,6 +135,7 @@ lib/
 │   │   └── presentation/
 │   │       └── widgets/
 │   │           ├── cyber_player_console.dart  # 播放控制台
+│   │           ├── mini_player_bar.dart       # 跨根页面播放插槽
 │   │           ├── neon_progress_painter.dart # 霓虹进度条
 │   │           └── voice_waveform.dart        # 声波可视化
 │   ├── dashboard/

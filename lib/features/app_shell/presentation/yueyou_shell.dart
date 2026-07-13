@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/features/app_shell/presentation/widgets/companion_shell_page.dart';
-import 'package:yueyou/features/app_shell/presentation/widgets/mini_player_bar.dart';
 import 'package:yueyou/features/app_shell/providers/app_shell_provider.dart';
+import 'package:yueyou/features/audio/presentation/widgets/mini_player_bar.dart';
 import 'package:yueyou/features/library/presentation/screens/library_screen.dart';
 import 'package:yueyou/features/reader/presentation/screens/reading_home_screen.dart';
 
@@ -18,10 +18,14 @@ class YueYouShell extends ConsumerWidget {
   /// 是否渲染跨页播放插槽，测试壳层时可关闭以隔离音频平台依赖。
   final bool showMiniPlayer;
 
+  /// 可注入的播放插槽，供跨页会话保持测试使用；生产环境使用 [MiniPlayerBar]。
+  final Widget? miniPlayer;
+
   const YueYouShell({
     super.key,
     this.pages,
     this.showMiniPlayer = true,
+    this.miniPlayer,
   }) : assert(pages == null || pages.length == 3);
 
   List<Widget> _defaultPages() {
@@ -49,7 +53,7 @@ class YueYouShell extends ConsumerWidget {
                 children: shellPages,
               ),
             ),
-            if (showMiniPlayer) const MiniPlayerBar(),
+            if (showMiniPlayer) miniPlayer ?? const MiniPlayerBar(),
           ],
         ),
       ),

@@ -2,6 +2,13 @@
 
 ## **2026-07-13**
 
+- **加固(PROD-01-C 跨页 Mini Player 会话保持)**：
+  - 将 `MiniPlayerBar` 收回 `features/audio/presentation/widgets`，保持播放展示与音频模块归属一致。
+  - `YueYouShell` 的 Mini Player 插槽位于 `IndexedStack` 外部，根页面切换仍只更新导航索引。
+  - 使用受控 TTS 状态注入 `session=7` 和当前句索引 `3`，切换书架、陪伴后状态保持不变。
+  - **验证**：Shell 相关测试 3 passed；全量 Flutter 测试 689 passed、4 skipped、0 failed；
+    `flutter analyze` 零问题。
+
 - **功能(PROD-01-B 七态听读首页)**：
   - 新增纯 Dart `ReadingHomeViewState` 与七态枚举，状态只包含书籍、章节、句段、
     进度、会话和错误提示等展示投影，不依赖 Flutter、Riverpod 或存储。
