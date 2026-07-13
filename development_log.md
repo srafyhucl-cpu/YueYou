@@ -2,6 +2,17 @@
 
 ## **2026-07-13**
 
+- **功能(PROD-05-A 本地成长 Profile 与幂等规则)**：
+  - 新增 `features/xiaoyo/domain` 的听读心跳、章节完成、完本事件与
+    `XiaoyoGrowthEngine`，实现成长阶段、书境印记、永久荣誉、时间回拨防倒退和有界
+    事件去重；非法心跳不污染去重窗口。
+  - 新增独立 `XiaoyoLocalRepository`，使用 `profile_v1.json`、`.bak` 和 `.tmp` 完成
+    校验、备份与原子替换；主备份均损坏时回到空 Profile，不扩张全局 StorageService。
+  - 新增 `XiaoyoProfileNotifier` 和 `XIAOYO_VALUE_SYSTEM_ENABLED` 摘要入口，默认关闭
+    时不读取新 Profile；没有接入账号、支付、网络、正文或可消费货币。
+  - **验证**：PROD-05-A 定向测试 8 passed、0 failed；受影响范围 `flutter analyze`
+    零问题；README 与详设第 33 节已同步。信号桥和活动视图留到 PROD-05-B。
+
 - **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
   - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
     场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。

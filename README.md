@@ -69,6 +69,8 @@
 - 使用 `--dart-define=READING_FIRST_SHELL_ENABLED=true` 可启用 `听读 / 书架 / 陪伴`
   三根导航壳，页面通过 `IndexedStack` 保活，Mini Player 复用既有 TTS 播放内核。
 - 七态听读首页已按 `PROD-01-B` 接入；陪伴页已按 `PROD-04` 接入 Xiaoyo 语义契约与静态回退，关系价值系统按后续切片接入。
+- 使用 `--dart-define=XIAOYO_VALUE_SYSTEM_ENABLED=true` 可启用本地 Profile 摘要；
+  成长、书境印记和荣誉只保存到应用文档目录，不上传正文、路径或阅读明细。
 
 ### 🎨 设计系统
 
@@ -86,6 +88,7 @@
 | 功能 | 文件 | 状态 |
 | :--- | :--- | :--- |
 | XIAOYO Rive 动画版 | `features/companion/presentation/` + `assets/rive/xiaoyo.riv` | 统一输入适配与静态回退已接入；原创 `.riv` 待 IP-0 定稿 |
+| Xiaoyo 本地价值系统 | `features/xiaoyo/` | 成长规则、Profile 备份与 Provider 已接入；信号桥和活动视图待后续切片 |
 | 崩溃上报（Sentry/Crashlytics） | `core/utils/cyber_logger.dart` | 钩子已注册，上报实现预留至 V1.1 |
 | 热更新版本检查 | `DashboardScreen._checkAppUpdates()` | 存根已注册，V1.1 实现 |
 
