@@ -1,0 +1,2199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>阅游性能架构改进方案</title>
+  <style>
+    :root {
+      --bg: #090a0c;
+      --surface: #111317;
+      --surface-strong: #171a1f;
+      --surface-soft: #0d0f12;
+      --line: #2b3038;
+      --line-strong: #414852;
+      --text: #f2f5f7;
+      --text-secondary: #b4bbc4;
+      --text-muted: #7f8894;
+      --cyan: #35c9d8;
+      --green: #49d17d;
+      --pink: #ee5b8d;
+      --amber: #e3ad4f;
+      --red: #ef6a68;
+      --blue: #62a8e5;
+      --radius: 6px;
+      --radius-small: 4px;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+      --content: 1220px;
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    button,
+    a {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    a {
+      color: var(--cyan);
+    }
+
+    code {
+      padding: 0.12rem 0.35rem;
+      color: #bcecf1;
+      background: #152327;
+      border: 1px solid #24464b;
+      border-radius: 3px;
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 0.88em;
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      clip-path: inset(50%) !important;
+      white-space: nowrap !important;
+    }
+
+    .print-only {
+      display: none;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 8px;
+      left: 8px;
+      padding: 8px 12px;
+      color: #071012;
+      background: var(--cyan);
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .topbar {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9, 10, 12, 0.96);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar-inner {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto minmax(120px, 1fr);
+      align-items: center;
+      gap: 20px;
+      width: min(calc(100% - 40px), var(--content));
+      min-height: 68px;
+      margin: 0 auto;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand-name {
+      display: block;
+      overflow: hidden;
+      font-weight: 800;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .brand-meta {
+      display: block;
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+
+    .tab-button,
+    .scenario-button,
+    .mode-button,
+    .print-button {
+      min-height: 38px;
+      border: 0;
+      border-radius: var(--radius-small);
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .tab-button {
+      min-width: 98px;
+      padding: 0 14px;
+      color: var(--text-secondary);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .tab-button:hover,
+    .tab-button:focus-visible {
+      color: var(--text);
+      background: var(--surface-strong);
+      outline: none;
+    }
+
+    .tab-button[aria-selected="true"] {
+      color: #071012;
+      background: var(--cyan);
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .print-button {
+      padding: 0 14px;
+      color: var(--text-secondary);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+    }
+
+    .print-button:hover,
+    .print-button:focus-visible {
+      color: var(--text);
+      border-color: var(--cyan);
+      outline: none;
+    }
+
+    .page-shell {
+      width: min(calc(100% - 40px), var(--content));
+      margin: 0 auto;
+    }
+
+    .view {
+      display: none;
+      padding: 44px 0 72px;
+    }
+
+    .view.is-active {
+      display: block;
+    }
+
+    .view-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.5fr);
+      gap: 40px;
+      align-items: end;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      margin: 0 0 8px;
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin-bottom: 14px;
+      font-size: clamp(32px, 4.3vw, 58px);
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 12px;
+      font-size: 25px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 17px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 820px;
+      margin-bottom: 0;
+      color: var(--text-secondary);
+      font-size: 18px;
+      line-height: 1.75;
+    }
+
+    .heading-note {
+      padding-left: 18px;
+      border-left: 3px solid var(--amber);
+      color: var(--text-secondary);
+    }
+
+    .heading-note strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--amber);
+    }
+
+    .section-band {
+      padding: 42px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-title-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.65fr);
+      gap: 28px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+
+    .section-title-row p {
+      margin-bottom: 0;
+      color: var(--text-muted);
+    }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric {
+      min-height: 138px;
+      padding: 22px 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .metric:last-child {
+      border-right: 0;
+    }
+
+    .metric-label {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      display: block;
+      color: var(--green);
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: clamp(24px, 3vw, 34px);
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .metric-detail {
+      display: block;
+      margin-top: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .impact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--line);
+    }
+
+    .impact-item {
+      min-height: 170px;
+      padding: 24px;
+      background: var(--surface);
+    }
+
+    .impact-index {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      margin-bottom: 16px;
+      color: #071012;
+      border-radius: 50%;
+      background: var(--cyan);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .impact-item p {
+      margin-bottom: 0;
+      color: var(--text-secondary);
+    }
+
+    .comparison-table-wrap,
+    .data-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th,
+    td {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text-muted);
+      background: var(--surface-soft);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    td {
+      color: var(--text-secondary);
+    }
+
+    td strong {
+      color: var(--text);
+    }
+
+    .status {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-risk {
+      color: var(--pink);
+    }
+
+    .status-target {
+      color: var(--green);
+    }
+
+    .status-pending {
+      color: var(--amber);
+    }
+
+    .decision-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .decision-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--line);
+    }
+
+    .decision-list li {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 20px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .decision-list b {
+      color: var(--cyan);
+    }
+
+    .investment-box {
+      padding: 24px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .investment-number {
+      display: block;
+      color: var(--green);
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 36px;
+      font-weight: 800;
+    }
+
+    .investment-box p {
+      margin-bottom: 0;
+      color: var(--text-secondary);
+    }
+
+    .scenario-toolbar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 14px 0 20px;
+      scrollbar-width: thin;
+    }
+
+    .scenario-button {
+      flex: 0 0 auto;
+      padding: 0 15px;
+      color: var(--text-secondary);
+      border: 1px solid var(--line);
+      background: var(--surface);
+      white-space: nowrap;
+    }
+
+    .scenario-button:hover,
+    .scenario-button:focus-visible {
+      color: var(--text);
+      border-color: var(--cyan);
+      outline: none;
+    }
+
+    .scenario-button[aria-pressed="true"] {
+      color: #071012;
+      border-color: var(--cyan);
+      background: var(--cyan);
+    }
+
+    .tab-button:focus-visible,
+    .scenario-button:focus-visible,
+    .print-button:focus-visible {
+      outline: 2px solid var(--amber);
+      outline-offset: 2px;
+    }
+
+    .scenario-stage {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      box-shadow: var(--shadow);
+    }
+
+    .scenario-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .scenario-header p {
+      max-width: 780px;
+      margin-bottom: 0;
+      color: var(--text-secondary);
+    }
+
+    .priority-badge {
+      align-self: start;
+      padding: 5px 10px;
+      color: #160b0f;
+      border-radius: 999px;
+      background: var(--pink);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .flow-compare {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .flow-column {
+      min-width: 0;
+      padding: 24px;
+    }
+
+    .flow-column + .flow-column {
+      border-left: 1px solid var(--line);
+    }
+
+    .flow-column-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .flow-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .flow-node {
+      position: relative;
+      min-height: 62px;
+      padding: 12px 14px 12px 44px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-small);
+      background: var(--surface);
+    }
+
+    .flow-node::before {
+      position: absolute;
+      top: 15px;
+      left: 14px;
+      display: grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      color: #071012;
+      border-radius: 50%;
+      background: var(--node-color, var(--cyan));
+      content: attr(data-step);
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .flow-node + .flow-node::after {
+      position: absolute;
+      top: -11px;
+      left: 23px;
+      width: 1px;
+      height: 10px;
+      background: var(--line-strong);
+      content: "";
+    }
+
+    .flow-current .flow-node {
+      --node-color: var(--pink);
+    }
+
+    .flow-target .flow-node {
+      --node-color: var(--green);
+    }
+
+    .flow-node strong,
+    .flow-node small {
+      display: block;
+    }
+
+    .flow-node strong {
+      color: var(--text);
+    }
+
+    .flow-node small {
+      margin-top: 3px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .scenario-delta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .delta-item {
+      padding: 18px 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .delta-item:last-child {
+      border-right: 0;
+    }
+
+    .delta-item span,
+    .delta-item strong {
+      display: block;
+    }
+
+    .delta-item span {
+      margin-bottom: 4px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .delta-item strong {
+      color: var(--text);
+    }
+
+    .architecture-map {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+
+    .arch-row {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      min-height: 104px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .arch-row:last-child {
+      border-bottom: 0;
+    }
+
+    .arch-label {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .arch-label b {
+      color: var(--cyan);
+    }
+
+    .arch-label span {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .arch-nodes {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .arch-node {
+      min-height: 64px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-small);
+      background: var(--surface);
+    }
+
+    .arch-node strong,
+    .arch-node small {
+      display: block;
+    }
+
+    .arch-node small {
+      margin-top: 3px;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .arch-node.is-core {
+      border-color: rgba(53, 201, 216, 0.55);
+      background: #102126;
+    }
+
+    .arch-node.is-domain {
+      border-color: rgba(73, 209, 125, 0.45);
+      background: #102018;
+    }
+
+    .detail-list {
+      border-top: 1px solid var(--line);
+    }
+
+    details {
+      border-bottom: 1px solid var(--line);
+    }
+
+    summary {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      min-height: 78px;
+      padding: 14px 4px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary::after {
+      color: var(--cyan);
+      content: "+";
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 24px;
+    }
+
+    details[open] summary::after {
+      content: "-";
+    }
+
+    .module-code {
+      color: var(--cyan);
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .module-summary strong,
+    .module-summary span {
+      display: block;
+    }
+
+    .module-summary span {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .detail-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px 30px;
+      padding: 4px 4px 28px 114px;
+    }
+
+    .detail-block {
+      min-width: 0;
+    }
+
+    .detail-block h3 {
+      color: var(--green);
+      font-size: 13px;
+    }
+
+    .detail-block p,
+    .detail-block ul {
+      margin-bottom: 0;
+      color: var(--text-secondary);
+    }
+
+    .detail-block ul {
+      padding-left: 18px;
+    }
+
+    .sequence {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 22px;
+      margin-top: 18px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .sequence-step {
+      position: relative;
+      min-height: 112px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-small);
+      background: var(--surface);
+    }
+
+    .sequence-step:not(:last-child)::after {
+      position: absolute;
+      top: 50%;
+      right: -18px;
+      color: var(--cyan);
+      content: "\2192";
+      font-size: 20px;
+      transform: translateY(-50%);
+    }
+
+    .sequence-step b,
+    .sequence-step span {
+      display: block;
+    }
+
+    .sequence-step span {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .timeline {
+      position: relative;
+      margin-left: 12px;
+      padding-left: 42px;
+      border-left: 1px solid var(--line-strong);
+    }
+
+    .timeline-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) 130px;
+      gap: 22px;
+      padding: 0 0 30px;
+    }
+
+    .timeline-item::before {
+      position: absolute;
+      top: 3px;
+      left: -50px;
+      width: 14px;
+      height: 14px;
+      border: 3px solid var(--bg);
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 0 1px var(--cyan);
+      content: "";
+    }
+
+    .timeline-id {
+      color: var(--cyan);
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-weight: 800;
+    }
+
+    .timeline-content p {
+      margin-bottom: 0;
+      color: var(--text-secondary);
+    }
+
+    .timeline-estimate {
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .gate-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .gate {
+      min-height: 168px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .gate strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--green);
+    }
+
+    .gate p {
+      margin-bottom: 0;
+      color: var(--text-secondary);
+    }
+
+    .footnote {
+      padding-top: 24px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .page-footer {
+      border-top: 1px solid var(--line);
+      background: var(--surface-soft);
+    }
+
+    .page-footer-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      width: min(calc(100% - 40px), var(--content));
+      margin: 0 auto;
+      padding: 22px 0;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 980px) {
+      .topbar-inner {
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        padding: 10px 0;
+      }
+
+      .tabs {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        overflow-x: auto;
+      }
+
+      .actions {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      .view-heading,
+      .section-title-row,
+      .decision-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .metric:nth-child(2) {
+        border-right: 0;
+      }
+
+      .metric:nth-child(-n + 2) {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .arch-nodes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .sequence {
+        grid-template-columns: 1fr;
+      }
+
+      .sequence-step:not(:last-child)::after {
+        top: auto;
+        right: 50%;
+        bottom: -24px;
+        transform: translateX(50%) rotate(90deg);
+      }
+
+      .gate-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      body {
+        font-size: 14px;
+      }
+
+      .topbar-inner,
+      .page-shell,
+      .page-footer-inner {
+        width: min(calc(100% - 24px), var(--content));
+      }
+
+      .brand-meta {
+        display: none;
+      }
+
+      .print-button {
+        min-width: 44px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      .tabs {
+        width: 100%;
+      }
+
+      .tab-button {
+        min-width: 92px;
+      }
+
+      .tab-button,
+      .scenario-button,
+      .print-button {
+        min-height: 44px;
+      }
+
+      .view {
+        padding-top: 30px;
+      }
+
+      .view-heading {
+        gap: 24px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .lead {
+        font-size: 16px;
+      }
+
+      .section-band {
+        padding: 32px 0;
+      }
+
+      .metric-strip,
+      .impact-grid,
+      .flow-compare,
+      .scenario-delta,
+      .detail-body,
+      .gate-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metric,
+      .metric:nth-child(2),
+      .metric:nth-child(-n + 2),
+      .delta-item {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metric:last-child,
+      .delta-item:last-child {
+        border-bottom: 0;
+      }
+
+      .flow-column + .flow-column {
+        border-top: 1px solid var(--line);
+        border-left: 0;
+      }
+
+      .scenario-header {
+        grid-template-columns: 1fr;
+      }
+
+      .priority-badge {
+        justify-self: start;
+      }
+
+      .arch-row {
+        grid-template-columns: 1fr;
+      }
+
+      .arch-label {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .arch-nodes {
+        grid-template-columns: 1fr;
+      }
+
+      summary {
+        grid-template-columns: 64px minmax(0, 1fr) auto;
+        gap: 10px;
+      }
+
+      .detail-body {
+        padding-left: 4px;
+      }
+
+      .timeline-item {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .timeline-estimate {
+        text-align: left;
+      }
+
+      .decision-list li {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .page-footer-inner {
+        flex-direction: column;
+        gap: 4px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+
+    @media print {
+      :root {
+        color-scheme: light;
+        --line: #cfd4da;
+        --line-strong: #a9b1ba;
+        --text: #15181c;
+        --text-secondary: #3f4852;
+        --text-muted: #4f5965;
+        --cyan: #006b75;
+        --green: #0b6b34;
+        --pink: #8f2850;
+        --amber: #7a5300;
+        --red: #922e2c;
+        --blue: #245b91;
+      }
+
+      body {
+        color: #15181c;
+        background: #ffffff;
+        font-size: 11pt;
+      }
+
+      .topbar,
+      .scenario-toolbar,
+      .print-button,
+      .page-footer {
+        display: none !important;
+      }
+
+      .interactive-scenario {
+        display: none !important;
+      }
+
+      .print-only {
+        display: block !important;
+      }
+
+      .print-scenario {
+        margin-bottom: 20pt;
+        break-before: page;
+      }
+
+      .print-scenario:first-child {
+        break-before: auto;
+      }
+
+      .print-scenario .scenario-header {
+        break-after: avoid;
+      }
+
+      .page-shell {
+        width: 100%;
+      }
+
+      .view,
+      .view.is-active {
+        display: block !important;
+        padding: 22px 0;
+        break-after: page;
+      }
+
+      .view:last-child {
+        break-after: auto;
+      }
+
+      .view-heading,
+      .section-band,
+      .metric-strip,
+      .comparison-table-wrap,
+      .data-table-wrap,
+      .impact-grid,
+      .scenario-stage,
+      .architecture-map,
+      .gate,
+      .investment-box {
+        color: #15181c;
+        border-color: #cfd4da;
+        background: #ffffff;
+        box-shadow: none;
+      }
+
+      h1,
+      h2,
+      h3,
+      .flow-node strong,
+      .arch-node strong,
+      td strong {
+        color: #15181c;
+      }
+
+      .lead,
+      .heading-note,
+      .section-title-row p,
+      td,
+      .impact-item p,
+      .decision-list,
+      .timeline-content p,
+      .detail-block p,
+      .detail-block ul,
+      .gate p {
+        color: #3f4852;
+      }
+
+      .surface,
+      .impact-item,
+      .flow-column,
+      .flow-node,
+      .arch-label,
+      .arch-node,
+      .scenario-header,
+      .scenario-delta,
+      .metric,
+      th {
+        background: #ffffff !important;
+      }
+
+      .scenario-button[aria-pressed="true"],
+      .tab-button[aria-selected="true"] {
+        color: #15181c;
+        background: #d9f4f6;
+      }
+
+      details {
+        break-inside: avoid;
+      }
+
+      details:not([open]) .detail-body {
+        display: grid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到正文</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-name">阅游性能架构改进方案</span>
+        <span class="brand-meta">YUEYOU PERFORMANCE BLUEPRINT / 2026-07-13</span>
+      </div>
+
+      <nav class="tabs" role="tablist" aria-label="报告视图">
+        <button class="tab-button" id="tab-summary" type="button" role="tab" tabindex="0" aria-selected="true" aria-controls="view-summary" data-view="summary">领导摘要</button>
+        <button class="tab-button" id="tab-prototype" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="view-prototype" data-view="prototype">改进原型</button>
+        <button class="tab-button" id="tab-detail" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="view-detail" data-view="detail">详细设计</button>
+        <button class="tab-button" id="tab-roadmap" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="view-roadmap" data-view="roadmap">实施路线</button>
+      </nav>
+
+      <div class="actions">
+        <button class="print-button" type="button" id="print-report" title="打印或另存为 PDF">打印报告</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell" id="main-content">
+    <section class="view is-active" id="view-summary" role="tabpanel" aria-labelledby="tab-summary" data-view-panel="summary">
+      <header class="view-heading">
+        <div>
+          <p class="kicker">管理摘要 / Executive Brief</p>
+          <h1>源码审计显示，首要风险是主线程负担过重。</h1>
+          <p class="lead">当前风险集中在启动前工作过多、动画反复布局、小变化触发整页刷新、整本书多份常驻内存和旧异步任务无法及时停止五条链路。建议拆为六个可独立验收、可单独回滚的性能改进包，先建立真机基线，再决定后续投入。</p>
+        </div>
+        <aside class="heading-note">
+          <strong>报告边界</strong>
+          本页数值均为建议门槛或待验证目标，不是当前实测收益。实际影响与最终结论必须由真机性能模式（Profile）数据确认。
+        </aside>
+      </header>
+
+      <section class="section-band" aria-labelledby="summary-goal-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">目标门槛</p>
+            <h2 id="summary-goal-title">把性能变成可验收的产品能力</h2>
+          </div>
+          <p>先定义统一口径，再决定优化是否有效。高刷目标和基础目标必须分开，不再用单次 CPU 跑分代表整机体验。</p>
+        </div>
+
+        <div class="metric-strip" aria-label="建议性能门槛">
+          <div class="metric">
+            <span class="metric-label">基础流畅度</span>
+            <span class="metric-value">&lt; 16.7ms</span>
+            <span class="metric-detail">60Hz 设备：95% 的界面构建与图形绘制帧各自达标</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">高刷体验</span>
+            <span class="metric-value">&lt; 8.3ms</span>
+            <span class="metric-detail">120Hz 设备：95% 的界面构建与图形绘制帧各自达标</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">TTS 会话</span>
+            <span class="metric-value">1 + 1</span>
+            <span class="metric-detail">最多 1 条预取轨 + 1 条播放轨</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">大书内存模型</span>
+            <span class="metric-value">有界窗口</span>
+            <span class="metric-detail">只保留当前与相邻物理分片，不随整书线性常驻</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-band" aria-labelledby="summary-impact-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">为什么现在改</p>
+            <h2 id="summary-impact-title">四类风险直接影响核心产品体验</h2>
+          </div>
+          <p>阅游的主线是“听读 + 陪伴式 2048”。性能问题会同时放大首用流失、播放中断、低端机兼容和维护成本。</p>
+        </div>
+
+        <div class="impact-grid">
+          <article class="impact-item">
+            <span class="impact-index">01</span>
+            <h3>冷启动可用性</h3>
+            <p>音频初始化、CPU 微基准和环境音生成靠近首帧执行。弱设备上可能表现为启动迟缓、首屏停顿或隐私流程不稳定。</p>
+          </article>
+          <article class="impact-item">
+            <span class="impact-index">02</span>
+            <h3>听读与游戏并行</h3>
+            <p>棋子位移动画进入布局阶段，提词器进度同时触发滚动和文本重建。两条热路径叠加时，更容易出现掉帧和功耗上升。</p>
+          </article>
+          <article class="impact-item">
+            <span class="impact-index">03</span>
+            <h3>大书稳定性</h3>
+            <p>15MB TXT 虽在 Isolate 解析，完整行列表仍回传主 Isolate，并整体 JSON 编解码。峰值内存与开书耗时随整书增长。</p>
+          </article>
+          <article class="impact-item">
+            <span class="impact-index">04</span>
+            <h3>长会话可靠性</h3>
+            <p>TTS runner 与切章请求缺少完整代际约束。快速暂停恢复或连续切章时，旧任务可能继续消耗网络、CPU 和磁盘。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-band" aria-labelledby="summary-change-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">改进范围</p>
+            <h2 id="summary-change-title">不做大爆炸重写，只替换五条关键链路</h2>
+          </div>
+          <p>每项变更都有独立边界、自动化证据和回滚条件。现有视觉、TTS 两步下载契约和本地隐私原则保持不变。</p>
+        </div>
+
+        <div class="comparison-table-wrap">
+          <table>
+            <caption class="visually-hidden">五条关键链路的当前设计、目标设计与业务结果对比</caption>
+            <thead>
+              <tr>
+                <th scope="col">链路</th>
+                <th scope="col">当前设计</th>
+                <th scope="col">目标设计</th>
+                <th scope="col">业务结果</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>启动</strong></td>
+                <td>关键与非关键服务混在首帧附近</td>
+                <td>隐私闸门 + 首帧后懒初始化 + 压缩音频资产</td>
+                <td>首帧与可交互时间按已签署基线验收</td>
+              </tr>
+              <tr>
+                <td><strong>渲染</strong></td>
+                <td>棋子和文字动画反复触发布局</td>
+                <td>布局保持固定，只更新视觉位置</td>
+                <td>听读与滑动并行时仍满足帧预算</td>
+              </tr>
+              <tr>
+                <td><strong>状态</strong></td>
+                <td>小变化可能触发整页刷新</td>
+                <td>按字段订阅，小变化只更新局部</td>
+                <td>减少无效 build 与跨模块耦合</td>
+              </tr>
+              <tr>
+                <td><strong>书籍</strong></td>
+                <td>整书多份进入内存并长期保留</td>
+                <td>语义章节与有界物理分片分离，按窗口读取</td>
+                <td>大书导入与恢复满足已签署内存峰值</td>
+              </tr>
+              <tr>
+                <td><strong>TTS</strong></td>
+                <td>旧任务难以及时停止，可能留下文件</td>
+                <td>任务分代、事件唤醒、可取消请求和文件清理</td>
+                <td>避免重复下载、错章回写和孤儿文件</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section-band" aria-labelledby="summary-decision-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">管理决策</p>
+            <h2 id="summary-decision-title">需要确认的不是技术细节，而是执行顺序</h2>
+          </div>
+          <p>性能治理不能绕过现有 M0 安全与隐私、M1 交付可信度门禁。基线采集可以并行，业务架构改造按依赖映射进入 M2。</p>
+        </div>
+
+        <div class="decision-layout">
+          <ul class="decision-list">
+            <li><b>首批投入</b><span>先批准 PERF-0 基线采集 1-2 人日；基线评审后再按需批准剩余 16-22 人日，已达标链路直接取消。</span></li>
+            <li><b>目标设备</b><span>研发负责人指定至少一台中低端 Android 与一台 120Hz 设备，测试负责人维护场景与口径。</span></li>
+            <li><b>范围纪律</b><span>同意 2048 只调整渲染管线，不把 4 x 4 算法搬进 Isolate，也不重做视觉。</span></li>
+            <li><b>迁移策略</b><span>同意大书仓储由 feature flag 控制，首个稳定版本双读并 legacy shadow write；迁移包不删除旧数据。</span></li>
+          </ul>
+
+          <aside class="investment-box">
+            <span class="metric-label">粗粒度实施量级</span>
+            <span class="investment-number">17-24 人日</span>
+            <p>首批只批准 PERF-0 的 1-2 人日；其余 16-22 人日在基线评审后分段批准。总量不含 M0 安全修复，也不构成排期承诺。</p>
+          </aside>
+        </div>
+      </section>
+
+      <p class="footnote">证据来源：当前工作区源码、2026-05-12 性能任务单和 2026-07-11 全局治理计划。本文不采集、展示或上传用户阅读正文。</p>
+    </section>
+
+    <section class="view" id="view-prototype" role="tabpanel" aria-labelledby="tab-prototype" data-view-panel="prototype" hidden>
+      <header class="view-heading">
+        <div>
+          <p class="kicker">交互原型 / Before &amp; After</p>
+          <h1>选择一条链路，查看现状与目标设计。</h1>
+          <p class="lead">原型表达的是职责、数据流和调度方式，不是最终 Flutter UI 截图。每条目标链路都遵守“主线程只做渲染、旧任务不得回写、数据按需驻留”的共同原则。</p>
+        </div>
+        <aside class="heading-note">
+          <strong>阅读方式</strong>
+          左侧是当前热路径，右侧是建议目标。底部给出改造边界、成功信号与源码证据。
+        </aside>
+      </header>
+
+      <section class="section-band" aria-labelledby="scenario-title">
+        <div class="scenario-toolbar" role="group" aria-label="性能链路场景">
+          <button class="scenario-button" type="button" tabindex="0" aria-pressed="true" data-scenario="startup">冷启动</button>
+          <button class="scenario-button" type="button" tabindex="-1" aria-pressed="false" data-scenario="game">2048 渲染</button>
+          <button class="scenario-button" type="button" tabindex="-1" aria-pressed="false" data-scenario="reader">提词器</button>
+          <button class="scenario-button" type="button" tabindex="-1" aria-pressed="false" data-scenario="book">大书导入</button>
+          <button class="scenario-button" type="button" tabindex="-1" aria-pressed="false" data-scenario="tts">TTS 会话</button>
+        </div>
+        <div class="visually-hidden" id="scenario-status" role="status" aria-live="polite"></div>
+
+        <div class="scenario-stage interactive-scenario">
+          <header class="scenario-header">
+            <div>
+              <p class="kicker" id="scenario-code">SCENE 01 / STARTUP</p>
+              <h2 id="scenario-title">冷启动与音频初始化</h2>
+              <p id="scenario-summary">首帧链路只保留隐私与必要本地状态，音频和性能档位在首帧后按需初始化。</p>
+            </div>
+            <span class="priority-badge" id="scenario-priority">P0</span>
+          </header>
+
+          <div class="flow-compare">
+            <div class="flow-column flow-current">
+              <div class="flow-column-label"><span>当前链路</span><span class="status status-risk">主线程拥挤</span></div>
+              <div class="flow-list" id="current-flow"></div>
+            </div>
+            <div class="flow-column flow-target">
+              <div class="flow-column-label"><span>目标链路</span><span class="status status-target">按需调度</span></div>
+              <div class="flow-list" id="target-flow"></div>
+            </div>
+          </div>
+
+          <div class="scenario-delta">
+            <div class="delta-item"><span>改造边界</span><strong id="scenario-boundary">启动组合根与音频资产</strong></div>
+            <div class="delta-item"><span>成功信号</span><strong id="scenario-success">首帧无同步 CPU 基准或 PCM 生成</strong></div>
+            <div class="delta-item"><span>源码证据</span><strong id="scenario-evidence">main.dart / ambient_service.dart</strong></div>
+          </div>
+        </div>
+        <div class="print-scenarios print-only" id="print-scenarios"></div>
+      </section>
+
+      <section class="section-band" aria-labelledby="target-architecture-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">目标蓝图</p>
+            <h2 id="target-architecture-title">性能职责从 Widget 内部上收为可测的系统边界</h2>
+          </div>
+          <p>依赖方向保持单向：presentation 消费状态投影，provider 编排用例，domain 保持纯 Dart，service 只处理平台与 I/O。</p>
+        </div>
+
+        <section class="architecture-map" aria-label="阅游性能目标架构分层图">
+          <div class="arch-row">
+            <div class="arch-label"><b>应用组合层</b><span>生命周期与跨模块联动</span></div>
+            <div class="arch-nodes">
+              <div class="arch-node is-core"><strong>BootstrapCoordinator</strong><small>隐私闸门、首帧、服务预热</small></div>
+              <div class="arch-node is-core"><strong>AppComposition</strong><small>ref.listen 与资源所有权</small></div>
+              <div class="arch-node is-core"><strong>PerformanceGate</strong><small>FrameTiming 与档位迟滞</small></div>
+              <div class="arch-node is-core"><strong>SnapshotWriters</strong><small>合并写入与生命周期 flush</small></div>
+            </div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-label"><b>状态投影层</b><span>小粒度、不可变、可选择</span></div>
+            <div class="arch-nodes">
+              <div class="arch-node"><strong>GameViewState</strong><small>棋盘、得分、动画事件</small></div>
+              <div class="arch-node"><strong>ReaderViewState</strong><small>章节、游标、加载代际</small></div>
+              <div class="arch-node"><strong>TtsSessionController</strong><small>Provider 持会话、runner 与状态</small></div>
+              <div class="arch-node"><strong>VisualEffectsPolicy</strong><small>blur、粒子、常驻动画</small></div>
+            </div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-label"><b>渲染层</b><span>稳定布局、局部绘制</span></div>
+            <div class="arch-nodes">
+              <div class="arch-node"><strong>StaticBoardLayer</strong><small>网格与背景独立缓存</small></div>
+              <div class="arch-node"><strong>TileTransformLayer</strong><small>位移仅进入 paint/composite</small></div>
+              <div class="arch-node"><strong>TeleprompterPainter</strong><small>句子一次布局，进度仅裁剪</small></div>
+              <div class="arch-node"><strong>EffectOverlay</strong><small>声纹、雨幕、粒子独立脏区</small></div>
+            </div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-label"><b>领域层</b><span>纯 Dart 与确定性结果</span></div>
+            <div class="arch-nodes">
+              <div class="arch-node is-domain"><strong>GameEngine</strong><small>输入棋盘，返回移动结果</small></div>
+              <div class="arch-node is-domain"><strong>ReaderCursor</strong><small>章节与句子游标规则</small></div>
+              <div class="arch-node is-domain"><strong>BufferPolicy</strong><small>有界水位与顺序语义</small></div>
+              <div class="arch-node is-domain"><strong>BookManifest</strong><small>语义章节、物理分片与版本</small></div>
+            </div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-label"><b>服务与数据层</b><span>平台、网络、磁盘</span></div>
+            <div class="arch-nodes">
+              <div class="arch-node"><strong>BookContentRepository</strong><small>双读双写、有界分片、相邻预读</small></div>
+              <div class="arch-node"><strong>TtsDownloadService</strong><small>两步下载、类型化结果、文件 I/O</small></div>
+              <div class="arch-node"><strong>ReusableHttpClient</strong><small>连接复用与请求 abort</small></div>
+              <div class="arch-node"><strong>AudioAssetService</strong><small>压缩资产与按需解码</small></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section class="view" id="view-detail" role="tabpanel" aria-labelledby="tab-detail" data-view-panel="detail" hidden>
+      <header class="view-heading">
+        <div>
+          <p class="kicker">工程详设 / Technical Design</p>
+          <h1>按职责拆，不按行数拆；按证据改，不按感觉改。</h1>
+          <p class="lead">以下模块是目标边界，不要求一次性全部创建。只有当新单元可独立测试、依赖方向更清晰且不会引入生命周期断链时，才进入拆分 PR。</p>
+        </div>
+        <aside class="heading-note">
+          <strong>强约束</strong>
+          TTS 继续遵守 POST 获取 JSON URL、GET 下载音频的两步契约；阅读正文与进度继续纯本地存储。
+        </aside>
+      </header>
+
+      <section class="section-band" aria-labelledby="module-design-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">模块设计</p>
+            <h2 id="module-design-title">九个清晰边界，覆盖启动到持久化</h2>
+          </div>
+          <p>展开条目可查看职责、输入输出、依赖、失败处理与验收方式。默认先实现替换成本最低、证据最确定的边界。</p>
+        </div>
+
+        <div class="detail-list">
+          <details open>
+            <summary>
+              <span class="module-code">BOOT-01</span>
+              <span class="module-summary"><strong>BootstrapCoordinator</strong><span>把首帧必需工作与非关键服务初始化彻底分开</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>职责与接口</h3><p>读取本地隐私状态，选择 ConsentApp 或完整应用；完整应用首帧完成后调度音频、更新检查与可观测性服务。输出只包含启动阶段和 readiness，不承载业务状态。</p></div>
+              <div class="detail-block"><h3>依赖方向</h3><p>位于应用 composition/bootstrap 边界，可依赖 core 基础设施和各 feature 的 provider factory；任何 feature 不得反向引用它。</p></div>
+              <div class="detail-block"><h3>失败与回滚</h3><p>非关键服务初始化失败只记录脱敏错误并进入 degraded ready；隐私状态读取失败默认进入未同意路径。每项服务保持独立初始化和幂等释放。</p></div>
+              <div class="detail-block"><h3>测试与验收</h3><ul><li>首次启动同意前网络请求严格为 0。</li><li>已同意启动只创建一套播放器与 ProviderScope。</li><li>首帧期间不执行 PCM 生成或 CPU 微基准。</li></ul></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">FRAME-01</span>
+              <span class="module-summary"><strong>PerformanceGate + VisualEffectsPolicy</strong><span>用真实帧数据控制 blur、粒子、阴影和常驻动画</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>职责与接口</h3><p>采集非内容型 FrameTiming，在稳定窗口计算 build/raster P95、P99 与掉帧率；输出不可变视觉策略，而不是把设备贴上永久的高、中、低标签。</p></div>
+              <div class="detail-block"><h3>控制范围</h3><p>策略字段分别控制 backdrop blur、复杂阴影、粒子数量、雨幕、声纹刷新率和吉祥物闲置动画。消费者只 select 自己需要的字段。</p></div>
+              <div class="detail-block"><h3>迟滞策略</h3><p>连续多个窗口超预算才降档，连续更长时间稳定才升档；切后台停止采样，低电量或系统降帧时不误判为永久低性能。</p></div>
+              <div class="detail-block"><h3>隐私与验收</h3><p>只记录耗时、帧数、设备刷新率和场景编号，不记录正文、书名、章节或本地路径。60Hz 与 120Hz 使用不同门槛。</p></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">GAME-01</span>
+              <span class="module-summary"><strong>GameEngine + TileTransformLayer</strong><span>4 x 4 逻辑保持同步纯函数，移动动画只进入绘制阶段</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>领域结果</h3><p><code>move(board, direction, random)</code> 返回新棋盘、分数、合并事件和每个 tile 的 from/to 坐标。算法仅使用 Dart 核心库，不引入 Flutter，也不放进 Isolate。</p></div>
+              <div class="detail-block"><h3>渲染结构</h3><p>静态网格、动态棋子、粒子效果和 Game Over 覆盖层分离。棋子拥有稳定尺寸与 key，通过 Transform.translate 消费坐标差。</p></div>
+              <div class="detail-block"><h3>状态投影</h3><p>Dashboard 只订阅 score/combo 投影，棋盘只订阅 board revision，音效开关不进入棋盘渲染状态。16 格不可变复制成本可控。</p></div>
+              <div class="detail-block"><h3>测试与验收</h3><ul><li>领域性质测试覆盖守恒、单次合并和顺序。</li><li>连续 30 次滑动无持续 layout 抖动。</li><li>是否给单 tile 增加 RepaintBoundary 由 Profile 决定。</li></ul></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">READ-01</span>
+              <span class="module-summary"><strong>TeleprompterPainter</strong><span>句子只布局一次，音频进度只更新位移和裁剪</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>输入输出</h3><p>输入为句子快照、播放状态和归一化进度；输出为已读/未读两层文本、中心线和横向偏移。句子变化才重新建立 TextPainter。</p></div>
+              <div class="detail-block"><h3>进度策略</h3><p>音频 position 事件只更新目标 progress，由单一 vsync 平滑插值。字符高亮索引执行 distinct，避免相同字符区间重复绘制。</p></div>
+              <div class="detail-block"><h3>重绘边界</h3><p>毛玻璃背景保持静态，文字画布和中心线作为独立 RepaintBoundary。错误浮层不进入进度 ticker。</p></div>
+              <div class="detail-block"><h3>测试与验收</h3><p>同一句播放期间不触发全文 widget rebuild；进度 0、0.5、1.0 的像素与语义测试稳定；暂停时 ticker 归零。</p></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">STATE-01</span>
+              <span class="module-summary"><strong>StateProjection + AppComposition</strong><span>局部字段变化只唤醒真正依赖它的消费者</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>投影规则</h3><p>为 Game、Reader、Settings、Bookshelf 定义小粒度不可变 view state 或 record selector。禁止 presentation watch 可变服务整对象后再挑字段。</p></div>
+              <div class="detail-block"><h3>跨模块联动</h3><p>Settings 到 Ambient、Game 到 TTS 用户活动等联动由 composition 层 <code>ref.listen</code> 承担；Widget 只转发用户命令。</p></div>
+              <div class="detail-block"><h3>滑杆策略</h3><p>拖动阶段只更新页面局部预览和节流后的播放器音量；onChangeEnd 提交持久化，失败时回退到最近已保存值并提示。</p></div>
+              <div class="detail-block"><h3>验收</h3><p>游戏移动不重建 Dashboard 根；环境音音量变化不重建提词器；导入按钮只响应 isParsing 投影。</p></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">BOOK-01</span>
+              <span class="module-summary"><strong>BookContentRepository</strong><span>整书 JSON 改为 manifest、有界物理分片与按需窗口</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>存储格式</h3><p><code>manifest.json</code> 分别记录语义章节与物理 chunk 映射。物理 chunk 建议以 256KB 或 1000 句为上限，任一先到即切分；超长段落继续按句切分，避免“无章节书”退化为一个 15MB 文件。</p></div>
+              <div class="detail-block"><h3>导入流程</h3><p>超过 100KB 的解析由 ImportJob 在 Isolate 内完成编码识别、索引和同目录 staging 原子发布，只返回小型 metadata。result/error/onExit 三个端口竞争完成同一 Completer；取消必须完成 Future、关闭全部端口并清理已知 <code>.part</code>。</p></div>
+              <div class="detail-block"><h3>读取与回滚</h3><p>Reader 只持当前及相邻物理 chunk。首个稳定版本在 feature flag 下双读并 legacy shadow write，保证旧 APK 可读新导入书；迁移包不删除旧数据，至少稳定一个版本后另立清理 PR。</p></div>
+              <div class="detail-block"><h3>测试与验收</h3><ul><li>UTF-8、GBK、BOM、无章节 15MB 大书均形成有界 chunk。</li><li>导入取消后 Future、Isolate、端口与 staging 文件全部收口。</li><li>恢复内存随固定 chunk 窗口变化，不随整书线性增长。</li></ul></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">TTS-01</span>
+              <span class="module-summary"><strong>TtsSessionController + BufferPolicy</strong><span>会话编排归 Provider，策略归 domain，I/O 归 service</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>会话模型</h3><p>Provider/Notifier 独立拥有 semantic session、runnerEpoch、队列与播放状态；domain 只保存 BufferPolicy。暂停/恢复仅递增 runnerEpoch 并保留当前句与缓冲，换书、切章、换音色或 stop 才创建新 semantic session。</p></div>
+              <div class="detail-block"><h3>队列模型</h3><p>播放取走一项时发送补充信号，预取完成时唤醒播放，不再用 300ms 至 2s 轮询。默认下载并发为 1，只有基线证明必要时才评估有界并发 2。</p></div>
+              <div class="detail-block"><h3>网络与文件</h3><p>Service 只负责复用 HttpClient、两步下载、播放器与文件 I/O。每个下载输入独立 operationId 与 CancellationToken；<code>ref.onDispose</code> 先取消活动请求，再由资源 owner 执行 <code>close(force: true)</code>。</p></div>
+              <div class="detail-block"><h3>契约与验收</h3><p>始终先 POST 解析 JSON URL，再 GET 音频并以类型化结果返回。快速 pause/play 20 次后 runner 上限不变、buffer 不超上限；切章后旧 semantic session 与旧 operation 均不得回写。</p></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">READ-02</span>
+              <span class="module-summary"><strong>ReaderLoadGeneration</strong><span>连续切章、恢复和自动推进统一采用 latest-wins</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>提交规则</h3><p>每个加载意图递增 generation。fetch、parse、持久化前后均校验 generation 与 disposed；只有最新意图可以提交章节、正文和进度。</p></div>
+              <div class="detail-block"><h3>状态模型</h3><p>加载状态同时保存 requestedChapter、committedChapter、generation 和错误类型，避免“UI 显示 B 章但正文来自 A 章”的半提交状态。</p></div>
+              <div class="detail-block"><h3>错误处理</h3><p>过期请求静默丢弃结果并释放资源，不显示错误；最新请求失败才进入可重试状态。日志不包含正文。</p></div>
+              <div class="detail-block"><h3>测试</h3><p>覆盖 A 慢 B 快、A 快 B 慢、加载中 dispose、恢复与手动切章竞争、章末自动推进与点击竞争。</p></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>
+              <span class="module-code">DATA-01</span>
+              <span class="module-summary"><strong>SnapshotWriter</strong><span>游戏与阅读进度采用单写者、合并版本和生命周期 flush</span></span>
+            </summary>
+            <div class="detail-body">
+              <div class="detail-block"><h3>写入模型</h3><p>状态变更提交带 revision 的不可变快照，writer 串行写入并合并中间版本，只保证最新 revision 最终持久化。</p></div>
+              <div class="detail-block"><h3>触发策略</h3><p>游戏保留 1 秒 debounce；阅读进度采用 debounce + maxWait 周期检查点。暂停、切章、退出前执行 best-effort flush，不把生命周期回调当成强持久化保证。</p></div>
+              <div class="detail-block"><h3>失败处理</h3><p>写失败保留最新待写快照并记录一次脱敏 warning；下一次触发继续尝试，避免多个 fire-and-forget 写互相覆盖。磁盘持续失败时不承诺数据丢失上限。</p></div>
+              <div class="detail-block"><h3>验收</h3><p>并发提交只产生串行磁盘写；旧 revision 不得覆盖新 revision；强杀与写失败通过故障注入记录实际损失窗口，不用 flush 推导绝对保证。</p></div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="section-band" aria-labelledby="critical-flow-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">关键时序</p>
+            <h2 id="critical-flow-title">TTS 切章后的安全提交链</h2>
+          </div>
+          <p>Reader generation、TTS semantic session、runnerEpoch 与 HTTP operationId 必须由各自 owner 独立递增。模块之间只传不可变的 contentRevision，不共享计数器，也不承诺跨 Provider 原子事务。</p>
+        </div>
+
+        <ol class="sequence" aria-label="TTS 切章安全提交时序">
+          <li class="sequence-step"><b>用户选择 B 章</b><span>Reader generation + 1，仅使旧内容加载失效</span></li>
+          <li class="sequence-step"><b>停止旧音频任务</b><span>TTS 独立更新 semantic session 与 runnerEpoch，并取消 HTTP operation</span></li>
+          <li class="sequence-step"><b>读取与解析</b><span>Repository 获取 B 章；超过 100KB 的解析进入 Isolate</span></li>
+          <li class="sequence-step"><b>Reader 单次提交</b><span>generation 与 disposed 校验后提交不可变 ChapterSnapshot</span></li>
+          <li class="sequence-step"><b>Composition 启动 TTS</b><span>观察 contentRevision，创建绑定该版本的新 TTS 会话</span></li>
+        </ol>
+      </section>
+
+      <section class="section-band" aria-labelledby="contract-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">接口契约</p>
+            <h2 id="contract-title">跨层只传小对象、不可变快照和明确结果</h2>
+          </div>
+          <p>下面是建议的逻辑接口，不要求名称逐字一致。实现时优先复用现有 domain models，避免为了架构感重复建模。</p>
+        </div>
+
+        <div class="data-table-wrap">
+          <table>
+            <caption class="visually-hidden">目标架构的跨层接口契约</caption>
+            <thead><tr><th scope="col">接口</th><th scope="col">输入</th><th scope="col">输出</th><th scope="col">禁止事项</th></tr></thead>
+            <tbody>
+              <tr><td><strong>BookContentRepository</strong></td><td>bookId、chunkId</td><td>ChunkSnapshot / BookManifest</td><td>返回整书可变 List</td></tr>
+              <tr><td><strong>GameEngine.move</strong></td><td>不可变棋盘、方向、Random</td><td>MoveResult</td><td>播放音效、写磁盘、引用 Flutter</td></tr>
+              <tr><td><strong>TtsDownloadJob</strong></td><td>operationId、CancellationToken、文本请求、voice</td><td>类型化本地文件结果或分类错误</td><td>保存 POST 响应体为音频</td></tr>
+              <tr><td><strong>PerformanceGate</strong></td><td>FrameTiming 窗口</td><td>VisualEffectsPolicy</td><td>读取或记录用户正文</td></tr>
+              <tr><td><strong>SnapshotWriter</strong></td><td>revision + 快照</td><td>flush 结果</td><td>并发无序写同一 key</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section class="view" id="view-roadmap" role="tabpanel" aria-labelledby="tab-roadmap" data-view-panel="roadmap" hidden>
+      <header class="view-heading">
+        <div>
+          <p class="kicker">实施路线 / Delivery Plan</p>
+          <h1>先量化，再止损，再重构；任何阶段都能停。</h1>
+          <p class="lead">推荐拆为六个性能改进包并分别形成独立 PR。PERF-0 只建立基线；PERF-1 至 PERF-3 优先处理高确定性问题；PERF-4 的 TTS 生命周期与 PERF-5 的数据迁移只有通过专项门禁后才实施。</p>
+        </div>
+        <aside class="heading-note">
+          <strong>进入条件</strong>
+          业务改造不得绕过现有 M0 安全与隐私治理。没有真机基线时，不承诺百分比收益，也不扩大优化范围。
+        </aside>
+      </header>
+
+      <section class="section-band" aria-labelledby="roadmap-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">PR 顺序</p>
+            <h2 id="roadmap-title">六个性能包，预计 17-24 人日</h2>
+          </div>
+          <p>编号独立于 7 月 11 日治理计划：PERF-0 可并行；PERF-1 兼容治理 PR-2；PERF-3、PERF-2、PERF-4 分别受治理 PR-8、PR-9、PR-10 约束；PERF-5 作为治理计划显式增补项，不得静默插队。</p>
+        </div>
+
+        <div class="timeline">
+          <article class="timeline-item">
+            <span class="timeline-id">PERF-0</span>
+            <div class="timeline-content"><h3>性能基线与场景门禁</h3><p>建立 startup trace、FrameTiming、30 次滑动、10 分钟听读、15MB 导入和 20 次暂停恢复场景。锁定首帧、可交互、内存峰值、build/raster P95/P99、掉帧率及允许回退值，不改业务行为。</p></div>
+            <span class="timeline-estimate">1-2 人日</span>
+          </article>
+          <article class="timeline-item">
+            <span class="timeline-id">PERF-1</span>
+            <div class="timeline-content"><h3>冷启动与音频止损</h3><p>拆分首帧必需工作，移除同步 CPU 基准，环境音改压缩资产或延迟生成，清理首帧附近同步目录扫描。</p></div>
+            <span class="timeline-estimate">2-3 人日</span>
+          </article>
+          <article class="timeline-item">
+            <span class="timeline-id">PERF-2</span>
+            <div class="timeline-content"><h3>渲染热路径</h3><p>AnimatedPositioned 改 Transform，提词器改 paint-only，声纹固定布局，静态毛玻璃与动画覆盖层分离。</p></div>
+            <span class="timeline-estimate">3-4 人日</span>
+          </article>
+          <article class="timeline-item">
+            <span class="timeline-id">PERF-3</span>
+            <div class="timeline-content"><h3>状态投影与持久化</h3><p>Dashboard/Reader/Settings 使用 selector，跨 feature 联动进入 composition，滑杆两阶段提交，进度与游戏快照单写者化。</p></div>
+            <span class="timeline-estimate">3-4 人日</span>
+          </article>
+          <article class="timeline-item">
+            <span class="timeline-id">PERF-4</span>
+            <div class="timeline-content"><h3>TTS 与 Reader 代际安全</h3><p>pump epoch、事件唤醒、可中止网络、连接复用、队列 drain，以及切章 latest-wins。保持两步下载与降级语义。</p></div>
+            <span class="timeline-estimate">3-4 人日</span>
+          </article>
+          <article class="timeline-item">
+            <span class="timeline-id">PERF-5</span>
+            <div class="timeline-content"><h3>有界分片书籍仓储</h3><p>语义章节 + 有界物理 chunk、ImportJob、feature flag、双读与 legacy shadow write。迁移包不删除旧数据，清理另立后续 PR。</p></div>
+            <span class="timeline-estimate">5-7 人日</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-band" aria-labelledby="gate-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">验收闸门</p>
+            <h2 id="gate-title">每个性能包都必须用行为证据退出</h2>
+          </div>
+          <p>静态分析和单元测试只能证明代码质量，不能替代真机性能。Profile 结果、竞态用例和迁移回归缺一不可。</p>
+        </div>
+
+        <div class="gate-grid">
+          <article class="gate"><strong>G0 基线可信</strong><p>指定设备与场景可重复执行；startup trace 单独输出首帧与可交互时间，FrameTiming 分别输出 buildDuration、rasterDuration P95/P99、掉帧率和内存峰值，并签署目标及最大允许回退值。</p></article>
+          <article class="gate"><strong>G1 行为不回归</strong><p>TTS 不重复、不跳句；2048 规则不变；默认书与本地书进度可恢复；隐私同意前网络为 0。</p></article>
+          <article class="gate"><strong>G2 资源有上限</strong><p>runner、buffer、HttpClient、播放器、Timer、订阅和缓存文件数量均有可断言上限。</p></article>
+          <article class="gate"><strong>G3 帧预算达标</strong><p>buildDuration 与 rasterDuration P95 分别低于设备真实帧预算；任一阶段超预算即计为慢帧，P99 与掉帧率不得超过已签署回退值。</p></article>
+          <article class="gate"><strong>G4 大书可取消</strong><p>15MB UTF-8/GBK 导入可取消，取消后 Future、Isolate、端口与临时文件全部收口。</p></article>
+          <article class="gate"><strong>G5 版本可回滚</strong><p>feature flag 可关闭新仓储；首个稳定版本双读并 legacy shadow write，使旧 APK 可读取新导入书。旧数据清理必须另立后续 PR。</p></article>
+        </div>
+      </section>
+
+      <section class="section-band" aria-labelledby="risk-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">风险管理</p>
+            <h2 id="risk-title">最高风险不在动画，而在异步生命周期与数据迁移</h2>
+          </div>
+          <p>风险等级表示实施审慎程度，不代表当前已发生故障。每项风险都绑定暂停条件与回滚方式。</p>
+        </div>
+
+        <div class="data-table-wrap">
+          <table>
+            <caption class="visually-hidden">性能改进实施风险、控制措施与回滚条件</caption>
+            <thead><tr><th scope="col">风险</th><th scope="col">等级</th><th scope="col">控制措施</th><th scope="col">暂停 / 回滚条件</th></tr></thead>
+            <tbody>
+              <tr><td><strong>TTS 生命周期断链</strong></td><td><span class="status status-risk">高</span></td><td>先加竞态测试，再引入 epoch；保留 session 语义</td><td>出现重复朗读、跳句或 runner 上限失守立即回滚</td></tr>
+              <tr><td><strong>书仓迁移与版本回滚</strong></td><td><span class="status status-risk">高</span></td><td>feature flag、双读、legacy shadow write、同目录原子发布</td><td>chunk 字符数、进度或旧 APK 回读任一不一致时停止迁移</td></tr>
+              <tr><td><strong>渲染视觉偏差</strong></td><td><span class="status status-pending">中</span></td><td>golden/widget test + 真机截图对比</td><td>核心视觉或手势语义变化时回滚该渲染 PR</td></tr>
+              <tr><td><strong>过度拆分</strong></td><td><span class="status status-pending">中</span></td><td>执行三问自检，callback 超过 8 个重新评估边界</td><td>出现循环依赖、生命周期分散或测试构造更复杂时停止</td></tr>
+              <tr><td><strong>指标误读</strong></td><td><span class="status status-target">可控</span></td><td>区分 60Hz/120Hz、debug/profile、当前/目标</td><td>无法复现的单次结果不得进入汇报结论</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section-band" aria-labelledby="done-title">
+        <div class="section-title-row">
+          <div>
+            <p class="kicker">完成定义</p>
+            <h2 id="done-title">什么情况下可以对外说“性能改进完成”</h2>
+          </div>
+          <p>不是代码合并，也不是 analyze 通过，而是在目标设备上持续满足帧预算、资源上限和核心行为三类证据。</p>
+        </div>
+
+        <div class="comparison-table-wrap">
+          <table>
+            <caption class="visually-hidden">性能改进完成定义及所需证据</caption>
+            <thead><tr><th scope="col">维度</th><th scope="col">完成条件</th><th scope="col">证据</th></tr></thead>
+            <tbody>
+              <tr><td><strong>体验</strong></td><td>首帧、可交互、听读、滑动、切章和导入均满足 PERF-0 签署阈值</td><td>Profile 场景报告与目标设备录像</td></tr>
+              <tr><td><strong>性能</strong></td><td>build/raster P95 各自达标，P99 与掉帧率不超过已签署回退值</td><td>FrameTiming 原始摘要和对比表</td></tr>
+              <tr><td><strong>可靠性</strong></td><td>旧任务不回写，runner/订阅/文件数量稳定</td><td>竞态测试与 30 分钟长会话验证</td></tr>
+              <tr><td><strong>数据</strong></td><td>新旧书格式可读，进度一致，回滚路径有效</td><td>迁移矩阵、校验结果与回退测试</td></tr>
+              <tr><td><strong>工程</strong></td><td>分析、AI 门禁、全量测试与服务端门禁通过</td><td>CI 运行记录和提交证据</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    <div class="page-footer-inner">
+      <span>阅游 YueYou / 性能架构改进设计原型</span>
+      <span>版本 1.0 / 2026-07-13 / 离线单文件</span>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const scenarios = {
+        startup: {
+          code: "SCENE 01 / STARTUP",
+          title: "冷启动与音频初始化",
+          priority: "P0",
+          summary: "首帧链路只保留隐私与必要本地状态，音频和性能档位在首帧后按需初始化。",
+          current: [
+            ["初始化持久化", "runApp 前等待 SharedPreferences 与平台通道"],
+            ["初始化音效与环境音", "创建播放器并在启动附近准备运行时音频"],
+            ["执行 CPU 微基准", "UI isolate 进行 100 万次同步循环"],
+            ["生成环境音 PCM", "首次启用同步生成 30 秒、44.1kHz WAV"],
+            ["进入完整应用", "非关键工作与首帧竞争"],
+          ],
+          target: [
+            ["读取隐私状态", "只访问本地最小同意状态"],
+            ["绘制 Consent / App Shell", "尽快产生稳定首帧"],
+            ["启动组合根", "同意后创建业务 ProviderScope"],
+            ["首帧后懒初始化", "音频、更新检查、可观测性独立预热"],
+            ["按需播放压缩资产", "避免 UI isolate 运行时生成长 PCM"],
+          ],
+          boundary: "启动组合根与音频资产",
+          success: "首帧无同步 CPU 基准或 PCM 生成",
+          evidence: "main.dart / settings_provider.dart / ambient_service.dart",
+        },
+        game: {
+          code: "SCENE 02 / GAME RENDER",
+          title: "2048 棋盘滑动与合并",
+          priority: "P0",
+          summary: "4 x 4 算法保持同步纯 Dart，棋子拥有稳定布局，只用 Transform 消费 from/to 坐标。",
+          current: [
+            ["手势触发 move", "GameProvider 原地修改棋盘并广播整对象"],
+            ["Dashboard 重建", "状态卡 watch 扩大到页面根"],
+            ["重新扫描 tile 坐标", "build 内逐棋子寻找目标位置"],
+            ["AnimatedPositioned", "left/top 在动画期间持续触发布局"],
+            ["粒子与阴影叠加", "布局、绘制和合成峰值同时出现"],
+          ],
+          target: [
+            ["纯函数 move", "返回新棋盘、得分、合并与坐标变换"],
+            ["状态投影提交", "Dashboard 与棋盘各订阅所需字段"],
+            ["固定棋子槽位", "尺寸和布局在动画期间保持不变"],
+            ["Transform.translate", "位移进入 paint/composite 阶段"],
+            ["独立效果覆盖层", "粒子、雨幕与静态网格分别隔离"],
+          ],
+          boundary: "GameEngine、棋盘状态投影与渲染分层",
+          success: "连续滑动期间无持续 layout 抖动",
+          evidence: "dashboard_screen.dart / square_board.dart / game_provider.dart",
+        },
+        reader: {
+          code: "SCENE 03 / TELEPROMPTER",
+          title: "提词器音画同步",
+          priority: "P0",
+          summary: "同一句文本只布局一次，音频 position 事件只更新目标进度，vsync 统一驱动位移和高亮裁剪。",
+          current: [
+            ["播放器 position 事件", "事件频率不等于屏幕 vsync"],
+            ["订阅调用 jumpTo", "每次进度改变 ScrollPosition"],
+            ["StreamBuilder 重建", "同一事件再次创建富文本子树"],
+            ["字符串切片", "重复生成已读/未读 substring 与 TextSpan"],
+            ["毛玻璃下重绘", "动态文字位于昂贵滤镜子树内"],
+          ],
+          target: [
+            ["句子快照变化", "只在文本变化时建立 TextPainter"],
+            ["position 更新目标值", "不直接操作滚动布局"],
+            ["vsync 平滑插值", "用统一帧节奏驱动画布"],
+            ["裁剪已读文本层", "字符索引 distinct，避免重复更新"],
+            ["静态背景独立缓存", "毛玻璃与文字画布分离脏区"],
+          ],
+          boundary: "TeleprompterPainter 与独立进度驱动器",
+          success: "进度 tick 不触发全文 widget rebuild",
+          evidence: "teleprompter_view.dart / tts_engine_service.dart",
+        },
+        book: {
+          code: "SCENE 04 / LARGE BOOK",
+          title: "15MB 本地小说导入与恢复",
+          priority: "P0",
+          summary: "Isolate 直接写入语义章节与有界物理分片，主 Isolate 只接收元数据；Reader 只持当前及相邻 chunk。",
+          current: [
+            ["文件路径进入 Isolate", "编码识别与逐行解析方向正确"],
+            ["完整 lines 回传", "大列表跨 Isolate 复制到 UI"],
+            ["整书 jsonEncode", "主线程构建巨大字符串后写盘"],
+            ["整书 read + jsonDecode", "恢复时再次在主线程整体展开"],
+            ["整书 sentences 常驻", "内存随书籍体积线性增长"],
+          ],
+          target: [
+            ["ImportJob 启动", "result/error/onExit 竞争完成同一 Completer"],
+            ["Isolate 流式解析", "语义章节与最大 256KB / 1000 句 chunk 分离"],
+            ["同目录原子发布", "manifest + staging 分片，只返回 metadata"],
+            ["Repository 双读双写", "feature flag + legacy shadow write 支持旧 APK"],
+            ["chunk 窗口驻留", "当前与相邻物理分片按需加载和释放"],
+          ],
+          boundary: "ImportJob、BookContentRepository 与迁移器",
+          success: "无章节大书的峰值内存仍受固定 chunk 窗口约束",
+          evidence: "file_import_service.dart / storage_service.dart / reader_provider.dart",
+        },
+        tts: {
+          code: "SCENE 05 / TTS SESSION",
+          title: "TTS 暂停恢复与连续切章",
+          priority: "P0",
+          summary: "Reader、TTS runner 与 HTTP 请求各自拥有独立代际；模块间只通过 contentRevision 绑定，不共享计数器。",
+          current: [
+            ["共享 _pumpActive", "暂停只把布尔值改为 false"],
+            ["旧 runner 仍在 delayed", "恢复后看到 true 可能重新继续"],
+            ["新 runner 同时启动", "长会话可能累积重复预取或播放循环"],
+            ["Future.timeout", "超时不取消底层 POST/GET"],
+            ["buffer.clear", "只丢引用，预取文件可能变成孤儿"],
+          ],
+          target: [
+            ["创建 semantic session", "切书/章/音色/stop 才更新会话"],
+            ["更新 runnerEpoch", "暂停恢复只重启 runner，不丢当前缓冲"],
+            ["事件信号唤醒", "队列消费和补充不再轮询"],
+            ["请求可中止", "operationId + token 可 abort POST/GET"],
+            ["drain + janitor", "旧队列路径统一清理并保护播放文件"],
+          ],
+          boundary: "TtsSessionController、Reader generation 与 TtsDownloadJob",
+          success: "20 次暂停恢复后 runner 上限仍为 1 + 1",
+          evidence: "tts_audio_notifier.dart / tts_http_client.dart / reader_provider.dart",
+        },
+      };
+
+      const tabButtons = Array.from(document.querySelectorAll("[data-view]"));
+      const viewPanels = Array.from(document.querySelectorAll("[data-view-panel]"));
+      const scenarioButtons = Array.from(document.querySelectorAll("[data-scenario]"));
+
+      function activateView(viewName, moveFocus = false) {
+        tabButtons.forEach((button) => {
+          const active = button.dataset.view === viewName;
+          button.setAttribute("aria-selected", String(active));
+          button.tabIndex = active ? 0 : -1;
+          if (active && moveFocus) button.focus();
+        });
+
+        viewPanels.forEach((panel) => {
+          const active = panel.dataset.viewPanel === viewName;
+          panel.classList.toggle("is-active", active);
+          panel.hidden = !active;
+        });
+
+        if (history.replaceState) {
+          history.replaceState(null, "", `#${viewName}`);
+        }
+        window.scrollTo({ top: 0, behavior: "auto" });
+      }
+
+      function createFlowNodes(target, nodes) {
+        const fragment = document.createDocumentFragment();
+        nodes.forEach(([title, detail], index) => {
+          const node = document.createElement("div");
+          node.className = "flow-node";
+          node.dataset.step = String(index + 1).padStart(2, "0");
+
+          const strong = document.createElement("strong");
+          strong.textContent = title;
+          const small = document.createElement("small");
+          small.textContent = detail;
+          node.append(strong, small);
+          fragment.append(node);
+        });
+        target.replaceChildren(fragment);
+      }
+
+      function createElement(tagName, className, textContent) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        if (textContent) element.textContent = textContent;
+        return element;
+      }
+
+      function createPrintFlowColumn(label, statusText, statusClass, nodes) {
+        const column = createElement("div", `flow-column ${statusClass === "status-risk" ? "flow-current" : "flow-target"}`);
+        const columnLabel = createElement("div", "flow-column-label");
+        columnLabel.append(
+          createElement("span", "", label),
+          createElement("span", `status ${statusClass}`, statusText),
+        );
+        const list = createElement("div", "flow-list");
+        createFlowNodes(list, nodes);
+        column.append(columnLabel, list);
+        return column;
+      }
+
+      function createPrintScenarios() {
+        const container = document.getElementById("print-scenarios");
+        const fragment = document.createDocumentFragment();
+
+        Object.values(scenarios).forEach((scenario) => {
+          const stage = createElement("article", "scenario-stage print-scenario");
+          const header = createElement("header", "scenario-header");
+          const heading = createElement("div", "");
+          heading.append(
+            createElement("p", "kicker", scenario.code),
+            createElement("h2", "", scenario.title),
+            createElement("p", "", scenario.summary),
+          );
+          header.append(heading, createElement("span", "priority-badge", scenario.priority));
+
+          const compare = createElement("div", "flow-compare");
+          compare.append(
+            createPrintFlowColumn("当前链路", "主线程拥挤", "status-risk", scenario.current),
+            createPrintFlowColumn("目标链路", "按需调度", "status-target", scenario.target),
+          );
+
+          const delta = createElement("div", "scenario-delta");
+          [
+            ["改造边界", scenario.boundary],
+            ["成功信号", scenario.success],
+            ["源码证据", scenario.evidence],
+          ].forEach(([label, value]) => {
+            const item = createElement("div", "delta-item");
+            item.append(createElement("span", "", label), createElement("strong", "", value));
+            delta.append(item);
+          });
+
+          stage.append(header, compare, delta);
+          fragment.append(stage);
+        });
+
+        container.replaceChildren(fragment);
+      }
+
+      function activateScenario(name, moveFocus = false, announce = true) {
+        const scenario = scenarios[name];
+        if (!scenario) return;
+
+        scenarioButtons.forEach((button) => {
+          const active = button.dataset.scenario === name;
+          button.setAttribute("aria-pressed", String(active));
+          button.tabIndex = active ? 0 : -1;
+          if (active && moveFocus) button.focus();
+        });
+
+        document.getElementById("scenario-code").textContent = scenario.code;
+        document.getElementById("scenario-title").textContent = scenario.title;
+        document.getElementById("scenario-priority").textContent = scenario.priority;
+        document.getElementById("scenario-summary").textContent = scenario.summary;
+        document.getElementById("scenario-boundary").textContent = scenario.boundary;
+        document.getElementById("scenario-success").textContent = scenario.success;
+        document.getElementById("scenario-evidence").textContent = scenario.evidence;
+        createFlowNodes(document.getElementById("current-flow"), scenario.current);
+        createFlowNodes(document.getElementById("target-flow"), scenario.target);
+        if (announce) {
+          document.getElementById("scenario-status").textContent = `已切换至${scenario.title}`;
+        }
+      }
+
+      tabButtons.forEach((button, index) => {
+        button.addEventListener("click", () => activateView(button.dataset.view));
+        button.addEventListener("keydown", (event) => {
+          if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          let next = index;
+          if (event.key === "ArrowRight") next = (index + 1) % tabButtons.length;
+          if (event.key === "ArrowLeft") next = (index - 1 + tabButtons.length) % tabButtons.length;
+          if (event.key === "Home") next = 0;
+          if (event.key === "End") next = tabButtons.length - 1;
+          activateView(tabButtons[next].dataset.view, true);
+        });
+      });
+
+      scenarioButtons.forEach((button, index) => {
+        button.addEventListener("click", () => activateScenario(button.dataset.scenario));
+        button.addEventListener("keydown", (event) => {
+          if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          let next = index;
+          if (event.key === "ArrowRight") next = (index + 1) % scenarioButtons.length;
+          if (event.key === "ArrowLeft") next = (index - 1 + scenarioButtons.length) % scenarioButtons.length;
+          if (event.key === "Home") next = 0;
+          if (event.key === "End") next = scenarioButtons.length - 1;
+          activateScenario(scenarioButtons[next].dataset.scenario, true);
+        });
+      });
+
+      let printableDetailState = [];
+      window.addEventListener("beforeprint", () => {
+        const details = Array.from(document.querySelectorAll("#view-detail details"));
+        printableDetailState = details.map((item) => item.open);
+        details.forEach((item) => { item.open = true; });
+      });
+      window.addEventListener("afterprint", () => {
+        const details = Array.from(document.querySelectorAll("#view-detail details"));
+        details.forEach((item, index) => { item.open = printableDetailState[index] ?? item.open; });
+        printableDetailState = [];
+      });
+
+      document.getElementById("print-report").addEventListener("click", () => window.print());
+
+      createPrintScenarios();
+      const initialView = location.hash.slice(1);
+      if (["summary", "prototype", "detail", "roadmap"].includes(initialView)) {
+        activateView(initialView);
+      }
+      activateScenario("startup", false, false);
+    })();
+  </script>
+</body>
+</html>
