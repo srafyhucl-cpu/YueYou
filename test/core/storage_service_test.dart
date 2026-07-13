@@ -154,6 +154,21 @@ void main() {
       final record = StorageService.getReadingRecord('book_pct');
       expect(record['percent'], closeTo(33.33, 0.01));
     });
+
+    test('书签支持去重排序、读取和随阅读记录删除', () async {
+      await StorageService.setReadingBookmarks('book_marks', [8, 2, 8, -1]);
+      expect(StorageService.getReadingBookmarks('book_marks'), [2, 8]);
+
+      await StorageService.deleteReadingRecord('book_marks');
+      expect(StorageService.getReadingBookmarks('book_marks'), isEmpty);
+    });
+
+    test('书签 JSON 损坏时返回空列表', () async {
+      SharedPreferences.setMockInitialValues({'reading_bookmarks': '{'});
+      StorageService.resetForTesting();
+      await StorageService.init();
+      expect(StorageService.getReadingBookmarks('book_x'), isEmpty);
+    });
   });
 
   // ── 当前小说 ─────────────────────────────────────────────────────────────────

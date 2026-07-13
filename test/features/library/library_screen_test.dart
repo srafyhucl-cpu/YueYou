@@ -150,6 +150,7 @@ void main() {
       findsOneWidget,
       reason: 'CyberImportButton 必须挂载到 Scaffold.floatingActionButton',
     );
+    expect(find.bySemanticsLabel('导入 TXT 书籍'), findsOneWidget);
   });
 
   // ── tap 删除按钮 → 弹 CyberConfirmDialog → tap 取消保留书籍 ─────────────

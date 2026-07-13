@@ -185,6 +185,7 @@ SettingsProvider makeSettings() {
   s.storyTts = false;
   s.ambientVol = 0.5;
   s.ambientEnabled = false;
+  s.showGame = true;
   return s;
 }
 

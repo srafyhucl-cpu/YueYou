@@ -207,6 +207,8 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
                           ),
                         ),
                         const SizedBox(width: 12),
+                        _buildBookmarkButton(reader),
+                        const SizedBox(width: 8),
                         _buildSpeedCapsule(reader, ttsState.playbackRate),
                       ],
                     ),
@@ -226,34 +228,44 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
       TtsAudioIdle() || TtsAudioPaused() || TtsAudioError() => false,
     };
 
-    return GestureDetector(
-      onTap: () {
-        _handlePlayTap(reader, ttsState);
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [CyberColors.hotPink, CyberColors.neonPurple],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: CyberColors.hotPink.withValues(alpha: 0.3),
-              blurRadius: CyberDimensions.blurLight,
-              offset: const Offset(0, 4),
+    return Semantics(
+      button: true,
+      label: isActive ? '暂停朗读' : '开始朗读',
+      child: GestureDetector(
+        onTap: () {
+          _handlePlayTap(reader, ttsState);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [CyberColors.hotPink, CyberColors.neonPurple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: CyberColors.hotPink.withValues(alpha: 0.3),
+                    blurRadius: CyberDimensions.blurLight,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Icon(
+                  isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: CyberColors.white,
+                  size: 14,
+                ),
+              ),
             ),
-          ],
-        ),
-        child: Center(
-          child: Icon(
-            isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            color: CyberColors.white,
-            size: 14,
           ),
         ),
       ),
@@ -282,29 +294,54 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
   }
 
   Widget _buildSpeedCapsule(ReaderProvider reader, double playbackRate) {
-    return GestureDetector(
-      onTap: () => ref.read(ttsAudioProvider.notifier).cycleSpeed(),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: CyberDimensions.spacingMS,
-          vertical: CyberDimensions.spacingS,
-        ),
-        decoration: BoxDecoration(
-          color: CyberColors.whiteBorder,
-          borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
-          border: Border.all(
+    return Semantics(
+      button: true,
+      label: '朗读速度 ${playbackRate.toStringAsFixed(1)} 倍，点击切换',
+      child: GestureDetector(
+        onTap: () => ref.read(ttsAudioProvider.notifier).cycleSpeed(),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CyberDimensions.spacingMS,
+            vertical: CyberDimensions.spacingS,
+          ),
+          decoration: BoxDecoration(
             color: CyberColors.whiteBorder,
-            width: CyberDimensions.borderNormal,
+            borderRadius: BorderRadius.circular(CyberDimensions.radiusL),
+            border: Border.all(
+              color: CyberColors.whiteBorder,
+              width: CyberDimensions.borderNormal,
+            ),
+          ),
+          child: Text(
+            '${playbackRate.toStringAsFixed(1)}x',
+            style: CyberTextStyles.captionBold.copyWith(
+              color: CyberColors.neonCyan,
+              fontWeight: FontWeight.w900,
+              fontFamily: CyberTextStyles.monoFont,
+            ),
           ),
         ),
-        child: Text(
-          '${playbackRate.toStringAsFixed(1)}x',
-          style: CyberTextStyles.captionBold.copyWith(
-            color: CyberColors.neonCyan,
-            fontWeight: FontWeight.w900,
-            fontFamily: CyberTextStyles.monoFont,
-          ),
+      ),
+    );
+  }
+
+  Widget _buildBookmarkButton(ReaderProvider reader) {
+    final bookmarked = reader.isCurrentBookmarked;
+    return Semantics(
+      button: true,
+      label: bookmarked ? '移除当前书签' : '标记当前书签',
+      child: IconButton(
+        tooltip: bookmarked ? '移除书签' : '添加书签',
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        padding: EdgeInsets.zero,
+        onPressed: reader.currentBookId == null
+            ? null
+            : () => reader.toggleCurrentBookmark(),
+        icon: Icon(
+          bookmarked ? Icons.bookmark : Icons.bookmark_border,
+          color: bookmarked ? CyberColors.neonPink : CyberColors.whiteMuted,
+          size: 18,
         ),
       ),
     );

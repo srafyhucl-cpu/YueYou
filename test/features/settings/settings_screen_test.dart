@@ -27,6 +27,7 @@ SettingsProvider _makeRenderSettings() {
     ..ttsRate = 1.0
     ..ambientVol = 0.5
     ..ambientEnabled = false
+    ..showGame = true
     ..ambientStyle = 'wuxia'
     ..animationQualitySetting = 'low';
 }

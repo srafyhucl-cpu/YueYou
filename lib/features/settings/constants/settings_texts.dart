@@ -77,6 +77,12 @@ class SettingsTexts {
   /// 方块合并音效开关说明。
   static const String mergeSoundSubtitle = '2048 核心交互音频反馈';
 
+  /// 2048 陪伴模式开关标题。
+  static const String gameModeTitle = '2048 陪伴模式';
+
+  /// 2048 陪伴模式开关说明。
+  static const String gameModeSubtitle = '关闭后主界面只保留沉浸式听读';
+
   /// 隐私与合规分组标题。
   static const String privacyComplianceTitle = '隐私与合规';
 

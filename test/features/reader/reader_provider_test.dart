@@ -116,6 +116,22 @@ void main() {
       expect(reader.fetchIndex, reader.currentIndex);
     });
 
+    test('书签随书籍加载恢复，并可切换后持久化', () async {
+      final reader = await _makeReaderProvider();
+      await StorageService.setReadingBookmarks('book_marks', [2]);
+
+      await reader.loadBook('A。\nB。\nC。\n', bookId: 'book_marks');
+      await reader.jumpTo(2);
+      expect(reader.isCurrentBookmarked, isTrue);
+
+      await reader.toggleCurrentBookmark();
+      expect(reader.bookmarks, isEmpty);
+      expect(StorageService.getReadingBookmarks('book_marks'), isEmpty);
+
+      await reader.toggleCurrentBookmark();
+      expect(StorageService.getReadingBookmarks('book_marks'), [2]);
+    });
+
     test('currentChapterTitle 在无章节数据时返回 未知章节', () async {
       final reader = await _makeReaderProvider();
       const raw = 'A。\nB。\n';

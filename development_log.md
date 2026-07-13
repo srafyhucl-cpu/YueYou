@@ -2,6 +2,139 @@
 
 ## **2026-07-12**
 
+- **发布治理(版本一致性准备)**：
+  - 将 `pubspec.yaml`、Sentry 默认 release、README 构建示例统一升级为 `1.1.2+4` / `yueyou@1.1.2`。
+  - 新增 `docs/releases/v1.1.2.md`，明确保留 `v1.1.1` 历史 Tag 与 artifact，不覆盖旧发布证据。
+  - 发布前静态门禁通过：Markdown lint、`flutter analyze`、`dart analyze test`、AI 工程门禁（0 阻断、0 警告）、
+    `go test ./...`、`go vet ./...`、`go build ./...`。
+  - `v1.1.2` Tag、GitHub production artifact、APK 版本和 SHA-256 待发布提交及手动构建完成后回填，未提前关闭全局一致性项。
+
+- **发布治理(Release artifact 闭环)**：
+  - GitHub Actions Run `29195691372` 的分析与测试、arm64 Release APK 均成功。
+  - artifact ID `8260988295` 下载后校验通过，APK SHA-256 为
+    `94E18F55F9DCF2325CEB597941D6209F2905AFC8B37668D917B0C8FEF8465D34`，与随包校验文件一致。
+  - `v1.1.2` Tag 已创建并推送，指向 `f41111d162f8423b1ae34f194e21d70286b88735`；真实设备、G1 用户测试和两周 CI 稳定期仍未完成。
+
+## **2026-07-13**
+
+- **测试(G1 工程验证造数)**：新增 `test/scripts/g1_engineering_validation_test.dart`，以纯 Dart 事件序列执行
+  S01-S05 五组场景；正常场景 5/5 通过，重复句、跳句和不可恢复中断的失败敏感性回归通过。
+  执行命令为 `flutter test test/scripts/g1_engineering_validation_test.dart --concurrency=1`，2 个测试通过。
+
+- **质量门禁复核**：全量 Flutter 测试 `704 passed、4 skipped`，`flutter analyze`、`dart analyze test` 和
+  AI 工程门禁均通过；测试后未产生 `books`、`build`、`android` 或 `coverage` 工作树变更。
+
+- **持续集成(稳定门槛关闭)**：提交 `c3d60ce` 的 push/PR CI Run `29221491751`、`29221493289` 均成功；
+  结合 `5924ddb`、`bf51f30`，最近 3 次完整运行且至少来自 2 个不同提交的短稳定门槛已满足。
+
+- **计划收口**：将 G1 协议同步记录为工程验证证据；造数结果只证明验证器和场景门槛有效，仍不替代 Android
+  真机验收、项目负责人真实听读和真实用户可用性反馈。
+
+- **计划调整(M4/G2 前置)**：自 2026-07-13 起允许启动 M4-A AI 技术预研和 G2-A 离线技术门，范围限于
+  预置/脱敏评测集、章节引用、准确率、性能和成本测量；G1 真机工程门通过前不得接入用户侧入口、生产阅读数据
+  或宣称 AI 产品验证完成。G1 后才可进入 M4-B 受限试点，真实用户体验留到 G2-B 补验。
+
+- **M4-A/G2-A 技术基线**：将启动时间前置为 2026-07-13，新增离线章节检索、引用定位和技术门评测器；
+  预置评测集 8/8 章节命中、8/8 引用命中，P95 约 `0.06ms`，离线成本为 `0`，3 个 Python 单元测试通过。
+  该证据不代表真实模型效果，接入模型后必须重新评测。
+
+- **M4-A 本地服务**：新增 `scripts/m4_ai_service.py`，提供仅返回章节证据的 `/health` 和
+  `/v1/ai/retrieve`；补充章节切分、空查询、请求体上限和不生成答案回归，Python 测试累计 5 个通过。
+  服务不接入 Flutter、Go、生产数据或用户入口。
+
+- **CI(M4-A 门禁)**：将 5 个 Python 离线评测纳入 `.github/workflows/flutter-ci.yml`；评测失败将阻断合并，
+  但不改变现有 Flutter 发布流程。
+- **CI 外部证据**：push Run `29223635854` 已成功，确认 M4-A Python 门禁在远端执行通过；PR Run `29223633347`
+  当时仍在执行。
+
+- **质量与发布治理(辅助功能触控切片)**：
+  - 播放器开始朗读、当前书签控件实际命中区域统一为 `48x48`，内部图标视觉尺寸保持不变。
+  - 新增大字体 `TextScaler.linear(2.0)` Dashboard 回归，验证语义标签、48dp 触控尺寸和无异常渲染。
+  - Dashboard 测试 6/6 通过，全量 Flutter 测试 `702 passed、4 skipped`；`flutter analyze`、`dart analyze test`、AI 工程门禁均通过。
+  - 修复位于 `v1.1.2` Tag 之后，版本递增到 `1.1.3+5`，待 GitHub production artifact 和 `v1.1.3` Tag 闭环。
+
+- **发布治理(1.1.3 production artifact)**：
+  - Run `29216937661` 的分析与测试、arm64 Release APK 均成功，artifact ID 为 `8267023962`。
+  - APK SHA-256 为 `0D928AF9B5D107081517383BC9461F8D6493795487A24F39F089FA2B36EEFFD5`，与随包校验文件一致。
+  - `v1.1.3` Tag 已创建并推送，指向 `c4327925ea103f1dd042ce462ccb54b298499469`；`v1.1.2` 保持不变。
+
+- **测试治理(隔离 Dashboard 文件副作用)**：
+  - 修复 Dashboard 测试将 path_provider 指向项目根目录的问题，改用独立临时目录并在每个用例结束后清理。
+  - Dashboard 相关测试 6/6 通过；测试后未再改写 `books/catalogs/xiyouji_catalog.json` 或生成 `books/31.json`。
+  - `widget_test.dart` 注入关闭自动存档的 `GameProvider`，`bookshelf_provider_test.dart` 改用 D 盘独立临时目录；
+    全量 Flutter 测试 `702 passed、4 skipped` 后工作树保持干净，副作用治理已关闭。
+
+- **持续集成(稳定期样本)**：
+  - 计划复核提交 `7a8c7b4` 的 push/PR CI Run `29218449260`、`29218450816` 均成功；连续两周稳定期尚未完成。
+  - 当前机器无 Android 真机或模拟器，仅有 Windows、Chrome、Edge；真实设备网络、退出和辅助功能验收继续待外部条件。
+
+- **生产复核(2026-07-13)**：
+  - 公网 `/health`、`/ready`、`/privacy` 和默认书目录接口均返回 HTTP 200。
+  - OSS 过期 URL 外部集成和 Android 原生路径仍未验证；提交 `2833193` 的 CI 当时仍在执行，不提前计入稳定期。
+
+- **持续集成复核**：
+  - 提交 `c1fffb0` 的 push/PR CI Run `29218881404`、`29218883483` 均成功；连续两周稳定期仍未完成。
+
+- **文档(G1 用户验证准备)**：
+  - 新增 `docs/testing/G1_USER_TEST_PROTOCOL_20260713.md`，固定五人听读任务、隐私边界、观察字段和 G1 通过条件。
+  - 协议只提供执行模板，不包含虚构用户结果；真实招募和设备测试仍待完成。
+
+- **外部集成复核(TTS)**：
+  - 首次使用 PowerShell 默认请求体编码验证中文 TTS 返回 HTTP 500；后续改用显式 UTF-8 请求体后恢复成功，
+    该 500 不作为生产 TTS 根因。
+  - 远端以 `www` 用户、最小环境直接执行 `edge-tts 7.2.8` 成功生成 MP3，排除命令缺失、PATH、权限和临时目录基础问题；
+  - 已为生产 `yueyou.service` 持久化 `/etc/systemd/system/yueyou.service.d/10-runtime-env.conf`，补齐 PATH/HOME
+    并重启验证 active。
+  - UTF-8 TTS 三态外部验收完成：POST 200、签名下载 200（`audio/mpeg`）、去签名 403、过期参数 403；
+    OSS 过期 URL验收项已关闭。
+
+- **功能(M3): 补齐听读主线的书签与纯阅读模式**：
+  - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
+    数据按空书签处理；删除阅读记录时同步删除书签。
+  - `ReaderProvider` 加载书籍时恢复书签，`CyberPlayerConsole` 增加屏幕阅读器可识别的添加/移除
+    书签按钮，切换后立即写入本地存储。
+  - `SettingsProvider` 新增“2048 陪伴模式”开关；关闭时 `DashboardScreen` 隐藏棋盘、吉祥物和
+    游戏状态面板，直接展示听读提词器。
+  - 为导入按钮、主导航、章节项和 2048 方块补充 `Semantics` 标签与导入按钮 `Tooltip`，并增加
+    导入按钮语义回归断言；字体缩放、对比度和触控目标仍保留为后续辅助功能验收。
+  - 导入按钮移除重复授权弹窗，直接打开系统文件选择器；自动朗读开启时导入完成即调用
+    `ReaderProvider.toggleTTS()`，将首次听读路径收敛为三步。
+  - 导入异常统一通过 `CyberLogger.captureWarning` 记录模块上下文，日志不包含书籍正文。
+  - 设置分段选项、主导航和播放/倍速控件补足 48dp 触控尺寸或语义标签；完整辅助功能验收仍待
+    真实设备验证。
+  - 复核 TTS 弱网证据：连续失败自动降级、暂停恢复不跳句、会话刷新不重复、取消和进度持久化
+    均有现有自动化回归，计划项已按证据关闭。
+  - 回归验证：相关 Flutter 测试 135 个通过；全量 Flutter 测试 `701 passed、4 skipped`，总体
+    覆盖率 `4382/5423 = 80.80%`，核心文件均不低于 90%。`flutter analyze`、`dart analyze test`、
+    AI 工程门禁（0 阻断、0 警告）、`go test ./...`、`go vet ./...`、`go build ./...` 均通过。
+  - 未提前关闭真实验收项：首次导入三步、弱网连续听读、完整辅助功能覆盖和 G1 五人用户验证。
+
+- **质量(辅助功能自动化证据)**：
+  - `CyberPlayerConsole` 的开始朗读与书签控件扩大为实际 `48x48` 命中区域，图标视觉尺寸保持不变。
+  - Dashboard 新增大字体 `TextScaler.linear(2.0)` 回归，验证语义标签、48dp 尺寸和无异常渲染。
+  - `flutter test test/features/dashboard/dashboard_screen_test.dart --concurrency=1`：6/6 通过；真实设备
+    字体缩放、对比度和触控仍需现场验收。
+
+- **验收(release): 完成 GitHub 发布治理外部闭环**：
+  - GitHub 默认分支已切换为 `main`；`main` 分支保护要求 `分析与测试`、至少 1 个 PR 审批，
+    管理员遵守规则，并禁止强推和删除分支。
+  - 已创建 `production` environment，配置构建变量和四个 Android 签名 Secret；Secret 值未写入
+    仓库、工作树或日志。
+  - Release Run `29190744467` 成功，`arm64 Release APK` 与 `分析与测试` 均通过；artifact
+    `yueyou-arm64-release-apk`（ID `8259540304`）SHA-256 为
+    `a9fd40c35ce526b92f2a9c0910e673df1738b14041249a0bf449e6f543ba6f4e`，与随包校验文件一致。
+  - `v1.1.1` Tag 未被覆盖，Tag 与当前治理 artifact 的一致性保留为后续递增版本发布门禁。
+
+- **维护(plan): 校正全局计划当前基线**：
+  - 计划书同步当前权威数字：Flutter `701 passed、4 skipped`、总体覆盖率 `80.80%`、核心文件
+    均不低于 90%、AI 门禁 0 阻断/0 警告；默认分支更新为 `main`。
+
+- **修复(ci): 修正 PR 覆盖率评论权限**：
+  - PR Run 的静态检查、全量测试、覆盖率和 Go 门禁均通过，唯一失败来自覆盖率评论 action 的
+    `Resource not accessible by integration`。
+  - `.github/workflows/flutter-ci.yml` 增加最小必要的 `contents: read`、`issues: write` 和
+    `pull-requests: write` 权限，等待新 PR Run 验证必需检查恢复为绿色。
+
 - **验收(治理): 完成本地全量门禁与正式分支同步**：
   - Flutter 全量测试 `697 passed、4 skipped`；覆盖率总体 `80.71%`（4321/5354），核心文件均达到
     `90%` 以上。

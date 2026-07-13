@@ -1,0 +1,10 @@
+[
+  {"id": "Q01", "query": "孙悟空是从哪里出生的", "expected_chapter_id": 1, "evidence_terms": ["仙石", "石猴"]},
+  {"id": "Q02", "query": "孙悟空为什么反出天宫", "expected_chapter_id": 5, "evidence_terms": ["反出天宫", "蟠桃"]},
+  {"id": "Q03", "query": "孙悟空被压在什么山下", "expected_chapter_id": 7, "evidence_terms": ["五行山"]},
+  {"id": "Q04", "query": "孙悟空什么时候戴上紧箍儿", "expected_chapter_id": 14, "evidence_terms": ["紧箍儿", "大徒弟"]},
+  {"id": "Q05", "query": "猪八戒原来是什么身份", "expected_chapter_id": 19, "evidence_terms": ["天蓬元帅"]},
+  {"id": "Q06", "query": "孙悟空打了白骨精几次", "expected_chapter_id": 27, "evidence_terms": ["三打白骨精"]},
+  {"id": "Q07", "query": "孙悟空向谁借芭蕉扇", "expected_chapter_id": 61, "evidence_terms": ["铁扇公主", "芭蕉扇"]},
+  {"id": "Q08", "query": "取经师徒最后经历了多少难", "expected_chapter_id": 100, "evidence_terms": ["九九八十一难", "真经"]}
+]

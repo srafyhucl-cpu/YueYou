@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   build-test:
     name: 分析与测试
@@ -71,6 +76,11 @@ jobs:
             exit 1
           fi
           echo "## ✅ AI 工程门禁通过" >> $GITHUB_STEP_SUMMARY
+
+      - name: M4-A Python 离线评测
+        run: |
+          python3 -m unittest scripts/test_m4_ai_eval.py scripts/test_m4_ai_service.py -v
+          echo "## ✅ M4-A Python 离线检索与引用评测通过" >> $GITHUB_STEP_SUMMARY
 
       - name: 安装覆盖率工具
         run: |

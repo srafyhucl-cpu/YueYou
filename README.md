@@ -1,7 +1,7 @@
 # 阅游 (YueYou)
 
 **赛博朋克风格的沉浸式小说听读器 + 2048 游戏**  
-版本 `v1.1.1` · Flutter 3.x / Dart 3.x · 跨平台（Android / iOS / Windows / macOS / Linux / Web）
+版本 `v1.1.3` · Flutter 3.x / Dart 3.x · 跨平台（Android / iOS / Windows / macOS / Linux / Web）
 
 [![Flutter CI](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/srafyhucl-cpu/YueYou/actions/workflows/flutter-ci.yml)
 
@@ -20,6 +20,7 @@
 - **章节导航**：`ChapterListScreen` 正序/倒序切换，O(1) 定位当前章节
 - **空闲自动暂停**：可配置超时计时器（`idleTimeout`），防止忘关持续耗电
 - **阅读进度持久化**：实时存档，重启自动恢复至上次段落与滚动位置
+- **本地书签**：播放器控制台可标记当前句，书签仅保存行号并随书籍加载恢复
 
 ### 📚 默认书籍（西游记）
 
@@ -30,7 +31,8 @@
 
 ### 📚 书库管理
 
-- **文件导入**：`FileImportService` 基于 `Isolate.spawn` 流式读取，主线程仅传文件路径，内存零拷贝
+- **文件导入**：系统文件选择器选定 TXT 后由 `FileImportService` 基于 `Isolate.spawn` 流式读取，
+  主线程仅传文件路径，内存零拷贝；自动朗读开启时导入完成即开始播放
 - **编码自动识别**：采样前 8KB → UTF-8 严格校验 → GBK 容错解码 → UTF-8 宽松兜底，三层覆盖
 - **BOM 跳过**：`File.openRead(3)` 直接偏移，无需内存拷贝
 - **大文件拦截**：超过 15MB 抛出 `FileTooLargeException`，Isolate 启动前即拦截
@@ -48,6 +50,7 @@
 - **XIAOYO 吉祥物**：`BoardMascot` Canvas 自绘，眼球实时跟随滑动方向，合并时欢呼，游戏结束时同情
 - **战绩分享**：Game Over 弹窗展示得分/最大棋子/最高连击/评级，一键复制战绩文案至剪贴板
 - **持久化防抖**：1 秒防抖合并多次写入，App 切后台时 `flushPersistState()` 强制落盘，防止丢档
+- **陪伴模式可关闭**：设置中关闭“2048 陪伴模式”后，主界面只保留听读内容
 - **🔓 黑客后门彩蛋**：连续点击同一方块 8 次触发自毁程序——三段式崩塌动画（膨胀 1.0→1.3 + 坍缩 easeInBack + opacity 淡出 + 微旋转 0.25 rad）+ 粉红霓虹粒子爆炸，1.5s 无操作自动清零点击计数
 
 ### 🔊 音效系统
@@ -268,7 +271,7 @@ flutter build apk --release \
   --split-per-abi \
   --dart-define=TTS_SERVER_URL=https://hclstudio.cn/api/v1/tts \
   --dart-define=BOOK_API_BASE=https://hclstudio.cn/api/v1 \
-  --dart-define=APP_VERSION=1.1.1
+  --dart-define=APP_VERSION=1.1.3
 ```
 
 服务端生产部署使用 `server/` 交叉编译为 Linux amd64，由 `yueyou.service` 托管；

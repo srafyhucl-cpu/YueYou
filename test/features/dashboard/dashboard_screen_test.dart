@@ -1,11 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:yueyou/features/game_2048/providers/game_provider.dart';
+import 'package:yueyou/features/game_2048/presentation/widgets/square_board.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
+import 'package:yueyou/features/reader/presentation/widgets/teleprompter_view.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 import 'package:yueyou/main.dart';
 
@@ -26,12 +30,15 @@ void main() {
 
   TtsEngineService? activeEngine;
   ReaderProvider? activeReader;
+  Directory? testDirectory;
 
   setUp(() async {
-    await initializeTestEnvironment();
+    testDirectory = await initializeTestEnvironmentWithIsolatedTempDir(
+      'yueyou_dashboard_',
+    );
   });
 
-  tearDown(() {
+  tearDown(() async {
     // ProviderScope 拆除时已 dispose override 的 ChangeNotifier；这里 try/catch
     // 容错二次 dispose（debugAssertNotDisposed 抛 AssertionError）。
     try {
@@ -42,6 +49,11 @@ void main() {
     } catch (_) {}
     activeReader = null;
     activeEngine = null;
+    final directory = testDirectory;
+    testDirectory = null;
+    if (directory != null && await directory.exists()) {
+      await directory.delete(recursive: true);
+    }
   });
 
   Widget _wrap() {
@@ -113,6 +125,83 @@ void main() {
     // 状态卡片（'当前得分'）在 multi-window 下隐藏
     expect(find.textContaining('当前得分'), findsNothing,
         reason: 'multi-window 模式下 _buildStatusPanel 必须隐藏');
+  });
+
+  testWidgets('DashboardScreen 关闭 2048 陪伴模式后显示听读视图', (tester) async {
+    final settings = makeSettings()..showGame = false;
+    final engine = makeTtsEngine(settings);
+    activeEngine = engine;
+    final reader = ReaderProvider(engine);
+    activeReader = reader;
+    final bookshelf = BookshelfProvider();
+    final game = GameProvider(
+      autoLoadState: false,
+      persistDebounceDuration: Duration.zero,
+    )..soundEnabled = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith((ref) => settings),
+          ttsEngineProvider.overrideWith((ref) => engine),
+          readerProvider.overrideWith((ref) => reader),
+          bookshelfProvider.overrideWith((ref) => bookshelf),
+          gameProvider.overrideWith((ref) => game),
+        ],
+        child: MaterialApp(home: const DashboardScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TeleprompterView), findsOneWidget);
+    expect(find.byType(SquareBoard), findsNothing);
+  });
+
+  testWidgets('DashboardScreen 大字体下核心控件保留语义和48dp触控区域', (tester) async {
+    final settings = makeSettings();
+    final engine = makeTtsEngine(settings);
+    activeEngine = engine;
+    final reader = ReaderProvider(engine);
+    activeReader = reader;
+    final bookshelf = BookshelfProvider();
+    final game = GameProvider(
+      autoLoadState: false,
+      persistDebounceDuration: Duration.zero,
+    )..soundEnabled = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith((ref) => settings),
+          ttsEngineProvider.overrideWith((ref) => engine),
+          readerProvider.overrideWith((ref) => reader),
+          bookshelfProvider.overrideWith((ref) => bookshelf),
+          gameProvider.overrideWith((ref) => game),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) {
+              final media = MediaQuery.of(context);
+              return MediaQuery(
+                data: media.copyWith(
+                  textScaler: const TextScaler.linear(2.0),
+                ),
+                child: const DashboardScreen(),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final playButton = find.bySemanticsLabel('开始朗读');
+    final bookmarkButton = find.bySemanticsLabel('标记当前书签');
+    expect(playButton, findsOneWidget);
+    expect(bookmarkButton, findsOneWidget);
+    expect(tester.getSize(playButton), const Size(48, 48));
+    expect(tester.getSize(bookmarkButton), const Size(48, 48));
+    expect(tester.takeException(), isNull);
   });
 
   // ── 大屏 + low animation level 用例：拉动 TeleprompterView 与 modal 的
