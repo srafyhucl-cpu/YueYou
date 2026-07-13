@@ -147,6 +147,53 @@ void main() {
     expect(find.byType(SquareBoard), findsNothing);
   });
 
+  testWidgets('DashboardScreen 大字体下核心控件保留语义和48dp触控区域', (tester) async {
+    final settings = makeSettings();
+    final engine = makeTtsEngine(settings);
+    activeEngine = engine;
+    final reader = ReaderProvider(engine);
+    activeReader = reader;
+    final bookshelf = BookshelfProvider();
+    final game = GameProvider(
+      autoLoadState: false,
+      persistDebounceDuration: Duration.zero,
+    )..soundEnabled = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith((ref) => settings),
+          ttsEngineProvider.overrideWith((ref) => engine),
+          readerProvider.overrideWith((ref) => reader),
+          bookshelfProvider.overrideWith((ref) => bookshelf),
+          gameProvider.overrideWith((ref) => game),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) {
+              final media = MediaQuery.of(context);
+              return MediaQuery(
+                data: media.copyWith(
+                  textScaler: const TextScaler.linear(2.0),
+                ),
+                child: const DashboardScreen(),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final playButton = find.bySemanticsLabel('开始朗读');
+    final bookmarkButton = find.bySemanticsLabel('标记当前书签');
+    expect(playButton, findsOneWidget);
+    expect(bookmarkButton, findsOneWidget);
+    expect(tester.getSize(playButton), const Size(48, 48));
+    expect(tester.getSize(bookmarkButton), const Size(48, 48));
+    expect(tester.takeException(), isNull);
+  });
+
   // ── 大屏 + low animation level 用例：拉动 TeleprompterView 与 modal 的
   //    isLowPerf=true 分支（Container 而非 BackdropFilter 渲染路径）
   testWidgets('DashboardScreen 大屏 + low animation level 必须走非 blur 分支',

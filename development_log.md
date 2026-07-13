@@ -15,6 +15,14 @@
     `94E18F55F9DCF2325CEB597941D6209F2905AFC8B37668D917B0C8FEF8465D34`，与随包校验文件一致。
   - `v1.1.2` Tag 已创建并推送，指向 `f41111d162f8423b1ae34f194e21d70286b88735`；真实设备、G1 用户测试和两周 CI 稳定期仍未完成。
 
+## **2026-07-13**
+
+- **质量与发布治理(辅助功能触控切片)**：
+  - 播放器开始朗读、当前书签控件实际命中区域统一为 `48x48`，内部图标视觉尺寸保持不变。
+  - 新增大字体 `TextScaler.linear(2.0)` Dashboard 回归，验证语义标签、48dp 触控尺寸和无异常渲染。
+  - Dashboard 测试 6/6 通过，全量 Flutter 测试 `702 passed、4 skipped`；`flutter analyze`、`dart analyze test`、AI 工程门禁均通过。
+  - 修复位于 `v1.1.2` Tag 之后，版本递增到 `1.1.3+5`，待 GitHub production artifact 和 `v1.1.3` Tag 闭环。
+
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
     数据按空书签处理；删除阅读记录时同步删除书签。
@@ -35,6 +43,12 @@
     覆盖率 `4382/5423 = 80.80%`，核心文件均不低于 90%。`flutter analyze`、`dart analyze test`、
     AI 工程门禁（0 阻断、0 警告）、`go test ./...`、`go vet ./...`、`go build ./...` 均通过。
   - 未提前关闭真实验收项：首次导入三步、弱网连续听读、完整辅助功能覆盖和 G1 五人用户验证。
+
+- **质量(辅助功能自动化证据)**：
+  - `CyberPlayerConsole` 的开始朗读与书签控件扩大为实际 `48x48` 命中区域，图标视觉尺寸保持不变。
+  - Dashboard 新增大字体 `TextScaler.linear(2.0)` 回归，验证语义标签、48dp 尺寸和无异常渲染。
+  - `flutter test test/features/dashboard/dashboard_screen_test.dart --concurrency=1`：6/6 通过；真实设备
+    字体缩放、对比度和触控仍需现场验收。
 
 - **验收(release): 完成 GitHub 发布治理外部闭环**：
   - GitHub 默认分支已切换为 `main`；`main` 分支保护要求 `分析与测试`、至少 1 个 PR 审批，

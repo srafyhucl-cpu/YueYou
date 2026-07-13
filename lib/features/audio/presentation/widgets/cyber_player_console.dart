@@ -236,29 +236,35 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
           _handlePlayTap(reader, ttsState);
         },
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [CyberColors.hotPink, CyberColors.neonPurple],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: CyberColors.hotPink.withValues(alpha: 0.3),
-                blurRadius: CyberDimensions.blurLight,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+        child: SizedBox(
+          width: 48,
+          height: 48,
           child: Center(
-            child: Icon(
-              isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              color: CyberColors.white,
-              size: 14,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [CyberColors.hotPink, CyberColors.neonPurple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: CyberColors.hotPink.withValues(alpha: 0.3),
+                    blurRadius: CyberDimensions.blurLight,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Icon(
+                  isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: CyberColors.white,
+                  size: 14,
+                ),
+              ),
             ),
           ),
         ),
@@ -327,7 +333,7 @@ class _CyberPlayerConsoleState extends ConsumerState<CyberPlayerConsole>
       label: bookmarked ? '移除当前书签' : '标记当前书签',
       child: IconButton(
         tooltip: bookmarked ? '移除书签' : '添加书签',
-        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
         padding: EdgeInsets.zero,
         onPressed: reader.currentBookId == null
             ? null

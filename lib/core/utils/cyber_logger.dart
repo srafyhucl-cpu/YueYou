@@ -60,7 +60,7 @@ class CyberLogger {
         // 环境与版本标记
         options.environment = kReleaseMode ? 'production' : 'development';
         options.release =
-            'yueyou@${const String.fromEnvironment('APP_VERSION', defaultValue: '1.1.2')}';
+            'yueyou@${const String.fromEnvironment('APP_VERSION', defaultValue: '1.1.3')}';
       },
       appRunner: appRunner,
     );
