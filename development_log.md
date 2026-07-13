@@ -26,7 +26,7 @@
 - **发布治理(1.1.3 production artifact)**：
   - Run `29216937661` 的分析与测试、arm64 Release APK 均成功，artifact ID 为 `8267023962`。
   - APK SHA-256 为 `0D928AF9B5D107081517383BC9461F8D6493795487A24F39F089FA2B36EEFFD5`，与随包校验文件一致。
-  - `v1.1.3` Tag 待证据提交推送后创建；`v1.1.2` 保持不变。
+  - `v1.1.3` Tag 已创建并推送，指向 `c4327925ea103f1dd042ce462ccb54b298499469`；`v1.1.2` 保持不变。
 
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
