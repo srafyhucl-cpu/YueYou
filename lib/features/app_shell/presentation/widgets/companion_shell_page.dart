@@ -56,6 +56,13 @@ class CompanionShellPage extends ConsumerWidget {
               '角色资产加载失败时自动保留静态回退。',
               style: CyberTextStyles.bodySmall,
             ),
+            if (profile != null) ...[
+              const SizedBox(height: CyberDimensions.spacingS),
+              Text(
+                '印记 ${profile.bookRealmMarks.length} · 荣誉 ${profile.unlockedHonors.length}',
+                style: CyberTextStyles.bodySmall,
+              ),
+            ],
           ],
         ),
       ),

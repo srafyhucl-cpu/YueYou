@@ -12,6 +12,8 @@ class XiaoyoSignalBridge {
   int? _lastCursor;
   DateTime? _lastProgressAtUtc;
   bool _bookCompletionSent = false;
+  String? _lastChapterBookId;
+  int? _lastChapterIndex;
 
   XiaoyoSignalBridge({
     required this.dispatch,
@@ -71,6 +73,28 @@ class XiaoyoSignalBridge {
     );
   }
 
+  /// 由桥接层保存章节快照，避免 ChangeNotifier 前后引用相同而丢失差分。
+  void onReaderChapter({
+    required String bookId,
+    required int chapterIndex,
+    DateTime? occurredAtUtc,
+  }) {
+    if (bookId.isEmpty || chapterIndex < 0) return;
+    if (_lastChapterBookId != bookId) {
+      _lastChapterBookId = bookId;
+      _lastChapterIndex = chapterIndex;
+      return;
+    }
+    final previous = _lastChapterIndex;
+    _lastChapterIndex = chapterIndex;
+    if (previous == null || previous == chapterIndex) return;
+    onChapterCompleted(
+      bookId: bookId,
+      chapterKey: previous.toString(),
+      occurredAtUtc: occurredAtUtc,
+    );
+  }
+
   /// Reader 首次跨过 95% 时记录完本事件。
   void onBookProgress({
     required String bookId,
@@ -97,5 +121,7 @@ class XiaoyoSignalBridge {
     _lastCursor = null;
     _lastProgressAtUtc = null;
     _bookCompletionSent = false;
+    _lastChapterBookId = null;
+    _lastChapterIndex = null;
   }
 }

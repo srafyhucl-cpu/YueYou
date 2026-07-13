@@ -74,4 +74,17 @@ void main() {
     );
     expect(events.whereType<BookCompleted>(), hasLength(2));
   });
+
+  test('桥接层自行保存章节快照，不依赖 ChangeNotifier 前后引用', () {
+    final events = <XiaoyoEvent>[];
+    final bridge = XiaoyoSignalBridge(
+      dispatch: (event) async => events.add(event),
+    );
+
+    bridge.onReaderChapter(bookId: 'book-1', chapterIndex: 0);
+    bridge.onReaderChapter(bookId: 'book-1', chapterIndex: 1);
+    bridge.onReaderChapter(bookId: 'book-1', chapterIndex: 1);
+
+    expect(events.single.eventId, 'chapter:book-1:0');
+  });
 }

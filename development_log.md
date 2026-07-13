@@ -21,6 +21,14 @@
   - **验证**：Xiaoyo 领域/Repository/Provider/信号桥定向测试 10 passed、0 failed；
     `flutter analyze` 受影响范围零问题；2048 表现事件和活动/荣誉视图留到 B-2。
 
+- **加固(PROD-05-B-2 前置章节快照与本地摘要)**：
+  - `XiaoyoSignalBridge` 改为自行维护上一次书籍/章节快照，不依赖 ChangeNotifier 前后
+    引用差异；切书时清理瞬时桥接状态，避免章节完成事件丢失或串书。
+  - 陪伴页在价值系统开关开启后展示本地印记数和荣誉数，关闭时仍不读取 Profile；
+    2048 高分表现、活动视图和完整荣誉墙继续留待后续切片。
+  - **验证**：Xiaoyo/陪伴定向测试 18 passed、0 failed；受影响范围 `flutter analyze`
+    零问题；详设第 35 节已同步。
+
 - **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
   - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
     场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。

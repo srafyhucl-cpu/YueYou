@@ -104,16 +104,12 @@ final xiaoyoSignalBridgeProvider = Provider<XiaoyoSignalBridge>((ref) {
   });
 
   ref.listen<ReaderProvider>(readerProvider, (previous, next) {
-    final previousChapter = previous?.currentChapterIndex;
-    final currentChapter = next.currentChapterIndex;
     final bookId = next.currentBookId;
-    if (bookId == null || previousChapter == null || currentChapter == null) {
-      return;
-    }
-    if (previousChapter == currentChapter) return;
-    bridge.onChapterCompleted(
+    final chapterIndex = next.currentChapterIndex;
+    if (bookId == null || chapterIndex == null) return;
+    bridge.onReaderChapter(
       bookId: bookId,
-      chapterKey: previousChapter.toString(),
+      chapterIndex: chapterIndex,
     );
   });
 
