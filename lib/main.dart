@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/constants/book_constants.dart';
+import 'core/config/feature_flags.dart';
 import 'core/database/storage_service.dart';
 import 'core/theme/cyber_colors.dart';
 import 'core/utils/cyber_logger.dart';
@@ -9,6 +10,7 @@ import 'features/settings/presentation/widgets/privacy_agreement_modal.dart';
 import 'features/audio/services/ambient_service.dart';
 import 'features/audio/services/sfx_service.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
+import 'features/app_shell/presentation/yueyou_shell.dart';
 import 'features/library/domain/book_model.dart';
 import 'features/reader/providers/reader_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
@@ -230,7 +232,9 @@ class _BootstrapperState extends riverpod.ConsumerState<_Bootstrapper>
         behavior: HitTestBehavior.translucent,
         child: TtsErrorListener(child: child!),
       ),
-      home: const DashboardScreen(),
+      home: FeatureFlags.readingFirstShell
+          ? const YueYouShell()
+          : const DashboardScreen(),
     );
   }
 }

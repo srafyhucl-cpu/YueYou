@@ -16,7 +16,12 @@ import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
 /// 书库界面
 /// 完整复刻旧版 modal-library：书架卡片列表、渐变封面、阅读进度条、删除、导入按钮
 class LibraryScreen extends ConsumerWidget {
-  const LibraryScreen({super.key});
+  final bool showCloseButton;
+
+  const LibraryScreen({
+    super.key,
+    this.showCloseButton = true,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,10 +79,11 @@ class LibraryScreen extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close, color: CyberColors.whiteDim),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+              if (showCloseButton)
+                IconButton(
+                  icon: const Icon(Icons.close, color: CyberColors.whiteDim),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
             ],
           ),
         ),

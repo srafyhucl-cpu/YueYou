@@ -62,6 +62,13 @@
 - **游戏音效开关**：实时同步至 `GameProvider`
 - **多风格环境音**：`AmbientService` 支持"江湖风云（武侠）"与"围炉夜话（温馨）"，算法动态生成粉噪声，无需外部音频资源
 
+### 🧭 阅读优先导航壳（阶段性开关）
+
+- `READING_FIRST_SHELL_ENABLED` 默认关闭；关闭时启动路径仍为旧 `DashboardScreen`。
+- 使用 `--dart-define=READING_FIRST_SHELL_ENABLED=true` 可启用 `听读 / 书架 / 陪伴`
+  三根导航壳，页面通过 `IndexedStack` 保活，Mini Player 复用既有 TTS 播放内核。
+- 当前陪伴页为无数据占位，七态听读首页和关系价值系统按 `PROD-01-B` 及后续切片接入。
+
 ### 🎨 设计系统
 
 - **全 Token 化**：所有颜色、字号、间距、圆角、模糊值均通过 `CyberColors` / `CyberTextStyles` / `CyberDimensions` 统一管理。
@@ -107,6 +114,7 @@
 lib/
 ├── core/                          # 全局基础设施（严禁引入任何 feature 层代码）
 │   ├── config/
+│   │   ├── feature_flags.dart     # 阶段性能力开关（--dart-define 注入）
 │   │   └── tts_config.dart        # TTS 服务器地址（--dart-define 注入）
 │   ├── database/
 │   │   └── storage_service.dart   # 全局 SharedPreferences 封装
@@ -169,6 +177,9 @@ lib/
 │       └── presentation/
 │           ├── screens/settings_screen.dart
 │           └── widgets/privacy_agreement_modal.dart  # 首次运行隐私弹窗
+├── features/app_shell/             # 听读优先三根导航壳与跨页播放插槽
+│   ├── providers/app_shell_provider.dart
+│   └── presentation/yueyou_shell.dart
 ├── shared/
 │   └── widgets/
 │       ├── cyber_modal.dart          # 毛玻璃弹窗基础组件
@@ -210,6 +221,12 @@ flutter pub get
 
 ```bash
 flutter run
+```
+
+### 运行（启用阅读优先导航壳）
+
+```bash
+flutter run --dart-define=READING_FIRST_SHELL_ENABLED=true
 ```
 
 ### 运行（指定远端 TTS 服务器）

@@ -22,7 +22,12 @@ import 'package:url_launcher/url_launcher.dart';
 /// 阅游主仪表盘界面
 /// 视觉重塑后的赛博朋克 120 帧高刷渲染面板
 class DashboardScreen extends ConsumerStatefulWidget {
-  const DashboardScreen({super.key});
+  final bool showPlayerConsole;
+
+  const DashboardScreen({
+    super.key,
+    this.showPlayerConsole = true,
+  });
 
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
@@ -198,7 +203,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const SizedBox(height: CyberDimensions.borderNormal),
                       // 灵动岛胶囊（内部有 Padding(top:15)，总视觉间距 = 1 + 15 = 16px）
                       // P0-B：RepaintBoundary 隔离呼吸动画的脏区，避免脏标记上抛到整 dashboard
-                      const RepaintBoundary(child: CyberPlayerConsole()),
+                      if (widget.showPlayerConsole)
+                        const RepaintBoundary(child: CyberPlayerConsole()),
                       SizedBox(height: spacing),
                     ],
                   ),

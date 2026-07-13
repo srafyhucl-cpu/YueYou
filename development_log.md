@@ -2,6 +2,18 @@
 
 ## **2026-07-13**
 
+- **功能(PROD-00 / PROD-01-A 阅读优先导航壳)**：
+  - 新增 `FeatureFlags`，以 `--dart-define=READING_FIRST_SHELL_ENABLED=true` 独立启用
+    `听读 / 书架 / 陪伴` 三根导航；默认值为 `false`，旧 Dashboard 回退路径保留。
+  - 新增 `app_shell` 模块与 `IndexedStack` 根页面壳，跨页 Mini Player 复用现有
+    `CyberPlayerConsole`，不创建第二套 TTS 会话。
+  - 为 Dashboard 和书架增加兼容显示参数，保持旧 Modal 入口和默认启动行为不变；
+    陪伴页当前只提供无数据占位，不读取或写入新用户数据。
+  - 新增开关默认值与导航切换 Widget 测试。
+  - **验证**：目标测试通过；全量 `flutter test --concurrency=1` 为 684 passed、
+    4 skipped、0 failed；`flutter analyze` 零问题；AI 门禁 0 blocking、22 条既有
+    warning；Go `vet/build` 通过。
+
 - **测试(performance): 建立 PERF-0-A 真机帧统计基线框架**：
   - 新增纯 Dart `FrameSample` 与 `FrameTimingSummary`，固定 build/raster 独立
     P50、P95、P99、nearest-rank、空样本 `null` 和严格超预算慢帧语义。
