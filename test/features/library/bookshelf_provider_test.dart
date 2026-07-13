@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,12 +12,12 @@ import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/features/audio/services/tts_engine_service.dart';
 import 'package:yueyou/features/settings/providers/settings_provider.dart';
 
-void _mockAppChannels() {
+void _mockAppChannels(String documentsPath) {
   const MethodChannel pathProvider =
       MethodChannel('plugins.flutter.io/path_provider');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(pathProvider, (MethodCall call) async {
-    return '.';
+    return documentsPath;
   });
 
   const MethodChannel audioGlobal =
@@ -46,11 +48,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BookshelfProvider', () {
+    Directory? tempDir;
+
     setUp(() async {
+      final tempRoot = Directory(r'D:\Temp');
+      await tempRoot.create(recursive: true);
+      tempDir = await tempRoot.createTemp('yueyou_bookshelf_');
+      _mockAppChannels(tempDir!.path);
       await _initStorage();
-      _mockAppChannels();
       // 单测不需要自动注入写游记副作用，设置粘性位抑制 injectDefaultBookIfNeeded
       await StorageService.setHasSelectedBook(true);
+    });
+
+    tearDown(() async {
+      final directory = tempDir;
+      tempDir = null;
+      if (directory != null && await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
     });
 
     test('addBook 后 shelf 包含新书且排在首位', () async {

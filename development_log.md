@@ -31,8 +31,8 @@
 - **测试治理(隔离 Dashboard 文件副作用)**：
   - 修复 Dashboard 测试将 path_provider 指向项目根目录的问题，改用独立临时目录并在每个用例结束后清理。
   - Dashboard 相关测试 6/6 通过；测试后未再改写 `books/catalogs/xiyouji_catalog.json` 或生成 `books/31.json`。
-  - 复核发现 `test/widget_test.dart` 仍会触发同类项目根目录写入；尝试接入隔离 helper 会超时，已撤回该未验证改动，
-    全量测试污染问题保留为后续独立修复项。
+  - `widget_test.dart` 注入关闭自动存档的 `GameProvider`，`bookshelf_provider_test.dart` 改用 D 盘独立临时目录；
+    全量 Flutter 测试 `702 passed、4 skipped` 后工作树保持干净，副作用治理已关闭。
 
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
