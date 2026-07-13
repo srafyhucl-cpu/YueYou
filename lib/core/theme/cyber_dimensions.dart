@@ -72,6 +72,12 @@ class CyberDimensions {
   /// 标准仪表盘吉祥物高度
   static const double dashboardMascotHeight = 84.0;
 
+  /// 陪伴页完整吉祥物宽度
+  static const double companionMascotWidth = 180.0;
+
+  /// 陪伴页完整吉祥物高度
+  static const double companionMascotHeight = 216.0;
+
   /// 标准仪表盘缓冲区高度
   static const double dashboardBoardBuffer = 76.0;
 

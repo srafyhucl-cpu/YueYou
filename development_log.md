@@ -2,6 +2,16 @@
 
 ## **2026-07-13**
 
+- **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
+  - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
+    场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。
+  - 陪伴页接入 `XiaoyoMascot`，Rive 开关默认关闭；资源损坏、状态机缺失或输入不匹配
+    时自动回退静态角色，异步加载带 mounted/开关守卫。
+  - 明确 `assets/rive/xiaoyo.riv` 仅为 Rive Community 开发期资源，未修改为商业母版；
+    原创四视图、授权链和 `xiaoyo_v2_base.riv` 留待 IP-0。
+  - **验证**：PROD-04 定向测试 7 passed、0 failed；受影响范围 `flutter analyze` 零问题；
+    README、详设第 32 节和资源边界说明已同步。
+
 - **修复(PROD-03-A 缓冲取消、云失败降级与最新请求优先)**：
   - `TtsAudioNotifier` 增加独立 `runnerEpoch`，暂停、停止和刷新会话时使未完成的
     取句/下载操作失效；旧结果只能清理文件，不能写入新会话缓冲队列。

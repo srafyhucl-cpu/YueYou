@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:yueyou/core/config/feature_flags.dart';
 import 'package:yueyou/core/theme/cyber_colors.dart';
 import 'package:yueyou/core/theme/cyber_dimensions.dart';
 import 'package:yueyou/core/theme/cyber_text_styles.dart';
+import 'package:yueyou/features/companion/domain/xiaoyo_semantics.dart';
+import 'package:yueyou/features/companion/presentation/widgets/xiaoyo_mascot.dart';
 
-/// PROD-01-A 的陪伴页占位，仅承载产品入口位置，不承载成长业务逻辑。
+/// 陪伴页视觉入口，仅承载角色展示，不承载成长、权益或关系业务逻辑。
 class CompanionShellPage extends StatelessWidget {
   const CompanionShellPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Scaffold(
       backgroundColor: CyberColors.background,
       appBar: AppBar(
@@ -16,20 +21,26 @@ class CompanionShellPage extends StatelessWidget {
         backgroundColor: CyberColors.background,
         foregroundColor: CyberColors.neonCyan,
       ),
-      body: const Padding(
-        padding: EdgeInsets.all(CyberDimensions.spacingL),
+      body: Padding(
+        padding: const EdgeInsets.all(CyberDimensions.spacingL),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Xiaoyo', style: CyberTextStyles.sectionLabel),
-            SizedBox(height: CyberDimensions.spacingS),
-            Text(
-              '陪伴入口已就位',
-              style: CyberTextStyles.screenTitle,
+            const Text('XIAOYO', style: CyberTextStyles.sectionLabel),
+            const SizedBox(height: CyberDimensions.spacingS),
+            Center(
+              child: XiaoyoMascot(
+                enableRive: FeatureFlags.xiaoyoV2,
+                semantics: XiaoyoSemantics(
+                  reduceMotion: reduceMotion,
+                ),
+              ),
             ),
-            SizedBox(height: CyberDimensions.spacingM),
-            Text(
-              '关系、印记与活动将在后续切片接入。当前页面不读取或写入新的用户数据。',
+            const SizedBox(height: CyberDimensions.spacingM),
+            const Text('安静待机', style: CyberTextStyles.screenTitle),
+            const SizedBox(height: CyberDimensions.spacingS),
+            const Text(
+              '角色资产加载失败时自动保留静态回退。',
               style: CyberTextStyles.bodySmall,
             ),
           ],
