@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="阅游性能架构改造的文件级、接口级、状态机级可执行详细设计">
+  <title>阅游性能架构可执行详设</title>
+  <style>
+    :root {
+      --bg: #090a0c;
+      --surface: #111317;
+      --surface-2: #171a1f;
+      --surface-3: #1d2127;
+      --line: #2b3038;
+      --line-strong: #454c56;
+      --text: #f2f5f7;
+      --text-2: #b9c0c8;
+      --muted: #858e99;
+      --cyan: #35c9d8;
+      --cyan-soft: #142b30;
+      --green: #50cf82;
+      --green-soft: #14281d;
+      --amber: #e4b354;
+      --amber-soft: #302619;
+      --pink: #ec6794;
+      --red: #ef706d;
+      --red-soft: #321b1b;
+      --blue: #6aa9e4;
+      --radius: 6px;
+      --content: 1440px;
+      --reading: 1120px;
+      --sidebar: 248px;
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 86px; }
+    body {
+      min-width: 320px;
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-size: 15px;
+      line-height: 1.68;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    p, ul, ol { margin-top: 0; }
+    h1, h2, h3, h4 { margin-top: 0; line-height: 1.28; letter-spacing: 0; }
+    h1 { margin-bottom: 18px; font-size: 52px; }
+    h2 { margin-bottom: 18px; font-size: 29px; }
+    h3 { margin-bottom: 12px; font-size: 20px; }
+    h4 { margin-bottom: 9px; font-size: 16px; }
+    code, pre { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+    code {
+      padding: 0.1rem 0.34rem;
+      color: #c6eff3;
+      background: #14252a;
+      border: 1px solid #25464b;
+      border-radius: 3px;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      position: relative;
+      overflow: auto;
+      margin: 14px 0 0;
+      padding: 18px 20px;
+      color: #d7e0e4;
+      background: #0a0c0f;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--cyan);
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.65;
+      tab-size: 2;
+    }
+    pre code { padding: 0; color: inherit; background: transparent; border: 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      color: var(--text-2);
+      background: #12151a;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    tbody tr:hover { background: rgba(53, 201, 216, 0.035); }
+    ul, ol { padding-left: 1.28rem; }
+    li + li { margin-top: 5px; }
+    :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 8px;
+      left: 8px;
+      padding: 8px 12px;
+      color: #071012;
+      background: var(--cyan);
+      transform: translateY(-150%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .topbar {
+      position: sticky;
+      z-index: 50;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9, 10, 12, 0.97);
+      backdrop-filter: blur(14px);
+    }
+    .topbar-inner {
+      display: grid;
+      grid-template-columns: minmax(210px, 0.9fr) minmax(260px, 1.4fr) auto;
+      align-items: center;
+      gap: 18px;
+      width: min(calc(100% - 40px), var(--content));
+      min-height: 70px;
+      margin: 0 auto;
+    }
+    .brand { min-width: 0; }
+    .brand strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .brand span { display: block; color: var(--muted); font-size: 11px; }
+    .search-wrap { position: relative; }
+    .search-wrap::before {
+      position: absolute;
+      top: 50%;
+      left: 13px;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--muted);
+      border-radius: 50%;
+      content: "";
+      transform: translateY(-58%);
+    }
+    .search-wrap::after {
+      position: absolute;
+      top: 39px;
+      left: 25px;
+      width: 7px;
+      height: 2px;
+      background: var(--muted);
+      content: "";
+      transform: rotate(45deg);
+      transform-origin: left center;
+    }
+    #doc-search {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 38px;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+    }
+    #doc-search::placeholder { color: var(--muted); }
+    .top-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .action-button {
+      min-height: 40px;
+      padding: 0 13px;
+      color: var(--text-2);
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .action-button:hover { color: var(--text); border-color: var(--cyan); }
+
+    .shell {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      gap: 34px;
+      width: min(calc(100% - 40px), var(--content));
+      margin: 0 auto;
+    }
+    .sidebar {
+      position: sticky;
+      top: 90px;
+      align-self: start;
+      max-height: calc(100vh - 110px);
+      overflow: auto;
+      padding: 22px 0 30px;
+    }
+    .progress-panel { padding: 0 14px 18px; border-bottom: 1px solid var(--line); }
+    .progress-label { display: flex; justify-content: space-between; color: var(--text-2); font-size: 12px; }
+    .progress-track { height: 5px; margin-top: 8px; overflow: hidden; background: var(--surface-3); border-radius: 2px; }
+    .progress-bar { width: 0; height: 100%; background: var(--green); transition: width 180ms ease; }
+    .side-nav { padding: 15px 8px 0; }
+    .side-nav a {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: center;
+      min-height: 38px;
+      padding: 5px 8px;
+      color: var(--muted);
+      border-left: 2px solid transparent;
+      font-size: 13px;
+    }
+    .side-nav a span:first-child { color: #66717d; font-family: "Cascadia Code", Consolas, monospace; font-size: 11px; }
+    .side-nav a:hover, .side-nav a.is-active { color: var(--text); background: var(--surface); border-left-color: var(--cyan); }
+
+    main { min-width: 0; padding-bottom: 90px; }
+    .hero { min-height: 520px; padding: 76px 0 54px; border-bottom: 1px solid var(--line); }
+    .eyebrow { margin-bottom: 10px; color: var(--cyan); font-size: 12px; font-weight: 900; }
+    .hero-copy { max-width: 940px; color: var(--text-2); font-size: 18px; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 0; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 3px 9px;
+      color: var(--text-2);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .tag.fact { color: #bfeaf0; border-color: #28535a; background: #102326; }
+    .tag.decision { color: #bfddfa; border-color: #2a4965; background: #122131; }
+    .tag.target { color: #f4d18d; border-color: #62491f; background: #2d2415; }
+    .tag.blocked { color: #f5b0ae; border-color: #67312f; background: #2d1717; }
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 62px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .metric { min-height: 118px; padding: 20px; border-right: 1px solid var(--line); }
+    .metric:last-child { border-right: 0; }
+    .metric strong { display: block; margin-bottom: 5px; font-size: 27px; }
+    .metric span { color: var(--muted); font-size: 12px; }
+
+    .section { padding: 66px 0 22px; border-bottom: 1px solid var(--line); }
+    .section:last-child { border-bottom: 0; }
+    .section-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr); gap: 36px; align-items: end; margin-bottom: 30px; }
+    .section-lead { margin: 0; color: var(--text-2); }
+    .section-index { color: var(--muted); font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; text-align: right; }
+    .notice { margin: 22px 0; padding: 14px 17px; color: var(--text-2); background: var(--surface); border-left: 3px solid var(--amber); }
+    .notice strong { color: var(--text); }
+    .notice.danger { border-left-color: var(--red); background: var(--red-soft); }
+    .notice.success { border-left-color: var(--green); background: var(--green-soft); }
+    .table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+    .table-wrap table { min-width: 760px; }
+    .path { color: #c4edf1; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+    .change-new { color: var(--green); font-weight: 800; }
+    .change-edit { color: var(--amber); font-weight: 800; }
+    .change-guard { color: var(--pink); font-weight: 800; }
+    .dim { color: var(--muted); }
+
+    .decision-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 22px; background: var(--line); border: 1px solid var(--line); }
+    .decision-item { min-height: 126px; padding: 20px; background: var(--bg); }
+    .decision-item p { margin-bottom: 0; color: var(--text-2); }
+
+    .flow { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; padding: 8px 0 18px; }
+    .flow-step { flex: 0 0 170px; min-height: 98px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+    .flow-step strong { display: block; margin-bottom: 5px; }
+    .flow-step span { color: var(--muted); font-size: 12px; }
+    .flow-arrow { align-self: center; flex: 0 0 20px; color: var(--cyan); text-align: center; }
+    .flow-step.gate { border-color: #6c5326; background: var(--amber-soft); }
+    .flow-step.done { border-color: #285a3c; background: var(--green-soft); }
+
+    .package { padding: 68px 0 28px; border-bottom: 1px solid var(--line); }
+    .package-head { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 20px; align-items: start; margin-bottom: 24px; }
+    .package-code { display: grid; place-items: center; width: 76px; height: 76px; color: #071012; background: var(--cyan); border-radius: var(--radius); font-family: "Cascadia Code", Consolas, monospace; font-weight: 900; }
+    .package h2 { margin-bottom: 8px; }
+    .package-summary { max-width: 820px; margin-bottom: 0; color: var(--text-2); }
+    .effort { min-width: 120px; padding: 9px 12px; color: var(--amber); background: var(--amber-soft); border: 1px solid #62491f; border-radius: var(--radius); text-align: center; font-weight: 800; }
+    .gate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 24px 0; border: 1px solid var(--line); }
+    .gate-block { padding: 18px; }
+    .gate-block + .gate-block { border-left: 1px solid var(--line); }
+    .gate-block h3 { font-size: 15px; }
+    .gate-block ul { margin-bottom: 0; color: var(--text-2); }
+
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 58px;
+      padding: 12px 4px;
+      font-weight: 900;
+      cursor: pointer;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { color: var(--cyan); content: "+"; font-size: 22px; font-weight: 400; }
+    details[open] summary::after { content: "−"; }
+    .detail-body { padding: 4px 0 30px; color: var(--text-2); }
+    .detail-body h3 { margin-top: 28px; color: var(--text); font-size: 18px; }
+    .detail-body h4 { margin-top: 22px; color: var(--text); }
+    .detail-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+
+    .state-line { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 14px 0; }
+    .state { padding: 6px 10px; color: #c9eef2; background: var(--cyan-soft); border: 1px solid #28525a; border-radius: 3px; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
+    .state-arrow { color: var(--muted); }
+
+    .checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; }
+    .check-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 9px; align-items: start; min-height: 44px; padding: 9px 0; color: var(--text-2); border-bottom: 1px solid var(--line); cursor: pointer; }
+    .check-item input { width: 17px; height: 17px; margin-top: 3px; accent-color: var(--green); }
+    .check-item:has(input:checked) span { color: var(--muted); text-decoration: line-through; }
+
+    .matrix td:first-child, .matrix th:first-child { position: sticky; left: 0; z-index: 1; background: #111419; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--muted); }
+    .status-dot.required { background: var(--red); }
+    .status-dot.profile { background: var(--amber); }
+    .status-dot.auto { background: var(--green); }
+
+    .search-hidden { display: none !important; }
+    .search-hit { color: #091013; background: var(--amber); }
+    .empty-search { display: none; padding: 40px 0; color: var(--text-2); text-align: center; }
+    .empty-search.is-visible { display: block; }
+
+    .footer { padding: 46px 0 24px; color: var(--muted); font-size: 12px; }
+    .footer strong { color: var(--text-2); }
+
+    @media (max-width: 1100px) {
+      .topbar-inner { grid-template-columns: 1fr auto; }
+      .search-wrap { grid-column: 1 / -1; grid-row: 2; padding-bottom: 12px; }
+      .search-wrap::after { top: 29px; }
+      .shell { grid-template-columns: 1fr; }
+      .sidebar {
+        z-index: 30;
+        top: 122px;
+        max-height: none;
+        margin: 0 -20px;
+        padding: 0 20px;
+        overflow-x: auto;
+        background: rgba(9, 10, 12, 0.97);
+        border-bottom: 1px solid var(--line);
+      }
+      .progress-panel { display: none; }
+      .side-nav { display: flex; width: max-content; padding: 0; }
+      .side-nav a { grid-template-columns: auto; min-height: 46px; border-bottom: 2px solid transparent; border-left: 0; white-space: nowrap; }
+      .side-nav a span:first-child { display: none; }
+      .side-nav a:hover, .side-nav a.is-active { border-bottom-color: var(--cyan); border-left: 0; }
+      html { scroll-padding-top: 180px; }
+    }
+
+    @media (max-width: 760px) {
+      body { font-size: 14px; }
+      h1 { font-size: 36px; }
+      .topbar-inner { width: calc(100% - 24px); gap: 10px; }
+      .brand span { display: none; }
+      .action-button { padding: 0 10px; }
+      .shell { width: calc(100% - 24px); }
+      .sidebar { margin: 0 -12px; padding: 0 12px; }
+      .hero { min-height: 480px; padding-top: 52px; }
+      .hero-copy { font-size: 16px; }
+      .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric { min-height: 102px; border-bottom: 1px solid var(--line); }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(n+3) { border-bottom: 0; }
+      .section, .package { padding-top: 50px; }
+      .section-head { grid-template-columns: 1fr; gap: 8px; }
+      .section-index { text-align: left; }
+      .decision-grid, .gate-grid, .detail-columns, .checklist { grid-template-columns: 1fr; }
+      .gate-block + .gate-block { border-top: 1px solid var(--line); border-left: 0; }
+      .package-head { grid-template-columns: 62px minmax(0, 1fr); gap: 13px; }
+      .package-code { width: 58px; height: 58px; }
+      .effort { grid-column: 2; width: max-content; min-width: 0; }
+      th, td { padding: 9px 10px; }
+      pre { padding: 15px; font-size: 12px; }
+    }
+
+    @media print {
+      :root { color-scheme: light; }
+      body { color: #17191b; background: #fff; font-size: 10.5pt; }
+      .topbar, .sidebar, .skip-link, .action-button, .search-wrap { display: none !important; }
+      .shell { display: block; width: 100%; }
+      main { padding: 0; }
+      .hero { min-height: 0; padding: 20px 0; }
+      .hero-copy, .section-lead, .package-summary, .detail-body, .gate-block ul, .notice, .decision-item p { color: #34383d; }
+      .section, .package { break-before: page; padding: 22px 0 0; border-color: #b9bec4; }
+      .section:first-of-type { break-before: auto; }
+      .metric-row, .gate-grid, .table-wrap, .decision-grid, details { border-color: #b9bec4; }
+      .metric, .gate-block, th, td { border-color: #c9cdd2; }
+      .metric strong, h1, h2, h3, h4 { color: #111; }
+      .tag, .state { color: #222 !important; background: #f2f2f2 !important; border-color: #aaa !important; }
+      .package-code { color: #111; background: #bceef2; }
+      .effort { color: #664500; background: #fff7df; border-color: #c6a45d; }
+      details { display: block; }
+      details > summary { color: #111; }
+      details > summary::after { display: none; }
+      details > .detail-body { display: block !important; }
+      pre { white-space: pre-wrap; color: #17191b; background: #f6f7f8; border-color: #adb4bb; }
+      code { color: #123f45; background: #eef8f8; border-color: #b7d9dc; }
+      .flow { overflow: visible; }
+      .flow-step { color: #111; background: #f6f7f8; border-color: #aaa; }
+      .flow-step span, .dim { color: #555; }
+      .check-item { color: #333; }
+      a { color: #111; }
+      .footer { color: #555; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到正文</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <strong>阅游性能架构可执行详设</strong>
+        <span>2026-07-13 · 设计版本 1.0 · 离线单文件</span>
+      </div>
+      <label class="search-wrap">
+        <span class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">搜索详设</span>
+        <input id="doc-search" type="search" placeholder="搜索文件、接口、状态或性能包" autocomplete="off">
+      </label>
+      <div class="top-actions">
+        <button class="action-button" id="toggle-details" type="button" title="展开或收起所有详细设计"><span class="wide-label">展开</span>全部</button>
+        <button class="action-button" id="print-doc" type="button" title="打印完整详设">打印</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar" aria-label="章节导航">
+      <div class="progress-panel">
+        <div class="progress-label"><span>执行清单</span><strong id="progress-text">0 / 0</strong></div>
+        <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+      </div>
+      <nav class="side-nav">
+        <a href="#overview"><span>00</span><span>执行总览</span></a>
+        <a href="#dependencies"><span>01</span><span>依赖与顺序</span></a>
+        <a href="#perf-0"><span>02</span><span>PERF-0 基线</span></a>
+        <a href="#perf-1"><span>03</span><span>PERF-1 启动</span></a>
+        <a href="#perf-2"><span>04</span><span>PERF-2 渲染</span></a>
+        <a href="#perf-3"><span>05</span><span>PERF-3 状态</span></a>
+        <a href="#perf-4"><span>06</span><span>PERF-4 异步</span></a>
+        <a href="#perf-5"><span>07</span><span>PERF-5 书仓</span></a>
+        <a href="#contracts"><span>08</span><span>跨包契约</span></a>
+        <a href="#verification"><span>09</span><span>测试矩阵</span></a>
+        <a href="#rollout"><span>10</span><span>迁移与回滚</span></a>
+        <a href="#execution"><span>11</span><span>执行清单</span></a>
+      </nav>
+    </aside>
+
+    <main id="main-content">
+      <div id="empty-search" class="empty-search" role="status">没有匹配项。请尝试文件名、PERF 编号或状态名称。</div>
+
+      <section class="hero searchable" id="overview" data-search-title="执行总览">
+        <p class="eyebrow">YUEYOU / PERFORMANCE EXECUTION DESIGN</p>
+        <h1>阅游性能架构<br>可执行详设</h1>
+        <p class="hero-copy">这不是方向性建议，而是开发执行合同：每个性能包都明确进入条件、真实文件、接口草案、状态所有权、自动化测试、Profile 证据、回滚开关与可审查提交切片。未采集的数据一律保留为空，不以设计目标冒充当前收益。</p>
+        <div class="hero-meta" aria-label="文档口径">
+          <span class="tag fact">源码事实：已核对 2026-07-13 工作树</span>
+          <span class="tag decision">设计决策：待评审后实施</span>
+          <span class="tag target">性能数值：建议门槛 / 待 Profile</span>
+          <span class="tag blocked">业务代码：本交付不修改</span>
+        </div>
+        <div class="metric-row" aria-label="执行规模">
+          <div class="metric"><strong>6</strong><span>性能实施包，PERF-0 至 PERF-5</span></div>
+          <div class="metric"><strong>16</strong><span>建议小提交切片，可独立审查回滚</span></div>
+          <div class="metric"><strong>17–24</strong><span>总设计预算，人日；先批 PERF-0</span></div>
+          <div class="metric"><strong>4</strong><span>独立代际所有者，严禁共享计数器</span></div>
+        </div>
+      </section>
+
+      <section class="section searchable" data-search-title="执行原则 决策边界">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">EXECUTION CONTRACT</p>
+            <h2>先定边界，再写代码</h2>
+            <p class="section-lead">本详设服从 2026-07-11 全局治理计划。性能改造不能越过隐私闸门、架构边界和 TTS 两步下载契约，也不能靠拆文件或降低动效掩盖真实问题。</p>
+          </div>
+          <div class="section-index">00 / SCOPE</div>
+        </div>
+        <div class="decision-grid">
+          <div class="decision-item"><h3>测量先行</h3><p>PERF-0 只建立真机 Profile 证据。所有收益百分比、P95 和内存峰值在采集前必须为 <code>null</code>。</p></div>
+          <div class="decision-item"><h3>帧预算分开算</h3><p><code>buildDuration</code> 与 <code>rasterDuration</code> 分别统计 P50/P95/P99；慢帧为任一阶段超预算，禁止相加伪造“总帧耗时”。</p></div>
+          <div class="decision-item"><h3>职责不扩张</h3><p><code>tts_engine_service.dart</code> 已 697 行，超过 service 警戒线；<code>square_board.dart</code> 已 800 行。两者只允许搬出职责和适配，不得继续塞入新模块。</p></div>
+          <div class="decision-item"><h3>数据纯本地</h3><p>书籍正文、章节、游标和阅读进度不上传。TTS 仍严格执行 POST 获取 JSON URL，再 GET 下载音频。</p></div>
+          <div class="decision-item"><h3>回滚不越隐私</h3><p>功能开关可以退回旧渲染、旧读取或旧调度；任何开关都不得恢复隐私同意前的 Sentry、网络、Provider 或音频初始化。</p></div>
+          <div class="decision-item"><h3>GameEngine 不上 Isolate</h3><p>4 × 4 矩阵计算应保持纯 Dart 同步确定性；Isolate 只用于大文件解析、迁移等超过 100KB 的重任务。</p></div>
+        </div>
+      </section>
+
+      <section class="section searchable" data-search-title="源码证据 热点 行号 当前基线">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">SOURCE BASELINE</p>
+            <h2>当前源码热点证据</h2>
+            <p class="section-lead">下表是详设成立的当前事实，不是改造后的结果。行号绑定 2026-07-13 工作树；实施每个切片前必须重新检索，不能照抄过期位置。</p>
+          </div>
+          <div class="section-index">00B / EVIDENCE</div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>链路</th><th>当前证据</th><th>直接影响</th><th>归属性能包</th></tr></thead><tbody>
+          <tr><td>冷启动</td><td class="path">lib/main.dart:33,42,49–52</td><td>runApp 前等待 SFX、Ambient、Sentry。</td><td>PERF-1 / 治理 PR-2</td></tr>
+          <tr><td>动画档位</td><td class="path">settings_provider.dart:54–58 · cyber_performance_detector.dart</td><td>设置加载同步运行百万次 CPU 微基准。</td><td>PERF-1</td></tr>
+          <tr><td>环境音</td><td class="path">ambient_service.dart:154–159,191</td><td>第一个 await 前生成 30 秒 PCM，可能阻塞当前帧。</td><td>PERF-1</td></tr>
+          <tr><td>游戏职责</td><td class="path">game_provider.dart:209–350</td><td>矩阵、随机、音效、持久化和通知混在 Provider。</td><td>PERF-2 / PERF-3</td></tr>
+          <tr><td>棋盘布局</td><td class="path">square_board.dart:239,344–367,790–798</td><td>整对象 watch；逐 tile 二次找坐标；AnimatedPositioned 进入布局动画。</td><td>PERF-2</td></tr>
+          <tr><td>提词器</td><td class="path">teleprompter_view.dart:64–69,106–112,135–142,257–294</td><td>position 直接 jump；build 安排状态；同 tick 重建 RichText。</td><td>PERF-2 / PERF-3</td></tr>
+          <tr><td>TTS HTTP</td><td class="path">tts_http_client.dart:28,37–41,105,118–122</td><td>每次新建 HttpClient；Future.timeout 不终止底层请求。</td><td>PERF-4</td></tr>
+          <tr><td>TTS runner</td><td class="path">tts_audio_notifier.dart:41–49,330–382,413–415</td><td>两轨共用 _pumpActive，并以 300ms–2s 固定轮询。</td><td>PERF-4</td></tr>
+          <tr><td>Reader 竞态</td><td class="path">reader_provider.dart:293,336,568–615</td><td>全局 _isParsing 拒绝后发加载；切章无 generation。</td><td>PERF-4</td></tr>
+          <tr><td>导入回传</td><td class="path">file_import_service.dart:121–144,188–194</td><td>Isolate 回传完整 lines；kill 后缺少可靠 Future 出口。</td><td>PERF-5</td></tr>
+          <tr><td>整书存储</td><td class="path">storage_service.dart:205–231</td><td>整书 JSON 一次编码、整体读取和整体解码。</td><td>PERF-5</td></tr>
+          <tr><td>测试基础</td><td class="path">pubspec.yaml · integration_test/ 当前不存在</td><td>尚无 SDK integration_test 依赖和真机场景入口。</td><td>PERF-0</td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section class="section searchable" id="dependencies" data-search-title="依赖顺序 治理计划 PR-2 PR-8 PR-9 PR-10">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">DEPENDENCY MAP</p>
+            <h2>治理依赖与合并顺序</h2>
+            <p class="section-lead">PERF 编号表示性能实施包，不替代治理计划中的 PR 编号。每个包绑定治理入口，避免并行改造相互覆盖。</p>
+          </div>
+          <div class="section-index">01 / ORDER</div>
+        </div>
+        <div class="flow" aria-label="实施顺序">
+          <div class="flow-step done"><strong>PERF-0</strong><span>工具与基线可立即并行；每份证据绑定 commit</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step gate"><strong>治理 PR-2</strong><span>隐私启动闸门先落地；未同意前零业务初始化</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><strong>PERF-1</strong><span>启动与音频止损；首帧后初始化</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step gate"><strong>治理 PR-8</strong><span>App Composition 收敛跨 feature 装配</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><strong>PERF-3-A</strong><span>先建立 Composition，移除跨 feature 直连</span></div>
+        </div>
+        <div class="flow" aria-label="渲染与状态实施顺序">
+          <div class="flow-step gate"><strong>治理 PR-9</strong><span>2048 纯领域内核</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><strong>PERF-2</strong><span>Transform 渲染与提词器分层</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><strong>PERF-3-B/C</strong><span>热点投影收窄与 SnapshotWriter</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step gate"><strong>治理 PR-10</strong><span>TTS / Reader 职责评估</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><strong>PERF-4</strong><span>真取消、runnerEpoch、latest-wins</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><strong>PERF-5</strong><span>治理计划显式增补：分块书仓</span></div>
+        </div>
+        <div class="notice"><strong>合并规则：</strong>编号不是机械执行顺序。严格采用 <code>PERF-3-A → PERF-2-A/B/C → PERF-3-B/C → PERF-4 → PERF-5</code>；先解除跨 feature 直连，再改领域与渲染，最后收窄投影和写入。任何包未通过自己的退出门，不得以“后续一起修”并入下一个包。</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>性能包</th><th>治理依赖</th><th>预算</th><th>首要决策门</th><th>禁止夹带</th></tr></thead>
+            <tbody>
+              <tr><td><strong>PERF-0</strong></td><td>可并行；最终纳入 PR-5 CI 证据</td><td>1–2 人日</td><td>G0 基线签署</td><td>不得改业务行为</td></tr>
+              <tr><td><strong>PERF-1</strong></td><td>PR-2 隐私闸门</td><td>2–3 人日</td><td>首帧前重任务为零</td><td>不得顺带重构 TTS 引擎</td></tr>
+              <tr><td><strong>PERF-2</strong></td><td>PR-9 纯领域内核</td><td>3–4 人日</td><td>滑动帧证据与行为等价</td><td>不得改变 2048 规则</td></tr>
+              <tr><td><strong>PERF-3</strong></td><td>PR-8 Composition</td><td>3–4 人日</td><td>依赖方向与重建范围通过</td><td>不得引入全局事件总线</td></tr>
+              <tr><td><strong>PERF-4</strong></td><td>PR-10 职责评估</td><td>4–5 人日</td><td>旧请求零提交、零残留</td><td>不得复用一个全局 session</td></tr>
+              <tr><td><strong>PERF-5</strong></td><td>治理计划新增条目</td><td>4–6 人日</td><td>15MB 导入与旧 APK 回滚</td><td>不得一次性回传全文</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <article class="package searchable" id="perf-0" data-search-title="PERF-0 真机性能基线 FrameTiming Profile">
+        <header class="package-head">
+          <div class="package-code">P0</div>
+          <div><p class="eyebrow">MEASUREMENT FOUNDATION</p><h2>真机性能基线与场景门禁</h2><p class="package-summary">建立可复现、可比较、可追溯的 Android Profile 测量链。此包不优化任何代码，只负责回答“哪里慢、慢多少、改后是否真实变好”。</p></div>
+          <div class="effort">1–2 人日</div>
+        </header>
+
+        <div class="gate-grid">
+          <div class="gate-block"><h3>进入条件</h3><ul><li>确认测试 APK 指向隔离环境，Sentry DSN 为空。</li><li>准备中低端 60Hz 与 120Hz 两台物理 Android。</li><li>冻结场景脚本和当前 commit。</li></ul></div>
+          <div class="gate-block"><h3>退出条件</h3><ul><li>两轮同设备同场景摘要可复现并绑定 commit。</li><li>P50/P95/P99、慢帧率和 RSS 口径唯一。</li><li>管理者签署 G0 绝对目标与允许回退值。</li></ul></div>
+        </div>
+
+        <details open><summary>文件变更矩阵</summary><div class="detail-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>动作</th><th>文件</th><th>职责</th><th>完成判据</th></tr></thead>
+            <tbody>
+              <tr><td class="change-new">新增</td><td class="path">lib/core/performance/frame_timing_summary.dart</td><td>纯数值聚合；nearest-rank 百分位和慢帧率。</td><td>不依赖任何 feature 或 UI。</td></tr>
+              <tr><td class="change-new">新增</td><td class="path">test/core/performance/frame_timing_summary_test.dart</td><td>边界、空样本、百分位与刷新率测试。</td><td>结果跨运行稳定。</td></tr>
+              <tr><td class="change-new">新增</td><td class="path">integration_test/performance/performance_baseline_test.dart</td><td>冷启动、棋盘、听读、导入场景入口。</td><td>仅在 Profile 真机签署。</td></tr>
+              <tr><td class="change-new">新增</td><td class="path">integration_test/performance/support/profile_frame_collector.dart</td><td>把 <code>FrameTiming</code> 适配为纯样本。</td><td>停止后释放回调。</td></tr>
+              <tr><td class="change-new">新增</td><td class="path">test_driver/performance_driver.dart</td><td>接收测试报告并落盘 JSON。</td><td>正文和设备序列号不落盘。</td></tr>
+              <tr><td class="change-new">新增</td><td class="path">scripts/performance/run_android_profile.ps1</td><td>设备校验、冷启动循环、meminfo/gfxinfo 汇总。</td><td>模拟器自动标记“仅参考”。</td></tr>
+              <tr><td class="change-new">新增</td><td class="path">scripts/performance/compare_baselines.dart</td><td>同设备同场景 before/after 比较。</td><td>设备、刷新率或场景不同时拒绝比较。</td></tr>
+              <tr><td class="change-new">新增</td><td class="path">docs/performance/baselines/README.md</td><td>口径、设备分级、证据签署规则。</td><td>Markdown lint 零告警。</td></tr>
+              <tr><td class="change-edit">修改</td><td class="path">pubspec.yaml</td><td>增加 SDK 自带 <code>integration_test</code>。</td><td>不新增第三方性能 SDK。</td></tr>
+            </tbody>
+          </table></div>
+        </div></details>
+
+        <details open><summary>接口、数据与采集场景</summary><div class="detail-body">
+          <h3>核心接口</h3>
+          <pre><code>final class FrameSample {
+  const FrameSample({required this.buildMicros, required this.rasterMicros});
+  final int buildMicros;
+  final int rasterMicros;
+}
+
+final class FrameTimingSummary {
+  factory FrameTimingSummary.fromSamples(
+    Iterable&lt;FrameSample&gt; samples, {
+    required int frameBudgetMicros,
+  });
+
+  final int sampleCount;
+  final int frameBudgetMicros;
+  final int buildP50Micros;
+  final int buildP95Micros;
+  final int buildP99Micros;
+  final int rasterP50Micros;
+  final int rasterP95Micros;
+  final int rasterP99Micros;
+  final int slowFrameCount;
+  double get slowFrameRate;
+}</code></pre>
+          <h3>摘要格式</h3>
+          <pre><code>{
+  "schemaVersion": 1,
+  "commit": "&lt;git-sha&gt;",
+  "scenario": "game_30_swipes",
+  "deviceClass": "android_mid_60",
+  "buildMode": "profile",
+  "refreshRateHz": 60,
+  "sampleCount": 300,
+  "startup": {
+    "systemTotalP50Ms": null,
+    "systemTotalP95Ms": null,
+    "dashboardReadyP50Ms": null
+  },
+  "frames": {
+    "budgetMicros": 16667,
+    "buildP95Micros": null,
+    "rasterP95Micros": null,
+    "slowFrameRate": null
+  },
+  "memory": {"startRssMb": null, "peakRssMb": null, "endRssMb": null}
+}</code></pre>
+          <h3>固定场景</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>场景</th><th>样本</th><th>核心证据</th><th>隐私约束</th></tr></thead>
+            <tbody>
+              <tr><td>首次安装到 Consent 首帧</td><td>清数据 3 次</td><td>系统启动时间、首帧、网络/SDK 调用计数</td><td>未同意前必须为 0</td></tr>
+              <tr><td>已同意冷启动</td><td>force-stop 10 次</td><td>TotalTime、Dashboard ready、RSS</td><td>使用隔离环境</td></tr>
+              <tr><td>2048 连续滑动</td><td>30 次固定手势</td><td>build/raster P95、慢帧率</td><td>不采集棋盘内容</td></tr>
+              <tr><td>听读与滑动并行</td><td>连续 10 分钟</td><td>帧、RSS、重复/跳句计数</td><td>测试文本固定且不发生产</td></tr>
+              <tr><td>TTS 暂停/恢复</td><td>20 次</td><td>旧任务残留、句序、文件清理</td><td>仅记录 request id</td></tr>
+              <tr><td>15MB TXT 导入</td><td>UTF-8、GBK 各 1 次</td><td>耗时、峰值 RSS、UI 慢帧</td><td>使用合成测试书</td></tr>
+            </tbody>
+          </table></div>
+        </div></details>
+
+        <details><summary>测试、命令、回滚与提交切片</summary><div class="detail-body">
+          <pre><code>flutter test test/core/performance
+flutter analyze
+dart scripts/ai_code_checker.dart
+
+.\scripts\performance\run_android_profile.ps1 `
+  -DeviceId "&lt;物理设备 ID&gt;" `
+  -DeviceLabel "android_mid_60" `
+  -RefreshRateHz 60 `
+  -ColdRuns 10
+
+dart run scripts/performance/compare_baselines.dart `
+  --before "build/performance/&lt;before&gt;/summary.json" `
+  --after "build/performance/&lt;after&gt;/summary.json"</code></pre>
+          <div class="notice"><strong>证据存放：</strong>原始 trace 进入项目盘的 <code>build/performance/&lt;run-id&gt;/</code>，不提交版本库；仅提交脱敏摘要。回滚只删除测量接入，不影响业务。</div>
+          <div class="table-wrap"><table><thead><tr><th>切片</th><th>范围</th><th>独立验收</th></tr></thead><tbody>
+            <tr><td>PERF-0-A</td><td>纯 Dart 聚合、integration_test 基础、摘要 schema</td><td>单测 + analyze</td></tr>
+            <tr><td>PERF-0-B</td><td>PowerShell 真机采集、对比脚本、两台设备证据</td><td>G0 签署</td></tr>
+          </tbody></table></div>
+        </div></details>
+      </article>
+
+      <article class="package searchable" id="perf-1" data-search-title="PERF-1 冷启动 音频 资产 隐私同意 首帧">
+        <header class="package-head">
+          <div class="package-code">P1</div>
+          <div><p class="eyebrow">STARTUP & AUDIO</p><h2>冷启动与音频止损</h2><p class="package-summary">把同步 CPU 微基准、4 段 WAV 生成和 30 秒 PCM 生成移出启动关键路径；音频只在隐私同意后、业务首帧后初始化，并用预生成资产替代运行时合成。</p></div>
+          <div class="effort">2–3 人日</div>
+        </header>
+
+        <div class="gate-grid">
+          <div class="gate-block"><h3>进入条件</h3><ul><li>治理 PR-2 隐私启动闸门已合并。</li><li>PERF-0 已记录启动关键路径。</li><li>音频资产许可、哈希和体积预算确认。</li></ul></div>
+          <div class="gate-block"><h3>退出条件</h3><ul><li>首帧前无 CPU benchmark、WAV/PCM 生成。</li><li>未同意前业务 Provider 与音频平台调用为 0。</li><li>生命周期、音频焦点和听读无回归。</li></ul></div>
+        </div>
+
+        <details open><summary>文件变更矩阵</summary><div class="detail-body">
+          <div class="table-wrap"><table><thead><tr><th>动作</th><th>文件</th><th>设计动作</th><th>边界</th></tr></thead><tbody>
+            <tr><td class="change-new">新增</td><td class="path">lib/core/config/performance_config.dart</td><td>集中定义性能回滚开关和预算。</td><td>不放业务状态。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/app/bootstrap/audio_startup_models.dart</td><td>设置快照、phase、结果值对象。</td><td>不依赖具体播放器。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/app/bootstrap/post_consent_audio_coordinator.dart</td><td>同意后音频初始化与 latest-wins 编排。</td><td>可独立 mock。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/app/bootstrap/post_consent_audio_host.dart</td><td><code>ref.listenManual</code> 连接设置和生命周期。</td><td>只做 composition。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/audio/domain/audio_asset_catalog.dart</td><td>音效与环境音白名单路径。</td><td>纯 Dart 常量。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">assets/audio/sfx/*.wav · assets/audio/ambient/*.ogg</td><td>4 档合并音效、2 种循环环境音。</td><td>合计建议不超过 600KB，待实测。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/main.dart</td><td>删除首帧前 SFX/Ambient await；移除 ambient 同步字段。</td><td>启动闸门所有权不回退。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/settings/providers/settings_provider.dart</td><td>删除 AmbientService 依赖和同步 CPU 跑分。</td><td>Provider 只维护设置。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/settings/presentation/screens/settings_screen.dart</td><td>移除对 AmbientService 的直接调用，只提交设置。</td><td>平台副作用统一交给 Coordinator。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/core/utils/cyber_performance_detector.dart</td><td>改为保守初值；生产不运行百万次循环。</td><td>真实自适应由帧数据负责。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/audio/services/sfx_service.dart</td><td>幂等初始化并播放资产。</td><td>资产缺失只降级，不阻塞游戏。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/audio/services/ambient_service.dart</td><td>默认路径移除 30 秒 PCM 生成。</td><td>遗留生成器若保留须另文件。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">pubspec.yaml</td><td>登记音频资产。</td><td>不引入网络资源。</td></tr>
+            <tr><td class="change-guard">只守不扩</td><td class="path">lib/features/audio/services/tts_engine_service.dart</td><td>不在本包添加 API 或职责。</td><td>若 trace 证明其阻塞启动，另开 PERF-1B。</td></tr>
+          </tbody></table></div>
+        </div></details>
+
+        <details open><summary>Coordinator 接口与状态机</summary><div class="detail-body">
+          <pre><code>typedef AudioSettingsSnapshot = ({
+  bool enabled,
+  double volume,
+  String style,
+});
+
+enum AudioStartupPhase { idle, scheduled, initializing, ready, degraded, disposed }
+
+final class PostConsentAudioCoordinator {
+  AudioStartupPhase get phase;
+
+  Future&lt;void&gt; scheduleAfterFirstFrame(AudioSettingsSnapshot settings);
+  Future&lt;void&gt; updateSettings(AudioSettingsSnapshot settings);
+  Future&lt;void&gt; handleLifecycle(AppLifecycleState state);
+  Future&lt;void&gt; dispose();
+}</code></pre>
+          <div class="state-line" aria-label="音频启动状态机">
+            <span class="state">idle</span><span class="state-arrow">→ 首帧完成</span><span class="state">scheduled</span><span class="state-arrow">→</span><span class="state">initializing</span><span class="state-arrow">→</span><span class="state">ready</span>
+          </div>
+          <div class="state-line"><span class="state">initializing</span><span class="state-arrow">→ 单项失败</span><span class="state">degraded</span><span class="state-arrow">→ 可显式重试</span><span class="state">ready</span></div>
+          <div class="state-line"><span class="state">任意非终态</span><span class="state-arrow">→ dispose / 代际失效</span><span class="state">disposed</span></div>
+          <ul>
+            <li><code>updateSettings()</code> 只保留最新快照；初始化完成后应用一次，快速拖动音量不排队执行旧值。</li>
+            <li>初始化中进入后台时记住 paused 目标态；完成后不得自动播放，恢复前台后才应用最新设置。</li>
+            <li>SFX 失败不阻断 Ambient，Ambient 失败不阻断 Dashboard；异常用 <code>CyberLogger.captureWarning(tag: 'audio')</code>。</li>
+          </ul>
+          <h3>回滚开关</h3>
+          <pre><code>abstract final class PerformanceConfig {
+  static const bool deferPostConsentAudio = bool.fromEnvironment(
+    'PERF_DEFER_POST_CONSENT_AUDIO', defaultValue: true,
+  );
+  static const bool useBundledAudioAssets = bool.fromEnvironment(
+    'PERF_USE_BUNDLED_AUDIO_ASSETS', defaultValue: true,
+  );
+}</code></pre>
+          <div class="notice danger"><strong>不可回滚项：</strong><code>PERF_DEFER_POST_CONSENT_AUDIO=false</code> 最多退到“同意后立即初始化”；任何配置都不得把音频、Sentry 或业务 Provider 移回隐私同意前。</div>
+        </div></details>
+
+        <details><summary>测试、验收与提交切片</summary><div class="detail-body">
+          <div class="checklist">
+            <label class="check-item"><input type="checkbox" data-check="p1-first-frame"><span>首帧回调前 SFX / Ambient 初始化计数为 0。</span></label>
+            <label class="check-item"><input type="checkbox" data-check="p1-consent"><span>未同意时 Coordinator、业务 Provider、音频和网络调用为 0。</span></label>
+            <label class="check-item"><input type="checkbox" data-check="p1-idempotent"><span>重复 3 次 post-frame 仍只创建一套播放器。</span></label>
+            <label class="check-item"><input type="checkbox" data-check="p1-latest"><span>初始化期连续改设置只应用最终快照。</span></label>
+            <label class="check-item"><input type="checkbox" data-check="p1-paused"><span>初始化中进入后台，完成后不自动播放。</span></label>
+            <label class="check-item"><input type="checkbox" data-check="p1-dispose"><span>dispose 后旧 Future 不回写 ready。</span></label>
+            <label class="check-item"><input type="checkbox" data-check="p1-assets"><span>全部资产存在、可解码，循环 2 分钟无明显断点。</span></label>
+            <label class="check-item"><input type="checkbox" data-check="p1-focus"><span>TTS、环境音与生命周期焦点原测试保持通过。</span></label>
+          </div>
+          <pre><code>flutter test test/app/bootstrap test/features/audio test/features/settings --concurrency=1
+flutter analyze
+dart scripts/ai_code_checker.dart
+flutter test --concurrency=1
+
+flutter build apk --release --target-platform android-arm64 --split-per-abi `
+  --dart-define=PERF_DEFER_POST_CONSENT_AUDIO=true `
+  --dart-define=PERF_USE_BUNDLED_AUDIO_ASSETS=true</code></pre>
+          <div class="table-wrap"><table><thead><tr><th>切片</th><th>范围</th><th>回滚单位</th></tr></thead><tbody>
+            <tr><td>PERF-1-A</td><td>移除同步 CPU 跑分；SFX/Ambient 预生成资产与服务幂等</td><td>资产开关</td></tr>
+            <tr><td>PERF-1-B</td><td>PostConsentAudioCoordinator、Host 与 main/settings 接线</td><td>延后初始化开关；隐私闸门不回滚</td></tr>
+          </tbody></table></div>
+        </div></details>
+      </article>
+
+      <article class="package searchable" id="perf-2" data-search-title="PERF-2 2048 GameEngine Transform 提词器 Teleprompter 渲染">
+        <header class="package-head">
+          <div class="package-code">P2</div>
+          <div><p class="eyebrow">FRAME PIPELINE</p><h2>2048 与提词器渲染链路</h2><p class="package-summary">把 2048 规则抽为纯 Dart 内核，用稳定几何与 Transform 驱动棋子位移；提词器将滚动命令和富文本窗口拆开，保证每帧最多一次滚动提交，局部内容局部重建。</p></div>
+          <div class="effort">3–4 人日</div>
+        </header>
+
+        <div class="gate-grid">
+          <div class="gate-block"><h3>进入条件</h3><ul><li>PERF-3-A 已移除 GameProvider 的跨 feature 装配。</li><li>治理 PR-9 的领域边界评审通过。</li><li>固定棋局 golden 与性质测试样本就绪。</li><li>PERF-0 已采集滑动和提词器基线。</li></ul></div>
+          <div class="gate-block"><h3>退出条件</h3><ul><li>游戏规则、得分、合并顺序行为等价。</li><li>棋子位移动画不触发布局插值。</li><li>提词器进度更新不重建整棵富文本树。</li></ul></div>
+        </div>
+
+        <details open><summary>文件变更矩阵</summary><div class="detail-body">
+          <div class="table-wrap"><table><thead><tr><th>动作</th><th>文件</th><th>职责</th><th>约束</th></tr></thead><tbody>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/domain/game_direction.dart</td><td>移动方向枚举。</td><td>原 Provider 用 export show 保持旧导入兼容。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/domain/game_board.dart</td><td>不可变 4 × 4 棋盘和值语义。</td><td>纯 Dart，无 Flutter。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/domain/game_state.dart</td><td>不可变状态、revision、得分与结束状态。</td><td>逐行深复制并 List.unmodifiable。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/domain/game_engine.dart</td><td>移动、合并、得分、结束判断。</td><td>同步执行，不使用 Isolate。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/domain/game_move_result.dart</td><td>规则结果与 TileTransition。</td><td>可独立性质测试。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">test/features/game_2048/domain/game_engine_test.dart</td><td>固定棋局与不变量。</td><td>无需 Flutter Binding。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/presentation/widgets/tile_motion_layer.dart</td><td>缓存几何并用 Transform 位移。</td><td>不改宽高和边距做动画。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/presentation/widgets/game_over_overlay.dart</td><td>游戏结束遮罩与操作。</td><td>独立 RepaintBoundary，可单测。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/game_2048/providers/game_provider.dart</td><td>只编排 engine、持久化、音效和外部活动事件。</td><td>不再实现矩阵算法。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/game_2048/presentation/widgets/square_board.dart</td><td>删除 build 内坐标搜索和 AnimatedPositioned。</td><td>800 行文件不得新增职责。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/reader/presentation/controllers/teleprompter_progress_controller.dart</td><td>Ticker 按 vsync 平滑进度；每帧最多发布一次。</td><td>不持有 Reader/TTS 业务状态。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/reader/presentation/widgets/teleprompter_painter.dart</td><td>缓存 TextPainter，按裁剪区域绘制已读/未读层。</td><td>进度只触发 paint，不重建 Widget。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/reader/presentation/widgets/teleprompter_view.dart</td><td>只组装状态，不在 build 安排业务变化。</td><td>状态写入移到监听器/控制器。</td></tr>
+          </tbody></table></div>
+        </div></details>
+
+        <details open><summary>GameEngine、动画与提词器接口</summary><div class="detail-body">
+          <h3>纯领域内核</h3>
+          <pre><code>final class GameState {
+  const GameState({
+    required this.board,
+    required this.score,
+    required this.combo,
+    required this.isOver,
+  });
+  final GameBoard board;
+  final int score;
+  final int combo;
+  final bool isOver;
+}
+
+final class TileTransition {
+  const TileTransition({
+    required this.tileId,
+    required this.from,
+    required this.to,
+    required this.value,
+    required this.kind,
+  });
+  final int tileId;
+  final GridCell from;
+  final GridCell to;
+  final int value;
+  final TileTransitionKind kind;
+}
+
+final class GameEngine {
+  MoveResult move(GameState state, Direction direction, RandomSource random);
+  bool canMove(GameState state);
+  GameState newGame(RandomSource random);
+}</code></pre>
+          <p><code>MoveResult</code> 同时输出新领域状态和稳定的 <code>TileTransition</code> 列表。Provider 不再让 Widget 从二维棋盘反查坐标；渲染层按 tileId 直接查 transition。</p>
+          <p>迁移期由 <code>game_provider.dart</code> 执行 <code>export '../domain/game_direction.dart' show Direction;</code>，现有测试和调用方不需要一次性改完 import；旧导出至少保留两个稳定版本。</p>
+          <h3>渲染提交</h3>
+          <div class="flow">
+            <div class="flow-step"><strong>手势</strong><span>一次阈值判定，输出 Direction</span></div><div class="flow-arrow">→</div>
+            <div class="flow-step"><strong>GameEngine</strong><span>同步纯 Dart，生成 state + transitions</span></div><div class="flow-arrow">→</div>
+            <div class="flow-step"><strong>Provider</strong><span>一次状态提交；副作用异步编排</span></div><div class="flow-arrow">→</div>
+            <div class="flow-step"><strong>MotionLayer</strong><span>固定 cell 尺寸，Transform.translate</span></div>
+          </div>
+          <h3>提词器进度控制与绘制</h3>
+          <pre><code>final class TeleprompterProgressController extends ChangeNotifier
+    implements ValueListenable&lt;double&gt; {
+  TeleprompterProgressController({
+    required TickerProvider vsync,
+    required Duration smoothing,
+  });
+
+  @override
+  double get value;
+  void setTarget(double progress);
+  void setActive(bool active);
+  void reset();
+}
+
+final class TeleprompterPainter extends CustomPainter {
+  TeleprompterPainter({
+    required String sentence,
+    required ValueListenable&lt;double&gt; progress,
+    required bool playing,
+  }) : super(repaint: progress);
+}</code></pre>
+          <ul>
+            <li>音频 position 流只调用 <code>setTarget</code>；Ticker 按 vsync 插值，正文 Widget 不再消费高频 <code>StreamBuilder</code>。</li>
+            <li>TeleprompterView 监听控制器的帧值，每帧至多一次 <code>jumpTo</code>；小于 0.75px 的变化跳过，ScrollController 未 attach 时只缓存目标。</li>
+            <li>Painter 对同一句只执行一次 <code>TextPainter.layout</code>，先绘制未读全文，再按字符位置裁剪绘制已读全文，不再构造 substring/TextSpan。</li>
+            <li>句子变化、错误显示和启停监听在 <code>initState/ref.listenManual</code> 管理，<code>build()</code> 只读取投影。</li>
+            <li>毛玻璃背景、文字画布、错误层分别置于稳定尺寸的 <code>RepaintBoundary</code>。</li>
+          </ul>
+        </div></details>
+
+        <details><summary>测试、Profile、回滚与提交切片</summary><div class="detail-body">
+          <div class="detail-columns">
+            <div><h3>自动化</h3><ul><li>四方向移动、单次合并、顺序、守恒和无移动不生成新块。</li><li>固定 RandomSource 下新块位置和值可重复。</li><li>tileId 与 transition 一一对应；合并消亡与新块动画不串位。</li><li>100 次 position tick 不重建全文 Widget；同一 vsync 最多一次 jump。</li><li>同一句进度变化不重复 TextPainter.layout；dispose 后无 Ticker 或滚动回调。</li></ul></div>
+            <div><h3>Profile</h3><ul><li>固定 30 次滑动，比较 build/raster P95 与慢帧率。</li><li>听读 + 滑动 10 分钟，观察 RSS 和 GC 峰值。</li><li>提词器连续 5 分钟，统计重建次数与 raster 慢帧。</li><li>60Hz 与 120Hz 分开签署，预算随刷新率计算。</li></ul></div>
+          </div>
+          <div class="notice"><strong>回滚：</strong><code>PERF_TRANSFORM_BOARD=false</code> 可暂退旧棋盘渲染，但 GameEngine 领域抽取不回滚；<code>PERF_TELEPROMPTER_PAINTER=false</code> 可退回旧文字绘制，build 零副作用和订阅释放约束不回滚。</div>
+          <div class="table-wrap"><table><thead><tr><th>切片</th><th>范围</th><th>合并门</th></tr></thead><tbody>
+            <tr><td>PERF-2-A</td><td>GameBoard、GameEngine、固定与性质测试；Provider 适配</td><td>规则行为 1:1 等价</td></tr>
+            <tr><td>PERF-2-B</td><td>TileTransition、MotionLayer、SquareBoard 适配</td><td>动画 golden + 滑动 Profile</td></tr>
+            <tr><td>PERF-2-C</td><td>ProgressController、CustomPainter、TeleprompterView 接线</td><td>paint/rebuild 计数 + 长时听读</td></tr>
+          </tbody></table></div>
+        </div></details>
+      </article>
+
+      <article class="package searchable" id="perf-3" data-search-title="PERF-3 AppComposition 状态投影 select SnapshotWriter 持久化">
+        <header class="package-head">
+          <div class="package-code">P3</div>
+          <div><p class="eyebrow">STATE & COMPOSITION</p><h2>Composition、细粒度状态与快照写入</h2><p class="package-summary">把 Settings→Audio、Game→TTS 等跨 feature 联动收敛到应用组合根；UI 只订阅不可变投影；高频状态持久化通过 latest-wins 写入器合并并串行提交。</p></div>
+          <div class="effort">3–4 人日</div>
+        </header>
+
+        <div class="gate-grid">
+          <div class="gate-block"><h3>进入条件</h3><ul><li>治理 PR-8 明确 app/composition 所有权。</li><li>Provider 生命周期与 override 测试已固定。</li><li>Dashboard、Reader、Game 重建计数基线已采集。</li></ul></div>
+          <div class="gate-block"><h3>退出条件</h3><ul><li>core/shared 不反向依赖具体 feature。</li><li>页面局部变化只更新对应投影消费者。</li><li>写入永不并发，dispose 前可 flush。</li></ul></div>
+        </div>
+
+        <details open><summary>文件变更矩阵</summary><div class="detail-body">
+          <div class="table-wrap"><table><thead><tr><th>动作</th><th>文件</th><th>职责</th><th>验证</th></tr></thead><tbody>
+            <tr><td class="change-new">新增</td><td class="path">lib/app/composition/app_providers.dart</td><td>应用级 Provider 定义与依赖注入。</td><td>不包含 Widget 布局。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/app/composition/app_effects.dart</td><td><code>ref.listenManual</code> 跨 feature 副作用连接。</td><td>每条连接有 dispose。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/app/composition/app_composition_host.dart</td><td>业务 ProviderScope 内唯一装配入口。</td><td>未同意前不创建。</td></tr>
+            <tr><td class="change-edit">迁移</td><td class="path">lib/app/bootstrap/post_consent_audio_host.dart</td><td>把 Settings 监听迁入 AppEffects；Host 仅保留首帧启动或被 CompositionHost 替代。</td><td>同一设置只允许一个监听 owner。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/core/database/snapshot_writer.dart</td><td>按 revision 合并、串行、latest-wins、flush。</td><td>纯 Dart，可 fakeAsync。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/game_2048/providers/game_view_projection.dart</td><td>棋盘、分数、动效投影。</td><td>不可变且可相等比较。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/reader/providers/reader_view_projection.dart</td><td>当前句、窗口、章节和加载投影。</td><td>正文窗口有界。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/audio/providers/tts_view_projection.dart</td><td>播放控件所需最小状态。</td><td>不暴露整个 notifier。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/main.dart</td><td>移除跨 feature 手工同步，挂载 CompositionHost。</td><td>生命周期只有一个 owner。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/game_2048/providers/game_provider.dart</td><td>发出领域事件；快照交给 writer。</td><td>不直接读取 TTS service。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/dashboard/presentation/dashboard_screen.dart</td><td>按投影 select；拆除整对象 watch。</td><td>布局不变。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/reader/presentation/widgets/teleprompter_view.dart</td><td>消费 ReaderViewProjection。</td><td>不新增副作用。</td></tr>
+            <tr><td class="change-guard">迁移</td><td class="path">lib/features/audio/services/tts_engine_service.dart</td><td>Provider 声明移至 audio/providers。</td><td>服务类不再拥有 Riverpod 声明。</td></tr>
+          </tbody></table></div>
+        </div></details>
+
+        <details open><summary>组合根、投影与 SnapshotWriter</summary><div class="detail-body">
+          <h3>依赖方向</h3>
+          <div class="flow">
+            <div class="flow-step"><strong>presentation</strong><span>只消费 projection 和命令</span></div><div class="flow-arrow">→</div>
+            <div class="flow-step"><strong>providers</strong><span>业务状态、领域事件</span></div><div class="flow-arrow">→</div>
+            <div class="flow-step"><strong>domain / service ports</strong><span>纯逻辑与能力接口</span></div>
+          </div>
+          <div class="flow">
+            <div class="flow-step gate"><strong>app/composition</strong><span>唯一允许横向连接 feature 的层</span></div><div class="flow-arrow">→</div>
+            <div class="flow-step"><strong>Settings → Audio</strong><span>设置快照驱动音频</span></div><div class="flow-arrow">｜</div>
+            <div class="flow-step"><strong>Game → TTS</strong><span>用户活动事件，不直接拿 service</span></div>
+          </div>
+          <p>PERF-1 的 <code>PostConsentAudioCoordinator</code> 继续负责音频启动与生命周期；PERF-3-A 只把临时 Host 中的 Settings 监听迁入 AppEffects。迁移提交必须断言旧 Host 与新 Effect 不会同时订阅。</p>
+          <h3>SnapshotWriter 接口</h3>
+          <pre><code>enum SnapshotFlushStatus { noPending, persisted, failed }
+
+final class SnapshotWriter&lt;T&gt; {
+  SnapshotWriter({
+    required Future&lt;void&gt; Function(T value) persist,
+    Duration debounce = const Duration(seconds: 1),
+    Duration? maxWait,
+  });
+
+  void submit(int revision, T value);       // 只接受更高 revision
+  Future&lt;SnapshotFlushStatus&gt; flush();     // 暂停 / dispose 前调用
+  void discardPending();
+  Future&lt;void&gt; dispose();                  // flush 后终止
+}</code></pre>
+          <p>实现只允许一个 in-flight write。写入期间的新值保存在 pending；当前写完后只提交最高 revision。失败记录一次脱敏 warning 并保留最新 pending，等待下一次 submit/flush 重试，不做无界自旋。游戏使用 1 秒 debounce；阅读进度使用 750ms debounce + 5 秒 maxWait。</p>
+          <h3>UI 订阅示例</h3>
+          <pre><code>final score = ref.watch(
+  gameViewProjectionProvider.select((view) =&gt; view.score),
+);
+
+final sentence = ref.watch(
+  readerViewProjectionProvider.select((view) =&gt; view.currentSentence),
+);
+
+final playback = ref.watch(
+  ttsViewProjectionProvider.select((view) =&gt; view.controls),
+);</code></pre>
+          <div class="notice"><strong>反模式：</strong>不新增全局 EventBus，不让 shared widget 直接 watch Settings/Game/Audio，不为“少写几行”把所有投影合并成一个 AppState。</div>
+        </div></details>
+
+        <details><summary>测试、回滚与提交切片</summary><div class="detail-body">
+          <ul>
+            <li>ProviderContainer override 下，Settings 更新只触发一次 Audio effect；dispose 后不再触发。</li>
+            <li>Game 用户活动事件与棋盘状态解耦，不因 TTS 失败阻断 move。</li>
+            <li>相同 projection 不通知；仅 score 变化时棋盘 Tile layer 不重建。</li>
+            <li>SnapshotWriter 连续 100 次 submit 最多写“首个进行中 + 最高 revision”；旧 revision 被拒绝，并发峰值为 1。</li>
+            <li>暂停、detached、dispose 路径 flush；写失败不吞异常上下文且不泄漏正文。</li>
+            <li>架构检查阻断 <code>core/</code>、<code>shared/</code> 对具体 feature 的依赖。</li>
+          </ul>
+          <div class="notice"><strong>回滚：</strong>Composition 以单个 Host 为单位回滚；投影可按组件逐一退回整对象 watch；SnapshotWriter 可回退旧 debounce writer。禁止回退到 build 内副作用或 service 内 Provider 声明。</div>
+          <div class="table-wrap"><table><thead><tr><th>切片</th><th>范围</th><th>合并门</th></tr></thead><tbody>
+            <tr><td>PERF-3-A</td><td>AppCompositionHost、effects 与 Provider 声明迁移</td><td>依赖检查 + 生命周期测试</td></tr>
+            <tr><td>PERF-3-B</td><td>Game/Reader/TTS 投影及 Dashboard/组件按需订阅</td><td>重建计数对比</td></tr>
+            <tr><td>PERF-3-C</td><td>SnapshotWriter 接管游戏、阅读进度等高频写入</td><td>串行/flush/失败测试</td></tr>
+          </tbody></table></div>
+        </div></details>
+      </article>
+
+      <article class="package searchable" id="perf-4" data-search-title="PERF-4 TTS cancellation runnerEpoch Reader generation latest-wins HTTP operationId">
+        <header class="package-head">
+          <div class="package-code">P4</div>
+          <div><p class="eyebrow">ASYNC OWNERSHIP</p><h2>TTS 真取消与 Reader latest-wins</h2><p class="package-summary">用可传播取消令牌终止真实 POST/GET 和半成品写入，用 runnerEpoch 淘汰旧泵，用 Reader generation 阻止旧章节覆盖新选择。四类 ID 各归各自 owner，不共享全局 session。</p></div>
+          <div class="effort">4–5 人日</div>
+        </header>
+
+        <div class="gate-grid">
+          <div class="gate-block"><h3>进入条件</h3><ul><li>治理 PR-10 完成职责评估。</li><li>TTS 两步下载契约回归样例固定。</li><li>20 次暂停/恢复与快速切章基线可重放。</li></ul></div>
+          <div class="gate-block"><h3>退出条件</h3><ul><li>timeout/cancel 会中断 socket 与文件写入。</li><li>旧 runner、旧章节请求无法提交状态。</li><li>无重复句、跳句、孤儿临时文件和悬空循环。</li></ul></div>
+        </div>
+
+        <details open><summary>文件变更矩阵</summary><div class="detail-body">
+          <div class="table-wrap"><table><thead><tr><th>动作</th><th>文件</th><th>职责</th><th>边界</th></tr></thead><tbody>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/audio/domain/cancellation_token.dart</td><td>取消状态、Future 信号和异常。</td><td>纯 Dart。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/audio/domain/tts_http_operation.dart</td><td>HTTP operationId + token 值对象。</td><td>不承载语义 session。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/audio/domain/tts_network_interfaces.dart</td><td>POST/GET 接口显式接收 operation。</td><td>仍保持两步契约。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/audio/services/tts_http_client.dart</td><td>复用 HttpClient；request.abort；流订阅取消；close。</td><td>单 operation 取消不关闭其他请求。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/audio/services/tts_audio_downloader.dart</td><td>同一语义下载串联 POST 与 GET；取消清理半成品。</td><td>POST JSON URL → GET 音频。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/audio/providers/tts_runner_coordinator.dart</td><td>runnerEpoch、itemReady/spaceReady/stopped 信号与串行重启。</td><td>独立于 semantic session。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/audio/domain/tts_audio_buffer.dart</td><td>增加 drain()，返回全部待删除文件路径。</td><td>停止时不先 clear 丢失资源引用。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/audio/providers/tts_audio_notifier.dart</td><td>runner 捕获 epoch；用事件唤醒；stop/dispose 取消活动 operation。</td><td>移除 300ms–2s 常驻轮询。</td></tr>
+            <tr><td class="change-guard">只适配</td><td class="path">lib/features/audio/services/tts_engine_service.dart</td><td>通过已有下载边界传 token，不加公开职责。</td><td>697 行 warning 文件。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/reader/domain/chapter_load_request.dart</td><td>chapterIndex、generation、contentRevision。</td><td>不复用 TTS session。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/reader/providers/reader_provider.dart</td><td>latest-wins 提交守卫和旧请求取消。</td><td>只有当前 generation 可 notify/persist。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/library/services/default_book_service.dart</td><td>fetch/prefetch 接收取消信号。</td><td>prefetch 不得抢占显式切章。</td></tr>
+          </tbody></table></div>
+        </div></details>
+
+        <details open><summary>取消接口与三层代际状态机</summary><div class="detail-body">
+          <pre><code>final class CancellationController {
+  CancellationToken get token;
+  void cancel([Object? reason]);
+}
+
+abstract interface class CancellationToken {
+  bool get isCancelled;
+  Future&lt;Object?&gt; get whenCancelled;
+  void throwIfCancelled();
+}
+
+final class TtsHttpOperation {
+  const TtsHttpOperation({required this.operationId, required this.token});
+  final String operationId;
+  final CancellationToken token;
+}
+
+abstract class HttpClientInterface {
+  Future&lt;String&gt; postJson(Uri url, Object body, TtsHttpOperation operation);
+  Future&lt;void&gt; download(Uri url, String savePath, TtsHttpOperation operation);
+  Future&lt;void&gt; close();
+}</code></pre>
+          <h3>TTS 三层所有权</h3>
+          <div class="table-wrap"><table><thead><tr><th>标识</th><th>Owner</th><th>何时递增/创建</th><th>阻止的问题</th></tr></thead><tbody>
+            <tr><td><code>semanticSession</code></td><td>TtsAudioNotifier</td><td>书、章节、音色或朗读语义重置</td><td>旧音频项进入新语义队列</td></tr>
+            <tr><td><code>runnerEpoch</code></td><td>TtsRunnerCoordinator</td><td>每次启动/停止/重启双轨泵</td><td>旧 prefetch/play loop 复活</td></tr>
+            <tr><td><code>operationId</code></td><td>TtsAudioDownloader</td><td>每次 POST+GET 业务下载</td><td>错误取消到别的 HTTP 请求</td></tr>
+          </tbody></table></div>
+          <h3>TTS 事件与资源动作</h3>
+          <div class="table-wrap"><table><thead><tr><th>事件</th><th>semanticSession</th><th>runnerEpoch</th><th>缓冲与网络</th></tr></thead><tbody>
+            <tr><td>首次 play</td><td>+1</td><td>+1</td><td>新建队列与 operation</td></tr>
+            <tr><td>pause</td><td>不变</td><td>+1</td><td>取消 in-flight，保留已缓冲项和当前句</td></tr>
+            <tr><td>resume</td><td>不变</td><td>+1</td><td>原语义队列继续</td></tr>
+            <tr><td>切书 / 切章 / 换音色</td><td>+1</td><td>+1</td><td>取消请求，drain 并逐个删除旧文件</td></tr>
+            <tr><td>stopAll</td><td>+1</td><td>+1</td><td>取消请求并 drain 全部</td></tr>
+            <tr><td>dispose</td><td>永久失效</td><td>+1</td><td>runner 退出、client close、资源归零</td></tr>
+          </tbody></table></div>
+          <pre><code>final class TtsRunnerCoordinator {
+  int get currentEpoch;
+  bool isCurrent(int epoch);
+
+  Future&lt;int&gt; restart();       // 等旧 1+1 runner 退出后返回新 epoch
+  Future&lt;void&gt; waitForItem(int epoch);
+  Future&lt;void&gt; waitForSpace(int epoch);
+  void signalItemReady();
+  void signalSpaceReady();
+  Future&lt;void&gt; stop();
+}
+
+Future&lt;void&gt; _playRunner(int epoch) async {
+  while (_runnerCoordinator.isCurrent(epoch) &amp;&amp; !_disposed) {
+    if (_buffer.isEmpty) await _runnerCoordinator.waitForItem(epoch);
+    if (!_runnerCoordinator.isCurrent(epoch)) return;
+    await _playNext();
+    _runnerCoordinator.signalSpaceReady();
+  }
+}</code></pre>
+          <p>预取轨在 buffer 满时等待 <code>spaceReady</code>，播放轨在 buffer 空时等待 <code>itemReady</code>；停止触发 <code>stopped</code> 使所有等待立即退出。网络错误重试可使用可取消退避，但空闲态不得保留固定周期轮询。任意时刻断言 prefetch/play runner 各不超过 1。</p>
+          <p>RealHttpClient 由单一 owner 长期持有，只在 dispose 时 <code>close(force: true)</code>。每次 attempt 创建新 operationId；token 取消时 abort 当前 request、取消响应流、关闭 sink 并删除 <code>.part</code>。取消不计入连续失败，也不能触发本地 TTS 降级。</p>
+          <h3>Reader latest-wins</h3>
+          <div class="state-line"><span class="state">generation 41: 章节 A</span><span class="state-arrow">→ 慢请求</span><span class="state">generation 42: 章节 B</span><span class="state-arrow">→ B 提交</span><span class="state">A 结果丢弃</span></div>
+          <pre><code>Future&lt;void&gt; loadChapter(int chapterIndex, {bool resume = false}) async {
+  final generation = ++_chapterGeneration;
+  _chapterLoadController?.cancel('被新章节替代');
+  final controller = _chapterLoadController = CancellationController();
+
+  _commitLoadingIfCurrent(generation, chapterIndex);
+  final text = await service.fetchChapter(chapterIndex, controller.token);
+  if (_disposed || generation != _chapterGeneration) return;
+
+  await loadBook(text, bookId: BookConstants.defaultBookKey, ...);
+  if (_disposed || generation != _chapterGeneration) return;
+  _commitLoadedAndPersist(generation, chapterIndex);
+}</code></pre>
+          <p>默认书切章、恢复默认书、打开本地书、章末自动推进、删除当前书和 dispose 都必须递增同一个 Reader content generation。错误、空结果、parse、预取和持久化也必须过 generation 守卫；<code>_isParsing</code> 不再拒绝后发意图。旧请求只允许清理自己的资源，不能把当前状态改成 error。</p>
+        </div></details>
+
+        <details><summary>测试、故障注入、回滚与提交切片</summary><div class="detail-body">
+          <ul>
+            <li>POST 建连、响应等待、GET 重定向、流写入四个阶段分别取消；均在限定时间内结束。</li>
+            <li>取消后半成品文件不存在，其他并发 operation 不受影响，client 最终关闭一次。</li>
+            <li><code>Future.timeout</code> 不再是唯一取消机制；超时必须先 cancel 再抛出类型化异常。</li>
+            <li>连续 start-stop-start 100 次，历史 runner 的循环体和状态写入计数均为 0；活跃 runner 上限恒为 1+1。</li>
+            <li>buffer 空/满时通过事件唤醒，fakeAsync 前进 30 秒不产生空闲轮询 Timer。</li>
+            <li>A 慢、B 快；A 错、B 成；A 成、B 错；快速 A→B→C 四组切章都只提交最后 generation。</li>
+            <li>20 次暂停/恢复与 10 分钟弱网测试无重复、跳句、泵泄漏或临时文件残留。</li>
+          </ul>
+          <div class="notice"><strong>回滚：</strong><code>TTS_HTTP_ABORT_V2=false</code> 只允许临时退回旧网络适配器；<code>TTS_EVENT_RUNNER_V2=true</code> 强制要求 HTTP 真取消已启用。runnerEpoch 和 Reader generation 属正确性守卫，不因性能回滚移除；回滚期间仍必须保留 POST→JSON URL→GET。</div>
+          <div class="table-wrap"><table><thead><tr><th>切片</th><th>范围</th><th>合并门</th></tr></thead><tbody>
+            <tr><td>PERF-4-A</td><td>CancellationToken、operation、RealHttpClient 真取消</td><td>四阶段取消与文件清理测试</td></tr>
+            <tr><td>PERF-4-B</td><td>runnerEpoch、事件信号、buffer drain 接管双轨泵</td><td>压力测试无旧循环/空闲轮询</td></tr>
+            <tr><td>PERF-4-C</td><td>Reader generation 与 DefaultBookService 取消</td><td>快速切章 latest-wins</td></tr>
+          </tbody></table></div>
+        </div></details>
+      </article>
+
+      <article class="package searchable" id="perf-5" data-search-title="PERF-5 大书 ImportJob chunk manifest 双读 双写 legacy shadow write Reader window">
+        <header class="package-head">
+          <div class="package-code">P5</div>
+          <div><p class="eyebrow">BOUNDED BOOK STORE</p><h2>大书分块导入与有界读取</h2><p class="package-summary">导入 Isolate 直接写有界 chunk，只向主 Isolate 回传进度和 manifest；语义章节与物理 chunk 分离；Reader 按窗口加载。首个稳定版本同时双读并生成 legacy shadow，保证旧 APK 可回滚。</p></div>
+          <div class="effort">4–6 人日</div>
+        </header>
+
+        <div class="gate-grid">
+          <div class="gate-block"><h3>进入条件</h3><ul><li>治理计划新增书仓条目并确认保留周期。</li><li>PERF-4 Reader generation 已落地。</li><li>准备 UTF-8/GBK、无章节、长行、损坏文件样本。</li><li>确认首版可接受约 2 倍短期磁盘占用，并可执行旧 APK 演练。</li></ul></div>
+          <div class="gate-block"><h3>退出条件</h3><ul><li>15MB 导入不向主 Isolate 返回全文。</li><li>Reader 常驻正文窗口有界，切页无整书 JSON 解码。</li><li>新旧 APK 均可读取同一本新导入书。</li></ul></div>
+        </div>
+
+        <details open><summary>目标文件与目录结构</summary><div class="detail-body">
+          <div class="table-wrap"><table><thead><tr><th>动作</th><th>文件</th><th>职责</th><th>边界</th></tr></thead><tbody>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/config/book_storage_config.dart</td><td>legacyOnly / dual / v2Only 与 shadow 开关。</td><td>首个稳定版本固定 dual + shadow。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/domain/book_manifest.dart</td><td>schema、contentRevision、chapter/chunk 索引。</td><td>纯 Dart。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/domain/book_content_repository.dart</td><td>manifest、window、双读与删除端口。</td><td>不暴露文件路径给 UI。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/domain/book_window.dart</td><td>有界句子窗口和绝对游标映射。</td><td>窗口不可变。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/domain/import_job_state.dart</td><td>导入 phase、进度、错误分类。</td><td>不包含正文。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/services/book_chunk_codec.dart</td><td>chunk 编解码与 UTF-8 实际字节计数。</td><td>使用结构化 JSON，不拼接正文 JSON。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/services/book_file_layout.dart</td><td>集中生成 legacy、v2、staging 与 part 路径。</td><td>路径必须留在应用 documents 目录。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/services/chunked_book_store.dart</td><td>manifest/chunk 原子写、窗口读、LRU。</td><td>单 chunk 上限 256KB 或 1000 单元。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/services/book_import_job.dart</td><td>Isolate 双向端口、取消、onExit/onError 完成。</td><td>不使用 ReceivePort.first 悬空等待。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/services/legacy_book_store_adapter.dart</td><td>旧 JSON 读取与原子 shadow writer。</td><td>shadow 以流式方式写，不拼全文。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/library/providers/book_import_notifier.dart</td><td>暴露 phase/progress/cancel，不持有正文。</td><td>独立于 BookshelfProvider。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/reader/domain/reader_content_source.dart</td><td>Reader 统一内容源端口。</td><td>默认网络书与本地导入书实现分离。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/reader/services/windowed_reader_content_source.dart</td><td>本地 v2 三 chunk 窗口。</td><td>全局 unitIndex 不因换窗变化。</td></tr>
+            <tr><td class="change-new">新增</td><td class="path">lib/features/reader/services/in_memory_reader_content_source.dart</td><td>默认网络章节与 legacy 小书兼容源。</td><td>本包不改默认书章节缓存。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/library/services/file_import_service.dart</td><td>保留选择/编码入口，委托 ImportJob。</td><td>346 行文件不再回传 lines。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/core/database/i_storage_service.dart</td><td>旧正文接口标记 legacy；新书仓通过独立 repository 注入。</td><td>避免 core 继续膨胀。</td></tr>
+            <tr><td class="change-edit">修改</td><td class="path">lib/features/reader/providers/reader_provider.dart</td><td>持有 ReaderContentSource、BookWindow 和绝对游标。</td><td>本地 v2 书不常驻整书 sentences。</td></tr>
+            <tr><td class="change-guard">只兼容</td><td class="path">lib/core/database/storage_service.dart</td><td>旧 JSON API 保留给 dual-read/shadow。</td><td>445 行 core 文件不塞入 v2 实现。</td></tr>
+          </tbody></table></div>
+          <h3>本地目录</h3>
+          <pre><code>documents/
+├─ books/
+│  ├─ &lt;bookId&gt;.json                    # legacy shadow，格式完全不变
+│  └─ .staging/&lt;bookId&gt;.&lt;jobId&gt;.json.part
+└─ books_v2/
+   ├─ .staging/&lt;bookId&gt;.&lt;jobId&gt;/      # job ledger 记录其明确文件清单
+   └─ &lt;bookId&gt;/
+      ├─ manifest.json
+      ├─ catalog.json
+      └─ chunks/
+         ├─ 000000.json
+         ├─ 000001.json
+         └─ ...</code></pre>
+        </div></details>
+
+        <details open><summary>数据格式、ImportJob 与窗口读取</summary><div class="detail-body">
+          <h3>manifest：语义章节与物理 chunk 分离</h3>
+          <pre><code>{
+  "schemaVersion": 1,
+  "bookId": "1730000000000",
+  "contentRevision": "20260713T142500Z-15728640",
+  "encoding": "utf-8",
+  "unitCount": 42890,
+  "chunkPolicy": {"maxUtf8Bytes": 262144, "maxUnits": 1000},
+  "chapters": [
+    {"id": 0, "title": "第一回", "startUnit": 0, "endUnitExclusive": 628}
+  ],
+  "chunks": [
+    {"id": "000000", "startUnit": 0, "unitCount": 628, "utf8Bytes": 183240}
+  ],
+  "legacyShadow": {"state": "ready", "updatedAt": "2026-07-13T14:26:00Z"}
+}</code></pre>
+          <p>chunk 文件结构固定为 <code>{"schemaVersion":1,"chunkId":"000000","startUnit":0,"units":[...]}</code>。按 <code>jsonEncode(unit)</code> 后的 UTF-8 实际字节计数；加入下一单元会超过 256KB 或达到 1000 单元时立即封块。超长段落先使用现有文本切分规则拆分；v2 与 legacy shadow 必须消费完全相同的单元序列，保证 cursor 一致。</p>
+          <h3>ImportJob 状态机</h3>
+          <div class="state-line"><span class="state">idle</span><span class="state-arrow">→</span><span class="state">detecting</span><span class="state-arrow">→</span><span class="state">parsing</span><span class="state-arrow">→</span><span class="state">writing</span><span class="state-arrow">→</span><span class="state">verifying</span><span class="state-arrow">→</span><span class="state">shadowing</span><span class="state-arrow">→</span><span class="state">committed</span></div>
+          <div class="state-line"><span class="state">任意工作态</span><span class="state-arrow">→ cancel / error / isolate exit</span><span class="state">cancelled 或 failed</span><span class="state-arrow">→ 清理单个 staging 文件</span></div>
+          <pre><code>sealed class ImportJobEvent { const ImportJobEvent(); }
+final class ImportProgress extends ImportJobEvent {
+  final ImportPhase phase;
+  final int processedBytes;
+  final int totalBytes;
+  final int chunksWritten;
+}
+final class ImportCommitted extends ImportJobEvent {
+  final BookManifest manifest; // 不含正文
+}
+
+abstract interface class BookContentRepository {
+  Future&lt;BookManifest?&gt; loadManifest(String bookId);
+  Future&lt;BookWindow&gt; readWindow(
+    String bookId, {
+    required int anchorUnit,
+    int radius = 1,
+  });
+  Future&lt;void&gt; deleteBook(String bookId);
+}</code></pre>
+          <h3>关键执行规则</h3>
+          <ul>
+            <li>主 Isolate 只把输入路径、staging 路径和 jobId 传给 worker；worker 流式解码并直接写 chunk。</li>
+            <li>控制端使用独立 result/error/onExit port 和唯一 <code>completeOnce</code>；协作 cancel 超时后才 kill，kill 后也必须完成 Future 并关闭全部端口。</li>
+            <li>chunk、manifest、catalog 和 shadow 都先写 <code>.part</code>，校验后逐文件 rename；v2 与 legacy 都发布成功后才让书籍出现在书架。</li>
+            <li>Reader 默认缓存当前及相邻最多 3 个 chunk，建议总内存预算 768KB；实际阈值由 PERF-0 验证。</li>
+            <li>删除或清理只按 manifest/job ledger 枚举明确文件逐个删除，再删除已空目录；禁止递归删除未知目录。</li>
+          </ul>
+        </div></details>
+
+        <details open><summary>双读、shadow write、版本迁移与回滚</summary><div class="detail-body">
+          <div class="table-wrap"><table><thead><tr><th>阶段</th><th>写入</th><th>读取</th><th>降级能力</th></tr></thead><tbody>
+            <tr><td>R0 内部验证</td><td>legacy + v2 shadow</td><td>legacy 主读，v2 校验读</td><td>完全等同旧版</td></tr>
+            <tr><td>R1 首个稳定版本</td><td>v2 主写 + legacy shadow</td><td>v2 优先，失败回落 legacy</td><td>旧 APK 可直接读取新书</td></tr>
+            <tr><td>R2 稳定观察</td><td>继续双写</td><td>v2 默认；记录 fallback 计数</td><td>关闭 v2 read 即时回落</td></tr>
+            <tr><td>R3 两个稳定版本后</td><td>评审后才可停止 legacy shadow</td><td>v2</td><td>停止前必须签署不再支持旧 APK</td></tr>
+          </tbody></table></div>
+          <pre><code>enum BookStorageMode { legacyOnly, dual, v2Only }
+
+abstract final class BookStorageConfig {
+  static const String _mode = String.fromEnvironment(
+    'BOOK_STORAGE_MODE', defaultValue: 'legacyOnly',
+  );
+  static const bool legacyShadowWrite = bool.fromEnvironment(
+    'BOOK_STORAGE_LEGACY_SHADOW_WRITE', defaultValue: true,
+  );
+}</code></pre>
+          <div class="notice danger"><strong>回滚红线：</strong>只要首个稳定版本仍承诺旧 APK 回滚，书籍必须在 legacy shadow 原子完成后才标记导入成功。若 shadow 失败，保留 v2 staging 供重试，但不向用户展示“已完成”。关闭 v2 read 不删除任何 v2 数据。</div>
+          <p><strong>首个稳定版本不批量迁移旧书，也不在启动时迁移。</strong>旧书继续通过 dual-read fallback 使用原 JSON；只有新导入书同时生成 v2 与 legacy shadow。旧书主动迁移、停止 shadow 和清理 legacy 都必须在至少一个稳定版本后另立 PR，失败时继续读 legacy，永不删除旧数据。</p>
+        </div></details>
+
+        <details><summary>测试、Profile 与提交切片</summary><div class="detail-body">
+          <ul>
+            <li>UTF-8/BOM、GBK、CRLF/LF、无章节、空行、损坏编码、超长单句和 15MB 文件。</li>
+            <li>每个 phase 取消、worker 异常、worker 无消息退出、主 Isolate dispose；Future 均在超时前完成。</li>
+            <li>chunk 字节/句数硬上限、manifest 边界、章节跨 chunk、窗口跨 3 chunk。</li>
+            <li>写 chunk 成功但 manifest 失败、shadow 中断、rename 失败、磁盘不足故障注入；书架不出现半成品。</li>
+            <li>新 APK 导入后用旧 APK 打开、继续阅读、更新游标；再回新 APK 校验一致。</li>
+            <li>15MB 导入与 30 分钟窗口阅读记录主 Isolate 慢帧、峰值 RSS 和缓存命中。</li>
+          </ul>
+          <div class="table-wrap"><table><thead><tr><th>切片</th><th>范围</th><th>合并门</th></tr></thead><tbody>
+            <tr><td>PERF-5-A</td><td>Manifest、Repository、ChunkedBookStore 与格式单测</td><td>数据契约与原子写</td></tr>
+            <tr><td>PERF-5-B</td><td>ImportJob、worker 直写、取消与故障恢复</td><td>15MB 导入 Profile</td></tr>
+            <tr><td>PERF-5-C</td><td>dual-read、legacy shadow、ReaderContentSource 与三 chunk 窗口</td><td>新旧 APK 双向回滚演练</td></tr>
+          </tbody></table></div>
+        </div></details>
+      </article>
+
+      <section class="section searchable" id="contracts" data-search-title="跨包契约 ID ownership 配置 数据隐私">
+        <div class="section-head"><div><p class="eyebrow">CROSS-PACKAGE CONTRACTS</p><h2>跨包契约与所有权</h2><p class="section-lead">下列标识看似都用于“防旧任务”，实际语义不同。共享计数器会把互不相关的生命周期绑在一起，是本轮明确禁止的实现。</p></div><div class="section-index">08 / CONTRACTS</div></div>
+        <div class="table-wrap"><table><thead><tr><th>标识</th><th>唯一 Owner</th><th>有效范围</th><th>创建/递增时机</th><th>禁止用途</th></tr></thead><tbody>
+          <tr><td><code>readerGeneration</code></td><td>ReaderProvider</td><td>一次章节加载提交</td><td>每次显式/自动切章</td><td>不能取消 TTS runner</td></tr>
+          <tr><td><code>semanticSession</code></td><td>TtsAudioNotifier</td><td>一次朗读语义会话</td><td>书、章节、音色、朗读重置</td><td>不能作为 HTTP operationId</td></tr>
+          <tr><td><code>runnerEpoch</code></td><td>TtsRunnerCoordinator</td><td>一组 prefetch/play runner</td><td>每次 start/stop/restart</td><td>不能判断 Reader 章节新旧</td></tr>
+          <tr><td><code>operationId</code></td><td>TtsAudioDownloader</td><td>一次 POST + GET</td><td>每次业务下载</td><td>不能跨请求复用</td></tr>
+          <tr><td><code>contentRevision</code></td><td>BookContentRepository</td><td>一版书籍本地内容</td><td>导入或迁移 commit</td><td>不是可递增的全局 session</td></tr>
+        </tbody></table></div>
+        <h3 style="margin-top:30px">跨包连接规则</h3>
+        <div class="decision-grid">
+          <div class="decision-item"><h3>Reader → TTS</h3><p>Reader 提供句子源与 <code>contentRevision</code>；TTS 建立自己的 semanticSession。Reader 不接触播放器或 HTTP。</p></div>
+          <div class="decision-item"><h3>Settings → Audio</h3><p>Settings 只发布不可变快照；AppComposition effect 调用 PostConsentAudioCoordinator。</p></div>
+          <div class="decision-item"><h3>Game → TTS</h3><p>Game 发出用户活动领域事件；composition 连接到 TTS idle reset，GameProvider 不读取 engine service。</p></div>
+          <div class="decision-item"><h3>Library → Reader</h3><p>Library 提供 BookContentRepository；Reader 请求有界 BookWindow，不读取具体文件或整书 JSON。</p></div>
+        </div>
+        <div class="notice"><strong>配置管理：</strong>全局性能开关集中在 <code>core/config</code>，书仓等 feature 私有开关放在对应 <code>features/*/config</code>；统一通过 <code>--dart-define</code> 注入，并说明默认值、安全回退语义和删除版本。严禁散落字符串开关。</div>
+      </section>
+
+      <section class="section searchable" id="verification" data-search-title="测试矩阵 验收 命令 Profile 门禁">
+        <div class="section-head"><div><p class="eyebrow">VERIFICATION MATRIX</p><h2>自动化与 Profile 验收矩阵</h2><p class="section-lead">代码门禁证明正确性，真机 Profile 证明性能。二者缺一都不能把性能包标为完成。</p></div><div class="section-index">09 / VERIFY</div></div>
+        <div class="table-wrap"><table class="matrix"><thead><tr><th>场景</th><th>纯 Dart 单测</th><th>Widget/Provider</th><th>集成/故障注入</th><th>真机 Profile</th><th>签署证据</th></tr></thead><tbody>
+          <tr><td>冷启动</td><td>摘要聚合</td><td>Consent/Host 零调用</td><td>首次/已同意/撤回</td><td><span class="status-dot profile"></span>3 + 10 次启动</td><td>PERF-0 JSON + trace</td></tr>
+          <tr><td>SFX / Ambient</td><td>catalog 映射</td><td>幂等/latest-wins</td><td>资产缺失、后台恢复</td><td><span class="status-dot profile"></span>首帧与 2 分钟循环</td><td>音频焦点记录</td></tr>
+          <tr><td>2048</td><td><span class="status-dot auto"></span>规则与性质</td><td>transition/golden</td><td>连续手势</td><td><span class="status-dot profile"></span>30 次滑动</td><td>前后帧摘要</td></tr>
+          <tr><td>提词器</td><td>deadband/scheduler</td><td>重建计数</td><td>切章、错误、dispose</td><td><span class="status-dot profile"></span>5–10 分钟</td><td>帧与 RSS</td></tr>
+          <tr><td>SnapshotWriter</td><td><span class="status-dot auto"></span>串行/latest/flush</td><td>Provider 生命周期</td><td>写失败/暂停</td><td>磁盘写频率抽样</td><td>最大并发 = 1</td></tr>
+          <tr><td>TTS HTTP</td><td>token/operation</td><td>runner 状态</td><td><span class="status-dot required"></span>四阶段取消</td><td>20 次暂停恢复</td><td>零残留文件/请求</td></tr>
+          <tr><td>Reader 切章</td><td>generation 比较</td><td>投影提交</td><td><span class="status-dot required"></span>A/B/C 乱序</td><td>快速切章 + 弱网</td><td>仅最后请求提交</td></tr>
+          <tr><td>大书导入</td><td>manifest/chunk</td><td>phase/progress</td><td><span class="status-dot required"></span>取消/磁盘/退出</td><td>UTF-8/GBK 15MB</td><td>主 Isolate 有界</td></tr>
+          <tr><td>书仓回滚</td><td>dual-read 策略</td><td>Reader window</td><td>v2 缺失/损坏 fallback</td><td>30 分钟阅读</td><td>新旧 APK 演练</td></tr>
+        </tbody></table></div>
+        <h3 style="margin-top:30px">每个切片固定门禁</h3>
+        <pre><code>flutter analyze
+flutter test --concurrency=1
+dart scripts/ai_code_checker.dart
+
+Push-Location server
+go vet ./...
+go build ./...
+Pop-Location
+
+# 仅当切片涉及性能行为时，追加 PERF-0 同设备同场景 Profile。
+# 仅当准备发版时，按项目规范构建 arm64：
+flutter build apk --release --target-platform android-arm64 --split-per-abi</code></pre>
+        <div class="notice"><strong>完成口径：</strong><code>flutter analyze</code> 必须零错误零警告；AI 门禁存量 warning 不能因本切片增加。Profile 报告必须记录模式、设备档位、刷新率、commit、场景版本与原始证据路径。</div>
+      </section>
+
+      <section class="section searchable" id="rollout" data-search-title="迁移 灰度 回滚 决策门 G0 G1 实施路线">
+        <div class="section-head"><div><p class="eyebrow">ROLLOUT & ROLLBACK</p><h2>迁移、灰度与停止条件</h2><p class="section-lead">每次只改变一个主变量。先用内部开关证明正确，再用 PERF-0 比较性能，最后扩大默认启用范围。</p></div><div class="section-index">10 / ROLLOUT</div></div>
+        <div class="table-wrap"><table><thead><tr><th>关口</th><th>必须具备</th><th>继续条件</th><th>立即停止/回滚</th></tr></thead><tbody>
+          <tr><td><strong>G0 基线签署</strong></td><td>两台真机、固定场景、两轮可复现</td><td>目标和最大允许回退值获批</td><td>数据不可复现、设备信息缺失</td></tr>
+          <tr><td><strong>G1 启动</strong></td><td>PR-2 隐私闸门 + PERF-1</td><td>首帧前重任务为 0，功能无回归</td><td>未同意前出现任何网络/音频/SDK</td></tr>
+          <tr><td><strong>G2 渲染/状态</strong></td><td>PERF-2/3 自动化全绿</td><td>P95 与慢帧率达到签署阈值</td><td>规则变化、生命周期泄漏、帧回退超限</td></tr>
+          <tr><td><strong>G3 异步</strong></td><td>PERF-4 故障注入与长时测试</td><td>旧任务零提交，TTS 句序稳定</td><td>重复/跳句、取消误伤新请求</td></tr>
+          <tr><td><strong>G4 书仓</strong></td><td>dual-read + shadow + 旧 APK 演练</td><td>15MB 有界、回滚读取成功</td><td>半成品可见、shadow 不完整、正文丢失</td></tr>
+        </tbody></table></div>
+        <h3 style="margin-top:30px">最小灰度方式</h3>
+        <ol>
+          <li>开发构建：开新写、关新读，比较 v2 与 legacy 内容。</li>
+          <li>内部构建：开新读并保留 fallback 与 shadow，记录本地计数，不上传正文或进度。</li>
+          <li>候选发布：默认启用单一性能包，完成 24 小时回归和旧 APK 演练。</li>
+          <li>稳定发布：只有该包退出门签署后才开始下一包默认启用。</li>
+        </ol>
+        <div class="notice danger"><strong>整包回滚条件：</strong>任何架构拆分引入循环依赖、回调爆炸、生命周期竞态或用户可见行为变化时，回滚该切片并重新划分职责，不在原分支上连续打补丁掩盖边界错误。</div>
+      </section>
+
+      <section class="section searchable" id="execution" data-search-title="执行清单 开始 开发 完成 提交 推送">
+        <div class="section-head"><div><p class="eyebrow">DO CHECKLIST</p><h2>开发执行清单</h2><p class="section-lead">勾选状态仅保存在当前浏览器的 <code>localStorage</code>，不会写入仓库，也不会发起网络请求。打印时会完整显示。</p></div><div class="section-index">11 / CHECKLIST</div></div>
+        <h3>开始前</h3>
+        <div class="checklist">
+          <label class="check-item"><input type="checkbox" data-check="start-plan"><span>更新当天唯一 DevelopmentPlan 文件并登记切片。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="start-status"><span>检查 git status，隔离用户已有改动。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="start-size"><span>确认所有拟改 Dart 文件行数并执行职责评估。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="start-baseline"><span>绑定 PERF-0 基线 commit、设备和场景版本。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="start-test"><span>先写失败测试或记录不可自动化原因。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="start-flags"><span>明确开关默认值、回滚边界与删除版本。</span></label>
+        </div>
+        <h3 style="margin-top:34px">开发中</h3>
+        <div class="checklist">
+          <label class="check-item"><input type="checkbox" data-check="dev-scope"><span>一个提交只解决一个主问题，不夹带清理。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="dev-owner"><span>异步任务有明确 owner、generation/epoch/token。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="dev-build"><span>build 内无状态写入、接口调用或任务安排。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="dev-render"><span>动画仅用 Transform/Opacity，高频区有 RepaintBoundary。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="dev-privacy"><span>日志与证据不含正文、章节、游标或设备序列号。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="dev-errors"><span>异常分类、清理、取消和 dispose 路径均有测试。</span></label>
+        </div>
+        <h3 style="margin-top:34px">完成后</h3>
+        <div class="checklist">
+          <label class="check-item"><input type="checkbox" data-check="done-unit"><span>相关单测、全量测试、analyze 和 AI 门禁通过。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="done-profile"><span>同设备同场景 Profile 对比并归档证据。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="done-rollback"><span>实际执行开关回滚或旧 APK 演练，不只做代码审查。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="done-doc"><span>更新任务单、development_log，评估 README。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="done-commit"><span>只暂存本切片文件，中文 Conventional Commit。</span></label>
+          <label class="check-item"><input type="checkbox" data-check="done-push"><span>普通推送当前分支；失败时记录事实，禁止强推。</span></label>
+        </div>
+        <div class="notice success"><strong>最终完成定义：</strong>代码正确、性能证据达标、回滚演练通过、文档和提交闭环四项同时满足。只有“代码已合并”不算完成。</div>
+      </section>
+
+      <footer class="footer">
+        <p><strong>文档：</strong>阅游性能架构可执行详设 · 设计版本 1.0 · 2026-07-13</p>
+        <p><strong>事实基线：</strong><code>main.dart</code> 236 行；<code>square_board.dart</code> 800 行；<code>game_provider.dart</code> 547 行；<code>reader_provider.dart</code> 657 行；<code>tts_engine_service.dart</code> 697 行。实现前必须重新核对。</p>
+        <p><strong>关联材料：</strong><code>docs/performance/20260713_阅游性能架构改进方案.html</code> 与 <code>DevelopmentPlan/20260711_全局治理与演进计划.md</code>。</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const storageKey = 'yueyou-performance-detail-v1';
+      const checkboxes = [...document.querySelectorAll('[data-check]')];
+      const progressText = document.getElementById('progress-text');
+      const progressBar = document.getElementById('progress-bar');
+      const details = [...document.querySelectorAll('details')];
+      const toggleButton = document.getElementById('toggle-details');
+      const searchInput = document.getElementById('doc-search');
+      const searchable = [...document.querySelectorAll('.searchable')];
+      const emptySearch = document.getElementById('empty-search');
+      let printState = [];
+
+      function loadChecks() {
+        let saved = {};
+        try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (_) { saved = {}; }
+        checkboxes.forEach((box) => { box.checked = saved[box.dataset.check] === true; });
+        updateProgress();
+      }
+
+      function saveChecks() {
+        const state = {};
+        checkboxes.forEach((box) => { state[box.dataset.check] = box.checked; });
+        try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) { /* 本地存储不可用时仍允许浏览 */ }
+        updateProgress();
+      }
+
+      function updateProgress() {
+        const done = checkboxes.filter((box) => box.checked).length;
+        const total = checkboxes.length;
+        const ratio = total === 0 ? 0 : Math.round((done / total) * 100);
+        progressText.textContent = `${done} / ${total}`;
+        progressBar.style.width = `${ratio}%`;
+        progressBar.parentElement.setAttribute('aria-label', `执行进度 ${ratio}%`);
+      }
+
+      checkboxes.forEach((box) => box.addEventListener('change', saveChecks));
+      loadChecks();
+
+      function updateToggleLabel() {
+        const allOpen = details.every((item) => item.open);
+        toggleButton.innerHTML = `<span class="wide-label">${allOpen ? '收起' : '展开'}</span>全部`;
+      }
+
+      toggleButton.addEventListener('click', () => {
+        const shouldOpen = !details.every((item) => item.open);
+        details.forEach((item) => { item.open = shouldOpen; });
+        updateToggleLabel();
+      });
+      details.forEach((item) => item.addEventListener('toggle', updateToggleLabel));
+      updateToggleLabel();
+
+      function normalize(value) { return value.trim().toLocaleLowerCase('zh-CN'); }
+
+      searchInput.addEventListener('input', () => {
+        const query = normalize(searchInput.value);
+        let visibleCount = 0;
+        searchable.forEach((item) => {
+          const haystack = normalize(`${item.dataset.searchTitle || ''} ${item.textContent || ''}`);
+          const matches = query === '' || haystack.includes(query);
+          item.classList.toggle('search-hidden', !matches);
+          if (matches) visibleCount += 1;
+        });
+        emptySearch.classList.toggle('is-visible', query !== '' && visibleCount === 0);
+      });
+
+      const navLinks = [...document.querySelectorAll('.side-nav a')];
+      const observedSections = navLinks
+        .map((link) => document.querySelector(link.getAttribute('href')))
+        .filter(Boolean);
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        navLinks.forEach((link) => {
+          const active = link.getAttribute('href') === `#${visible.target.id}`;
+          link.classList.toggle('is-active', active);
+          if (active) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        });
+      }, { rootMargin: '-20% 0px -68% 0px', threshold: [0, 0.01, 0.25] });
+      observedSections.forEach((section) => observer.observe(section));
+
+      function openForPrint() {
+        printState = details.map((item) => item.open);
+        details.forEach((item) => { item.open = true; });
+      }
+
+      function restoreAfterPrint() {
+        details.forEach((item, index) => { item.open = printState[index] ?? item.open; });
+        updateToggleLabel();
+      }
+
+      document.getElementById('print-doc').addEventListener('click', () => window.print());
+      window.addEventListener('beforeprint', openForPrint);
+      window.addEventListener('afterprint', restoreAfterPrint);
+    })();
+  </script>
+</body>
+</html>

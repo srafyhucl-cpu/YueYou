@@ -2,6 +2,30 @@
 
 ## **2026-07-13**
 
+- **文档(performance): 性能架构可执行详设**：
+  - 新增独立离线单文件
+    `docs/performance/20260713_阅游性能架构可执行详设.html`，将既有性能方向
+    细化为开发可直接执行的文件、接口、状态机、数据格式、测试和回滚合同。
+  - 详设覆盖 `PERF-0` 至 `PERF-5`，包含 19 个可展开设计块、26 项本地清单
+    和 16 个小提交切片；实施顺序明确为
+    `PERF-3-A → PERF-2-A/B/C → PERF-3-B/C → PERF-4 → PERF-5`。
+  - 明确 2048 纯 Dart `GameEngine`、Transform 棋盘、Ticker + CustomPainter
+    提词器、AppComposition、revision 单写者、TTS 真取消与事件 runner、
+    Reader latest-wins 以及本地大书三 chunk 窗口。
+  - 首个书仓稳定版本固定双读与 legacy shadow write；旧书批量迁移延后，
+    新导入书必须在 v2 与 legacy 都原子发布后才进入书架，支持旧 APK 回滚。
+  - 使用系统 Chrome DevTools 协议复验 1440 x 1000 与 390 x 844 视口；
+    本机没有可运行的 `playwright-cli`，因此未下载新工具。两个视口横向溢出、
+    浏览器外部请求、控制台错误和页面异常均为 0。
+  - 搜索、粘性导航、详情展开/收起、打印状态恢复和 `localStorage` 清单持久化
+    均通过；生成桌面与手机最终截图各 1 张。
+  - **验证**：Markdown lint 与 HTML 静态扫描通过；`flutter analyze --no-pub`
+    零问题；全量测试 672 passed、4 skipped、0 failed；AI 门禁 0 blocking、
+    22 条既有 warning；Go `vet/build` 通过。
+  - 本轮只增加设计与证据文件，未修改业务代码，README 无需更新。
+  - **Git 收口**：本地提交严格限定为 5 个本任务文件；普通推送因当前分支
+    与远端历史分叉被 `fetch first` 拒绝，未执行 pull、rebase 或强推。
+
 - **文档(performance): 性能架构改进原型与管理报告**：
   - 新增离线单文件
     `docs/performance/20260713_阅游性能架构改进方案.html`，统一承载领导摘要、
