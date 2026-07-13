@@ -2,6 +2,14 @@
 
 ## **2026-07-13**
 
+- **功能(PROD-02-B 书架搜索与排序投影)**：
+  - 新增 `libraryViewProvider` 与 `libraryVisibleBooksProvider`，搜索词、排序模式和
+    可见列表均为派生状态，不修改 `bookshelfProvider.shelf` 或持久化顺序。
+  - 书架根页增加书名搜索、最近/导入顺序/进度最高排序和无匹配提示。
+  - 搜索弹窗改为自身持有并释放 `TextEditingController`，避免关闭动画期间提前释放。
+  - **验证**：Library Provider/Widget 测试 8 passed；搜索、排序、删除回归通过；受影响
+    范围 `flutter analyze` 零问题。
+
 - **重构(PROD-02-A 书架根页面外壳)**：
   - 新增 `LibraryRootScreen`，根导航不再直接传递 Modal 兼容参数；内部继续复用
     `LibraryScreen`，不复制书架仓储、正文和进度状态。

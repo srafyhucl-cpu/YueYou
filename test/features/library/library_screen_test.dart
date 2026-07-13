@@ -163,6 +163,27 @@ void main() {
     );
   });
 
+  testWidgets('LibraryScreen 支持按书名搜索并显示空结果提示', (tester) async {
+    final shelf = BookshelfProvider()
+      ..setShelfForTesting(const [
+        BookModel(id: 1, title: '第一本.txt', total: 10),
+        BookModel(id: 2, title: '第二本.txt', total: 10),
+      ]);
+    await tester.pumpWidget(_wrap(shelf));
+
+    expect(find.text('第一本'), findsOneWidget);
+    expect(find.text('第二本'), findsOneWidget);
+    await tester.tap(find.byTooltip('搜索书架'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '第二');
+    await tester.pump();
+
+    expect(find.text('第二本'), findsOneWidget);
+    expect(find.text('第一本'), findsNothing);
+    await tester.tap(find.text('完成'));
+    await tester.pump();
+  });
+
   // ── tap 删除按钮 → 弹 CyberConfirmDialog → tap 取消保留书籍 ─────────────
   // 覆盖 lib/features/library/presentation/screens/library_screen.dart：
   //   * line 232-251 GestureDetector 删除按钮 onTap

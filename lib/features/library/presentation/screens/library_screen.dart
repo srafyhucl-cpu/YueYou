@@ -9,6 +9,7 @@ import 'package:yueyou/core/constants/book_constants.dart';
 import 'package:yueyou/core/database/storage_service.dart';
 import 'package:yueyou/features/library/domain/book_model.dart';
 import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
+import 'package:yueyou/features/library/providers/library_view_provider.dart';
 import 'package:yueyou/features/library/presentation/widgets/cyber_import_button.dart';
 import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/shared/widgets/cyber_confirm_dialog.dart';
@@ -25,18 +26,19 @@ class LibraryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shelf = ref.watch(bookshelfProvider);
+    final visibleBooks = ref.watch(libraryVisibleBooksProvider);
+    final hasSearchQuery = ref.watch(libraryViewProvider).query.isNotEmpty;
     return Scaffold(
       backgroundColor: CyberColors.panelBackground,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
+            _buildHeader(context, ref),
             Expanded(
               child: Builder(
                 builder: (context) {
-                  if (shelf.isEmpty) {
-                    return _buildEmptyState();
+                  if (visibleBooks.isEmpty) {
+                    return _buildEmptyState(hasSearchQuery);
                   }
                   return ListView.builder(
                     padding: const EdgeInsets.fromLTRB(
@@ -45,9 +47,9 @@ class LibraryScreen extends ConsumerWidget {
                       CyberDimensions.spacingM,
                       80,
                     ),
-                    itemCount: shelf.shelf.length,
+                    itemCount: visibleBooks.length,
                     itemBuilder: (ctx, i) =>
-                        _BookCard(book: shelf.shelf[i], index: i),
+                        _BookCard(book: visibleBooks[i], index: i),
                   );
                 },
               ),
@@ -59,7 +61,7 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(
@@ -79,6 +81,31 @@ class LibraryScreen extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
+              IconButton(
+                tooltip: '搜索书架',
+                icon: const Icon(Icons.search, color: CyberColors.whiteDim),
+                onPressed: () => _showSearchDialog(context, ref),
+              ),
+              PopupMenuButton<LibrarySortMode>(
+                tooltip: '排序书架',
+                icon: const Icon(Icons.sort, color: CyberColors.whiteDim),
+                onSelected: (mode) =>
+                    ref.read(libraryViewProvider.notifier).setSortMode(mode),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: LibrarySortMode.recent,
+                    child: Text('最近听读'),
+                  ),
+                  PopupMenuItem(
+                    value: LibrarySortMode.imported,
+                    child: Text('导入顺序'),
+                  ),
+                  PopupMenuItem(
+                    value: LibrarySortMode.progress,
+                    child: Text('进度最高'),
+                  ),
+                ],
+              ),
               if (showCloseButton)
                 IconButton(
                   icon: const Icon(Icons.close, color: CyberColors.whiteDim),
@@ -91,7 +118,7 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool hasSearchQuery) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -103,7 +130,7 @@ class LibraryScreen extends ConsumerWidget {
           ),
           const SizedBox(height: CyberDimensions.spacingM),
           Text(
-            '当前书架为空\n请导入 TXT 本地小说',
+            hasSearchQuery ? '没有找到匹配书籍\n请尝试其他关键词' : '当前书架为空\n请导入 TXT 本地小说',
             textAlign: TextAlign.center,
             style: CyberTextStyles.tileTitle.copyWith(
               color: CyberColors.whiteMuted,
@@ -112,6 +139,76 @@ class LibraryScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showSearchDialog(BuildContext context, WidgetRef ref) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _LibrarySearchDialog(
+        initialQuery: ref.read(libraryViewProvider).query,
+        onQueryChanged: (value) =>
+            ref.read(libraryViewProvider.notifier).setQuery(value),
+      ),
+    );
+  }
+}
+
+class _LibrarySearchDialog extends StatefulWidget {
+  final String initialQuery;
+  final ValueChanged<String> onQueryChanged;
+
+  const _LibrarySearchDialog({
+    required this.initialQuery,
+    required this.onQueryChanged,
+  });
+
+  @override
+  State<_LibrarySearchDialog> createState() => _LibrarySearchDialogState();
+}
+
+class _LibrarySearchDialogState extends State<_LibrarySearchDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialQuery);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('搜索书架'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        onChanged: widget.onQueryChanged,
+        decoration: const InputDecoration(
+          prefixIcon: Icon(Icons.search),
+          hintText: '输入书名',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            _controller.clear();
+            widget.onQueryChanged('');
+            Navigator.of(context).pop();
+          },
+          child: const Text('清空'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('完成'),
+        ),
+      ],
     );
   }
 }
