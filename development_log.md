@@ -23,6 +23,11 @@
   - Dashboard 测试 6/6 通过，全量 Flutter 测试 `702 passed、4 skipped`；`flutter analyze`、`dart analyze test`、AI 工程门禁均通过。
   - 修复位于 `v1.1.2` Tag 之后，版本递增到 `1.1.3+5`，待 GitHub production artifact 和 `v1.1.3` Tag 闭环。
 
+- **发布治理(1.1.3 production artifact)**：
+  - Run `29216937661` 的分析与测试、arm64 Release APK 均成功，artifact ID 为 `8267023962`。
+  - APK SHA-256 为 `0D928AF9B5D107081517383BC9461F8D6493795487A24F39F089FA2B36EEFFD5`，与随包校验文件一致。
+  - `v1.1.3` Tag 待证据提交推送后创建；`v1.1.2` 保持不变。
+
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
     数据按空书签处理；删除阅读记录时同步删除书签。
