@@ -12,6 +12,15 @@
   - **验证**：`flutter test test/features/audio/tts_audio_notifier_test.dart --concurrency=1`
     为 30 passed、0 failed；README 评估为无需更新。
 
+- **修复(PROD-03-B 章节完成与删除事务顺序)**：
+  - `ReaderProvider.resetForDeletedBook` 改为可等待 API，`BookshelfProvider.deleteBook`
+    等待 TTS 停止和 Reader 清空后再删除正文、阅读记录与书架元数据。
+  - 修正 `StorageService.updateReadingRecord` 的 0-based cursor 百分比，末句完成后
+    持久化进度正确达到 100%，与听读首页完本状态一致。
+  - 新增末句完本、删除级联和正文/进度/当前书标识清理回归；同步更新所有调用方测试。
+  - **验证**：Reader/书架/存储定向测试 140 passed、4 skipped、0 failed；
+    `reader_provider_test.dart` 60 passed、0 failed；README 评估为无需更新。
+
 - **功能(PROD-02-B 书架搜索与排序投影)**：
   - 新增 `libraryViewProvider` 与 `libraryVisibleBooksProvider`，搜索词、排序模式和
     可见列表均为派生状态，不修改 `bookshelfProvider.shelf` 或持久化顺序。

@@ -126,12 +126,23 @@ void main() {
         lines: ['第一章', '内容一', '内容二'],
         chapters: [],
       );
+      await StorageService.updateReadingRecord('99', 1, 3);
+      expect(await StorageService.loadBookContent('99'), isNotNull,
+          reason: '删除前必须存在正文文件');
 
       await provider.deleteBook(99, reader: reader);
 
       expect(provider.shelf, isEmpty);
       expect(reader.currentBookId, isNull);
       expect(reader.sentences, isEmpty);
+      expect(await StorageService.loadBookContent('99'), isNull,
+          reason: '删除后必须清理正文文件');
+      expect(StorageService.getReadingRecord('99')['cursor'], 0,
+          reason: '删除后必须清理阅读记录');
+      expect(StorageService.getCurrentNovelId(), isNull,
+          reason: '删除后必须清理当前书标识');
+      tts.dispose();
+      reader.dispose();
     });
 
     test('deleteBook 不存在的 id 不影响 shelf', () async {

@@ -523,11 +523,12 @@ class ReaderProvider with ChangeNotifier implements TtsSentenceSource {
   }
 
   /// 🔥 任务 1.3：级联重置——当当前正在阅读的书籍被删除时，完全重置阅读器状态
-  void resetForDeletedBook(String bookId) {
+  Future<void> resetForDeletedBook(String bookId) async {
     if (_currentBookId != bookId) return;
 
-    // 停止 TTS 播放（无论是否启用，强制清空缓冲区和泵）
-    _ttsNotifier?.stopAll();
+    // 先等待 TTS 完成停播和资源释放，再清空阅读上下文，保证删除事务顺序。
+    final notifier = _ttsNotifier;
+    if (notifier != null) await notifier.stopAll();
 
     // 置空所有数据
     _currentBookId = null;

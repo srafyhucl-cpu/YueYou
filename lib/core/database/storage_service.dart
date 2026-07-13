@@ -137,7 +137,8 @@ class StorageService {
   ) async {
     if (total <= 0) return;
     final records = _loadReadingRecords();
-    final percent = (cursor / total * 100).clamp(0.0, 100.0);
+    // cursor 是从 0 开始的句段索引，末句索引 total - 1 应为 100%。
+    final percent = ((cursor + 1) / total * 100).clamp(0.0, 100.0);
     records[bookId] = {
       'cursor': cursor,
       'total': total,

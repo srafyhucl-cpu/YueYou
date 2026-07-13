@@ -553,7 +553,7 @@ void main() {
         initialIndex: 1,
         forceIndex: true,
       );
-      reader.resetForDeletedBook('some_other_book_id');
+      await reader.resetForDeletedBook('some_other_book_id');
       // currentIndex 必须保留
       expect(reader.currentIndex, 1);
       expect(reader.sentences, isNotEmpty);
@@ -567,7 +567,7 @@ void main() {
         initialIndex: 2,
         forceIndex: true,
       );
-      reader.resetForDeletedBook('book_to_delete');
+      await reader.resetForDeletedBook('book_to_delete');
       expect(reader.sentences, isEmpty,
           reason: 'resetForDeletedBook 必须清空 sentences');
       expect(reader.currentIndex, 0);
@@ -878,7 +878,7 @@ void main() {
       expect(s.reader.sentences, isNotEmpty);
       expect(s.reader.currentBookId, 'b_reset_match');
 
-      s.reader.resetForDeletedBook('b_reset_match');
+      await s.reader.resetForDeletedBook('b_reset_match');
 
       expect(s.reader.sentences, isEmpty,
           reason: 'resetForDeletedBook 命中 bookId 时必须清空 sentences');
@@ -897,7 +897,7 @@ void main() {
         initialIndex: 0,
         forceIndex: true,
       );
-      s.reader.resetForDeletedBook('other_book');
+      await s.reader.resetForDeletedBook('other_book');
       expect(s.reader.sentences, isNotEmpty,
           reason: 'bookId 不匹配时不得清空 sentences');
       expect(s.reader.currentBookId, 'b_reset_keep',

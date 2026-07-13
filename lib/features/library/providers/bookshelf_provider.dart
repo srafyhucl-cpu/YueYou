@@ -87,8 +87,8 @@ class BookshelfProvider with ChangeNotifier {
   ///    任一失败不影响其他两项，避免单点故障导致数据残留。
   /// 3. 若删除的是当前阅读中的书籍，先级联重置 ReaderProvider 状态。
   Future<void> deleteBook(int id, {ReaderProvider? reader}) async {
-    // 级联删除：先重置阅读器，再清数据
-    reader?.resetForDeletedBook(id.toString());
+    // 级联删除：先等待阅读器和 TTS 会话收口，再清理持久化数据。
+    if (reader != null) await reader.resetForDeletedBook(id.toString());
 
     // 删除西游记视为「主动放弃」，设置粘性位防止下次启动再次自动注入
     if (id == BookConstants.defaultBookId) {

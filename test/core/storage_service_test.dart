@@ -119,10 +119,10 @@ void main() {
     });
 
     test('updateReadingRecord 后可读取正确进度', () async {
-      await StorageService.updateReadingRecord('book_1', 50, 100);
+      await StorageService.updateReadingRecord('book_1', 49, 100);
 
       final record = StorageService.getReadingRecord('book_1');
-      expect(record['cursor'], 50);
+      expect(record['cursor'], 49);
       expect(record['total'], 100);
       expect(record['percent'], closeTo(50.0, 0.01));
     });
@@ -150,7 +150,7 @@ void main() {
     });
 
     test('percent 保留两位小数', () async {
-      await StorageService.updateReadingRecord('book_pct', 1, 3);
+      await StorageService.updateReadingRecord('book_pct', 0, 3);
       final record = StorageService.getReadingRecord('book_pct');
       expect(record['percent'], closeTo(33.33, 0.01));
     });

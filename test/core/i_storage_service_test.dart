@@ -85,7 +85,7 @@ class _MockStorageService implements IStorageService {
     _readingRecords[bookId] = {
       'cursor': cursor,
       'total': total,
-      'percent': (cursor / total * 100).clamp(0.0, 100.0),
+      'percent': ((cursor + 1) / total * 100).clamp(0.0, 100.0),
     };
   }
 
@@ -325,9 +325,9 @@ void _runContractTests(
     });
 
     test('updateReadingRecord 后 getReadingRecord 返回正确进度', () async {
-      await storage.updateReadingRecord('book_1', 50, 100);
+      await storage.updateReadingRecord('book_1', 49, 100);
       final record = storage.getReadingRecord('book_1');
-      expect(record['cursor'], 50);
+      expect(record['cursor'], 49);
       expect(record['total'], 100);
       expect(record['percent'], closeTo(50.0, 0.01));
     });
