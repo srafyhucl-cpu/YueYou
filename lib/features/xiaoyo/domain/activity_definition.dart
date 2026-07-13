@@ -3,11 +3,13 @@ final class XiaoyoActivityMilestone {
   final String id;
   final int requiredSeconds;
   final String rewardId;
+  final String rewardTitle;
 
   const XiaoyoActivityMilestone({
     required this.id,
     required this.requiredSeconds,
     required this.rewardId,
+    required this.rewardTitle,
   });
 }
 
@@ -37,21 +39,25 @@ abstract final class XiaoyoActivityDefinitions {
         id: 'reading_season_60m',
         requiredSeconds: 60 * 60,
         rewardId: 'activity_glow_mark',
+        rewardTitle: '微光印记',
       ),
       XiaoyoActivityMilestone(
         id: 'reading_season_180m',
         requiredSeconds: 180 * 60,
         rewardId: 'activity_formed_mark',
+        rewardTitle: '成形印记',
       ),
       XiaoyoActivityMilestone(
         id: 'reading_season_360m',
         requiredSeconds: 360 * 60,
         rewardId: 'activity_resonance_mark',
+        rewardTitle: '共振印记',
       ),
       XiaoyoActivityMilestone(
         id: 'reading_season_600m',
         requiredSeconds: 600 * 60,
         rewardId: 'activity_reading_honor',
+        rewardTitle: '共读守页荣誉',
       ),
     ],
   );

@@ -45,7 +45,10 @@ void main() {
     expect(find.text('测试书'), findsOneWidget);
     expect(find.text('微光'), findsOneWidget);
     expect(find.text('book.first'), findsOneWidget);
+    expect(find.text('初次完本'), findsOneWidget);
     expect(find.text('21 天书境共读季 · 0 / 600 分钟'), findsOneWidget);
+    expect(find.text('已解锁 0 / 4 个里程碑'), findsOneWidget);
+    expect(find.text('60 分钟 · 微光印记'), findsOneWidget);
     expect(find.byType(ElevatedButton), findsNothing);
   });
 }

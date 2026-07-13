@@ -60,6 +60,14 @@
   - **结论**：真实支付实验尚未启动，不能用问卷替代，暂不创建权益或支付模块；全量
     测试 `717 passed / 4 skipped / 0 failed`，分析、AI、Go、Markdown 和差异门禁通过。
 
+- **功能(PROD-06-B 活动里程碑与荣誉墙只读展示)**：
+  - 新增纯 Dart `XiaoyoActivityProgress`，将本地活动累计秒数投影为进度、已解锁里程碑
+    和下一个里程碑；活动定义补充四级奖励可读名称。
+  - 新增静态永久荣誉目录；陪伴摘要展示活动进度条、`60/180/360/600` 分钟状态和
+    荣誉标题/说明/稳定 ID，不提供写入控件，不改变成长、付费或隐私边界。
+  - **验证**：Xiaoyo 定向测试 `18 passed / 0 failed`；`flutter analyze` 无问题；AI
+    门禁 `0 blocking / 22 warnings`，新文件未触发体量警戒线。
+
 - **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
   - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
     场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。
