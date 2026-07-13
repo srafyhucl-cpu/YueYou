@@ -16,6 +16,7 @@ class XiaoyoMascot extends StatefulWidget {
   final String assetPath;
   final double width;
   final double height;
+  final int visualPulse;
   final VoidCallback? onTap;
 
   const XiaoyoMascot({
@@ -25,6 +26,7 @@ class XiaoyoMascot extends StatefulWidget {
     this.assetPath = 'assets/rive/xiaoyo.riv',
     this.width = CyberDimensions.companionMascotWidth,
     this.height = CyberDimensions.companionMascotHeight,
+    this.visualPulse = 0,
     this.onTap,
   });
 
@@ -52,6 +54,9 @@ class _XiaoyoMascotState extends State<XiaoyoMascot> {
       _loadRive();
     } else if (!widget.enableRive && oldWidget.enableRive) {
       _disposeRive();
+    }
+    if (widget.visualPulse != oldWidget.visualPulse) {
+      _adapter?.fire(XiaoyoTrigger.highTileMerged);
     }
     _adapter?.apply(widget.semantics);
   }

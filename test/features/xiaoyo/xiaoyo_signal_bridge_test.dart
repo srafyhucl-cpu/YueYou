@@ -87,4 +87,19 @@ void main() {
 
     expect(events.single.eventId, 'chapter:book-1:0');
   });
+
+  test('2048 高分合并只产生视觉脉冲，不重复触发且不持久化', () {
+    var pulseCount = 0;
+    final bridge = XiaoyoGameSignalBridge(
+      onHighTileMerged: () => pulseCount++,
+    );
+
+    bridge
+      ..onGameChanged(128)
+      ..onGameChanged(128)
+      ..onGameChanged(0)
+      ..onGameChanged(256);
+
+    expect(pulseCount, 2);
+  });
 }

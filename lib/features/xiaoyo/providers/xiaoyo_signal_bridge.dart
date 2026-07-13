@@ -125,3 +125,25 @@ class XiaoyoSignalBridge {
     _lastChapterIndex = null;
   }
 }
+
+/// 将 2048 的高分合并转换为一次性视觉脉冲，不进入成长 Profile。
+class XiaoyoGameSignalBridge {
+  final void Function() onHighTileMerged;
+  int _lastMergedValue = 0;
+
+  XiaoyoGameSignalBridge({required this.onHighTileMerged});
+
+  /// 同一合并值只触发一次，下一次无合并状态会重新武装触发器。
+  void onGameChanged(int mergedValue) {
+    if (mergedValue == 0) {
+      _lastMergedValue = 0;
+      return;
+    }
+    if (mergedValue >= 128 && mergedValue != _lastMergedValue) {
+      _lastMergedValue = mergedValue;
+      onHighTileMerged();
+      return;
+    }
+    _lastMergedValue = mergedValue;
+  }
+}

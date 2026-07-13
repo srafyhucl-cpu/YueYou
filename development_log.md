@@ -36,6 +36,14 @@
   - **验证**：Xiaoyo/陪伴定向测试 19 passed、0 failed；受影响范围 `flutter analyze`
     零问题；详设第 35 节已同步。
 
+- **功能(PROD-05-B-2 2048 高分视觉脉冲)**：
+  - 新增 `XiaoyoGameSignalBridge` 与非持久化 `xiaoyoVisualPulseProvider`，2048 合并值
+    达到 128 时向 Xiaoyo 角色发出一次 `highTileMerged` 视觉触发；重复值不重复触发，
+    游戏不反向依赖 Xiaoyo。
+  - 视觉脉冲不写入 bondXp、书境印记、荣誉或活动进度；关闭 Xiaoyo 开关时不挂载监听。
+  - **验证**：Xiaoyo/Companion 定向测试 20 passed、0 failed；受影响范围分析零问题；
+    详设第 36 节已同步，下一步进入 PROD-06 本地累计活动。
+
 - **功能(PROD-04 Xiaoyo 语义契约、Rive 适配与静态回退)**：
   - 新增纯 Dart `XiaoyoSemantics` 与统一 `XiaoyoStateMachine` 输入适配器，覆盖音频、
     场景、视线、成长、能量、减少动态效果和低频动作；相同快照去重，重大动作不排队。

@@ -17,6 +17,11 @@ class CompanionShellPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (FeatureFlags.xiaoyoV2 || FeatureFlags.xiaoyoValueSystem) {
+      ref.watch(xiaoyoSignalBridgeProvider);
+    }
+    final visualPulse =
+        FeatureFlags.xiaoyoV2 ? ref.watch(xiaoyoVisualPulseProvider) : 0;
     final profileState = FeatureFlags.xiaoyoValueSystem
         ? ref.watch(xiaoyoProfileProvider)
         : null;
@@ -48,6 +53,7 @@ class CompanionShellPage extends ConsumerWidget {
                   growthStage: growthStage,
                   reduceMotion: reduceMotion,
                 ),
+                visualPulse: visualPulse,
               ),
             ),
             const SizedBox(height: CyberDimensions.spacingM),
