@@ -88,7 +88,7 @@
 | 功能 | 文件 | 状态 |
 | :--- | :--- | :--- |
 | XIAOYO Rive 动画版 | `features/companion/presentation/` + `assets/rive/xiaoyo.riv` | 统一输入适配与静态回退已接入；原创 `.riv` 待 IP-0 定稿 |
-| Xiaoyo 本地价值系统 | `features/xiaoyo/` | 成长规则、Profile 备份与 Provider 已接入；信号桥和活动视图待后续切片 |
+| Xiaoyo 本地价值系统 | `features/xiaoyo/` | 成长规则、Profile 备份、Provider 与 TTS/Reader 信号桥已接入；活动视图待后续切片 |
 | 崩溃上报（Sentry/Crashlytics） | `core/utils/cyber_logger.dart` | 钩子已注册，上报实现预留至 V1.1 |
 | 热更新版本检查 | `DashboardScreen._checkAppUpdates()` | 存根已注册，V1.1 实现 |
 

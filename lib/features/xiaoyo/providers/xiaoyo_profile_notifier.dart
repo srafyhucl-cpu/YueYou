@@ -1,10 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yueyou/core/utils/cyber_logger.dart';
+import 'package:yueyou/core/config/feature_flags.dart';
+import 'package:yueyou/features/audio/domain/tts_audio_state.dart';
+import 'package:yueyou/features/audio/providers/tts_audio_notifier.dart';
+import 'package:yueyou/features/library/providers/bookshelf_provider.dart';
+import 'package:yueyou/features/reader/providers/reader_provider.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_event.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_growth_engine.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_profile.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_repository.dart';
 import 'package:yueyou/features/xiaoyo/services/xiaoyo_local_repository.dart';
+import 'package:yueyou/features/xiaoyo/providers/xiaoyo_signal_bridge.dart';
 
 /// Xiaoyo 本地 Repository Provider，测试可替换为内存实现。
 final xiaoyoRepositoryProvider = Provider<XiaoyoRepository>(
@@ -62,3 +68,55 @@ class XiaoyoProfileNotifier extends AsyncNotifier<XiaoyoProfile> {
     return true;
   }
 }
+
+/// 只在价值系统开关开启时挂载 Reader/TTS 到 Xiaoyo 的单向事件桥。
+final xiaoyoSignalBridgeProvider = Provider<XiaoyoSignalBridge>((ref) {
+  final bridge = XiaoyoSignalBridge(
+    dispatch: (event) async {
+      await ref.read(xiaoyoProfileProvider.future);
+      await ref.read(xiaoyoProfileProvider.notifier).applyEvent(event);
+    },
+  );
+  if (!FeatureFlags.xiaoyoValueSystem) return bridge;
+
+  ref.listen<TtsAudioState>(ttsAudioProvider, (previous, next) {
+    if (next case TtsAudioPlaying(:final item)) {
+      final reader = ref.read(readerProvider);
+      final bookId = reader.currentBookId;
+      if (bookId == null) return;
+      final book = ref
+          .read(bookshelfProvider)
+          .shelf
+          .where((candidate) => candidate.id.toString() == bookId)
+          .firstOrNull;
+      bridge.onPlaybackProgress(
+        bookId: bookId,
+        bookTitle: book?.displayTitle ?? bookId,
+        cursor: item.lineIndex,
+        progressPercent: reader.progress * 100.0,
+      );
+      bridge.onBookProgress(
+        bookId: bookId,
+        bookTitle: book?.displayTitle ?? bookId,
+        progress: reader.progress,
+      );
+    }
+  });
+
+  ref.listen<ReaderProvider>(readerProvider, (previous, next) {
+    final previousChapter = previous?.currentChapterIndex;
+    final currentChapter = next.currentChapterIndex;
+    final bookId = next.currentBookId;
+    if (bookId == null || previousChapter == null || currentChapter == null) {
+      return;
+    }
+    if (previousChapter == currentChapter) return;
+    bridge.onChapterCompleted(
+      bookId: bookId,
+      chapterKey: previousChapter.toString(),
+    );
+  });
+
+  ref.onDispose(bridge.resetBook);
+  return bridge;
+});
