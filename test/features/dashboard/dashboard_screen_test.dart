@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,12 +30,15 @@ void main() {
 
   TtsEngineService? activeEngine;
   ReaderProvider? activeReader;
+  Directory? testDirectory;
 
   setUp(() async {
-    await initializeTestEnvironment();
+    testDirectory = await initializeTestEnvironmentWithIsolatedTempDir(
+      'yueyou_dashboard_',
+    );
   });
 
-  tearDown(() {
+  tearDown(() async {
     // ProviderScope 拆除时已 dispose override 的 ChangeNotifier；这里 try/catch
     // 容错二次 dispose（debugAssertNotDisposed 抛 AssertionError）。
     try {
@@ -44,6 +49,11 @@ void main() {
     } catch (_) {}
     activeReader = null;
     activeEngine = null;
+    final directory = testDirectory;
+    testDirectory = null;
+    if (directory != null && await directory.exists()) {
+      await directory.delete(recursive: true);
+    }
   });
 
   Widget _wrap() {

@@ -28,6 +28,12 @@
   - APK SHA-256 为 `0D928AF9B5D107081517383BC9461F8D6493795487A24F39F089FA2B36EEFFD5`，与随包校验文件一致。
   - `v1.1.3` Tag 已创建并推送，指向 `c4327925ea103f1dd042ce462ccb54b298499469`；`v1.1.2` 保持不变。
 
+- **测试治理(隔离 Dashboard 文件副作用)**：
+  - 修复 Dashboard 测试将 path_provider 指向项目根目录的问题，改用独立临时目录并在每个用例结束后清理。
+  - Dashboard 相关测试 6/6 通过；测试后未再改写 `books/catalogs/xiyouji_catalog.json` 或生成 `books/31.json`。
+  - 复核发现 `test/widget_test.dart` 仍会触发同类项目根目录写入；尝试接入隔离 helper 会超时，已撤回该未验证改动，
+    全量测试污染问题保留为后续独立修复项。
+
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
     数据按空书签处理；删除阅读记录时同步删除书签。
