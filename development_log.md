@@ -34,6 +34,10 @@
   - `widget_test.dart` 注入关闭自动存档的 `GameProvider`，`bookshelf_provider_test.dart` 改用 D 盘独立临时目录；
     全量 Flutter 测试 `702 passed、4 skipped` 后工作树保持干净，副作用治理已关闭。
 
+- **持续集成(稳定期样本)**：
+  - 计划复核提交 `7a8c7b4` 的 push/PR CI Run `29218449260`、`29218450816` 均成功；连续两周稳定期尚未完成。
+  - 当前机器无 Android 真机或模拟器，仅有 Windows、Chrome、Edge；真实设备网络、退出和辅助功能验收继续待外部条件。
+
 - **功能(M3): 补齐听读主线的书签与纯阅读模式**：
   - 新增 `lib/core/database/reading_bookmark_storage.dart`，只持久化书籍 ID 与阅读行号，损坏
     数据按空书签处理；删除阅读记录时同步删除书签。
