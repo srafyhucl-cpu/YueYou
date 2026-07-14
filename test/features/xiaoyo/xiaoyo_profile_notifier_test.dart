@@ -52,4 +52,25 @@ void main() {
     expect(result?.applied, isTrue);
     expect(repository.profile.lastAppliedEventIds, contains('probe'));
   });
+
+  test('replaceProfile 写入导入快照并刷新 Provider 状态', () async {
+    final repository = _MemoryRepository();
+    final container = ProviderContainer(
+      overrides: [xiaoyoRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(xiaoyoProfileProvider.future);
+    final imported = repository.profile.copyWith(
+      bondXp: 128,
+      growthStage: 2,
+    );
+    final replaced = await container
+        .read(xiaoyoProfileProvider.notifier)
+        .replaceProfile(imported);
+
+    expect(replaced, isTrue);
+    expect(repository.profile.bondXp, 128);
+    expect(container.read(xiaoyoProfileProvider).value?.growthStage, 2);
+  });
 }

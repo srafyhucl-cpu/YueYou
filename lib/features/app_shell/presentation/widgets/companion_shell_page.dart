@@ -9,6 +9,7 @@ import 'package:yueyou/features/companion/presentation/widgets/xiaoyo_mascot.dar
 import 'package:yueyou/features/xiaoyo/providers/xiaoyo_profile_notifier.dart';
 import 'package:yueyou/features/xiaoyo/presentation/widgets/xiaoyo_bookscape_preview.dart';
 import 'package:yueyou/features/xiaoyo/presentation/widgets/xiaoyo_profile_summary.dart';
+import 'package:yueyou/features/xiaoyo/presentation/widgets/xiaoyo_profile_transfer_actions.dart';
 
 /// 陪伴页视觉入口，仅承载角色展示，不承载成长、权益或关系业务逻辑。
 class CompanionShellPage extends ConsumerWidget {
@@ -67,6 +68,8 @@ class CompanionShellPage extends ConsumerWidget {
             if (profile != null) ...[
               const SizedBox(height: CyberDimensions.spacingS),
               XiaoyoProfileSummary(profile: profile),
+              const SizedBox(height: CyberDimensions.spacingM),
+              XiaoyoProfileTransferActions(profile: profile),
             ],
             if (FeatureFlags.commercePreview) ...[
               const SizedBox(height: CyberDimensions.spacingL),

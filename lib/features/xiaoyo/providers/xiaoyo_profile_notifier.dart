@@ -11,6 +11,7 @@ import 'package:yueyou/features/xiaoyo/domain/xiaoyo_growth_engine.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_profile.dart';
 import 'package:yueyou/features/xiaoyo/domain/xiaoyo_repository.dart';
 import 'package:yueyou/features/xiaoyo/services/xiaoyo_local_repository.dart';
+import 'package:yueyou/features/xiaoyo/services/xiaoyo_profile_transfer_service.dart';
 import 'package:yueyou/features/xiaoyo/providers/xiaoyo_signal_bridge.dart';
 
 /// Xiaoyo 本地 Repository Provider，测试可替换为内存实现。
@@ -26,6 +27,12 @@ final xiaoyoProfileProvider =
 
 /// 2048 高分合并的瞬时视觉脉冲序号，不持久化、不影响成长。
 final xiaoyoVisualPulseProvider = StateProvider<int>((ref) => 0);
+
+/// Xiaoyo Profile 文件转移服务 Provider，测试可替换文件选择器。
+final xiaoyoProfileTransferServiceProvider =
+    Provider<XiaoyoProfileTransferService>(
+  (ref) => XiaoyoProfileTransferService(),
+);
 
 /// 领域事件的唯一编排入口，不把成长规则放进 UI 或 Rive 控制器。
 class XiaoyoProfileNotifier extends AsyncNotifier<XiaoyoProfile> {
@@ -70,6 +77,24 @@ class XiaoyoProfileNotifier extends AsyncNotifier<XiaoyoProfile> {
     await _repository.save(next);
     state = AsyncData(next);
     return true;
+  }
+
+  /// 使用用户确认过的本地 Profile 替换当前状态并持久化。
+  Future<bool> replaceProfile(XiaoyoProfile profile) async {
+    try {
+      final restored =
+          await _repository.importBundle(XiaoyoExportBundle(profile));
+      state = AsyncData(restored);
+      return true;
+    } catch (error, stackTrace) {
+      CyberLogger.captureWarning(
+        error,
+        stack: stackTrace,
+        tag: 'dashboard',
+        extra: {'context': 'Xiaoyo Profile 恢复落盘失败'},
+      );
+      return false;
+    }
   }
 }
 

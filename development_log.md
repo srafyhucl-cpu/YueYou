@@ -38,6 +38,14 @@
   - **验证**：商业证据计算器定向测试 `9 passed / 0 failed`；Dart 分析无问题；当前没有
     真实台账，因此不宣称任何商业指标成立。
 
+- **功能(PROD-05-C Xiaoyo 本地成长数据导出与恢复)**：
+  - 新增 `XiaoyoProfileTransferService`，复用 Profile checksum/schema，支持本地 JSON
+    导出、取消、损坏拒绝和导入；文件上限 1 MiB，不含正文、路径或远程数据。
+  - 陪伴页在价值系统开启后展示“导出成长数据/恢复成长数据”两个操作；恢复先确认再调用
+    `XiaoyoProfileNotifier.replaceProfile`，失败不覆盖当前 Profile，并保留仓储备份。
+  - **验证**：Xiaoyo/陪伴定向测试 `28 passed / 0 failed`；真机文件选择器和换机权限闭环
+    尚未验证，默认价值系统开关保持关闭。
+
 ## **2026-07-13**
 
 - **功能(PROD-05-A 本地成长 Profile 与幂等规则)**：
