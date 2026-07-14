@@ -46,6 +46,13 @@
   - **验证**：Xiaoyo/陪伴定向测试 `28 passed / 0 failed`；真机文件选择器和换机权限闭环
     尚未验证，默认价值系统开关保持关闭。
 
+- **测试(PROD-00-P 手机 HTML 原型结构合同)**：
+  - 新增基于 Python 标准库 `HTMLParser` 的 `check_product_prototype.py` 和 2 项单测，
+    检查 390 x 844 视口、六场景、三导航、陪伴/书境分段、关键交互节点、本地图片和远程
+    资源边界。
+  - **验证**：Python 单测 `2 passed / 0 failed`；原型检查 `ok=true`、错误数 0；当前
+    没有 Playwright CLI 或 Android 设备，不宣称浏览器/真机验收通过。
+
 ## **2026-07-13**
 
 - **功能(PROD-05-A 本地成长 Profile 与幂等规则)**：
