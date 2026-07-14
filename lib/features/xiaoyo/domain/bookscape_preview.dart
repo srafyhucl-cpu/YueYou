@@ -49,4 +49,10 @@ abstract final class XiaoyoBookscapePreviews {
   );
 
   static const all = <XiaoyoBookscapeDefinition>[free, paidPreview];
+
+  static XiaoyoBookscapeDefinition forTier(XiaoyoBookscapeTier tier) =>
+      switch (tier) {
+        XiaoyoBookscapeTier.free => free,
+        XiaoyoBookscapeTier.paidPreview => paidPreview,
+      };
 }

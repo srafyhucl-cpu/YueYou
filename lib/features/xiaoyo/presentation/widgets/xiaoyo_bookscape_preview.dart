@@ -5,11 +5,19 @@ import 'package:yueyou/core/theme/cyber_text_styles.dart';
 import 'package:yueyou/features/xiaoyo/domain/bookscape_preview.dart';
 
 /// 只读展示免费与主题书境的视觉差异，不承载购买或权益逻辑。
-class XiaoyoBookscapePreview extends StatelessWidget {
+class XiaoyoBookscapePreview extends StatefulWidget {
   const XiaoyoBookscapePreview({super.key});
 
   @override
+  State<XiaoyoBookscapePreview> createState() => _XiaoyoBookscapePreviewState();
+}
+
+class _XiaoyoBookscapePreviewState extends State<XiaoyoBookscapePreview> {
+  XiaoyoBookscapeTier _selectedTier = XiaoyoBookscapeTier.free;
+
+  @override
   Widget build(BuildContext context) {
+    final selected = XiaoyoBookscapePreviews.forTier(_selectedTier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -20,7 +28,27 @@ class XiaoyoBookscapePreview extends StatelessWidget {
           style: CyberTextStyles.bodySmall,
         ),
         const SizedBox(height: CyberDimensions.spacingS),
-        ...XiaoyoBookscapePreviews.all.map(_BookscapeTile.new),
+        SegmentedButton<XiaoyoBookscapeTier>(
+          segments: const <ButtonSegment<XiaoyoBookscapeTier>>[
+            ButtonSegment<XiaoyoBookscapeTier>(
+              value: XiaoyoBookscapeTier.free,
+              label: Text('基础书境'),
+              icon: Icon(Icons.menu_book_outlined),
+            ),
+            ButtonSegment<XiaoyoBookscapeTier>(
+              value: XiaoyoBookscapeTier.paidPreview,
+              label: Text('主题预览'),
+              icon: Icon(Icons.auto_awesome_outlined),
+            ),
+          ],
+          selected: <XiaoyoBookscapeTier>{_selectedTier},
+          onSelectionChanged: (selection) {
+            if (selection.isEmpty) return;
+            setState(() => _selectedTier = selection.first);
+          },
+        ),
+        const SizedBox(height: CyberDimensions.spacingS),
+        _BookscapeTile(selected),
       ],
     );
   }

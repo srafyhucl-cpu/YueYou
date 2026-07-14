@@ -26,9 +26,13 @@ void main() {
     );
 
     expect(find.text('书境效果对比'), findsOneWidget);
-    expect(find.text('基础书境'), findsOneWidget);
-    expect(find.text('主题书境预览'), findsOneWidget);
+    expect(find.text('基础书境'), findsNWidgets(2));
+    expect(find.text('主题预览'), findsOneWidget);
     expect(find.text('纸页台座'), findsOneWidget);
+    expect(find.text('岭南雨驿'), findsNothing);
+    expect(find.text('免费可用'), findsOneWidget);
+    await tester.tap(find.text('主题预览'));
+    await tester.pumpAndSettle();
     expect(find.text('岭南雨驿'), findsOneWidget);
     expect(find.text('仅预览'), findsOneWidget);
     expect(find.byType(ElevatedButton), findsNothing);

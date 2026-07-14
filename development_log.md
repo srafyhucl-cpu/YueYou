@@ -78,7 +78,7 @@
 
 - **功能(PROD-07-A 免费与主题书境只读对比预览)**：
   - 新增静态 `XiaoyoBookscapePreviews` 目录和 `XiaoyoBookscapePreview` 展示组件，
-    在 `COMMERCE_PREVIEW_ENABLED=true` 时展示基础书境与主题书境的视觉差异。
+    在 `COMMERCE_PREVIEW_ENABLED=true` 时通过分段控件展示基础书境与主题书境的视觉差异。
   - 主题书境明确标记“仅预览/尚未开放购买”；不显示价格、不提供购买控件，不创建订单、
     权益、账号、网络或支付逻辑，默认开关保持关闭。
   - **验证**：书境预览和 App Shell 定向测试 5 passed、0 failed；`flutter analyze` 无问题；
