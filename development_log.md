@@ -2,6 +2,14 @@
 
 ## **2026-07-14**
 
+- **测试(PROD-00-P-1 原型脚本交互与网络边界门)**：
+  - 扩展 `scripts/check_product_prototype.py`，静态检查 21 个直接按钮事件、7 个委托事件，
+    并阻断 `fetch`、XHR、WebSocket、Beacon 和 Payment Request API；支付模拟声明缺失改为错误。
+  - 新增缺失事件绑定和网络 API 注入回归测试；不修改 HTML 原型、Flutter 运行时代码或真实支付。
+  - **验证**：Python 单测 `4 passed / 0 failed`；原型检查 `ok=true`、`errors=[]`、`warnings=[]`；
+    `flutter analyze`、全量 Flutter 测试（753 passed / 4 skipped / 0 failed）、Go vet/build、
+    Markdown linter 和 `git diff --check` 通过；浏览器点击、像素、真机和支付证据仍未覆盖。
+
 - **治理(IP-0 Xiaoyo 资产治理门)**：
   - 新增机器可读 `20260714_xiaoyo_v2_ip0_manifest.json` 和资产治理说明，固定原创
     四视图、表情表、材质表、动作边界、原创近似检查、授权链六类证据。

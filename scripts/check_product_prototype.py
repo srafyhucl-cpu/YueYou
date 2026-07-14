@@ -24,6 +24,45 @@ REQUIRED_IDS = {
     "view-honor",
     "choose-next-book",
 }
+REQUIRED_DELEGATED_BINDINGS = (
+    'all(".nav-button")',
+    'all(".scenario-button")',
+    'all("[data-companion]")',
+    'all("[data-realm]")',
+    'all("[data-close]")',
+    'all(".book-item")',
+    'all(".overlay")',
+)
+REQUIRED_DIRECT_BINDINGS = (
+    'byId("main-play").addEventListener(',
+    'byId("mini-play").addEventListener(',
+    'byId("reader-toggle").addEventListener(',
+    'byId("open-reader").addEventListener(',
+    'byId("open-compare").addEventListener(',
+    'byId("preview-realm").addEventListener(',
+    'byId("show-chapters").addEventListener(',
+    'byId("cycle-speed").addEventListener(',
+    'byId("reader-speed").addEventListener(',
+    'byId("previous-line").addEventListener(',
+    'byId("next-line").addEventListener(',
+    'byId("play-sample").addEventListener(',
+    'byId("empty-import").addEventListener(',
+    'byId("import-book").addEventListener(',
+    'byId("retry-cloud").addEventListener(',
+    'byId("use-local").addEventListener(',
+    'byId("prototype-purchase").addEventListener(',
+    'byId("view-honor").addEventListener(',
+    'byId("choose-next-book").addEventListener(',
+    'byId("book-search").addEventListener(',
+    'byId("sort-books").addEventListener(',
+)
+FORBIDDEN_SCRIPT_APIS = (
+    "fetch(",
+    "XMLHttpRequest",
+    "WebSocket(",
+    "navigator.sendBeacon",
+    "PaymentRequest(",
+)
 FORBIDDEN_REMOTE_PREFIXES = ("http://", "https://", "//")
 
 
@@ -135,19 +174,15 @@ def inspect_prototype(source: str, source_path: Path) -> dict[str, Any]:
             errors.append(f"本地图片不存在：{image_path}")
 
     script = "\n".join(parser.scripts)
-    required_bindings = (
-        'all(".nav-button")',
-        'all(".scenario-button")',
-        'all("[data-companion]")',
-        'all("[data-realm]")',
-        'byId("prototype-purchase")',
-    )
-    for binding in required_bindings:
+    for binding in (*REQUIRED_DELEGATED_BINDINGS, *REQUIRED_DIRECT_BINDINGS):
         if binding not in script:
             errors.append(f"缺少交互绑定：{binding}")
 
+    forbidden_apis = [api for api in FORBIDDEN_SCRIPT_APIS if api in script]
+    if forbidden_apis:
+        errors.append(f"原型脚本不得调用网络或支付 API：{', '.join(forbidden_apis)}")
     if "支付均为模拟反馈" not in source or "原型不会发起支付" not in source:
-        warnings.append("原型应明确支付仅为模拟反馈")
+        errors.append("原型必须明确支付仅为模拟反馈且不会发起支付")
 
     return {
         "ok": not errors,

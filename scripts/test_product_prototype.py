@@ -33,6 +33,26 @@ class ProductPrototypeContractTest(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertTrue(any("缺少场景" in error for error in report["errors"]))
 
+    def test_missing_direct_binding_is_rejected(self) -> None:
+        source = PROTOTYPE.read_text(encoding="utf-8").replace(
+            'byId("use-local").addEventListener(',
+            'byId("removed-use-local").addEventListener(',
+            1,
+        )
+        report = inspect_prototype(source, PROTOTYPE)
+        self.assertFalse(report["ok"])
+        self.assertTrue(any("use-local" in error for error in report["errors"]))
+
+    def test_network_api_is_rejected(self) -> None:
+        source = PROTOTYPE.read_text(encoding="utf-8").replace(
+            '"use strict";',
+            '"use strict"; fetch("https://example.invalid");',
+            1,
+        )
+        report = inspect_prototype(source, PROTOTYPE)
+        self.assertFalse(report["ok"])
+        self.assertTrue(any("网络或支付 API" in error for error in report["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main()
