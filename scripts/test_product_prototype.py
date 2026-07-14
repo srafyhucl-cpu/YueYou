@@ -53,6 +53,17 @@ class ProductPrototypeContractTest(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertTrue(any("网络或支付 API" in error for error in report["errors"]))
 
+    def test_missing_screenshot_is_rejected(self) -> None:
+        report = inspect_prototype(
+            PROTOTYPE.read_text(encoding="utf-8"),
+            PROTOTYPE,
+            screenshot_expectations={
+                "手机": ("screenshots/missing.png", (390, 844)),
+            },
+        )
+        self.assertFalse(report["ok"])
+        self.assertTrue(any("手机截图不可读" in error for error in report["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main()

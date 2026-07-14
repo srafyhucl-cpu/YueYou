@@ -63,6 +63,10 @@ FORBIDDEN_SCRIPT_APIS = (
     "navigator.sendBeacon",
     "PaymentRequest(",
 )
+DEFAULT_SCREENSHOT_EXPECTATIONS = {
+    "桌面": ("screenshots/20260713_阅游产品原型_桌面.png", (1440, 1000)),
+    "手机": ("screenshots/20260713_阅游产品原型_手机.png", (390, 844)),
+}
 FORBIDDEN_REMOTE_PREFIXES = ("http://", "https://", "//")
 
 
@@ -94,7 +98,11 @@ class _PrototypeParser(HTMLParser):
             self._script_buffer.append(data)
 
 
-def inspect_prototype(source: str, source_path: Path) -> dict[str, Any]:
+def inspect_prototype(
+    source: str,
+    source_path: Path,
+    screenshot_expectations: dict[str, tuple[str, tuple[int, int]]] | None = None,
+) -> dict[str, Any]:
     """检查原型结构并返回可序列化报告。"""
 
     parser = _PrototypeParser()
@@ -172,6 +180,27 @@ def inspect_prototype(source: str, source_path: Path) -> dict[str, Any]:
     for image_path in local_images:
         if not (source_path.parent / image_path).is_file():
             errors.append(f"本地图片不存在：{image_path}")
+
+    for label, (relative_path, expected_size) in (
+        screenshot_expectations or DEFAULT_SCREENSHOT_EXPECTATIONS
+    ).items():
+        screenshot_path = source_path.parent / relative_path
+        try:
+            with screenshot_path.open("rb") as screenshot:
+                header = screenshot.read(24)
+            if header[:8] != b"\x89PNG\r\n\x1a\n" or len(header) < 24:
+                raise ValueError("不是有效 PNG 文件")
+            actual_size = (
+                int.from_bytes(header[16:20], byteorder="big"),
+                int.from_bytes(header[20:24], byteorder="big"),
+            )
+            if actual_size != expected_size:
+                errors.append(
+                    f"{label}截图尺寸必须为 {expected_size[0]}x{expected_size[1]}，"
+                    f"实际为 {actual_size[0]}x{actual_size[1]}"
+                )
+        except (OSError, ValueError) as error:
+            errors.append(f"{label}截图不可读：{relative_path}（{error}）")
 
     script = "\n".join(parser.scripts)
     for binding in (*REQUIRED_DELEGATED_BINDINGS, *REQUIRED_DIRECT_BINDINGS):
