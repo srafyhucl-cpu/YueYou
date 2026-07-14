@@ -34,11 +34,6 @@ class _XiaoyoProfileTransferActionsState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         const Text('数据恢复', style: CyberTextStyles.sectionLabel),
-        const SizedBox(height: CyberDimensions.spacingXS),
-        const Text(
-          '只在本机导出成长、印记和荣誉，不包含正文。',
-          style: CyberTextStyles.captionBold,
-        ),
         const SizedBox(height: CyberDimensions.spacingS),
         Row(
           children: <Widget>[
