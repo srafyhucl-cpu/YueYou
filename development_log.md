@@ -1,5 +1,17 @@
 # 阅游 (YueYou) - 开发日志
 
+## **2026-07-14**
+
+- **治理(IP-0 Xiaoyo 资产治理门)**：
+  - 新增机器可读 `20260714_xiaoyo_v2_ip0_manifest.json` 和资产治理说明，固定原创
+    四视图、表情表、材质表、动作边界、原创近似检查、授权链六类证据。
+  - 新增 `scripts/check_xiaoyo_ip0.dart` 及纯 Dart 测试；默认只检查清单一致性，
+    `--require-accepted` 才阻断未完成的原创 Rive/商业资产接入。
+  - 候选图和社区 `assets/rive/xiaoyo.riv` 均标记为不可商业使用；未修改社区资源、
+    现有版权材料、`server_py/` 或支付/权益/GLB/Unity 代码。
+  - **验证**：IP-0 定向测试、Dart 分析、清单校验和 `git diff --check` 通过；六类
+    外部证据尚未提供，因此不宣称商业 IP 验收通过。
+
 ## **2026-07-13**
 
 - **功能(PROD-05-A 本地成长 Profile 与幂等规则)**：

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "assetId": "xiaoyo_v2",
+  "stage": "IP-0",
+  "status": "candidate",
+  "commercialUseApproved": false,
+  "candidateReference": "docs/product/assets/20260713_xiaoyo_v2_concept_candidate.png",
+  "requiredEvidence": {
+    "fourViews": {
+      "complete": false,
+      "path": null
+    },
+    "expressionTable": {
+      "complete": false,
+      "path": null
+    },
+    "materialTable": {
+      "complete": false,
+      "path": null
+    },
+    "motionBoundary": {
+      "complete": false,
+      "path": null
+    },
+    "similaritySearch": {
+      "complete": false,
+      "path": null
+    },
+    "authorizationChain": {
+      "complete": false,
+      "path": null
+    }
+  },
+  "assets": [
+    {
+      "path": "docs/product/assets/20260713_xiaoyo_v2_concept_candidate.png",
+      "role": "directionReference",
+      "sourceVerified": false,
+      "commercialUseAllowed": false
+    },
+    {
+      "path": "assets/rive/xiaoyo.riv",
+      "role": "communityCompatibilityReference",
+      "sourceVerified": true,
+      "commercialUseAllowed": false
+    }
+  ],
+  "nextGate": "完成六类 IP-0 证据并由负责人签署后，才允许生成原创 xiaoyo_v2_base.riv"
+}
